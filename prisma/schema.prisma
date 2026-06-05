@@ -56,23 +56,18 @@ model Supplier {
 }
 
 model Ingredient {
-  id             Int                   @id @default(autoincrement())
-  code           String                @unique
-  name           String
-  alias          String?
-  l2Code         String                @map("l2_code")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unit String @map("计量单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // priceUnit String @map("计价单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // purchaseSpec String? @map("采购规格")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // season String @default("四季") @map("季节限定")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // storage String @map("储存方式")
-  inventory      Inventory?
-  ledger         InventoryLedger[]
+  id           Int                   @id @default(autoincrement())
+  code         String                @unique
+  name         String
+  alias        String?
+  l2Code       String                @map("l2_code")
+  unit         String                @map("unit")
+  priceUnit    String                @map("price_unit")
+  purchaseSpec String?               @map("purchase_spec")
+  season       String                @default("四季") @map("season")
+  storage      String                @map("storage")
+  inventory    Inventory?
+  ledger       InventoryLedger[]
   netIngredients NetIngredient[]
   purchasePlans  PurchasePlan[]
   receiptItems   PurchaseReceiptItem[]
@@ -87,14 +82,10 @@ model NetIngredient {
   sourceIngredientId Int             @map("source_ingredient_id")
   spec               String?
   yieldRate          Decimal         @map("yield_rate") @db.Decimal(5, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unitPrice Decimal @map("净料单价") @db.Decimal(10, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unit String @default("500g") @map("净料单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // l2Code String @map("所属二级分类")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // storage String @map("储存方式")
+  unitPrice          Decimal         @map("unit_price") @db.Decimal(10, 2)
+  unit               String          @default("500g") @map("unit")
+  l2Code             String          @map("l2_code")
+  storage            String          @map("storage")
   cuttingOrders      CuttingOrder[]
   dishNetDetails     DishNetDetail[]
   sourceIngredient   Ingredient      @relation(fields: [sourceIngredientId], references: [id])
@@ -103,41 +94,30 @@ model NetIngredient {
 }
 
 model MinorIngredient {
-  id   Int    @id @default(autoincrement())
-  code String @unique
-  name String
+  id        Int     @id @default(autoincrement())
+  code      String  @unique
+  name      String
+  spec      String? @map("spec")
+  unitPrice Decimal @map("unit_price") @db.Decimal(10, 2)
+  unit      String  @default("10g") @map("unit")
+  origin    String? @map("origin")
+  storage   String  @map("storage")
 
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // spec String? @map("规格形态描述")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unitPrice Decimal @map("小料单价") @db.Decimal(10, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unit String @default("10g") @map("计量单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // origin String? @map("产地/品牌")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // storage String @map("储存方式")
   @@map("minor_ingredients")
 }
 
 model SeasoningIngredient {
-  id    Int    @id @default(autoincrement())
-  code  String @unique
-  name  String
-  brand String
+  id            Int     @id @default(autoincrement())
+  code          String  @unique
+  name          String
+  brand         String
+  productSpec   String? @map("product_spec")
+  productUnit   String? @map("product_unit")
+  retailPrice   Decimal? @map("retail_price") @db.Decimal(10, 2)
+  purchasePrice Decimal @map("purchase_price") @db.Decimal(10, 2)
+  purchaseUnit  String  @map("purchase_unit")
+  storage       String  @map("storage")
 
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // productSpec String? @map("产品规格")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // productUnit String? @map("产品单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // retailPrice Decimal? @map("零售参照价") @db.Decimal(10, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // purchasePrice Decimal @map("采购单价") @db.Decimal(10, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // purchaseUnit String @map("采购单位")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // storage String @map("储存方式")
   @@map("seasoning_ingredients")
 }
 
@@ -147,12 +127,9 @@ model SauceIngredient {
   name             String
   brand            String
   recipe           String?
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // storage String @map("存储方式")
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unitPrice Decimal @map("单价") @db.Decimal(10, 2)
-  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
-  // unit String @map("计量单位")
+  storage          String            @map("storage")
+  unitPrice        Decimal           @map("unit_price") @db.Decimal(10, 2)
+  unit             String            @map("unit")
   dishSauceDetails DishSauceDetail[]
 
   @@map("sauce_ingredients")
