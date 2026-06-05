@@ -9,10 +9,17 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
+function generateNetCode(lastCode: string | undefined) {
+  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
+  return `PRD-${String(num).padStart(4, "0")}`;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { code, name, sourceIngredientId, spec, yieldRate, unitPrice, unit, l2Code, storage } = body;
+  const { name, sourceIngredientId, spec, yieldRate, unitPrice, unit, l2Code, storage } = body;
   try {
+    const last = await prisma.netIngredient.findFirst({ orderBy: { id: "desc" } });
+    const code = generateNetCode(last?.code);
     const row = await prisma.netIngredient.create({
       data: {
         code,

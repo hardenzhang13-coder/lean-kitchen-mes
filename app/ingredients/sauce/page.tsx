@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { FormField, FormSection } from "@/app/components/form-field";
 import { toast } from "sonner";
 
 type Sauce = {
@@ -44,15 +44,14 @@ export default function SauceIngredientsPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Sauce | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", brand: "", recipe: "", storage: "常温", unitPrice: "", unit: "" });
+  const [form, setForm] = useState({ name: "", brand: "", recipe: "", storage: "常温", unitPrice: "", unit: "" });
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/sauce-ingredients");
-      const json = await res.json();
-      setData(json);
+      setData(await res.json());
     } catch (e) {
       toast.error("获取数据失败");
     } finally {
@@ -60,9 +59,7 @@ export default function SauceIngredientsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = useMemo(() => {
     return data.filter((d) => d.name.includes(search) || d.code.toLowerCase().includes(search.toLowerCase()) || d.brand.includes(search));
@@ -70,23 +67,23 @@ export default function SauceIngredientsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: "", name: "", brand: "", recipe: "", storage: "常温", unitPrice: "", unit: "" });
+    setForm({ name: "", brand: "", recipe: "", storage: "常温", unitPrice: "", unit: "" });
     setDialogOpen(true);
   };
 
   const openEdit = (row: Sauce) => {
     setEditing(row);
-    setForm({ code: row.code, name: row.name, brand: row.brand, recipe: row.recipe || "", storage: row.storage, unitPrice: String(row.unitPrice), unit: row.unit });
+    setForm({ name: row.name, brand: row.brand, recipe: row.recipe || "", storage: row.storage, unitPrice: String(row.unitPrice), unit: row.unit });
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.code.trim() || !form.name.trim() || !form.brand.trim() || !form.storage.trim() || !form.unit.trim()) {
+    if (!form.name.trim() || !form.brand.trim() || !form.storage.trim() || !form.unit.trim()) {
       toast.error("请填写所有必填项");
       return;
     }
     try {
-      const payload = { code: form.code, name: form.name, brand: form.brand, recipe: form.recipe || null, storage: form.storage, unitPrice: Number(form.unitPrice) || 0, unit: form.unit };
+      const payload = { name: form.name, brand: form.brand, recipe: form.recipe || null, storage: form.storage, unitPrice: Number(form.unitPrice) || 0, unit: form.unit };
       if (editing) {
         await fetch(`/api/sauce-ingredients/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         toast.success("更新成功");
@@ -111,6 +108,8 @@ export default function SauceIngredientsPage() {
       toast.error("删除失败");
     }
   };
+
+  const selectClass = "flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_4px_rgba(0,122,255,0.06)] focus:outline-none";
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -168,19 +167,24 @@ export default function SauceIngredientsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
           <DialogHeader><DialogTitle className="text-lg">{editing ? "编辑酱料" : "新增酱料"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-5 py-5">
-            <div className="grid gap-2.5"><Label htmlFor="code" className="text-base">编号</Label><Input id="code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="如 SAU-0001" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="name" className="text-base">名称</Label><Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 豆瓣酱" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5 col-span-2"><Label htmlFor="brand" className="text-base">品牌</Label><Input id="brand" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="如 郫县豆瓣酱" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5 col-span-2"><Label htmlFor="recipe" className="text-base">配方说明</Label><Input id="recipe" value={form.recipe} onChange={(e) => setForm({ ...form, recipe: e.target.value })} placeholder="如 蚕豆、辣椒、盐、小麦粉" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="unitPrice" className="text-base">单价</Label><Input id="unitPrice" type="number" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="如 15.00" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="unit" className="text-base">计量单位</Label><Input id="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="如 斤" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5 col-span-2">
-              <Label htmlFor="storage" className="text-base">储存方式</Label>
-              <select id="storage" value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none">
-                {storages.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div className="space-y-5 py-2">
+            <FormSection title="基础信息">
+              <FormField label="编号"><Input value={editing?.code || "系统自动生成"} disabled className="h-11 text-base px-4 bg-muted" /></FormField>
+              <FormField label="名称" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 豆瓣酱" className="h-11 text-base px-4" /></FormField>
+              <FormField label="品牌" required><Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="如 郫县豆瓣酱" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="配方与价格">
+              <FormField label="配方说明"><Input value={form.recipe} onChange={(e) => setForm({ ...form, recipe: e.target.value })} placeholder="如 蚕豆、辣椒、盐、小麦粉" className="h-11 text-base px-4" /></FormField>
+              <FormField label="单价" required><Input type="number" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="如 15.00" className="h-11 text-base px-4" /></FormField>
+              <FormField label="计量单位" required><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="如 斤" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="储存信息">
+              <FormField label="储存方式" required>
+                <select value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className={selectClass}>
+                  {storages.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </FormField>
+            </FormSection>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">取消</Button>

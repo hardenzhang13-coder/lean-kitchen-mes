@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { FormField, FormSection } from "@/app/components/form-field";
 import { toast } from "sonner";
 
 type Seasoning = {
@@ -46,15 +46,14 @@ export default function SeasoningIngredientsPage() {
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Seasoning | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", brand: "", productSpec: "", productUnit: "", retailPrice: "", purchasePrice: "", purchaseUnit: "", storage: "常温" });
+  const [form, setForm] = useState({ name: "", brand: "", productSpec: "", productUnit: "", retailPrice: "", purchasePrice: "", purchaseUnit: "", storage: "常温" });
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const res = await fetch("/api/seasoning-ingredients");
-      const json = await res.json();
-      setData(json);
+      setData(await res.json());
     } catch (e) {
       toast.error("获取数据失败");
     } finally {
@@ -62,9 +61,7 @@ export default function SeasoningIngredientsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = useMemo(() => {
     return data.filter((d) => d.name.includes(search) || d.code.toLowerCase().includes(search.toLowerCase()) || d.brand.includes(search));
@@ -72,23 +69,23 @@ export default function SeasoningIngredientsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: "", name: "", brand: "", productSpec: "", productUnit: "", retailPrice: "", purchasePrice: "", purchaseUnit: "", storage: "常温" });
+    setForm({ name: "", brand: "", productSpec: "", productUnit: "", retailPrice: "", purchasePrice: "", purchaseUnit: "", storage: "常温" });
     setDialogOpen(true);
   };
 
   const openEdit = (row: Seasoning) => {
     setEditing(row);
-    setForm({ code: row.code, name: row.name, brand: row.brand, productSpec: row.productSpec || "", productUnit: row.productUnit || "", retailPrice: row.retailPrice ? String(row.retailPrice) : "", purchasePrice: String(row.purchasePrice), purchaseUnit: row.purchaseUnit, storage: row.storage });
+    setForm({ name: row.name, brand: row.brand, productSpec: row.productSpec || "", productUnit: row.productUnit || "", retailPrice: row.retailPrice ? String(row.retailPrice) : "", purchasePrice: String(row.purchasePrice), purchaseUnit: row.purchaseUnit, storage: row.storage });
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.code.trim() || !form.name.trim() || !form.brand.trim() || !form.purchaseUnit.trim() || !form.storage.trim()) {
+    if (!form.name.trim() || !form.brand.trim() || !form.purchaseUnit.trim() || !form.storage.trim()) {
       toast.error("请填写所有必填项");
       return;
     }
     try {
-      const payload = { code: form.code, name: form.name, brand: form.brand, productSpec: form.productSpec || null, productUnit: form.productUnit || null, retailPrice: form.retailPrice ? Number(form.retailPrice) : null, purchasePrice: Number(form.purchasePrice) || 0, purchaseUnit: form.purchaseUnit, storage: form.storage };
+      const payload = { name: form.name, brand: form.brand, productSpec: form.productSpec || null, productUnit: form.productUnit || null, retailPrice: form.retailPrice ? Number(form.retailPrice) : null, purchasePrice: Number(form.purchasePrice) || 0, purchaseUnit: form.purchaseUnit, storage: form.storage };
       if (editing) {
         await fetch(`/api/seasoning-ingredients/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         toast.success("更新成功");
@@ -113,6 +110,8 @@ export default function SeasoningIngredientsPage() {
       toast.error("删除失败");
     }
   };
+
+  const selectClass = "flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_4px_rgba(0,122,255,0.06)] focus:outline-none";
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -172,21 +171,28 @@ export default function SeasoningIngredientsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto [&>button]:cursor-pointer">
           <DialogHeader><DialogTitle className="text-lg">{editing ? "编辑调料" : "新增调料"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-5 py-5">
-            <div className="grid gap-2.5"><Label htmlFor="code" className="text-base">编号</Label><Input id="code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="如 SEA-0001" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="name" className="text-base">品类名称</Label><Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 生抽" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5 col-span-2"><Label htmlFor="brand" className="text-base">品牌完整商品名</Label><Input id="brand" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="如 海天金标生抽" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="productSpec" className="text-base">产品规格</Label><Input id="productSpec" value={form.productSpec} onChange={(e) => setForm({ ...form, productSpec: e.target.value })} placeholder="如 1.9L*6" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="productUnit" className="text-base">产品单位</Label><Input id="productUnit" value={form.productUnit} onChange={(e) => setForm({ ...form, productUnit: e.target.value })} placeholder="如 瓶装" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="retailPrice" className="text-base">零售参照价</Label><Input id="retailPrice" type="number" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} placeholder="可选" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="purchasePrice" className="text-base">采购单价</Label><Input id="purchasePrice" type="number" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} placeholder="如 100.00" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5"><Label htmlFor="purchaseUnit" className="text-base">采购单位</Label><Input id="purchaseUnit" value={form.purchaseUnit} onChange={(e) => setForm({ ...form, purchaseUnit: e.target.value })} placeholder="如 件" className="h-11 text-base px-4" /></div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="storage" className="text-base">储存方式</Label>
-              <select id="storage" value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none">
-                {storages.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div className="space-y-5 py-2">
+            <FormSection title="基础信息">
+              <FormField label="编号"><Input value={editing?.code || "系统自动生成"} disabled className="h-11 text-base px-4 bg-muted" /></FormField>
+              <FormField label="品类名称" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 生抽" className="h-11 text-base px-4" /></FormField>
+              <FormField label="品牌完整商品名" required><Input value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} placeholder="如 海天金标生抽" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="产品规格">
+              <FormField label="产品规格"><Input value={form.productSpec} onChange={(e) => setForm({ ...form, productSpec: e.target.value })} placeholder="如 1.9L*6" className="h-11 text-base px-4" /></FormField>
+              <FormField label="产品单位"><Input value={form.productUnit} onChange={(e) => setForm({ ...form, productUnit: e.target.value })} placeholder="如 瓶装" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="价格信息">
+              <FormField label="零售参照价"><Input type="number" value={form.retailPrice} onChange={(e) => setForm({ ...form, retailPrice: e.target.value })} placeholder="可选" className="h-11 text-base px-4" /></FormField>
+              <FormField label="采购单价" required><Input type="number" value={form.purchasePrice} onChange={(e) => setForm({ ...form, purchasePrice: e.target.value })} placeholder="如 100.00" className="h-11 text-base px-4" /></FormField>
+              <FormField label="采购单位" required><Input value={form.purchaseUnit} onChange={(e) => setForm({ ...form, purchaseUnit: e.target.value })} placeholder="如 件" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="储存信息">
+              <FormField label="储存方式" required>
+                <select value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className={selectClass}>
+                  {storages.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </FormField>
+            </FormSection>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">取消</Button>

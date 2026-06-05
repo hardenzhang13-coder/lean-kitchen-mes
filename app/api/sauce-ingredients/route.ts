@@ -6,10 +6,17 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
+function generateSauceCode(lastCode: string | undefined) {
+  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
+  return `SAU-${String(num).padStart(4, "0")}`;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { code, name, brand, recipe, storage, unitPrice, unit } = body;
+  const { name, brand, recipe, storage, unitPrice, unit } = body;
   try {
+    const last = await prisma.sauceIngredient.findFirst({ orderBy: { id: "desc" } });
+    const code = generateSauceCode(last?.code);
     const row = await prisma.sauceIngredient.create({
       data: {
         code,

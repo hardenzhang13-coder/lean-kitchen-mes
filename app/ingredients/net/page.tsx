@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { FormField, FormSection } from "@/app/components/form-field";
 import { toast } from "sonner";
 
 type NetIngredient = {
@@ -51,21 +51,16 @@ export default function NetIngredientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<NetIngredient | null>(null);
   const [form, setForm] = useState({
-    code: "", name: "", sourceIngredientId: "", spec: "", yieldRate: "", unitPrice: "", unit: "500g", l2Code: "", storage: "冷藏",
+    name: "", sourceIngredientId: "", spec: "", yieldRate: "", unitPrice: "", unit: "500g", l2Code: "", storage: "冷藏",
   });
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [netRes, rawRes] = await Promise.all([
-        fetch("/api/net-ingredients"),
-        fetch("/api/ingredients"),
-      ]);
-      const netJson = await netRes.json();
-      const rawJson = await rawRes.json();
-      setData(netJson);
-      setRawIngredients(rawJson);
+      const [netRes, rawRes] = await Promise.all([fetch("/api/net-ingredients"), fetch("/api/ingredients")]);
+      setData(await netRes.json());
+      setRawIngredients(await rawRes.json());
     } catch (e) {
       toast.error("获取数据失败");
     } finally {
@@ -73,70 +68,36 @@ export default function NetIngredientsPage() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
   const filtered = useMemo(() => {
-    return data.filter(
-      (d) =>
-        d.name.includes(search) ||
-        d.code.toLowerCase().includes(search.toLowerCase())
-    );
+    return data.filter((d) => d.name.includes(search) || d.code.toLowerCase().includes(search.toLowerCase()));
   }, [data, search]);
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ code: "", name: "", sourceIngredientId: "", spec: "", yieldRate: "", unitPrice: "", unit: "500g", l2Code: "", storage: "冷藏" });
+    setForm({ name: "", sourceIngredientId: "", spec: "", yieldRate: "", unitPrice: "", unit: "500g", l2Code: "", storage: "冷藏" });
     setDialogOpen(true);
   };
 
   const openEdit = (row: NetIngredient) => {
     setEditing(row);
-    setForm({
-      code: row.code,
-      name: row.name,
-      sourceIngredientId: String(row.sourceIngredientId),
-      spec: row.spec || "",
-      yieldRate: String(row.yieldRate),
-      unitPrice: String(row.unitPrice),
-      unit: row.unit,
-      l2Code: row.l2Code,
-      storage: row.storage,
-    });
+    setForm({ name: row.name, sourceIngredientId: String(row.sourceIngredientId), spec: row.spec || "", yieldRate: String(row.yieldRate), unitPrice: String(row.unitPrice), unit: row.unit, l2Code: row.l2Code, storage: row.storage });
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (!form.code.trim() || !form.name.trim() || !form.sourceIngredientId || !form.l2Code.trim() || !form.storage.trim()) {
+    if (!form.name.trim() || !form.sourceIngredientId || !form.l2Code.trim() || !form.storage.trim()) {
       toast.error("请填写所有必填项");
       return;
     }
     try {
-      const payload = {
-        code: form.code,
-        name: form.name,
-        sourceIngredientId: Number(form.sourceIngredientId),
-        spec: form.spec || null,
-        yieldRate: Number(form.yieldRate) || 0,
-        unitPrice: Number(form.unitPrice) || 0,
-        unit: form.unit || "500g",
-        l2Code: form.l2Code,
-        storage: form.storage,
-      };
+      const payload = { name: form.name, sourceIngredientId: Number(form.sourceIngredientId), spec: form.spec || null, yieldRate: Number(form.yieldRate) || 0, unitPrice: Number(form.unitPrice) || 0, unit: form.unit || "500g", l2Code: form.l2Code, storage: form.storage };
       if (editing) {
-        await fetch(`/api/net-ingredients/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        await fetch(`/api/net-ingredients/${editing.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         toast.success("更新成功");
       } else {
-        await fetch("/api/net-ingredients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
+        await fetch("/api/net-ingredients", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
         toast.success("创建成功");
       }
       setDialogOpen(false);
@@ -157,14 +118,13 @@ export default function NetIngredientsPage() {
     }
   };
 
+  const selectClass = "flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_4px_rgba(0,122,255,0.06)] focus:outline-none";
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <PageHeader title="净料清单" description="原料经初加工后的规格化半成品" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增净料
-        </Button>
+        <Button onClick={openCreate}><Plus className="mr-2 h-4 w-4" />新增净料</Button>
       </div>
 
       <Card>
@@ -175,9 +135,7 @@ export default function NetIngredientsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          {loading ? (
-            <SkeletonTable cols={9} rows={5} />
-          ) : (
+          {loading ? <SkeletonTable cols={9} rows={5} /> : (
             <Table>
               <TableHeader>
                 <TableRow>
@@ -194,27 +152,23 @@ export default function NetIngredientsPage() {
               </TableHeader>
               <TableBody>
                 {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={9} className="text-center text-muted-foreground">暂无数据</TableCell>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">暂无数据</TableCell></TableRow>
+                ) : filtered.map((row, idx) => (
+                  <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                    <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                    <TableCell className="font-medium">{row.code}</TableCell>
+                    <TableCell>{row.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{row.sourceIngredient?.name || row.sourceIngredientId}</TableCell>
+                    <TableCell>{row.spec || "—"}</TableCell>
+                    <TableCell>{row.yieldRate}%</TableCell>
+                    <TableCell>¥{row.unitPrice}</TableCell>
+                    <TableCell><span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">{row.storage}</span></TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" /></Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                    </TableCell>
                   </TableRow>
-                ) : (
-                  filtered.map((row, idx) => (
-                    <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
-                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{row.code}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{row.sourceIngredient?.name || row.sourceIngredientId}</TableCell>
-                      <TableCell>{row.spec || "—"}</TableCell>
-                      <TableCell>{row.yieldRate}%</TableCell>
-                      <TableCell>¥{row.unitPrice}</TableCell>
-                      <TableCell><span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">{row.storage}</span></TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
+                ))}
               </TableBody>
             </Table>
           )}
@@ -224,50 +178,33 @@ export default function NetIngredientsPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[640px] max-h-[90vh] overflow-y-auto [&>button]:cursor-pointer">
           <DialogHeader><DialogTitle className="text-lg">{editing ? "编辑净料" : "新增净料"}</DialogTitle></DialogHeader>
-          <div className="grid grid-cols-2 gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="code" className="text-base">编号</Label>
-              <Input id="code" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="如 PRD-0001" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
-              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 去皮五花肉片" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5 col-span-2">
-              <Label htmlFor="sourceIngredientId" className="text-base">来源原料</Label>
-              <select id="sourceIngredientId" value={form.sourceIngredientId} onChange={(e) => setForm({ ...form, sourceIngredientId: e.target.value })} className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none">
-                <option value="">请选择来源原料</option>
-                {rawIngredients.map((ri) => (
-                  <option key={ri.id} value={ri.id}>{ri.name}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="spec" className="text-base">规格</Label>
-              <Input id="spec" value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="如 0.2cm厚片" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="yieldRate" className="text-base">出成率 (%)</Label>
-              <Input id="yieldRate" type="number" value={form.yieldRate} onChange={(e) => setForm({ ...form, yieldRate: e.target.value })} placeholder="如 85" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="unitPrice" className="text-base">净料单价</Label>
-              <Input id="unitPrice" type="number" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="如 25.00" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="unit" className="text-base">净料单位</Label>
-              <Input id="unit" value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="如 500g" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="l2Code" className="text-base">二级分类</Label>
-              <Input id="l2Code" value={form.l2Code} onChange={(e) => setForm({ ...form, l2Code: e.target.value })} placeholder="如 VEG-LEF" className="h-11 text-base px-4" />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="storage" className="text-base">储存方式</Label>
-              <select id="storage" value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none">
-                {storages.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </div>
+          <div className="space-y-5 py-2">
+            <FormSection title="基础信息">
+              <FormField label="编号"><Input value={editing?.code || "系统自动生成"} disabled className="h-11 text-base px-4 bg-muted" /></FormField>
+              <FormField label="名称" required><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如 去皮五花肉片" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="来源与分类">
+              <FormField label="来源原料" required>
+                <select value={form.sourceIngredientId} onChange={(e) => setForm({ ...form, sourceIngredientId: e.target.value })} className={selectClass}>
+                  <option value="">请选择来源原料</option>
+                  {rawIngredients.map((ri) => <option key={ri.id} value={ri.id}>{ri.name}</option>)}
+                </select>
+              </FormField>
+              <FormField label="二级分类" required><Input value={form.l2Code} onChange={(e) => setForm({ ...form, l2Code: e.target.value })} placeholder="如 VEG-LEF" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="规格与价格">
+              <FormField label="规格"><Input value={form.spec} onChange={(e) => setForm({ ...form, spec: e.target.value })} placeholder="如 0.2cm厚片" className="h-11 text-base px-4" /></FormField>
+              <FormField label="出成率 (%)" required><Input type="number" value={form.yieldRate} onChange={(e) => setForm({ ...form, yieldRate: e.target.value })} placeholder="如 85" className="h-11 text-base px-4" /></FormField>
+              <FormField label="净料单价" required><Input type="number" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} placeholder="如 25.00" className="h-11 text-base px-4" /></FormField>
+              <FormField label="净料单位" required><Input value={form.unit} onChange={(e) => setForm({ ...form, unit: e.target.value })} placeholder="如 500g" className="h-11 text-base px-4" /></FormField>
+            </FormSection>
+            <FormSection title="储存信息">
+              <FormField label="储存方式" required>
+                <select value={form.storage} onChange={(e) => setForm({ ...form, storage: e.target.value })} className={selectClass}>
+                  {storages.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </FormField>
+            </FormSection>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">取消</Button>

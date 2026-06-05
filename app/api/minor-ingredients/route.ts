@@ -6,10 +6,17 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
+function generateMinorCode(lastCode: string | undefined) {
+  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
+  return `SML-${String(num).padStart(4, "0")}`;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { code, name, spec, unitPrice, unit, origin, storage } = body;
+  const { name, spec, unitPrice, unit, origin, storage } = body;
   try {
+    const last = await prisma.minorIngredient.findFirst({ orderBy: { id: "desc" } });
+    const code = generateMinorCode(last?.code);
     const row = await prisma.minorIngredient.create({
       data: {
         code,

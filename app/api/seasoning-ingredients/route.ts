@@ -6,10 +6,17 @@ export async function GET() {
   return NextResponse.json(rows);
 }
 
+function generateSeasoningCode(lastCode: string | undefined) {
+  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
+  return `SEA-${String(num).padStart(4, "0")}`;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { code, name, brand, productSpec, productUnit, retailPrice, purchasePrice, purchaseUnit, storage } = body;
+  const { name, brand, productSpec, productUnit, retailPrice, purchasePrice, purchaseUnit, storage } = body;
   try {
+    const last = await prisma.seasoningIngredient.findFirst({ orderBy: { id: "desc" } });
+    const code = generateSeasoningCode(last?.code);
     const row = await prisma.seasoningIngredient.create({
       data: {
         code,
