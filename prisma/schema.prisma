@@ -1,0 +1,356 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model DishCategory {
+  id          Int     @id @default(autoincrement())
+  code        String  @unique
+  name        String
+  description String?
+  dishes      Dish[]
+
+  @@map("dish_categories")
+}
+
+model IngredientCategoryL1 {
+  id       Int                    @id @default(autoincrement())
+  code     String                 @unique
+  name     String
+  children IngredientCategoryL2[]
+
+  @@map("ingredient_categories_l1")
+}
+
+model IngredientCategoryL2 {
+  id          Int                  @id @default(autoincrement())
+  code        String               @unique
+  name        String
+  parentCode  String               @map("parent_code")
+  description String?
+  parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code])
+
+  @@map("ingredient_categories_l2")
+}
+
+model Unit {
+  id       Int    @id @default(autoincrement())
+  name     String @unique
+  category String
+
+  @@map("units")
+}
+
+model Supplier {
+  id       Int               @id @default(autoincrement())
+  name     String
+  contact  String?
+  phone    String?
+  remark   String?
+  receipts PurchaseReceipt[]
+
+  @@map("suppliers")
+}
+
+model Ingredient {
+  id             Int                   @id @default(autoincrement())
+  code           String                @unique
+  name           String
+  alias          String?
+  l2Code         String                @map("l2_code")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unit String @map("计量单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // priceUnit String @map("计价单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // purchaseSpec String? @map("采购规格")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // season String @default("四季") @map("季节限定")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // storage String @map("储存方式")
+  inventory      Inventory?
+  ledger         InventoryLedger[]
+  netIngredients NetIngredient[]
+  purchasePlans  PurchasePlan[]
+  receiptItems   PurchaseReceiptItem[]
+
+  @@map("ingredients")
+}
+
+model NetIngredient {
+  id                 Int             @id @default(autoincrement())
+  code               String          @unique
+  name               String
+  sourceIngredientId Int             @map("source_ingredient_id")
+  spec               String?
+  yieldRate          Decimal         @map("yield_rate") @db.Decimal(5, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unitPrice Decimal @map("净料单价") @db.Decimal(10, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unit String @default("500g") @map("净料单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // l2Code String @map("所属二级分类")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // storage String @map("储存方式")
+  cuttingOrders      CuttingOrder[]
+  dishNetDetails     DishNetDetail[]
+  sourceIngredient   Ingredient      @relation(fields: [sourceIngredientId], references: [id])
+
+  @@map("net_ingredients")
+}
+
+model MinorIngredient {
+  id   Int    @id @default(autoincrement())
+  code String @unique
+  name String
+
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // spec String? @map("规格形态描述")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unitPrice Decimal @map("小料单价") @db.Decimal(10, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unit String @default("10g") @map("计量单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // origin String? @map("产地/品牌")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // storage String @map("储存方式")
+  @@map("minor_ingredients")
+}
+
+model SeasoningIngredient {
+  id    Int    @id @default(autoincrement())
+  code  String @unique
+  name  String
+  brand String
+
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // productSpec String? @map("产品规格")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // productUnit String? @map("产品单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // retailPrice Decimal? @map("零售参照价") @db.Decimal(10, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // purchasePrice Decimal @map("采购单价") @db.Decimal(10, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // purchaseUnit String @map("采购单位")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // storage String @map("储存方式")
+  @@map("seasoning_ingredients")
+}
+
+model SauceIngredient {
+  id               Int               @id @default(autoincrement())
+  code             String            @unique
+  name             String
+  brand            String
+  recipe           String?
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // storage String @map("存储方式")
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unitPrice Decimal @map("单价") @db.Decimal(10, 2)
+  /// This field was commented out because of an invalid name. Please provide a valid one that matches [a-zA-Z][a-zA-Z0-9_]*
+  // unit String @map("计量单位")
+  dishSauceDetails DishSauceDetail[]
+
+  @@map("sauce_ingredients")
+}
+
+model Dish {
+  id               Int                   @id @default(autoincrement())
+  code             String                @unique
+  name             String
+  intro            String?
+  categoryId       Int                   @map("category_id")
+  cuisine          String?
+  technique        String?
+  taste            String?
+  portion          String                @default("正餐份量")
+  season           String                @default("四季")
+  meatType         String?               @map("meat_type")
+  cost             Decimal?              @db.Decimal(10, 2)
+  operator         String?
+  createdAt        DateTime              @default(now()) @map("created_at")
+  updatedAt        DateTime              @updatedAt @map("updated_at")
+  netDetails       DishNetDetail[]
+  processes        DishProcess[]
+  sauceDetails     DishSauceDetail[]
+  seasoningDetails DishSeasoningDetail[]
+  category         DishCategory          @relation(fields: [categoryId], references: [id])
+  scheduleItems    ScheduleItem[]
+
+  @@map("dishes")
+}
+
+model DishNetDetail {
+  id            Int           @id @default(autoincrement())
+  dishId        Int           @map("dish_id")
+  role          String
+  netIngId      Int           @map("net_ing_id")
+  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2)
+  spec          String?
+  cost          Decimal?      @db.Decimal(10, 2)
+  dish          Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  netIngredient NetIngredient @relation(fields: [netIngId], references: [id])
+
+  @@map("dish_net_details")
+}
+
+model DishSeasoningDetail {
+  id       Int      @id @default(autoincrement())
+  dishId   Int      @map("dish_id")
+  type     String
+  sourceId Int      @map("source_id")
+  amountG  Decimal  @map("amount_g") @db.Decimal(10, 2)
+  brand    String?
+  cost     Decimal? @db.Decimal(10, 2)
+  dish     Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@map("dish_seasoning_details")
+}
+
+model DishSauceDetail {
+  id      Int             @id @default(autoincrement())
+  dishId  Int             @map("dish_id")
+  sauceId Int             @map("sauce_id")
+  amountG Decimal         @map("amount_g") @db.Decimal(10, 2)
+  brand   String?
+  cost    Decimal?        @db.Decimal(10, 2)
+  dish    Dish            @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  sauce   SauceIngredient @relation(fields: [sauceId], references: [id])
+
+  @@map("dish_sauce_details")
+}
+
+model DishProcess {
+  id          Int     @id @default(autoincrement())
+  dishId      Int     @map("dish_id")
+  stage       String
+  stepNo      Int     @map("step_no")
+  object      String
+  action      String
+  description String?
+  tool        String?
+  standard    String?
+  dish        Dish    @relation(fields: [dishId], references: [id], onDelete: Cascade)
+
+  @@map("dish_processes")
+}
+
+model Schedule {
+  id            Int            @id @default(autoincrement())
+  scheduleDate  DateTime       @map("schedule_date") @db.Date
+  status        String         @default("进行中")
+  operator      String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  cuttingOrders CuttingOrder[]
+  purchasePlans PurchasePlan[]
+  items         ScheduleItem[]
+
+  @@map("schedules")
+}
+
+model ScheduleItem {
+  id         Int      @id @default(autoincrement())
+  scheduleId Int      @map("schedule_id")
+  dishId     Int      @map("dish_id")
+  quantity   Int
+  dish       Dish     @relation(fields: [dishId], references: [id])
+  schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("schedule_items")
+}
+
+model PurchasePlan {
+  id                Int        @id @default(autoincrement())
+  scheduleId        Int        @map("schedule_id")
+  ingredientId      Int        @map("ingredient_id")
+  grossNeed         Decimal    @map("gross_need") @db.Decimal(10, 2)
+  stockDeducted     Decimal    @map("stock_deducted") @db.Decimal(10, 2)
+  suggestedPurchase Decimal    @map("suggested_purchase") @db.Decimal(10, 2)
+  unit              String
+  status            String     @default("pending")
+  createdAt         DateTime   @default(now()) @map("created_at")
+  updatedAt         DateTime   @updatedAt @map("updated_at")
+  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
+  schedule          Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_plans")
+}
+
+model CuttingOrder {
+  id            Int           @id @default(autoincrement())
+  scheduleId    Int           @map("schedule_id")
+  netIngId      Int           @map("net_ing_id")
+  spec          String
+  requiredQty   Decimal       @map("required_qty") @db.Decimal(10, 2)
+  unit          String
+  status        String        @default("pending")
+  netIngredient NetIngredient @relation(fields: [netIngId], references: [id])
+  schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@map("cutting_orders")
+}
+
+model PurchaseReceipt {
+  id          Int                   @id @default(autoincrement())
+  receiptDate DateTime              @map("receipt_date") @db.Date
+  supplierId  Int?                  @map("supplier_id")
+  totalAmount Decimal               @map("total_amount") @db.Decimal(10, 2)
+  operator    String?
+  imageUrl    String?               @map("image_url")
+  createdAt   DateTime              @default(now()) @map("created_at")
+  items       PurchaseReceiptItem[]
+  supplier    Supplier?             @relation(fields: [supplierId], references: [id])
+
+  @@map("purchase_receipts")
+}
+
+model PurchaseReceiptItem {
+  id           Int             @id @default(autoincrement())
+  receiptId    Int             @map("receipt_id")
+  ingredientId Int?            @map("ingredient_id")
+  itemName     String          @map("item_name")
+  spec         String?
+  qty          Decimal         @db.Decimal(10, 2)
+  priceUnit    String          @map("price_unit")
+  unitPrice    Decimal         @map("unit_price") @db.Decimal(10, 2)
+  amount       Decimal         @db.Decimal(10, 2)
+  stockUnit    String          @map("stock_unit")
+  stockInQty   Decimal         @map("stock_in_qty") @db.Decimal(10, 2)
+  storage      String
+  ingredient   Ingredient?     @relation(fields: [ingredientId], references: [id])
+  receipt      PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_receipt_items")
+}
+
+model Inventory {
+  id           Int        @id @default(autoincrement())
+  ingredientId Int        @unique @map("ingredient_id")
+  currentQty   Decimal    @map("current_qty") @db.Decimal(10, 2)
+  unit         String
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("inventory")
+}
+
+model InventoryLedger {
+  id           Int        @id @default(autoincrement())
+  ingredientId Int        @map("ingredient_id")
+  changeTime   DateTime   @default(now()) @map("change_time")
+  changeType   String     @map("change_type")
+  changeQty    Decimal    @map("change_qty") @db.Decimal(10, 2)
+  unit         String
+  balance      Decimal    @db.Decimal(10, 2)
+  source       String
+  operator     String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+
+  @@map("inventory_ledger")
+}
