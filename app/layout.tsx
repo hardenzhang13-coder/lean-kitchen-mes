@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, DM_Sans, Public_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
-import { Sidebar } from "./components/sidebar";
+import { LayoutWrapper } from "./components/layout-wrapper";
+import { getCurrentUser } from "@/lib/session";
 import "./globals.css";
 import { cn } from "@/lib/utils";
 
@@ -24,21 +25,22 @@ export const metadata: Metadata = {
   description: "厨房管理系统",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const user = await getCurrentUser();
+
   return (
     <html
       lang="zh-CN"
       className={cn("h-full", "antialiased", geistSans.variable, geistMono.variable, "font-sans", dmSans.variable, publicSansHeading.variable)}
     >
       <body className="min-h-full flex bg-background">
-        <Sidebar />
-        <main className="ml-20 flex-1 flex flex-col min-h-screen">
+        <LayoutWrapper user={user}>
           {children}
-        </main>
+        </LayoutWrapper>
         <Toaster />
       </body>
     </html>

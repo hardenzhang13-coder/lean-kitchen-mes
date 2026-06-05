@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const connectionString = process.env.DATABASE_URL || "";
 const adapter = new PrismaPg({ connectionString });
@@ -29,7 +30,7 @@ async function main() {
     { code: "VEGETABLE", name: "蔬菜类", description: "" },
     { code: "SOUP", name: "汤类", description: "" },
   ];
-  await prisma.dishCategory.createMany({ data: dishCategories });
+  await prisma.dishCategory.createMany({ data: dishCategories, skipDuplicates: true });
 
   // 2. 食材一级分类
   const l1Categories = [
@@ -42,7 +43,7 @@ async function main() {
     { code: "PRC", name: "加工制品" },
     { code: "GRA", name: "米面粮油" },
   ];
-  await prisma.ingredientCategoryL1.createMany({ data: l1Categories });
+  await prisma.ingredientCategoryL1.createMany({ data: l1Categories, skipDuplicates: true });
 
   // 3. 食材二级分类
   const l2Categories = [
@@ -72,7 +73,7 @@ async function main() {
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
     { code: "GRA-SEA", name: "调味品", parentCode: "GRA", description: "" },
   ];
-  await prisma.ingredientCategoryL2.createMany({ data: l2Categories });
+  await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 
   // 4. 单位
   const units = [
@@ -92,7 +93,25 @@ async function main() {
     { name: "只", category: "count" },
     { name: "把", category: "count" },
   ];
-  await prisma.unit.createMany({ data: units });
+  await prisma.unit.createMany({ data: units, skipDuplicates: true });
+
+  // 5. 用户
+  const users = [
+    { username: "zhang", password: "123456", name: "张" },
+    { username: "yang", password: "123456", name: "杨" },
+  ];
+  for (const u of users) {
+    const existing = await prisma.user.findUnique({ where: { username: u.username } });
+    if (!existing) {
+      await prisma.user.create({
+        data: {
+          username: u.username,
+          password: await bcrypt.hash(u.password, 10),
+          name: u.name,
+        },
+      });
+    }
+  }
 
   console.log("Seed completed.");
 }

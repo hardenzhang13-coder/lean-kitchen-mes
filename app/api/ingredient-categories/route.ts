@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logOperation } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -36,13 +37,15 @@ export async function POST(req: NextRequest) {
   try {
     if (type === "l1") {
       const row = await prisma.ingredientCategoryL1.create({ data: { code, name } });
-      return NextResponse.json(row, { status: 201 });
+      await logOperation(req, { action: "CREATE", entity: "IngredientCategoryL2", entityId: row.id, description: `创建: ${row.name || row.code}` });
+    return NextResponse.json(row, { status: 201 });
     }
     if (type === "l2") {
       const row = await prisma.ingredientCategoryL2.create({
         data: { code, name, parentCode, description: description || null },
       });
-      return NextResponse.json(row, { status: 201 });
+      await logOperation(req, { action: "CREATE", entity: "IngredientCategoryL2", entityId: row.id, description: `创建: ${row.name || row.code}` });
+    return NextResponse.json(row, { status: 201 });
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   } catch (e: any) {

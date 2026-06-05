@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logOperation } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -51,6 +52,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { id: Number(id) },
         data: { code, name },
       });
+      await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL1", entityId: row.id, description: `更新: ${row.name || row.code}` });
       return NextResponse.json(row);
     }
     if (type === "l2") {
@@ -58,6 +60,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { id: Number(id) },
         data: { code, name, parentCode, description: description || null },
       });
+      await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL2", entityId: row.id, description: `更新: ${row.name || row.code}` });
       return NextResponse.json(row);
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
@@ -73,11 +76,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   try {
     if (type === "l1") {
+      const row = await prisma.ingredientCategoryL1.findUnique({ where: { id: Number(id) } });
       await prisma.ingredientCategoryL1.delete({ where: { id: Number(id) } });
+      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL1", entityId: Number(id), description: `删除: ${row?.name || row?.code || id}` });
       return NextResponse.json({ success: true });
     }
     if (type === "l2") {
+      const row = await prisma.ingredientCategoryL2.findUnique({ where: { id: Number(id) } });
       await prisma.ingredientCategoryL2.delete({ where: { id: Number(id) } });
+      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL2", entityId: Number(id), description: `删除: ${row?.name || row?.code || id}` });
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });

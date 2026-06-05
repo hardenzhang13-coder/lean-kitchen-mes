@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { logOperation } from "@/lib/api-auth";
 
 export async function GET() {
   const rows = await prisma.ingredient.findMany({ orderBy: { id: "asc" } });
@@ -30,6 +31,7 @@ export async function POST(req: NextRequest) {
         storage,
       },
     });
+    await logOperation(req, { action: "CREATE", entity: "Ingredient", entityId: row.id, description: `创建原料: ${row.name}` });
     return NextResponse.json(row, { status: 201 });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 400 });
