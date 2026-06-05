@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/app/components/page-header";
+import { SkeletonTable } from "@/app/components/skeleton-table";
 import { toast } from "sonner";
 
 type L1 = {
@@ -188,10 +190,7 @@ export default function ClassesPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">食材分类</h1>
-          <p className="text-muted-foreground">管理食材一级和二级分类体系</p>
-        </div>
+        <PageHeader title="食材分类" description="管理食材一级和二级分类体系" />
         <Button onClick={openCreateL1}>
           <Plus className="mr-2 h-4 w-4" />
           新增一级分类
@@ -211,115 +210,118 @@ export default function ClassesPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>编号</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>说明</TableHead>
-                <TableHead className="w-[180px] text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          {loading ? (
+            <SkeletonTable cols={5} rows={6} />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    加载中...
-                  </TableCell>
+                  <TableHead className="w-[60px]">序号</TableHead>
+                  <TableHead>编号</TableHead>
+                  <TableHead>名称</TableHead>
+                  <TableHead>说明</TableHead>
+                  <TableHead className="w-[180px] text-right">操作</TableHead>
                 </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center text-muted-foreground">
-                    暂无数据
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((l1) => {
-                  const isExpanded = expanded.has(l1.id);
-                  return (
-                    <>
-                      <TableRow key={`l1-${l1.id}`} className="bg-muted/30">
-                        <TableCell className="font-medium">
-                          <button
-                            onClick={() => toggleExpand(l1.id)}
-                            className="inline-flex items-center gap-1 mr-1"
-                          >
-                            {isExpanded ? (
-                              <ChevronDown className="h-4 w-4" />
-                            ) : (
-                              <ChevronRight className="h-4 w-4" />
-                            )}
-                          </button>
-                          {l1.code}
-                        </TableCell>
-                        <TableCell className="font-semibold">{l1.name}</TableCell>
-                        <TableCell className="text-muted-foreground">—</TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="sm" onClick={() => openCreateL2(l1.code)}>
-                            <Plus className="h-3 w-3 mr-1" />
-                            二级
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => openEditL1(l1)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
-                          >
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded &&
-                        l1.children.map((l2) => (
-                          <TableRow key={`l2-${l2.id}`}>
-                            <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
-                            <TableCell>{l2.name}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {l2.description || "—"}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button variant="ghost" size="icon" onClick={() => openEditL2(l2)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                    </>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center text-muted-foreground">
+                      暂无数据
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filtered.map((l1, l1Idx) => {
+                    const isExpanded = expanded.has(l1.id);
+                    return (
+                      <>
+                        <TableRow key={`l1-${l1.id}`} className="bg-muted/30 transition-colors hover:bg-muted/50">
+                          <TableCell className="text-muted-foreground">{l1Idx + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            <button
+                              onClick={() => toggleExpand(l1.id)}
+                              className="inline-flex items-center gap-1 mr-1"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4" />
+                              )}
+                            </button>
+                            {l1.code}
+                          </TableCell>
+                          <TableCell className="font-semibold">{l1.name}</TableCell>
+                          <TableCell className="text-muted-foreground">—</TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="sm" onClick={() => openCreateL2(l1.code)}>
+                              <Plus className="h-3 w-3 mr-1" />
+                              二级
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => openEditL1(l1)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                        {isExpanded &&
+                          l1.children.map((l2, l2Idx) => (
+                            <TableRow key={`l2-${l2.id}`} className="transition-colors hover:bg-muted/30">
+                              <TableCell className="pl-10 text-muted-foreground text-sm">
+                                {l1Idx + 1}.{l2Idx + 1}
+                              </TableCell>
+                              <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
+                              <TableCell className="pl-10">{l2.name}</TableCell>
+                              <TableCell className="pl-10 text-muted-foreground">
+                                {l2.description || "—"}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Button variant="ghost" size="icon" onClick={() => openEditL2(l2)}>
+                                  <Pencil className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
+                                >
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="text-lg">
               {editing
                 ? `编辑${dialogType === "l1" ? "一级" : "二级"}分类`
                 : `新增${dialogType === "l1" ? "一级" : "二级"}分类`}
             </DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
+          <div className="grid gap-5 py-5">
             {dialogType === "l2" && (
-              <div className="grid gap-2">
-                <Label htmlFor="parentCode">所属一级分类</Label>
+              <div className="grid gap-2.5">
+                <Label htmlFor="parentCode" className="text-base">所属一级分类</Label>
                 <select
                   id="parentCode"
                   value={form.parentCode}
                   onChange={(e) => setForm({ ...form, parentCode: e.target.value })}
-                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none"
                 >
                   <option value="">请选择</option>
                   {l1Options.map((opt) => (
@@ -330,57 +332,62 @@ export default function ClassesPage() {
                 </select>
               </div>
             )}
-            <div className="grid gap-2">
-              <Label htmlFor="code">编号</Label>
+            <div className="grid gap-2.5">
+              <Label htmlFor="code" className="text-base">编号</Label>
               <Input
                 id="code"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder={dialogType === "l1" ? "如 VEG" : "如 VEG-LEF"}
+                className="h-11 text-base px-4"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="name">名称</Label>
+            <div className="grid gap-2.5">
+              <Label htmlFor="name" className="text-base">名称</Label>
               <Input
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder={dialogType === "l1" ? "如 蔬菜" : "如 叶菜"}
+                className="h-11 text-base px-4"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">说明</Label>
+            <div className="grid gap-2.5">
+              <Label htmlFor="description" className="text-base">说明</Label>
               <Input
                 id="description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="可选"
+                className="h-11 text-base px-4"
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit}>保存</Button>
+            <Button onClick={handleSubmit} className="h-11 px-6">
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-base">
             确定要删除这条{deleteTarget?.type === "l1" ? "一级" : "二级"}分类吗？
             {deleteTarget?.type === "l1" && " 将同时删除其下的所有二级分类。"}
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)}>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
               取消
             </Button>
-            <Button variant="destructive" onClick={handleDelete}>
+            <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
               删除
             </Button>
           </DialogFooter>

@@ -21,6 +21,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageHeader } from "@/app/components/page-header";
+import { SkeletonTable } from "@/app/components/skeleton-table";
 import { toast } from "sonner";
 
 type Unit = {
@@ -123,10 +125,7 @@ export default function UnitsPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">单位</h1>
-          <p className="text-muted-foreground">管理重量、体积、计数等单位字典</p>
-        </div>
+        <PageHeader title="单位" description="管理重量、体积、计数等单位字典" />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           新增
@@ -146,74 +145,75 @@ export default function UnitsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>名称</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead className="w-[120px] text-right">操作</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading ? (
+          {loading ? (
+            <SkeletonTable cols={4} rows={5} />
+          ) : (
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    加载中...
-                  </TableCell>
+                  <TableHead className="w-[60px]">序号</TableHead>
+                  <TableHead>名称</TableHead>
+                  <TableHead>分类</TableHead>
+                  <TableHead className="w-[120px] text-right">操作</TableHead>
                 </TableRow>
-              ) : filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground">
-                    暂无数据
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell>
-                      <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
-                        {categories.find((c) => c.value === row.category)?.label || row.category}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
+              </TableHeader>
+              <TableBody>
+                {filtered.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                      暂无数据
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : (
+                  filtered.map((row, idx) => (
+                    <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
+                      <TableCell className="font-medium">{row.name}</TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
+                          {categories.find((c) => c.value === row.category)?.label || row.category}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle>{editing ? "编辑单位" : "新增单位"}</DialogTitle>
+            <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">名称</Label>
+          <div className="grid gap-5 py-5">
+            <div className="grid gap-2.5">
+              <Label htmlFor="name" className="text-base">名称</Label>
               <Input
                 id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="如 斤"
+                className="h-11 text-base px-4"
               />
             </div>
-            <div className="grid gap-2">
-              <Label htmlFor="category">分类</Label>
+            <div className="grid gap-2.5">
+              <Label htmlFor="category" className="text-base">分类</Label>
               <select
                 id="category"
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none"
               >
                 {categories.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -224,25 +224,27 @@ export default function UnitsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit}>保存</Button>
+            <Button onClick={handleSubmit} className="h-11 px-6">
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground">确定要删除这条记录吗？此操作不可撤销。</p>
+          <p className="text-muted-foreground text-base">确定要删除这条记录吗？此操作不可撤销。</p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
               取消
             </Button>
-            <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)}>
+            <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)} className="h-11 px-6">
               删除
             </Button>
           </DialogFooter>
