@@ -132,7 +132,7 @@ export default function CategoriesPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader title="菜品类别" description="管理菜品分类字典" />
+        <PageHeader showBack title="菜品类别" description="管理菜品分类字典" />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           新增

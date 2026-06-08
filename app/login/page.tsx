@@ -98,13 +98,7 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 rounded-lg bg-muted p-3 text-xs text-muted-foreground">
-          <p className="font-medium text-foreground mb-1">测试账号</p>
-          <div className="flex justify-between">
-            <span>zhang / 123456</span>
-            <span>yang / 123456</span>
-          </div>
-        </div>
+
       </div>
     </div>
   );

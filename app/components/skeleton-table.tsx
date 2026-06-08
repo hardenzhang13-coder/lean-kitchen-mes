@@ -9,7 +9,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function SkeletonTable({ cols = 4, rows = 5 }: { cols?: number; rows?: number }) {
+export function SkeletonTable({ cols = 4, rows = 20 }: { cols?: number; rows?: number }) {
   return (
     <Table>
       <TableHeader>

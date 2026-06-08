@@ -13,6 +13,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -190,7 +197,7 @@ export default function ClassesPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader title="食材分类" description="管理食材一级和二级分类体系" />
+        <PageHeader showBack title="食材分类" description="管理食材一级和二级分类体系" />
         <Button onClick={openCreateL1}>
           <Plus className="mr-2 h-4 w-4" />
           新增一级分类
@@ -317,19 +324,18 @@ export default function ClassesPage() {
             {dialogType === "l2" && (
               <div className="grid gap-2.5">
                 <Label htmlFor="parentCode" className="text-base">所属一级分类</Label>
-                <select
-                  id="parentCode"
-                  value={form.parentCode}
-                  onChange={(e) => setForm({ ...form, parentCode: e.target.value })}
-                  className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none"
-                >
-                  <option value="">请选择</option>
-                  {l1Options.map((opt) => (
-                    <option key={opt.code} value={opt.code}>
-                      {opt.name} ({opt.code})
-                    </option>
-                  ))}
-                </select>
+                <Select value={form.parentCode} onValueChange={(v) => v && setForm({ ...form, parentCode: v })}>
+                  <SelectTrigger id="parentCode" className="h-11">
+                    <SelectValue placeholder="请选择" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {l1Options.map((opt) => (
+                      <SelectItem key={opt.code} value={opt.code}>
+                        {opt.name} ({opt.code})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             )}
             <div className="grid gap-2.5">

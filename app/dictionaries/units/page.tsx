@@ -13,6 +13,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Table,
   TableBody,
   TableCell,
@@ -125,7 +132,7 @@ export default function UnitsPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader title="单位" description="管理重量、体积、计数等单位字典" />
+        <PageHeader showBack title="单位" description="管理重量、体积、计数等单位字典" />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           新增
@@ -209,18 +216,18 @@ export default function UnitsPage() {
             </div>
             <div className="grid gap-2.5">
               <Label htmlFor="category" className="text-base">分类</Label>
-              <select
-                id="category"
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
-                className="flex h-11 w-full rounded-md border border-input bg-transparent px-4 py-1 text-base shadow-sm transition-all focus:border-[#007AFF] focus:shadow-[0_0_0_3px_rgba(0,122,255,0.15)] focus:outline-none"
-              >
-                {categories.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
+              <Select value={form.category} onValueChange={(v) => v && setForm({ ...form, category: v })}>
+                <SelectTrigger id="category" className="h-11">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

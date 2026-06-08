@@ -69,9 +69,7 @@ model Ingredient {
   inventory    Inventory?
   ledger       InventoryLedger[]
   netIngredients NetIngredient[]
-  purchasePlans  PurchasePlan[]
   receiptItems   PurchaseReceiptItem[]
-
   @@map("ingredients")
 }
 
@@ -86,7 +84,6 @@ model NetIngredient {
   unit               String          @default("500g") @map("unit")
   l2Code             String          @map("l2_code")
   storage            String          @map("storage")
-  cuttingOrders      CuttingOrder[]
   dishNetDetails     DishNetDetail[]
   sourceIngredient   Ingredient      @relation(fields: [sourceIngredientId], references: [id])
 
@@ -102,7 +99,6 @@ model MinorIngredient {
   unit      String  @default("10g") @map("unit")
   origin    String? @map("origin")
   storage   String  @map("storage")
-
   @@map("minor_ingredients")
 }
 
@@ -148,6 +144,7 @@ model Dish {
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
+  status           String                @default("draft") @map("status") // draft / pending / published
   operator         String?
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
@@ -164,7 +161,7 @@ model Dish {
 model DishNetDetail {
   id            Int           @id @default(autoincrement())
   dishId        Int           @map("dish_id")
-  role          String
+  role          String        // main(主料) / support(辅料)
   netIngId      Int           @map("net_ing_id")
   amountG       Decimal       @map("amount_g") @db.Decimal(10, 2)
   spec          String?
@@ -178,7 +175,7 @@ model DishNetDetail {
 model DishSeasoningDetail {
   id       Int      @id @default(autoincrement())
   dishId   Int      @map("dish_id")
-  type     String
+  type     String   // minor(小料) / seasoning(调料)
   sourceId Int      @map("source_id")
   amountG  Decimal  @map("amount_g") @db.Decimal(10, 2)
   brand    String?
@@ -201,6 +198,7 @@ model DishSauceDetail {
   @@map("dish_sauce_details")
 }
 
+
 model DishProcess {
   id          Int     @id @default(autoincrement())
   dishId      Int     @map("dish_id")
@@ -218,8 +216,10 @@ model DishProcess {
 
 model Schedule {
   id            Int            @id @default(autoincrement())
+  title         String
   scheduleDate  DateTime       @map("schedule_date") @db.Date
-  status        String         @default("进行中")
+  scope         String         @default("全部食堂")
+  status        String         @default("待生效")
   operator      String?
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
@@ -244,15 +244,21 @@ model ScheduleItem {
 model PurchasePlan {
   id                Int        @id @default(autoincrement())
   scheduleId        Int        @map("schedule_id")
-  ingredientId      Int        @map("ingredient_id")
+  sourceType        String     @map("source_type") // ingredient / minor / seasoning / sauce
+  sourceId          Int        @map("source_id")
+  itemName          String     @map("item_name")
+  l2Code            String?    @map("l2_code")
   grossNeed         Decimal    @map("gross_need") @db.Decimal(10, 2)
   stockDeducted     Decimal    @map("stock_deducted") @db.Decimal(10, 2)
   suggestedPurchase Decimal    @map("suggested_purchase") @db.Decimal(10, 2)
   unit              String
+  purchaseSpec      String?    @map("purchase_spec")
+  priceUnit         String?    @map("price_unit")
+  actualPurchase    Decimal?   @map("actual_purchase") @db.Decimal(10, 2)
+  actualAmount      Decimal?   @map("actual_amount") @db.Decimal(10, 2)
   status            String     @default("pending")
   createdAt         DateTime   @default(now()) @map("created_at")
   updatedAt         DateTime   @updatedAt @map("updated_at")
-  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
   schedule          Schedule   @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@map("purchase_plans")
@@ -261,12 +267,16 @@ model PurchasePlan {
 model CuttingOrder {
   id            Int           @id @default(autoincrement())
   scheduleId    Int           @map("schedule_id")
-  netIngId      Int           @map("net_ing_id")
-  spec          String
+  sourceType    String        @map("source_type") // net / minor
+  sourceId      Int           @map("source_id")
+  itemName      String        @map("item_name")
+  l1Code        String?       @map("l1_code")
+  l2Code        String?       @map("l2_code")
+  spec          String?
   requiredQty   Decimal       @map("required_qty") @db.Decimal(10, 2)
   unit          String
+  actualQty     Decimal?      @map("actual_qty") @db.Decimal(10, 2)
   status        String        @default("pending")
-  netIngredient NetIngredient @relation(fields: [netIngId], references: [id])
   schedule      Schedule      @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@map("cutting_orders")
@@ -276,9 +286,11 @@ model PurchaseReceipt {
   id          Int                   @id @default(autoincrement())
   receiptDate DateTime              @map("receipt_date") @db.Date
   supplierId  Int?                  @map("supplier_id")
+  summary     String?               // 采购摘要
   totalAmount Decimal               @map("total_amount") @db.Decimal(10, 2)
   operator    String?
   imageUrl    String?               @map("image_url")
+  status      String                @default("completed") // completed 不可删除
   createdAt   DateTime              @default(now()) @map("created_at")
   items       PurchaseReceiptItem[]
   supplier    Supplier?             @relation(fields: [supplierId], references: [id])
@@ -317,19 +329,33 @@ model Inventory {
 }
 
 model InventoryLedger {
-  id           Int        @id @default(autoincrement())
-  ingredientId Int        @map("ingredient_id")
-  changeTime   DateTime   @default(now()) @map("change_time")
-  changeType   String     @map("change_type")
-  changeQty    Decimal    @map("change_qty") @db.Decimal(10, 2)
-  unit         String
-  balance      Decimal    @db.Decimal(10, 2)
-  source       String
-  operator     String?
-  createdAt    DateTime   @default(now()) @map("created_at")
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  id                Int        @id @default(autoincrement())
+  ingredientId      Int        @map("ingredient_id")
+  changeTime        DateTime   @default(now()) @map("change_time")
+  changeType        String     @map("change_type") // 入库 / 出库
+  changeQty         Decimal    @map("change_qty") @db.Decimal(10, 2)
+  unit              String
+  balance           Decimal    @db.Decimal(10, 2)
+  source            String
+  settlementStatus  String     @default("待结算") @map("settlement_status")
+  operator          String?
+  createdAt         DateTime   @default(now()) @map("created_at")
+  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
 
   @@map("inventory_ledger")
+}
+
+model PurchaseReimbursement {
+  id          Int      @id @default(autoincrement())
+  title       String   // 报销主题
+  summary     String?  // 摘要
+  receiptIds  Int[]    @map("receipt_ids")
+  totalAmount Decimal  @map("total_amount") @db.Decimal(10, 2)
+  status      String   @default("pending") // pending / settled
+  operator    String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("purchase_reimbursements")
 }
 
 model User {
@@ -337,6 +363,7 @@ model User {
   username  String         @unique
   password  String
   name      String?
+  role      String?        @map("role")
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
   logs      OperationLog[]

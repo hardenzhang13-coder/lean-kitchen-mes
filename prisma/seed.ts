@@ -97,8 +97,8 @@ async function main() {
 
   // 5. 用户
   const users = [
-    { username: "zhang", password: "123456", name: "张" },
-    { username: "yang", password: "123456", name: "杨" },
+    { username: "zhang", password: "123456", name: "张浩", role: "业务运营" },
+    { username: "yang", password: "123456", name: "杨厨", role: "厨房负责人" },
   ];
   for (const u of users) {
     const existing = await prisma.user.findUnique({ where: { username: u.username } });
@@ -108,7 +108,14 @@ async function main() {
           username: u.username,
           password: await bcrypt.hash(u.password, 10),
           name: u.name,
+          role: u.role,
         },
+      });
+    } else {
+      // 更新已有用户的 name 和 role
+      await prisma.user.update({
+        where: { username: u.username },
+        data: { name: u.name, role: u.role },
       });
     }
   }

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export function PageHeader({
   title,
   description,
-  showBack = true,
+  showBack = false,
 }: {
   title: string;
   description?: string;

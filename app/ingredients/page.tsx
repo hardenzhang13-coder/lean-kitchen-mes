@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Carrot, Package, Cherry, FlaskConical, Wine, ArrowLeft } from "lucide-react";
+import { Carrot, Package, Cherry, FlaskConical, Wine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 
 const ingredientItems = [
   {
@@ -50,18 +48,11 @@ const ingredientItems = [
 ];
 
 export default function IngredientsPage() {
-  const router = useRouter();
-
   return (
     <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-start gap-3">
-        <Button variant="ghost" size="icon" className="mt-1 shrink-0" onClick={() => router.back()}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">食材库</h1>
-          <p className="text-muted-foreground">管理五类食材档案</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">食材库</h1>
+        <p className="text-muted-foreground">管理五类食材档案</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

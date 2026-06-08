@@ -1,26 +1,59 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  CalendarDays,
-  ShoppingCart,
-  UtensilsCrossed,
-  Package,
-  Carrot,
-  BookOpen,
+  Clock,
+  ArrowRight,
+  ChefHat,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
-const modules = [
-  { href: "/schedules", label: "排程管理", icon: CalendarDays, color: "text-blue-500" },
-  { href: "/purchases", label: "采购管理", icon: ShoppingCart, color: "text-green-500" },
-  { href: "/inventory", label: "库存管理", icon: Package, color: "text-amber-500" },
-  { href: "/dishes", label: "菜品库", icon: UtensilsCrossed, color: "text-rose-500" },
-  { href: "/ingredients", label: "食材库", icon: Carrot, color: "text-orange-500" },
-  { href: "/dictionaries", label: "数据字典", icon: BookOpen, color: "text-purple-500" },
-];
+interface ActiveSchedule {
+  id: number;
+  title: string;
+  scheduleDate: string;
+  scope: string;
+  status: string;
+  items: Array<{
+    dish: { name: string };
+    quantity: number;
+  }>;
+  dishCount: number;
+  totalQuantity: number;
+}
+
+function getWeekDay(dateStr: string) {
+  const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+  return days[new Date(dateStr).getDay()];
+}
 
 export default function HomePage() {
+  const [activeSchedules, setActiveSchedules] = useState<ActiveSchedule[]>([]);
+  const [activeTab, setActiveTab] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchActiveSchedules();
+  }, []);
+
+  const fetchActiveSchedules = async () => {
+    try {
+      const res = await fetch("/api/schedules/active");
+      const data = await res.json();
+      setActiveSchedules(data);
+      if (data.length > 0) setActiveTab(0);
+    } catch {
+      toast.error("获取排程数据失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const currentSchedule = activeSchedules[activeTab];
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div>
@@ -28,23 +61,95 @@ export default function HomePage() {
         <p className="text-muted-foreground">欢迎使用精益厨房管理系统</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {modules.map((m) => {
-          const Icon = m.icon;
-          return (
-            <Link key={m.href} href={m.href}>
-              <Card className="hover:bg-muted/50 transition-colors cursor-pointer">
-                <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                  <Icon className={`h-8 w-8 ${m.color}`} />
-                  <CardTitle className="text-lg">{m.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-muted-foreground">点击进入{m.label}</p>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
+      {/* 今日排程 */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold flex items-center gap-2">
+          <Clock className="h-5 w-5 text-blue-500" />
+          今日排程
+        </h2>
+
+        {loading ? (
+          <div className="h-40 bg-muted rounded-lg animate-pulse" />
+        ) : activeSchedules.length === 0 ? (
+          <Card className="border-dashed">
+            <CardContent className="py-8 text-center text-muted-foreground">
+              <ChefHat className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
+              <p>暂无进行中的排程</p>
+              <Link href="/schedules/new" className="text-sm text-primary hover:underline mt-2 inline-block">
+                去创建一个 →
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="p-5">
+              {/* Tab 切换（多个排程时） */}
+              {activeSchedules.length > 1 && (
+                <div className="flex items-center gap-2 mb-4 pb-3 border-b">
+                  {activeSchedules.map((s, idx) => (
+                    <button
+                      key={s.id}
+                      className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                        activeTab === idx
+                          ? "bg-blue-50 text-blue-600"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                      onClick={() => setActiveTab(idx)}
+                    >
+                      {s.title}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {currentSchedule && (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-lg">{currentSchedule.title}</h3>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+                          进行中
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                        <span>
+                          {new Date(currentSchedule.scheduleDate).toLocaleDateString("zh-CN")}
+                          {" "}{getWeekDay(currentSchedule.scheduleDate)}
+                        </span>
+                        <span>{currentSchedule.scope}</span>
+                        <span>{currentSchedule.dishCount} 个菜品 / {currentSchedule.totalQuantity} 份</span>
+                      </div>
+                    </div>
+                    <Link href={`/schedules/${currentSchedule.id}`}>
+                      <span className="text-sm text-primary hover:underline flex items-center gap-1">
+                        查看详情 <ArrowRight className="h-3.5 w-3.5" />
+                      </span>
+                    </Link>
+                  </div>
+
+                  {/* 菜品清单摘要 */}
+                  <div className="flex flex-wrap gap-2">
+                    {currentSchedule.items.slice(0, 8).map((item, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1 text-xs bg-muted rounded-full px-2.5 py-1"
+                      >
+                        {item.dish.name}
+                        <span className="text-muted-foreground">×{item.quantity}</span>
+                      </span>
+                    ))}
+                    {currentSchedule.items.length > 8 && (
+                      <span className="text-xs text-muted-foreground self-center">
+                        +{currentSchedule.items.length - 8} 更多
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );

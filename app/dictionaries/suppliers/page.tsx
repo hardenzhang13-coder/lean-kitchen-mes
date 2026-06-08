@@ -133,7 +133,7 @@ export default function SuppliersPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader title="供应商" description="管理采购供应商信息" />
+        <PageHeader showBack title="供应商" description="管理采购供应商信息" />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           新增
