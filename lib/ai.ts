@@ -1,9 +1,19 @@
 import OpenAI from "openai";
 
 // 通义千问 Qwen 客户端（支持多模态图片识别）
-const qwen = process.env.QWEN_API_KEY
-  ? new OpenAI({ apiKey: process.env.QWEN_API_KEY, baseURL: process.env.QWEN_BASE_URL })
-  : null;
+function createQwenClient() {
+  const apiKey = process.env.QWEN_API_KEY;
+  const baseURL = process.env.QWEN_BASE_URL;
+  if (!apiKey) {
+    throw new Error("AI 服务未配置，请设置 QWEN_API_KEY 环境变量");
+  }
+  if (!baseURL) {
+    throw new Error("AI 服务未配置，请设置 QWEN_BASE_URL 环境变量");
+  }
+  return new OpenAI({ apiKey, baseURL });
+}
+
+const qwen = process.env.QWEN_API_KEY ? createQwenClient() : null;
 
 export interface RecognizedItem {
   name: string;
@@ -14,6 +24,14 @@ export interface RecognizedItem {
   amount?: number;
 }
 
+// 清洗模型返回内容：去除 markdown 代码块标记及首尾空白
+function cleanModelContent(content: string): string {
+  return content
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+}
+
 export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
   items: RecognizedItem[];
   totalAmount?: number;
@@ -21,6 +39,8 @@ export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
   if (!qwen) {
     throw new Error("AI 服务未配置，请设置 QWEN_API_KEY 环境变量");
   }
+
+  const model = process.env.QWEN_MODEL || "qwen-vl-max";
 
   const prompt = `请识别这张采购单图片，提取所有采购物料信息。以 JSON 格式返回：
 {
@@ -36,7 +56,7 @@ export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
 4. 只返回 JSON，不要其他文字`;
 
   const response = await qwen.chat.completions.create({
-    model: process.env.QWEN_MODEL || "qwen3.6-flash",
+    model,
     messages: [
       {
         role: "user",
@@ -46,15 +66,20 @@ export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
         ],
       },
     ],
-    response_format: { type: "json_object" },
     max_tokens: 4096,
   });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) throw new Error("识别失败，AI 返回空内容");
+  const rawContent = response.choices[0]?.message?.content;
+  if (!rawContent) throw new Error("识别失败，AI 返回空内容");
+
+  const content = cleanModelContent(rawContent);
+  if (!content) throw new Error("识别失败，AI 返回内容为空");
+
+  console.log("[AI] 采购单识别原始返回前 1000 字符:", content.slice(0, 1000));
 
   try {
     const parsed = JSON.parse(content);
+    console.log("[AI] 采购单识别解析结果:", JSON.stringify({ itemsCount: parsed.items?.length, totalAmount: parsed.totalAmount }));
 
     // 辅助函数：从字符串中提取数字（如 "10斤" → 10, "18元/斤" → 18, "180元" → 180）
     const extractNumber = (value: any): number | undefined => {
@@ -100,8 +125,9 @@ export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
       }),
       totalAmount: extractNumber(parsed.totalAmount),
     };
-  } catch {
-    throw new Error("识别结果解析失败");
+  } catch (parseError) {
+    console.error("[AI] 采购单识别结果解析失败，原始内容前 1000 字符:", content.slice(0, 1000));
+    throw new Error("识别结果解析失败，AI 未返回合法 JSON");
   }
 }
 
@@ -111,6 +137,8 @@ export async function recognizeOutboundSheet(imageBase64: string): Promise<{
   if (!qwen) {
     throw new Error("AI 服务未配置，请设置 QWEN_API_KEY 环境变量");
   }
+
+  const model = process.env.QWEN_MODEL || "qwen-vl-max";
 
   const prompt = `请识别这张出库单图片，提取所有出库物料信息。以 JSON 格式返回：
 {
@@ -123,7 +151,7 @@ export async function recognizeOutboundSheet(imageBase64: string): Promise<{
 2. 只返回 JSON，不要其他文字`;
 
   const response = await qwen.chat.completions.create({
-    model: process.env.QWEN_MODEL || "qwen3.6-flash",
+    model,
     messages: [
       {
         role: "user",
@@ -133,12 +161,14 @@ export async function recognizeOutboundSheet(imageBase64: string): Promise<{
         ],
       },
     ],
-    response_format: { type: "json_object" },
     max_tokens: 4096,
   });
 
-  const content = response.choices[0]?.message?.content;
-  if (!content) throw new Error("识别失败，AI 返回空内容");
+  const rawContent = response.choices[0]?.message?.content;
+  if (!rawContent) throw new Error("识别失败，AI 返回空内容");
+
+  const content = cleanModelContent(rawContent);
+  if (!content) throw new Error("识别失败，AI 返回内容为空");
 
   try {
     const parsed = JSON.parse(content);
@@ -175,7 +205,8 @@ export async function recognizeOutboundSheet(imageBase64: string): Promise<{
         };
       }),
     };
-  } catch {
-    throw new Error("识别结果解析失败");
+  } catch (parseError) {
+    console.error("[AI] 出库单识别结果解析失败，原始内容前 1000 字符:", content.slice(0, 1000));
+    throw new Error("识别结果解析失败，AI 未返回合法 JSON");
   }
 }

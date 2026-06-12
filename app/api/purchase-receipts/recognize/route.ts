@@ -9,8 +9,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "请上传图片" }, { status: 400 });
     }
 
+    console.log("[AI] 开始识别采购单图片...");
+
     // 调用 AI 识别
     const recognized = await recognizePurchaseReceipt(imageBase64);
+
+    console.log(`[AI] 识别完成，原始物料数: ${recognized.items?.length || 0}`);
 
     // 获取所有原料和调料用于匹配
     const [ingredients, seasonings] = await Promise.all([
@@ -69,12 +73,16 @@ export async function POST(req: NextRequest) {
       };
     });
 
+    const matchedCount = matchedItems.filter((i) => i.matched).length;
+    console.log(`[AI] 匹配完成，已匹配: ${matchedCount}/${matchedItems.length}`);
+
     return NextResponse.json({
       items: matchedItems,
       totalAmount: recognized.totalAmount,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
+    console.error("[AI] 采购单识别接口异常:", message);
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
