@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getUserFromRequest } from "@/lib/api-auth";
+import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { enrichOperatorNames } from "@/lib/user-resolve";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const result = receipts.map((r) => ({
+  const result = (await enrichOperatorNames(receipts)).map((r) => ({
     ...r,
     isSettled: settledReceiptIds.has(r.id),
   }));

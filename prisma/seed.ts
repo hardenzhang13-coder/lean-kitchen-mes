@@ -98,7 +98,8 @@ async function main() {
   // 5. 用户
   const users = [
     { username: "zhang", password: "123456", name: "张浩", role: "业务运营" },
-    { username: "yang", password: "123456", name: "杨厨", role: "厨房负责人" },
+    { username: "yang", password: "123456", name: "杨厨", role: "厨师长" },
+    { username: "admin", password: "admin123", name: "管理员", role: "系统管理员" },
   ];
   for (const u of users) {
     const existing = await prisma.user.findUnique({ where: { username: u.username } });

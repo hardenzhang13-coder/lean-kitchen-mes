@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getUserFromRequest } from "@/lib/api-auth";
+import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { enrichOperatorNames } from "@/lib/user-resolve";
 
 export async function GET() {
   const rows = await prisma.purchaseReimbursement.findMany({
     orderBy: { createdAt: "desc" },
   });
-  return NextResponse.json(rows);
+  const enriched = await enrichOperatorNames(rows);
+  return NextResponse.json(enriched);
 }
 
 export async function POST(req: NextRequest) {

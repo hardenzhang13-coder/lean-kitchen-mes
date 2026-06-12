@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getUserFromRequest } from "@/lib/api-auth";
+import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { enrichOperatorNames } from "@/lib/user-resolve";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -62,7 +62,7 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const enriched = rows.map((row) => ({
+  const enriched = await enrichOperatorNames(rows.map((row) => ({
     ...row,
     seasoningDetails: row.seasoningDetails.map((d) => ({
       ...d,
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
           ? minors.find((m) => m.id === d.sourceId)?.unit
           : seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
     })),
-  }));
+  })));
 
   return NextResponse.json(enriched);
 }

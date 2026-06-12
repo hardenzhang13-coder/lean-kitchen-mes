@@ -34,6 +34,7 @@ interface ScheduleData {
   scope: string;
   status: string;
   operator: string | null;
+  operatorName?: string | null;
   createdAt: string;
   items: Array<{
     id: number;
@@ -187,7 +188,7 @@ export default function ScheduleDetailPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
             <p className="text-sm text-muted-foreground">
-              排程 #{data.id} · 负责人：{data.operator || "—"}
+              排程 #{data.id} · 负责人：{data.operatorName || data.operator || "—"}
             </p>
           </div>
         </div>

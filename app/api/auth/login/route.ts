@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       username: user.username,
       name: user.name,
+      role: user.role,
     });
     await setSessionCookie(token);
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
         id: user.id,
         username: user.username,
         name: user.name,
+        role: user.role,
       },
     });
   } catch (error) {

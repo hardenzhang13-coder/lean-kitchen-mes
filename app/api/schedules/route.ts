@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
+import { enrichOperatorNames } from "@/lib/user-resolve";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -37,11 +38,11 @@ export async function GET(req: NextRequest) {
   });
 
   // 计算菜品总量
-  const enriched = rows.map((r) => ({
+  const enriched = await enrichOperatorNames(rows.map((r) => ({
     ...r,
     totalQuantity: r.items.reduce((s, it) => s + it.quantity, 0),
     dishCount: r._count.items,
-  }));
+  })));
 
   return NextResponse.json(enriched);
 }

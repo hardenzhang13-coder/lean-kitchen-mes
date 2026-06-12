@@ -9,7 +9,7 @@ export function LayoutWrapper({
   user,
 }: {
   children: React.ReactNode;
-  user: { username: string; name?: string | null } | null;
+  user: { username: string; name?: string | null; role?: string | null } | null;
 }) {
   const pathname = usePathname();
   const isLogin = pathname === "/login";

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
+import { DatePicker } from "@/app/components/date-picker";
 import { toast } from "sonner";
 
 interface LedgerItem {
@@ -46,6 +47,7 @@ interface LedgerGroup {
   source: string;
   changeTime: string;
   operator: string | null;
+  operatorName?: string | null;
   settlementStatus: string;
   itemCount: number;
   totalQty: number;
@@ -54,6 +56,7 @@ interface LedgerGroup {
   receiptSummary?: string;
   receiptTotalAmount?: number;
   receiptOperator?: string;
+  receiptOperatorName?: string | null;
   items: LedgerItem[];
 }
 
@@ -94,6 +97,7 @@ export default function LedgerPage() {
       ? true
       : (g.receiptSummary && g.receiptSummary.toLowerCase().includes(search.toLowerCase())) ||
         g.source.toLowerCase().includes(search.toLowerCase()) ||
+        (g.operatorName && g.operatorName.toLowerCase().includes(search.toLowerCase())) ||
         (g.operator && g.operator.toLowerCase().includes(search.toLowerCase()));
     const matchStatus = !statusFilter ? true : g.settlementStatus === statusFilter;
     return matchSearch && matchStatus;
@@ -142,18 +146,18 @@ export default function LedgerPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
             />
-            <Input
-              type="date"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-[150px] h-11 cursor-pointer"
+              onChange={(v) => setStartDate(v)}
+              placeholder="开始日期"
+              className="w-[180px]"
             />
             <span className="text-sm text-muted-foreground">至</span>
-            <Input
-              type="date"
+            <DatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-[150px] h-11 cursor-pointer"
+              onChange={(v) => setEndDate(v)}
+              placeholder="结束日期"
+              className="w-[180px]"
             />
             <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
               <SelectTrigger className="w-[120px] h-10">
@@ -248,7 +252,7 @@ export default function LedgerPage() {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {g.receiptOperator || g.operator || "—"}
+                        {g.receiptOperatorName || g.operatorName || g.receiptOperator || g.operator || "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
@@ -305,7 +309,7 @@ export default function LedgerPage() {
                 <div>
                   <span className="text-muted-foreground">负责人：</span>
                   <span>
-                    {detailGroup.receiptOperator || detailGroup.operator || "—"}
+                    {detailGroup.receiptOperatorName || detailGroup.operatorName || detailGroup.receiptOperator || detailGroup.operator || "—"}
                   </span>
                 </div>
                 <div>

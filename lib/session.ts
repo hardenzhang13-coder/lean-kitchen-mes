@@ -9,6 +9,7 @@ export interface SessionPayload {
   userId: number;
   username: string;
   name?: string | null;
+  role?: string | null;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {

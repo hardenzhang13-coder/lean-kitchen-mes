@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { DatePicker } from "@/app/components/date-picker";
 import { toast } from "sonner";
 
 interface Receipt {
@@ -152,18 +153,18 @@ export default function NewReimbursementPage() {
           <div className="flex items-center gap-3">
             <span className="text-sm font-medium">选择采购单</span>
             <div className="flex items-center gap-2 ml-auto">
-              <Input
-                type="date"
+              <DatePicker
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-[140px] h-11 cursor-pointer"
+                onChange={(v) => setStartDate(v)}
+                placeholder="开始日期"
+                className="w-[160px]"
               />
               <span className="text-sm text-muted-foreground">至</span>
-              <Input
-                type="date"
+              <DatePicker
                 value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-[140px] h-11 cursor-pointer"
+                onChange={(v) => setEndDate(v)}
+                placeholder="结束日期"
+                className="w-[160px]"
               />
               {(startDate || endDate) && (
                 <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); }}>

@@ -48,3 +48,11 @@ next-env.d.ts
 
 # tesseract language data
 *.traineddata
+
+# local IDE / Claude Code configuration
+.claude/
+
+# receipt test images
+*.receipt-test.*
+receipt-test.*
+

@@ -24,7 +24,8 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { Pagination } from "@/app/components/pagination";
-import { SelectField } from "@/app/components/select-field";
+import { TileSelect } from "@/app/components/tile-select";
+import { TileGroup } from "@/app/components/tile-group";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
@@ -39,10 +40,17 @@ type Sauce = {
   unit: string;
 };
 
+type Unit = {
+  id: number;
+  name: string;
+  category: string;
+};
+
 const storages = ["冷藏", "常温", "冷冻"];
 
 export default function SauceIngredientsPage() {
   const [data, setData] = useState<Sauce[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -56,6 +64,11 @@ export default function SauceIngredientsPage() {
     unit: "",
   });
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const unitOptions = useMemo(
+    () => units.map((u) => ({ value: u.name, label: u.name })),
+    [units]
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -85,8 +98,12 @@ export default function SauceIngredientsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/sauce-ingredients");
+      const [res, unitRes] = await Promise.all([
+        fetch("/api/sauce-ingredients"),
+        fetch("/api/units"),
+      ]);
       setData(await res.json());
+      if (unitRes.ok) setUnits(await unitRes.json());
     } catch (e) {
       toast.error("获取数据失败");
     } finally {
@@ -286,14 +303,14 @@ export default function SauceIngredientsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[640px] [&>button]:cursor-pointer">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[640px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+          <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
               {editing ? "编辑酱料" : "新增酱料"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-5 py-2">
-            <FormSection title="基础信息">
+          <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
+            <FormSection title="基础信息" cols={1}>
               <FormField label="编号">
                 <Input
                   value={editing?.code || "系统自动生成"}
@@ -318,7 +335,7 @@ export default function SauceIngredientsPage() {
                 />
               </FormField>
             </FormSection>
-            <FormSection title="配方与价格">
+            <FormSection title="配方与价格" cols={1}>
               <FormField label="配方说明">
                 <Input
                   value={form.recipe}
@@ -339,25 +356,28 @@ export default function SauceIngredientsPage() {
                 />
               </FormField>
               <FormField label="计量单位" required>
-                <Input
+                <TileSelect
+                  options={unitOptions}
                   value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  placeholder="如 斤"
-                  className="h-11 text-base px-4"
+                  onChange={(v) => setForm({ ...form, unit: v })}
+                  placeholder="请选择计量单位"
+                  title="选择计量单位"
+                  searchable={false}
+                  required
                 />
               </FormField>
             </FormSection>
-            <FormSection title="储存信息">
+            <FormSection title="储存信息" cols={1}>
               <FormField label="储存方式" required>
-                <SelectField
+                <TileGroup
+                  options={storages.map((s) => ({ value: s, label: s }))}
                   value={form.storage}
                   onChange={(v) => setForm({ ...form, storage: v })}
-                  options={storages.map((s) => ({ value: s, label: s }))}
                 />
               </FormField>
             </FormSection>
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-6 pt-0 pb-6">
             <Button
               variant="outline"
               onClick={() => setDialogOpen(false)}

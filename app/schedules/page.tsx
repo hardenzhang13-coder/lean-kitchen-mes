@@ -5,6 +5,7 @@ import { Plus, Search, CalendarDays, ChefHat, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { DatePicker } from "@/app/components/date-picker";
 import { PageHeader } from "@/app/components/page-header";
 import { toast } from "sonner";
 
@@ -15,6 +16,7 @@ interface ScheduleItem {
   scope: string;
   status: string;
   operator: string | null;
+  operatorName?: string | null;
   createdAt: string;
   dishCount: number;
   totalQuantity: number;
@@ -111,18 +113,18 @@ export default function SchedulesPage() {
           onChange={(e) => setSearch(e.target.value)}
           className="max-w-xs"
         />
-        <Input
-          type="date"
+        <DatePicker
           value={startDate}
-          onChange={(e) => setStartDate(e.target.value)}
-          className="w-[150px] h-11 cursor-pointer"
+          onChange={(v) => setStartDate(v)}
+          placeholder="开始日期"
+          className="w-[180px]"
         />
         <span className="text-sm text-muted-foreground">至</span>
-        <Input
-          type="date"
+        <DatePicker
           value={endDate}
-          onChange={(e) => setEndDate(e.target.value)}
-          className="w-[150px] h-11 cursor-pointer"
+          onChange={(v) => setEndDate(v)}
+          placeholder="结束日期"
+          className="w-[180px]"
         />
         {(startDate || endDate || search) && (
           <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); }}>
@@ -181,7 +183,7 @@ export default function SchedulesPage() {
                 </div>
               </div>
               <div className="text-sm text-muted-foreground">
-                负责人：{row.operator || "—"}
+                负责人：{row.operatorName || row.operator || "—"}
               </div>
             </div>
           ))}

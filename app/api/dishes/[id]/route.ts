@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getUserFromRequest } from "@/lib/api-auth";
+import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { resolveUsernameToName } from "@/lib/user-resolve";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -57,6 +57,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           ? minors.find((m) => m.id === d.sourceId)?.unit
           : seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
     })),
+    operatorName: await resolveUsernameToName(row.operator),
   };
 
   return NextResponse.json(enriched);

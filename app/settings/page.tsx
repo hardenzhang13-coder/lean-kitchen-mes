@@ -1,12 +1,12 @@
-"use client";
-
 import Link from "next/link";
-import { Tags, FolderTree, Ruler, Truck } from "lucide-react";
+import { Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getCurrentUser } from "@/lib/session";
+import { isAdmin } from "@/lib/roles";
 
-const dictItems = [
+const settingsItems = [
   {
-    href: "/dictionaries/categories",
+    href: "/settings/categories",
     label: "菜品类别",
     desc: "管理菜品分类，如猪肉类、牛肉类、蔬菜类等",
     icon: Tags,
@@ -14,7 +14,7 @@ const dictItems = [
     count: "19 项",
   },
   {
-    href: "/dictionaries/classes",
+    href: "/settings/classes",
     label: "食材分类",
     desc: "管理食材一级和二级分类体系",
     icon: FolderTree,
@@ -22,7 +22,7 @@ const dictItems = [
     count: "8 + 25 项",
   },
   {
-    href: "/dictionaries/units",
+    href: "/settings/units",
     label: "单位",
     desc: "管理重量、体积、计数等单位",
     icon: Ruler,
@@ -30,7 +30,7 @@ const dictItems = [
     count: "15 项",
   },
   {
-    href: "/dictionaries/suppliers",
+    href: "/settings/suppliers",
     label: "供应商",
     desc: "管理采购供应商信息",
     icon: Truck,
@@ -39,16 +39,28 @@ const dictItems = [
   },
 ];
 
-export default function DictionariesPage() {
+const adminItem = {
+  href: "/settings/users",
+  label: "用户管理",
+  desc: "管理系统用户账号与角色权限",
+  icon: Users,
+  color: "text-indigo-500",
+  count: "",
+};
+
+export default async function SettingsPage() {
+  const user = await getCurrentUser();
+  const items = isAdmin(user?.role) ? [...settingsItems, adminItem] : settingsItems;
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">数据字典</h1>
-        <p className="text-muted-foreground">管理系统基础数据</p>
+        <h1 className="text-2xl font-bold tracking-tight">设置</h1>
+        <p className="text-muted-foreground">管理系统基础数据与用户账号</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        {dictItems.map((item) => {
+        {items.map((item) => {
           const Icon = item.icon;
           return (
             <Link key={item.href} href={item.href}>
@@ -58,9 +70,11 @@ export default function DictionariesPage() {
                   <div className="flex-1">
                     <CardTitle className="text-lg">{item.label}</CardTitle>
                   </div>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                    {item.count}
-                  </span>
+                  {item.count && (
+                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
+                      {item.count}
+                    </span>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">{item.desc}</p>

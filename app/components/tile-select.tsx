@@ -28,6 +28,7 @@ interface TileSelectProps {
   disabled?: boolean;
   required?: boolean;
   emptyText?: string;
+  searchable?: boolean;
 }
 
 export function TileSelect({
@@ -40,6 +41,7 @@ export function TileSelect({
   disabled = false,
   required = false,
   emptyText = "暂无匹配选项",
+  searchable = true,
 }: TileSelectProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -105,15 +107,17 @@ export function TileSelect({
             <DialogTitle className="text-lg">{title}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={searchPlaceholder}
-                className="h-11 pl-9 text-base"
-              />
-            </div>
+            {searchable && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="h-11 pl-9 text-base"
+                />
+              </div>
+            )}
             {filtered.length === 0 ? (
               <div className="text-center text-sm text-muted-foreground py-8">
                 {emptyText}

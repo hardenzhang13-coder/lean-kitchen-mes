@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
       source: g.source,
       changeTime: g.changeTime,
       operator: g.operator,
+      operatorName: null as string | null,
       settlementStatus: g.settlementStatus,
       itemCount: g.items.length,
       totalQty: g.items.reduce((s, it) => s + Number(it.changeQty), 0),
@@ -94,6 +95,7 @@ export async function GET(req: NextRequest) {
       receiptSummary: receipt?.summary,
       receiptTotalAmount: receipt?.totalAmount,
       receiptOperator: receipt?.operator,
+      receiptOperatorName: null as string | null,
       // 明细
       items: g.items.map((it) => ({
         id: it.id,
@@ -107,5 +109,32 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  return NextResponse.json(groups);
+  // 批量解析操作人姓名为展示名称
+  const usernames = Array.from(
+    new Set(
+      groups
+        .flatMap((g) => [g.operator, g.receiptOperator])
+        .filter((x): x is string => !!x)
+    )
+  );
+  const userNameMap = new Map<string, string>();
+  if (usernames.length > 0) {
+    const users = await prisma.user.findMany({
+      where: { username: { in: usernames } },
+      select: { username: true, name: true },
+    });
+    for (const u of users) {
+      userNameMap.set(u.username, u.name || u.username);
+    }
+  }
+
+  const enriched = groups.map((g) => ({
+    ...g,
+    operatorName: g.operator ? userNameMap.get(g.operator) || g.operator : null,
+    receiptOperatorName: g.receiptOperator
+      ? userNameMap.get(g.receiptOperator) || g.receiptOperator
+      : null,
+  }));
+
+  return NextResponse.json(enriched);
 }

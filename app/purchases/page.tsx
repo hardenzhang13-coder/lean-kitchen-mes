@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
+import { DatePicker } from "@/app/components/date-picker";
 import { toast } from "sonner";
 
 interface ReceiptItem {
@@ -44,6 +45,7 @@ interface Receipt {
   summary: string | null;
   totalAmount: number;
   operator: string | null;
+  operatorName?: string | null;
   createdAt: string;
   isSettled: boolean;
   items: ReceiptItem[];
@@ -84,7 +86,7 @@ export default function PurchasesPage() {
     const s = search.toLowerCase();
     return (
       (r.summary && r.summary.toLowerCase().includes(s)) ||
-      (r.operator && r.operator.toLowerCase().includes(s)) ||
+      (r.operatorName && r.operatorName.toLowerCase().includes(s)) ||
       String(r.id).includes(s)
     );
   });
@@ -156,18 +158,18 @@ export default function PurchasesPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-xs"
             />
-            <Input
-              type="date"
+            <DatePicker
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="w-[150px] h-11 cursor-pointer"
+              onChange={(v) => setStartDate(v)}
+              placeholder="开始日期"
+              className="w-[180px]"
             />
             <span className="text-sm text-muted-foreground">至</span>
-            <Input
-              type="date"
+            <DatePicker
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="w-[150px] h-11 cursor-pointer"
+              onChange={(v) => setEndDate(v)}
+              placeholder="结束日期"
+              className="w-[180px]"
             />
             {(startDate || endDate || search) && (
               <Button
@@ -222,7 +224,7 @@ export default function PurchasesPage() {
                       <TableCell className="font-semibold">
                         ¥{Number(r.totalAmount).toFixed(2)}
                       </TableCell>
-                      <TableCell>{r.operator || "—"}</TableCell>
+                      <TableCell>{r.operatorName || r.operator || "—"}</TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDateTime(r.createdAt)}
                       </TableCell>
@@ -264,7 +266,7 @@ export default function PurchasesPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">负责人：</span>
-                  <span>{detailReceipt.operator || "—"}</span>
+                  <span>{detailReceipt.operatorName || detailReceipt.operator || "—"}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">总金额：</span>

@@ -419,12 +419,288 @@
 | 切配工单分类 | 一二级分类合并单元格 | 按厨房实际分类组织，便于切配人员按类领取 |
 | AI 识别 | 通义千问 qwen3.6-flash | DeepSeek V4 预览版不支持图片输入；Qwen 多模态稳定且便宜 |
 | 单选交互规范 | ≤5 Tile 平铺 / >5 TileSelect 弹窗 | 选项少时一眼可见，选项多时支持搜索筛选 |
+| 操作人展示 | 统一解析 username → name | 各业务列表/详情均展示真实姓名而非账号 |
+| 字典入口 | 从 `/dictionaries` 合并到 `/settings` | 设置模块统一承载基础数据与个人配置 |
+
+---
+
+## 2026-06-12（Day 6）— 用户权限 + 设置模块重构 + 全局交互统一
+
+### 上午：用户管理与权限基础
+
+**角色体系落地**：
+- 新增 `lib/roles.ts` 定义 4 个角色：`系统管理员` / `业务运营` / `厨师长` / `采购`
+- 登录/会话/中间件全链路携带 `role`，API 通过 `getUserFromRequest` 读取
+
+**用户管理 API**：
+- `GET /api/users` — 列表（管理员权限）
+- `POST /api/users` — 创建用户（bcrypt 哈希密码）
+- `GET /api/users/[id]` / `PUT /api/users/[id]` / `DELETE /api/users/[id]` — 详情/更新/删除
+- `PUT /api/users/profile` — 当前用户修改姓名、账号、密码（改账号后自动刷新 session）
+
+**用户管理页面**：
+- `app/settings/users/page.tsx` — 表格列表 + 搜索 + 新增/编辑弹窗 + 删除确认
+- 禁止删除当前登录用户
+
+### 下午：设置模块重构
+
+**入口整合**：
+- 侧边栏「字典」改为「设置」，原 `/dictionaries/*` 页面删除
+- 新增 `/settings` 首页，卡片展示：菜品类别 / 食材分类 / 单位 / 供应商 / 用户管理
+- 4 个字典页面迁移到 `/settings/categories` `/settings/classes` `/settings/units` `/settings/suppliers`
+- 新增 `/settings/profile` 个人设置页
+- `next.config.ts` 添加永久重定向：`/dictionaries/*` → `/settings/*`
+
+**侧边栏优化**：
+- 底部用户区改为可点击，跳转个人设置
+- 显示用户角色 badge
+- 导航标签加粗
+
+### 下午：通用组件与表单交互升级
+
+**日期选择器**：
+- 新增 `app/components/date-picker.tsx`（基于 `react-day-picker` + `date-fns`）
+- 采购单列表、报销页、排程列表等原生 `type="date"` 输入统一替换
+
+**选择交互组件**：
+- 新增 `TileGroup`：少量选项平铺单选（带 Check 图标）
+- 新增 `UnitSelect`：从 `/api/units` 拉取单位，支持按 category 过滤
+- `TileSelect` 增加 `searchable` 开关，分类选择关闭搜索更简洁
+- `FormSection` 支持 `cols` 参数（1/2/3/4 列），原料表单改为 4 列紧凑布局
+
+**食材表单改造**：
+- 原料/净料/小料/调料/酱料 5 个页面：
+  - 一二级分类选择改为 `TileSelect` 弹窗
+  - 计量单位 / 计价单位改为 `UnitSelect` 或 `TileSelect`
+  - 季节限定、储存方式等改为 `TileGroup` 平铺
+- 列表页二级分类展示去掉 code 后缀
+
+### 全局：操作人姓名展示优化
+
+**后端**：
+- 新增 `lib/user-resolve.ts`，提供 `enrichOperatorNames` 批量把 `operator` 账号解析为 `operatorName`
+- 采购单、报销单、排程、菜品、库存台账等 GET API 统一接入
+
+**前端**：
+- 采购单列表/详情、报销列表/详情、排程详情、库存台账等展示 `operatorName || operator`
+
+### 其他
+
+- 新增 shadcn/ui 组件：`components/ui/calendar.tsx`、`components/ui/popover.tsx`
+- 新增依赖：`date-fns`、`react-day-picker`
+- `prisma/seed.ts` 调整用户角色：zhang→业务运营，yang→厨师长，新增 admin 系统管理员
+- 中文用户名支持：中间件对 username 进行 URL encode/decode
+
+### 验证
+- `npm run build` ✅ 构建成功
+
+---
+
+## 累计交付状态
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 数据库设计 | ✅ 完成 | 25 张表 |
+| 基础字典 | ✅ 完成 | 菜品类别 / 食材分类 / 单位 / 供应商，迁移至设置模块 |
+| 食材库 | ✅ 完成 | 5 类食材完整 CRUD + 批量导入 + TileSelect/TileGroup 交互升级 |
+| 菜品库 | ✅ 完成 | 卡片列表 + 详情页 + 5 步创建向导（草稿/发布）+ TileSelect 交互 |
+| 工作台 | ✅ 完成 | 模块入口总览 + 今日排程展示 |
+| 部署上线 | ✅ 完成 | Zeabur 自动部署 |
+| 采购管理 | ⚠️ 基础完成 | 采购单录入（AI识别）/ 列表 / 详情弹窗 / 删除 / 报销管理；缺少采购计划执行、采购单编辑、供应商选择 |
+| 库存管理 | ✅ 完成 | 实时库存 / 台账（采购单维度聚合） |
+| 排程管理 | ✅ 完成 | 排程创建 / 自动拆解切配工单+采购计划 / 状态流转 |
+| 用户权限 | ✅ 基础完成 | 角色字段 + 用户 CRUD + 个人设置 + 操作人姓名解析 |
+| 系统设置 | ✅ 完成 | 字典迁移 + 个人设置 + 用户管理 |
+
+---
+
+## 关键技术决策记录
+
+| 决策 | 方案 | 原因 |
+|------|------|------|
+| Prisma Client 初始化 | `@prisma/adapter-pg` | Prisma 7 强制要求传入 adapter |
+| 组件库 | 保持 shadcn/ui | 已深度集成，与 Next.js 16 / Tailwind v4 完全兼容 |
+| 部署平台 | Zeabur | 支持 Next.js 自动检测，一键部署 |
+| 数据库 | 复用同一套远程 PG | 本地开发与线上生产数据一致 |
+| 编号生成 | 服务端自动生成 | 避免人工输入编号格式错误，保证唯一性 |
+| BOM 表设计 | 5 张独立关联表 | 主料/辅料/净料/调料/酱料各一张，逻辑更清晰 |
+| 图片存储 | Cloudinary Unsigned Upload | Zeabur 无状态容器不支持本地磁盘存储 |
+| 库存模型 | 统一走原料库存 | 净料出库按出成率换算扣除对应原料；调料无映射不入库 |
+| 结算状态 | 报销即视为结算 | 创建报销单后自动更新关联 ledger 记录 |
+| 排程拆解 | 服务端事务内自动计算 | 保证数据一致性，前端只负责提交菜品清单 |
+| 切配工单分类 | 一二级分类合并单元格 | 按厨房实际分类组织，便于切配人员按类领取 |
+| AI 识别 | 通义千问 qwen3.6-flash | DeepSeek V4 预览版不支持图片输入；Qwen 多模态稳定且便宜 |
+| 单选交互规范 | ≤5 Tile 平铺 / >5 TileSelect 弹窗 | 选项少时一眼可见，选项多时支持搜索筛选 |
+| 操作人展示 | 统一解析 username → name | 各业务列表/详情均展示真实姓名而非账号 |
+| 字典入口 | 从 `/dictionaries` 合并到 `/settings` | 设置模块统一承载基础数据与个人配置 |
 
 ---
 
 ## 已知问题与 TODO
-- [ ] **用户管理模块**：User 表已增加 `role` 字段，需开发用户管理页面（列表/新增/编辑/启用禁用），支持按角色分配菜单权限
-- [ ] **全局单选组件规范**：≤5 个选项的 Radio/Tile 平铺展示，>5 个选项的使用 `TileSelect` 弹窗选择；需逐步在排程/采购等模块落地
-- [ ] 用户认证与权限控制尚未设计
-- [ ] 加工工艺 stage 当前为 `初加工/切配/烹饪/装盘`，与 Database.md 定义的 `初加工/预处理/上灶加工/出锅成品` 不一致
-- [ ] Cloudinary 环境变量需在生产环境配置 `CLOUDINARY_CLOUD_NAME` 和 `CLOUDINARY_UPLOAD_PRESET`
+- [ ] **采购计划执行**：排程中的采购计划仅支持填写 actualPurchase/actualAmount，未与采购单打通，需实现「按采购计划生成采购单」
+- [ ] **采购单编辑**：当前采购单只能删除，不能修改明细、供应商、金额
+- [ ] **供应商在采购流程中使用**：供应商字典已存在，但采购单录入时未选择供应商
+- [ ] **采购对账/结算**：报销流程已存在，但缺少按供应商/时间段的汇总对账视图
+- [ ] **加工工艺 stage 当前为 `初加工/切配/烹饪/装盘`，与 Database.md 定义的 `初加工/预处理/上灶加工/出锅成品` 不一致
+- [ ] **Cloudinary 环境变量需在生产环境配置 `CLOUDINARY_CLOUD_NAME` 和 `CLOUDINARY_UPLOAD_PRESET`
+
+---
+
+# 明日开发计划（2026-06-13）— 采购模块闭环
+
+## 目标
+打通「排程采购计划 → 实际采购执行 → 采购单生成 → 采购单编辑 → 供应商对账」的完整链路，让采购从系统建议量真正落地为可结算的入库单据。
+
+## 背景与现状
+- 排程创建后会自动生成 `PurchasePlan`（采购计划），目前仅在排程详情页展示，可填写 `actualPurchase` / `actualAmount`，但数据未与采购单打通。
+- 采购单录入页（`/purchases/new`）已支持 AI 识别和手动录入，但缺少供应商选择。
+- 采购单列表支持查看详情弹窗、删除（未结算可删），但缺少编辑功能。
+- 报销单已可关联多个采购单，但缺少按供应商/时间段的汇总对账视图。
+
+## 任务拆解
+
+### 任务 1：采购计划执行页
+
+**路由**：`/schedules/[id]/purchase`
+**触发入口**：排程详情页采购计划卡片右上角新增「执行采购」按钮
+
+**页面功能**：
+- 展示当前排程所有 `PurchasePlan`（按二级分类聚合）
+- 每行可编辑：实际采购量、实际金额、供应商（从 `/api/suppliers` 选择）、备注
+- 支持「全选/取消全选」批量生成采购单
+- 按供应商自动分组：同一供应商的多个计划项合并为一张采购单
+- 底部显示预计生成采购单数量、总金额汇总
+
+**新增/修改文件**：
+- `app/schedules/[id]/purchase/page.tsx` — 采购计划执行页
+- `app/schedules/[id]/page.tsx` — 增加「执行采购」入口按钮
+
+### 任务 2：采购计划执行 API
+
+**路由**：`POST /api/schedules/[id]/execute-purchase`
+
+**逻辑**：
+- 仅允许 `待生效` / `进行中` 排程执行
+- 接收执行项数组：`{ purchasePlanId, actualPurchase, actualAmount, supplierId?, remark? }`
+- 按 `supplierId` 分组，每组生成一张 `PurchaseReceipt`
+  - `receiptDate` = 当前日期
+  - `summary` = `排程#${id} 采购执行`
+  - `totalAmount` = 该组 `actualAmount` 合计
+  - `operator` = 当前用户
+- 每个计划项生成一条 `PurchaseReceiptItem`
+  - `ingredientId`：根据 `sourceType` + `sourceId` 查找对应的 `Ingredient`
+  - `itemName` = `PurchasePlan.itemName`
+  - `qty` / `unitPrice` / `amount` = 实际采购量/单价/金额
+  - `stockUnit` / `stockInQty` = 原料库存单位及换算后数量
+- 同步更新对应 `PurchasePlan.status = "completed"`，回填 `actualPurchase` / `actualAmount`
+- 事务内完成库存入库 + 台账写入（复用现有 `POST /api/purchase-receipts` 的入库逻辑，可抽成共享函数 `createReceiptAndStockIn`）
+
+**新增/修改文件**：
+- `app/api/schedules/[id]/execute-purchase/route.ts` — 执行采购 API
+- `lib/purchase-utils.ts`（新建）— 抽取「创建采购单 + 入库 + 写台账」的共享事务函数，供 `POST /api/purchase-receipts` 和新 API 复用
+- `app/api/purchase-receipts/route.ts` — 接入共享函数
+
+### 任务 3：采购单编辑功能
+
+**页面**：复用 `/purchases/new/page.tsx` 或在详情弹窗中增加编辑模式
+**推荐方案**：在 `/purchases/new?page=edit&id=xxx` 或新建 `/purchases/[id]/edit/page.tsx`
+
+**功能**：
+- 仅允许编辑未结算采购单
+- 加载原采购单数据：日期、供应商、摘要、明细（食材、规格、数量、单价、金额、入库数量）
+- 编辑后重新计算 `totalAmount`
+- 库存回滚：先按原明细扣减库存并删除原台账，再按新明细重新入库
+- 关联报销单状态：若已被 `pending` 报销单引用，更新对应报销单的 `totalAmount` 和 `receiptIds`
+
+**新增/修改文件**：
+- `app/purchases/[id]/edit/page.tsx` — 编辑页（或改造 new 页面）
+- `app/api/purchase-receipts/[id]/route.ts` — 增加 `PUT` 方法
+
+### 任务 4：供应商选择贯穿采购流程
+
+**涉及位置**：
+- `/purchases/new` — 表头增加「供应商」下拉选择
+- `/purchases/[id]/edit` — 同上
+- `/schedules/[id]/purchase` — 计划项级别可选择供应商
+- 采购单列表/详情展示供应商名称
+
+**API 调整**：
+- `GET /api/purchase-receipts` / `GET /api/purchase-receipts/[id]` — 返回 `supplier` 关联信息
+- `POST /api/purchase-receipts` / `PUT /api/purchase-receipts/[id]` — 接收并保存 `supplierId`
+
+### 任务 5：供应商对账视图（可选，视时间决定）
+
+**路由**：`/purchases/reconciliation` 或在 `/purchases/reimbursements` 增加「按供应商汇总」Tab
+
+**功能**：
+- 选择时间范围 + 供应商
+- 展示该供应商下所有未结算/已结算采购单
+- 汇总：采购次数、采购总数量、采购总金额
+- 一键生成报销单（复用现有报销创建逻辑）
+
+**新增/修改文件**：
+- `app/purchases/reconciliation/page.tsx`（可选）
+- `app/api/purchase-receipts/reconciliation/route.ts`（可选）
+
+## 数据流图
+
+```
+Schedule.purchasePlans
+        │
+        ▼
+/schedules/[id]/purchase 填写实际采购量/金额/供应商
+        │
+        ▼
+POST /api/schedules/[id]/execute-purchase
+        │
+        ├── 按 supplierId 分组
+        ├── 生成 PurchaseReceipt + PurchaseReceiptItem
+        ├── 更新 PurchasePlan.status = completed
+        ├── 更新 Inventory + InventoryLedger
+        │
+        ▼
+/purchases 列表查看 / /purchases/[id]/edit 修改
+        │
+        ▼
+/purchases/reimbursements/new 生成报销单
+```
+
+## 验收标准
+
+| # | 验收项 | 标准 |
+|---|--------|------|
+| 1 | 采购计划执行页可进入 | 从排程详情点击「执行采购」跳转，展示该排程所有采购计划 |
+| 2 | 可填写实际采购信息 | 每行可填实际采购量、实际金额、选择供应商、备注 |
+| 3 | 可生成采购单 | 点击「生成采购单」后按供应商分组生成多张采购单，并入库 |
+| 4 | 采购计划状态更新 | 已执行的采购计划状态变为 `completed`，不可重复执行 |
+| 5 | 采购单可编辑 | 未结算采购单可修改明细、供应商、摘要、金额，保存后库存/台账/报销金额正确回滚/更新 |
+| 6 | 供应商展示 | 采购单列表、详情、编辑页正确展示供应商名称 |
+| 7 | 构建通过 | `npm run build` 成功 |
+| 8 | 端到端验证 | 创建排程 → 执行采购 → 查看采购单 → 编辑采购单 → 创建报销单，数据一致 |
+
+## 预估工时
+
+| 任务 | 工时 |
+|------|------|
+| 任务 1：采购计划执行页 | 3-4h |
+| 任务 2：采购计划执行 API + 共享函数抽取 | 3-4h |
+| 任务 3：采购单编辑功能（含 API） | 3-4h |
+| 任务 4：供应商选择贯穿 | 1-2h |
+| 任务 5：供应商对账视图（可选） | 2-3h |
+| **合计** | **12-17h** |
+
+## 风险与应对
+
+| 风险 | 概率 | 影响 | 应对 |
+|------|------|------|------|
+| 采购计划单位与采购单入库单位换算复杂 | 中 | 中 | 统一以原料 `unit` 作为 `stockUnit`，采购单中记录 `qty`（采购单位）和 `stockInQty`（库存单位），两单位不同时需换算 |
+| 编辑采购单时库存回滚导致负库存 | 中 | 高 | 回滚前校验 `currentQty >= stockInQty`，不足时拒绝编辑并提示 |
+| 编辑影响已结算报销单 | 低 | 高 | 已结算采购单禁止编辑；pending 报销单编辑后需同步 `totalAmount` |
+| 多供应商分组逻辑复杂 | 低 | 中 | 前端按 supplierId 分组展示，后端接收扁平数组后重新分组 |
+
+## 优先级建议
+
+**P0（必须完成）**：任务 1、2、3、4
+**P1（建议完成）**：任务 5
+
+如果当天时间紧张，可放弃任务 5，先确保「排程采购计划 → 采购单 → 编辑 → 报销」主链路闭环。

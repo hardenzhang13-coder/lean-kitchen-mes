@@ -24,7 +24,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { TileSelect } from "@/app/components/tile-select";
-import { SelectField } from "@/app/components/select-field";
+import { TileGroup } from "@/app/components/tile-group";
 import { ImportDialog, ImportField, ImportRow } from "@/app/components/import-dialog";
 import { Pagination } from "@/app/components/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
@@ -50,6 +50,12 @@ type CategoryL1 = {
   children: { id: number; code: string; name: string; parentCode: string }[];
 };
 
+type Unit = {
+  id: number;
+  name: string;
+  category: string;
+};
+
 const seasons = ["四季", "春", "夏", "秋", "冬"];
 const storages = ["冷藏", "常温", "冷冻"];
 
@@ -67,6 +73,7 @@ const importFields: ImportField[] = [
 export default function RawIngredientsPage() {
   const [data, setData] = useState<Ingredient[]>([]);
   const [categories, setCategories] = useState<CategoryL1[]>([]);
+  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,15 +92,22 @@ export default function RawIngredientsPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
 
+  const unitOptions = useMemo(
+    () => units.map((u) => ({ value: u.name, label: u.name })),
+    [units]
+  );
+
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [ingRes, catRes] = await Promise.all([
+      const [ingRes, catRes, unitRes] = await Promise.all([
         fetch("/api/ingredients"),
         fetch("/api/ingredient-categories"),
+        fetch("/api/units"),
       ]);
       setData(await ingRes.json());
       setCategories(await catRes.json());
+      if (unitRes.ok) setUnits(await unitRes.json());
     } catch (e) {
       toast.error("获取数据失败");
     } finally {
@@ -138,7 +152,6 @@ export default function RawIngredientsPage() {
       l1?.children.map((c) => ({
         value: c.code,
         label: c.name,
-        description: c.code,
       })) || []
     );
   }, [form.l1Code, categories]);
@@ -389,12 +402,7 @@ export default function RawIngredientsPage() {
                               {row.alias || "—"}
                             </TableCell>
                             <TableCell>{l1Name}</TableCell>
-                            <TableCell>
-                              {l2Name}{" "}
-                              <span className="text-muted-foreground text-xs">
-                                ({row.l2Code})
-                              </span>
-                            </TableCell>
+                            <TableCell>{l2Name}</TableCell>
                             <TableCell>{row.unit}</TableCell>
                             <TableCell>{row.priceUnit}</TableCell>
                             <TableCell className="text-muted-foreground">
@@ -443,20 +451,23 @@ export default function RawIngredientsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[900px] [&>button]:cursor-pointer p-6">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-[900px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+          <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
               {editing ? "编辑原料" : "新增原料"}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-1">
+          <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
             <FormSection title="分类信息">
               <FormField label="一级分类" required>
-                <SelectField
+                <TileSelect
+                  options={categories.map((c) => ({ value: c.code, label: c.name }))}
                   value={form.l1Code}
                   onChange={(v) => setForm({ ...form, l1Code: v, l2Code: "" })}
-                  options={[{ value: "", label: "请选择一级分类" }, ...categories.map((c) => ({ value: c.code, label: `${c.name} (${c.code})` }))]}
                   placeholder="请选择一级分类"
+                  title="选择一级分类"
+                  searchable={false}
+                  required
                 />
               </FormField>
               <FormField label="二级分类" required>
@@ -468,14 +479,14 @@ export default function RawIngredientsPage() {
                     form.l1Code ? "请选择二级分类" : "请先选择一级分类"
                   }
                   title="选择二级分类"
-                  searchPlaceholder="搜索分类编码或名称..."
                   disabled={!form.l1Code}
+                  searchable={false}
                   required
                 />
               </FormField>
             </FormSection>
 
-            <FormSection title="基础信息">
+            <FormSection title="基础信息" cols={4}>
               <FormField label="编号">
                 <Input
                   value={editing?.code || "系统自动生成"}
@@ -500,21 +511,25 @@ export default function RawIngredientsPage() {
                 />
               </FormField>
               <FormField label="计量单位" required>
-                <Input
+                <TileSelect
+                  options={unitOptions}
                   value={form.unit}
-                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
-                  placeholder="如 斤"
-                  className="h-11 text-base px-4"
+                  onChange={(v) => setForm({ ...form, unit: v })}
+                  placeholder="请选择计量单位"
+                  title="选择计量单位"
+                  searchable={false}
+                  required
                 />
               </FormField>
               <FormField label="计价单位" required>
-                <Input
+                <TileSelect
+                  options={unitOptions}
                   value={form.priceUnit}
-                  onChange={(e) =>
-                    setForm({ ...form, priceUnit: e.target.value })
-                  }
-                  placeholder="如 斤"
-                  className="h-11 text-base px-4"
+                  onChange={(v) => setForm({ ...form, priceUnit: v })}
+                  placeholder="请选择计价单位"
+                  title="选择计价单位"
+                  searchable={false}
+                  required
                 />
               </FormField>
               <FormField label="采购规格">
@@ -528,22 +543,22 @@ export default function RawIngredientsPage() {
                 />
               </FormField>
               <FormField label="季节限定" required>
-                <SelectField
+                <TileGroup
+                  options={seasons.map((s) => ({ value: s, label: s }))}
                   value={form.season}
                   onChange={(v) => setForm({ ...form, season: v })}
-                  options={seasons.map((s) => ({ value: s, label: s }))}
                 />
               </FormField>
               <FormField label="储存方式" required>
-                <SelectField
+                <TileGroup
+                  options={storages.map((s) => ({ value: s, label: s }))}
                   value={form.storage}
                   onChange={(v) => setForm({ ...form, storage: v })}
-                  options={storages.map((s) => ({ value: s, label: s }))}
                 />
               </FormField>
             </FormSection>
           </div>
-          <DialogFooter>
+          <DialogFooter className="px-6 pt-0 pb-6">
             <Button
               variant="outline"
               onClick={() => setDialogOpen(false)}

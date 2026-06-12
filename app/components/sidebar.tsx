@@ -9,10 +9,11 @@ import {
   Package,
   UtensilsCrossed,
   Carrot,
-  BookOpen,
+  Settings,
   LogOut,
   User,
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -23,10 +24,10 @@ const navItems = [
   { href: "/inventory", label: "库存", icon: Package },
   { href: "/dishes", label: "菜品", icon: UtensilsCrossed },
   { href: "/ingredients", label: "食材", icon: Carrot },
-  { href: "/dictionaries", label: "字典", icon: BookOpen },
+  { href: "/settings", label: "设置", icon: Settings },
 ];
 
-export function Sidebar({ user }: { user: { username: string; name?: string | null } | null }) {
+export function Sidebar({ user }: { user: { username: string; name?: string | null; role?: string | null } | null }) {
   const pathname = usePathname();
   const router = useRouter();
 
@@ -56,21 +57,30 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
               title={item.label}
             >
               <Icon className="h-5 w-5" />
-              <span className="text-[10px]">{item.label}</span>
+              <span className="text-xs font-bold">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-3">
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
+        <button
+          onClick={() => router.push("/settings/profile")}
+          className="flex flex-col items-center gap-1 w-full group"
+          title="个人设置"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted group-hover:bg-muted/80">
             <User className="h-4 w-4 text-muted-foreground" />
           </div>
-          <span className="text-[10px] text-muted-foreground">
+          <span className="text-[10px] font-medium text-foreground">
             {user?.name || user?.username || "用户"}
           </span>
-        </div>
+          {user?.role && (
+            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+              {user.role}
+            </Badge>
+          )}
+        </button>
         <button
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });

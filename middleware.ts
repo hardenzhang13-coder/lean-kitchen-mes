@@ -37,7 +37,8 @@ export async function middleware(req: NextRequest) {
       const { payload } = await jwtVerify(token, SECRET_KEY, { clockTolerance: 60 });
       const requestHeaders = new Headers(req.headers);
       requestHeaders.set("x-user-id", String(payload.userId));
-      requestHeaders.set("x-username", String(payload.username));
+      requestHeaders.set("x-username", encodeURIComponent(String(payload.username || "")));
+      requestHeaders.set("x-user-role", encodeURIComponent(String(payload.role || "")));
       return NextResponse.next({ request: { headers: requestHeaders } });
     } catch {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

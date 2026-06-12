@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "@/app/components/date-picker";
 import {
   Select,
   SelectContent,
@@ -207,7 +208,11 @@ export default function EditSchedulePage() {
         </div>
         <div className="space-y-2">
           <Label>生产日期 <span className="text-red-500">*</span></Label>
-          <Input type="date" value={scheduleDate} onChange={(e) => setScheduleDate(e.target.value)} className="h-11 cursor-pointer" />
+          <DatePicker
+            value={scheduleDate}
+            onChange={(v) => setScheduleDate(v)}
+            placeholder="请选择生产日期"
+          />
         </div>
         <div className="space-y-2">
           <Label>使用范围</Label>

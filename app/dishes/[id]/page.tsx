@@ -51,6 +51,7 @@ type DishDetail = {
   cost: number | null;
   status: string;
   operator: string | null;
+  operatorName?: string | null;
   category?: { id: number; code: string; name: string };
   netDetails: Array<any>;
   seasoningDetails: Array<any>;
@@ -489,10 +490,10 @@ export default function DishDetailPage() {
                   {dish.cost != null ? `¥${Number(dish.cost).toFixed(2)}` : "—"}
                 </span>
               </div>
-              {dish.operator && (
+              {dish.operatorName && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">操作人</span>
-                  <span>{dish.operator}</span>
+                  <span>{dish.operatorName}</span>
                 </div>
               )}
             </CardContent>

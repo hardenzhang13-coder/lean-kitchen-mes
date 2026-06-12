@@ -38,7 +38,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { DatePicker } from "@/app/components/date-picker";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface RecognizedItem {
   name: string;
@@ -98,6 +100,7 @@ export default function NewPurchasePage() {
   const [imageBase64, setImageBase64] = useState("");
   const [imagePreview, setImagePreview] = useState("");
   const [recognizing, setRecognizing] = useState(false);
+  const [recognizeStatus, setRecognizeStatus] = useState("");
   const [items, setItems] = useState<FormItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
@@ -158,7 +161,9 @@ export default function NewPurchasePage() {
       return;
     }
     setRecognizing(true);
+    setRecognizeStatus("正在上传图片并请求 AI 识别…");
     try {
+      setRecognizeStatus("AI 正在分析图片内容…");
       const res = await fetch("/api/purchase-receipts/recognize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -170,6 +175,7 @@ export default function NewPurchasePage() {
         return;
       }
 
+      setRecognizeStatus("正在匹配食材库…");
       const mappedItems: FormItem[] = (data.items || []).map((item: RecognizedItem, idx: number) => ({
         id: `item-${idx}`,
         ingredientId: item.ingredientId,
@@ -192,10 +198,12 @@ export default function NewPurchasePage() {
         setTotalAmount(String(autoTotal.toFixed(2)));
       }
       toast.success(`识别完成，共 ${mappedItems.length} 项`);
-    } catch {
-      toast.error("识别出错");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "识别请求异常";
+      toast.error(`识别出错：${message}`);
     } finally {
       setRecognizing(false);
+      setRecognizeStatus("");
     }
   };
 
@@ -393,7 +401,10 @@ export default function NewPurchasePage() {
         <div className="lg:col-span-1 space-y-6">
           {/* 图片上传 */}
           <div
-            className="border-2 border-dashed border-border rounded-xl p-6 text-center space-y-3 hover:bg-muted/50 transition-colors cursor-pointer"
+            className={cn(
+              "relative border-2 border-dashed border-border rounded-xl p-6 text-center space-y-3 hover:bg-muted/50 transition-colors cursor-pointer",
+              recognizing && "pointer-events-none opacity-80"
+            )}
             onClick={() => fileInputRef.current?.click()}
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
@@ -404,20 +415,29 @@ export default function NewPurchasePage() {
               accept="image/*"
               className="hidden"
               onChange={handleFileChange}
+              disabled={recognizing}
             />
             {imagePreview ? (
               <div className="relative">
                 <img src={imagePreview} alt="采购单" className="max-h-64 mx-auto rounded-lg object-contain" />
                 <button
-                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
+                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 z-10"
                   onClick={(e) => {
                     e.stopPropagation();
                     setImagePreview("");
                     setImageBase64("");
                   }}
+                  disabled={recognizing}
                 >
                   <X className="h-3 w-3" />
                 </button>
+                {recognizing && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 rounded-lg text-white z-20">
+                    <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                    <p className="text-sm font-medium">AI 正在识别采购单</p>
+                    <p className="text-xs opacity-80 mt-0.5">{recognizeStatus || "请稍候…"}</p>
+                  </div>
+                )}
               </div>
             ) : (
               <>
@@ -447,7 +467,11 @@ export default function NewPurchasePage() {
             <h3 className="font-medium">基础信息</h3>
             <div className="space-y-2">
               <Label>采购日期 <span className="text-red-500">*</span></Label>
-              <Input type="date" value={receiptDate} onChange={(e) => setReceiptDate(e.target.value)} className="h-11 cursor-pointer" />
+              <DatePicker
+                value={receiptDate}
+                onChange={(v) => setReceiptDate(v)}
+                placeholder="请选择采购日期"
+              />
             </div>
             <div className="space-y-2">
               <Label>采购摘要</Label>

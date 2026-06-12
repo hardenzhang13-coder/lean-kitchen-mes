@@ -153,7 +153,7 @@ export default function ReimbursementsPage() {
                           {r.status === "settled" ? "已结算" : "待结算"}
                         </span>
                       </TableCell>
-                      <TableCell>{r.operator || "—"}</TableCell>
+                      <TableCell>{r.operatorName || r.operator || "—"}</TableCell>
                       <TableCell>
                         {new Date(r.createdAt).toLocaleDateString("zh-CN")}
                       </TableCell>

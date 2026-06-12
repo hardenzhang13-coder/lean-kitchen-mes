@@ -51,14 +51,14 @@ export default function ReimbursementDetailPage() {
       r.id,
       new Date(r.receiptDate).toLocaleDateString("zh-CN"),
       r.summary || "",
-      r.operator || "",
+      r.operatorName || r.operator || "",
       Number(r.totalAmount).toFixed(2),
     ]);
     const csvContent = [
       ["报销主题", data.title],
       ["摘要", data.summary || ""],
       ["创建时间", new Date(data.createdAt).toLocaleDateString("zh-CN")],
-      ["负责人", data.operator || ""],
+      ["负责人", data.operatorName || data.operator || ""],
       ["总金额", Number(data.totalAmount).toFixed(2)],
       ["状态", data.status === "settled" ? "已结算" : "待结算"],
       [],
@@ -136,7 +136,7 @@ export default function ReimbursementDetailPage() {
         </div>
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">负责人</p>
-          <p className="font-medium mt-1">{data.operator || "—"}</p>
+          <p className="font-medium mt-1">{data.operatorName || data.operator || "—"}</p>
         </div>
       </div>
 
@@ -172,7 +172,7 @@ export default function ReimbursementDetailPage() {
                     <TableCell className="font-medium">#{r.id}</TableCell>
                     <TableCell>{new Date(r.receiptDate).toLocaleDateString("zh-CN")}</TableCell>
                     <TableCell>{r.summary || "—"}</TableCell>
-                    <TableCell>{r.operator || "—"}</TableCell>
+                    <TableCell>{r.operatorName || r.operator || "—"}</TableCell>
                     <TableCell className="text-right font-semibold">
                       ¥{Number(r.totalAmount).toFixed(2)}
                     </TableCell>
