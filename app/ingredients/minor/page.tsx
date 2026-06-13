@@ -104,16 +104,18 @@ export default function MinorIngredientsPage() {
       ]);
       setData(await res.json());
       if (unitRes.ok) setUnits(await unitRes.json());
-    } catch (e) {
+    } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchData();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const openCreate = () => {
     setEditing(null);
@@ -149,23 +151,31 @@ export default function MinorIngredientsPage() {
         storage: form.storage,
       };
       if (editing) {
-        await fetch(`/api/minor-ingredients/${editing.id}`, {
+        const res = await fetch(`/api/minor-ingredients/${editing.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "更新失败");
+        }
         toast.success("更新成功");
       } else {
-        await fetch("/api/minor-ingredients", {
+        const res = await fetch("/api/minor-ingredients", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || "创建失败");
+        }
         toast.success("创建成功");
       }
       setDialogOpen(false);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("操作失败");
     }
   };
@@ -176,7 +186,7 @@ export default function MinorIngredientsPage() {
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("删除失败");
     }
   };
@@ -308,13 +318,6 @@ export default function MinorIngredientsPage() {
           </DialogHeader>
           <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
             <FormSection title="基础信息">
-              <FormField label="编号">
-                <Input
-                  value={editing?.code || "系统自动生成"}
-                  disabled
-                  className="h-11 text-base px-4 bg-muted"
-                />
-              </FormField>
               <FormField label="名称" required>
                 <Input
                   value={form.name}

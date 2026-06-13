@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 将关联采购单产生的入库 ledger 标记为已结算
+      // 将关联采购单产生的入库 ledger 标记为已结算，并更新采购单状态
       for (const receiptId of receiptIds) {
         await tx.inventoryLedger.updateMany({
           where: {
@@ -52,6 +52,10 @@ export async function POST(req: NextRequest) {
           data: {
             settlementStatus: "已结算",
           },
+        });
+        await tx.purchaseReceipt.update({
+          where: { id: receiptId },
+          data: { status: "已结算" },
         });
       }
 

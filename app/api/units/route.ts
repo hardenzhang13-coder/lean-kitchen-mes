@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const { name, category } = body;
   try {
     const row = await prisma.unit.create({
-      data: { name, category },
+      data: { name, category: category || "other" },
     });
     await logOperation(req, { action: "CREATE", entity: "Unit", entityId: row.id, description: `创建: ${row.name}` });
     return NextResponse.json(row, { status: 201 });

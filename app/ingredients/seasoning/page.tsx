@@ -22,10 +22,8 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
-import { FormField, FormSection } from "@/app/components/form-field";
+import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { Pagination } from "@/app/components/pagination";
-import { TileSelect } from "@/app/components/tile-select";
-import { TileGroup } from "@/app/components/tile-group";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
@@ -35,11 +33,17 @@ type Seasoning = {
   name: string;
   brand: string;
   productSpec: string | null;
-  productUnit: string | null;
-  retailPrice: number | null;
-  purchasePrice: number;
   purchaseUnit: string;
+  latestRefPrice: number | null;
+  stockUnit: string | null;
   storage: string;
+};
+
+type CategoryL1 = {
+  id: number;
+  code: string;
+  name: string;
+  children: { id: number; code: string; name: string; parentCode: string }[];
 };
 
 type Unit = {
@@ -48,31 +52,29 @@ type Unit = {
   category: string;
 };
 
-const storages = ["冷藏", "常温", "冷冻"];
+function findSeasoningL2Code(categories: CategoryL1[]) {
+  for (const l1 of categories) {
+    if (l1.name === "调味品") {
+      const l2 = l1.children.find((c) => c.name === "调料");
+      if (l2) return l2.code;
+    }
+  }
+  for (const l1 of categories) {
+    const l2 = l1.children.find((c) => c.name === "调料");
+    if (l2) return l2.code;
+  }
+  return undefined;
+}
 
 export default function SeasoningIngredientsPage() {
   const [data, setData] = useState<Seasoning[]>([]);
+  const [categories, setCategories] = useState<CategoryL1[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Seasoning | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    brand: "",
-    productSpec: "",
-    productUnit: "",
-    retailPrice: "",
-    purchasePrice: "",
-    purchaseUnit: "",
-    storage: "常温",
-  });
   const [deleteId, setDeleteId] = useState<number | null>(null);
-
-  const unitOptions = useMemo(
-    () => units.map((u) => ({ value: u.name, label: u.name })),
-    [units]
-  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -102,94 +104,35 @@ export default function SeasoningIngredientsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, unitRes] = await Promise.all([
+      const [res, catRes, unitRes] = await Promise.all([
         fetch("/api/seasoning-ingredients"),
+        fetch("/api/ingredient-categories"),
         fetch("/api/units"),
       ]);
       setData(await res.json());
+      setCategories(await catRes.json());
       if (unitRes.ok) setUnits(await unitRes.json());
-    } catch (e) {
+    } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchData();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const openCreate = () => {
     setEditing(null);
-    setForm({
-      name: "",
-      brand: "",
-      productSpec: "",
-      productUnit: "",
-      retailPrice: "",
-      purchasePrice: "",
-      purchaseUnit: "",
-      storage: "常温",
-    });
     setDialogOpen(true);
   };
 
   const openEdit = (row: Seasoning) => {
     setEditing(row);
-    setForm({
-      name: row.name,
-      brand: row.brand,
-      productSpec: row.productSpec || "",
-      productUnit: row.productUnit || "",
-      retailPrice: row.retailPrice ? String(row.retailPrice) : "",
-      purchasePrice: String(row.purchasePrice),
-      purchaseUnit: row.purchaseUnit,
-      storage: row.storage,
-    });
     setDialogOpen(true);
-  };
-
-  const handleSubmit = async () => {
-    if (
-      !form.name.trim() ||
-      !form.brand.trim() ||
-      !form.purchaseUnit.trim() ||
-      !form.storage.trim()
-    ) {
-      toast.error("请填写所有必填项");
-      return;
-    }
-    try {
-      const payload = {
-        name: form.name,
-        brand: form.brand,
-        productSpec: form.productSpec || null,
-        productUnit: form.productUnit || null,
-        retailPrice: form.retailPrice ? Number(form.retailPrice) : null,
-        purchasePrice: Number(form.purchasePrice) || 0,
-        purchaseUnit: form.purchaseUnit,
-        storage: form.storage,
-      };
-      if (editing) {
-        await fetch(`/api/seasoning-ingredients/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        toast.success("更新成功");
-      } else {
-        await fetch("/api/seasoning-ingredients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        toast.success("创建成功");
-      }
-      setDialogOpen(false);
-      fetchData();
-    } catch (e) {
-      toast.error("操作失败");
-    }
   };
 
   const handleDelete = async (id: number) => {
@@ -198,7 +141,7 @@ export default function SeasoningIngredientsPage() {
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("删除失败");
     }
   };
@@ -206,7 +149,8 @@ export default function SeasoningIngredientsPage() {
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader showBack
+        <PageHeader
+          showBack
           title="调料清单"
           description="标准化产品形态的基础调味品"
         />
@@ -230,33 +174,30 @@ export default function SeasoningIngredientsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={11} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={10} rows={DEFAULT_PAGE_SIZE} />
           ) : (
             <>
-              <div className="rounded-lg border overflow-x-auto">
+              <div className="rounded-md border overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-[50px]">序号</TableHead>
                       <TableHead>编号</TableHead>
                       <TableHead>名称</TableHead>
-                      <TableHead>品牌</TableHead>
-                      <TableHead>产品规格</TableHead>
-                      <TableHead>产品单位</TableHead>
-                      <TableHead>零售参照价</TableHead>
-                      <TableHead>采购单价</TableHead>
+                      <TableHead>产品品牌</TableHead>
+                      <TableHead>采购规格</TableHead>
                       <TableHead>采购单位</TableHead>
+                      <TableHead>最新参照单价</TableHead>
+                      <TableHead>入库单位</TableHead>
                       <TableHead>储存方式</TableHead>
-                      <TableHead className="w-[120px] text-right">
-                        操作
-                      </TableHead>
+                      <TableHead className="w-[120px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pageItems.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={11}
+                          colSpan={10}
                           className="text-center text-muted-foreground"
                         >
                           暂无数据
@@ -279,16 +220,15 @@ export default function SeasoningIngredientsPage() {
                           <TableCell className="text-muted-foreground">
                             {row.productSpec || "—"}
                           </TableCell>
-                          <TableCell>
-                            {row.productUnit || "—"}
-                          </TableCell>
-                          <TableCell>
-                            {row.retailPrice != null ? `¥${row.retailPrice}` : "—"}
-                          </TableCell>
-                          <TableCell>¥{row.purchasePrice}</TableCell>
                           <TableCell>{row.purchaseUnit}</TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
+                            {row.latestRefPrice != null
+                              ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                              : "—"}
+                          </TableCell>
+                          <TableCell>{row.stockUnit || "—"}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs">
                               {row.storage}
                             </span>
                           </TableCell>
@@ -327,120 +267,33 @@ export default function SeasoningIngredientsPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[800px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="text-lg">
-              {editing ? "编辑调料" : "新增调料"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
-            <FormSection title="基础信息" cols={3}>
-              <FormField label="编号">
-                <Input
-                  value={editing?.code || "系统自动生成"}
-                  disabled
-                  className="h-11 text-base px-4 bg-muted"
-                />
-              </FormField>
-              <FormField label="品类名称" required>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="如 生抽"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="品牌完整商品名" required>
-                <Input
-                  value={form.brand}
-                  onChange={(e) => setForm({ ...form, brand: e.target.value })}
-                  placeholder="如 海天金标生抽"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-            </FormSection>
-            <FormSection title="产品规格">
-              <FormField label="产品规格">
-                <Input
-                  value={form.productSpec}
-                  onChange={(e) =>
-                    setForm({ ...form, productSpec: e.target.value })
-                  }
-                  placeholder="如 1.9L*6"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="产品单位">
-                <TileSelect
-                  options={unitOptions}
-                  value={form.productUnit}
-                  onChange={(v) => setForm({ ...form, productUnit: v })}
-                  placeholder="请选择产品单位"
-                  title="选择产品单位"
-                  searchable={false}
-                />
-              </FormField>
-            </FormSection>
-            <FormSection title="价格信息" cols={3}>
-              <FormField label="零售参照价">
-                <Input
-                  type="number"
-                  value={form.retailPrice}
-                  onChange={(e) =>
-                    setForm({ ...form, retailPrice: e.target.value })
-                  }
-                  placeholder="可选"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="采购单价" required>
-                <Input
-                  type="number"
-                  value={form.purchasePrice}
-                  onChange={(e) =>
-                    setForm({ ...form, purchasePrice: e.target.value })
-                  }
-                  placeholder="如 100.00"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="采购单位" required>
-                <TileSelect
-                  options={unitOptions}
-                  value={form.purchaseUnit}
-                  onChange={(v) => setForm({ ...form, purchaseUnit: v })}
-                  placeholder="请选择采购单位"
-                  title="选择采购单位"
-                  searchable={false}
-                  required
-                />
-              </FormField>
-            </FormSection>
-            <FormSection title="储存信息" cols={1}>
-              <FormField label="储存方式" required>
-                <TileGroup
-                  options={storages.map((s) => ({ value: s, label: s }))}
-                  value={form.storage}
-                  onChange={(v) => setForm({ ...form, storage: v })}
-                />
-              </FormField>
-            </FormSection>
-          </div>
-          <DialogFooter className="px-6 pt-0 pb-6">
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              className="h-11 px-6"
-            >
-              取消
-            </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <IngredientFormDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        initialData={
+          editing
+            ? {
+                id: editing.id,
+                code: editing.code,
+                name: editing.name,
+                l2Code: editing.l2Code || findSeasoningL2Code(categories),
+                brand: editing.brand,
+                purchaseSpec: editing.productSpec,
+                purchaseUnit: editing.purchaseUnit,
+                stockUnit: editing.stockUnit || undefined,
+                latestRefPrice: editing.latestRefPrice ?? null,
+              }
+            : {
+                l2Code: findSeasoningL2Code(categories),
+              }
+        }
+        categories={categories}
+        units={units}
+        onSuccess={() => {
+          setDialogOpen(false);
+          fetchData();
+        }}
+      />
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">

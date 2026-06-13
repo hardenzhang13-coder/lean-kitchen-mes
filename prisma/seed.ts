@@ -42,6 +42,7 @@ async function main() {
     { code: "BEA", name: "豆制品" },
     { code: "PRC", name: "加工制品" },
     { code: "GRA", name: "米面粮油" },
+    { code: "SEA", name: "调味品" },
   ];
   await prisma.ingredientCategoryL1.createMany({ data: l1Categories, skipDuplicates: true });
 
@@ -72,6 +73,7 @@ async function main() {
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
     { code: "GRA-SEA", name: "调味品", parentCode: "GRA", description: "" },
+    { code: "SEA-SEA", name: "调料", parentCode: "SEA", description: "" },
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 

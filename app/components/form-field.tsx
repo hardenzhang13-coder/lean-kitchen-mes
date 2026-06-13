@@ -5,11 +5,13 @@ import { Label } from "@/components/ui/label";
 export function FormField({
   label,
   required,
+  readOnly,
   children,
   className,
 }: {
   label: string;
   required?: boolean;
+  readOnly?: boolean;
   children: React.ReactNode;
   className?: string;
 }) {
@@ -17,8 +19,8 @@ export function FormField({
     <div className={`grid gap-2 ${className || ""}`}>
       <Label className="text-base flex items-center gap-1">
         {label}
-        {required && <span className="text-red-500">*</span>}
-        {!required && (
+        {required && !readOnly && <span className="text-red-500">*</span>}
+        {!required && !readOnly && (
           <span className="text-muted-foreground text-sm font-normal">(可选)</span>
         )}
       </Label>

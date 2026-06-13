@@ -5,6 +5,15 @@ import { Plus, FileText, Search, Eye, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
@@ -22,21 +31,29 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { DatePicker } from "@/app/components/date-picker";
+import { ImagePreviewModal } from "@/app/components/image-preview-modal";
+import { CategoryTag } from "@/app/components/category-tag";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ReceiptItem {
   id: number;
   ingredientId: number | null;
+  seasoningIngredientId: number | null;
   itemName: string;
+  brand: string | null;
   spec: string | null;
   qty: number;
-  priceUnit: string;
+  purchaseUnit: string;
   unitPrice: number;
   amount: number;
   stockUnit: string;
   stockInQty: number;
-  storage: string;
+  l2Code: string | null;
+  l2Name: string | null;
+  isManual: boolean;
   ingredient: { id: number; name: string; code: string } | null;
+  seasoningIngredient: { id: number; name: string; code: string } | null;
 }
 
 interface Receipt {
@@ -46,9 +63,41 @@ interface Receipt {
   totalAmount: number;
   operator: string | null;
   operatorName?: string | null;
+  supplierName?: string | null;
+  imageUrl: string | null;
+  status: string;
   createdAt: string;
   isSettled: boolean;
   items: ReceiptItem[];
+}
+
+const statusOptions = [
+  { value: "待结算", label: "待结算" },
+  { value: "已结算", label: "已结算" },
+  { value: "已作废", label: "已作废" },
+  { value: "all", label: "全部" },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "已结算") {
+    return (
+      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
+        已结算
+      </Badge>
+    );
+  }
+  if (status === "已作废") {
+    return (
+      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
+        已作废
+      </Badge>
+    );
+  }
+  return (
+    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
+      待结算
+    </Badge>
+  );
 }
 
 export default function PurchasesPage() {
@@ -58,8 +107,10 @@ export default function PurchasesPage() {
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [status, setStatus] = useState("待结算");
   const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [voidId, setVoidId] = useState<number | null>(null);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -67,6 +118,7 @@ export default function PurchasesPage() {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
+      if (status && status !== "all") params.set("status", status);
       const res = await fetch(`/api/purchase-receipts?${params.toString()}`);
       const data = await res.json();
       setReceipts(data);
@@ -77,36 +129,50 @@ export default function PurchasesPage() {
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchData();
-  }, [startDate, endDate]);
+  }, [startDate, endDate, status]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   const filtered = receipts.filter((r) => {
     if (!search) return true;
     const s = search.toLowerCase();
     return (
       (r.summary && r.summary.toLowerCase().includes(s)) ||
+      (r.supplierName && r.supplierName.toLowerCase().includes(s)) ||
       (r.operatorName && r.operatorName.toLowerCase().includes(s)) ||
+      (r.operator && r.operator.toLowerCase().includes(s)) ||
       String(r.id).includes(s)
     );
   });
 
-  const handleDelete = async (id: number) => {
+  const handleVoid = async (id: number) => {
     try {
       const res = await fetch(`/api/purchase-receipts/${id}`, {
         method: "DELETE",
       });
       if (!res.ok) {
         const data = await res.json();
-        toast.error(data.error || "删除失败");
+        toast.error(data.error || "作废失败");
         return;
       }
-      toast.success("采购单已删除");
-      setDeleteId(null);
+      toast.success("采购单已作废");
+      setVoidId(null);
+      setDetailReceipt(null);
       fetchData();
     } catch {
-      toast.error("删除出错");
+      toast.error("作废出错");
     }
+  };
+
+  const formatDate = (dateStr: string) => {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
   };
 
   const formatDateTime = (dateStr: string) => {
@@ -122,14 +188,10 @@ export default function PurchasesPage() {
 
   return (
     <div className="flex flex-col gap-6 p-8">
-      {/* 顶部：标题 + 二级菜单 + 操作按钮 */}
       <div className="flex items-center justify-between">
-        <PageHeader
-          title="采购管理"
-          description="管理采购单与采购报销"
-        />
+        <PageHeader title="采购管理" description="管理采购单与采购报销" />
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-muted rounded-md p-1">
             <button className="px-4 py-1.5 rounded-md text-sm font-medium bg-background shadow-sm">
               采购单
             </button>
@@ -147,48 +209,71 @@ export default function PurchasesPage() {
         </div>
       </div>
 
-      {/* 筛选区 */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索摘要或负责人..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
-            <DatePicker
-              value={startDate}
-              onChange={(v) => setStartDate(v)}
-              placeholder="开始日期"
-              className="w-[180px]"
-            />
-            <span className="text-sm text-muted-foreground">至</span>
-            <DatePicker
-              value={endDate}
-              onChange={(v) => setEndDate(v)}
-              placeholder="结束日期"
-              className="w-[180px]"
-            />
-            {(startDate || endDate || search) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setStartDate("");
-                  setEndDate("");
-                  setSearch("");
-                }}
-              >
-                清除
-              </Button>
-            )}
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              <Search className="h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="搜索摘要、供应商或操作人..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="max-w-xs"
+              />
+              <Label className="text-sm text-muted-foreground">创建时间</Label>
+              <DatePicker
+                value={startDate}
+                onChange={(v) => setStartDate(v)}
+                placeholder="开始日期"
+                className="w-[180px]"
+              />
+              <span className="text-sm text-muted-foreground">至</span>
+              <DatePicker
+                value={endDate}
+                onChange={(v) => setEndDate(v)}
+                placeholder="结束日期"
+                className="w-[180px]"
+              />
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">状态</Label>
+                <Select
+                  value={status}
+                  onValueChange={(v) => v != null && setStatus(v)}
+                >
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="选择状态">
+                      {statusOptions.find((o) => o.value === status)?.label ||
+                        "选择状态"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {(startDate || endDate || search) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setStartDate("");
+                    setEndDate("");
+                    setSearch("");
+                  }}
+                >
+                  清除
+                </Button>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="h-[300px] bg-muted rounded animate-pulse" />
+            <div className="h-[300px] bg-muted rounded-md animate-pulse" />
           ) : filtered.length === 0 ? (
             <div className="text-center text-muted-foreground py-16">
               <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
@@ -202,29 +287,42 @@ export default function PurchasesPage() {
               </Button>
             </div>
           ) : (
-            <div className="rounded-lg border overflow-x-auto">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>编号</TableHead>
-                    <TableHead>采购日期</TableHead>
+                    <TableHead>状态</TableHead>
                     <TableHead>采购单摘要</TableHead>
+                    <TableHead>采购日期</TableHead>
+                    <TableHead>供应商</TableHead>
                     <TableHead>总金额</TableHead>
-                    <TableHead>负责人</TableHead>
+                    <TableHead>操作人</TableHead>
                     <TableHead>创建时间</TableHead>
                     <TableHead className="w-[120px] text-right">操作</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.map((r) => (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className={cn(
+                        r.status === "已作废" && "opacity-60"
+                      )}
+                    >
                       <TableCell className="font-medium">#{r.id}</TableCell>
-                      <TableCell>{formatDateTime(r.receiptDate)}</TableCell>
+                      <TableCell>
+                        <StatusBadge status={r.status} />
+                      </TableCell>
                       <TableCell>{r.summary || "—"}</TableCell>
+                      <TableCell>{formatDate(r.receiptDate)}</TableCell>
+                      <TableCell>{r.supplierName || "—"}</TableCell>
                       <TableCell className="font-semibold">
                         ¥{Number(r.totalAmount).toFixed(2)}
                       </TableCell>
-                      <TableCell>{r.operatorName || r.operator || "—"}</TableCell>
+                      <TableCell>
+                        {r.operatorName || r.operator || "—"}
+                      </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
                         {formatDateTime(r.createdAt)}
                       </TableCell>
@@ -252,130 +350,191 @@ export default function PurchasesPage() {
         open={!!detailReceipt}
         onOpenChange={(open) => !open && setDetailReceipt(null)}
       >
-        <DialogContent className="sm:max-w-[1400px] max-h-[90vh] overflow-hidden p-0">
-          <DialogHeader className="px-6 pt-6 pb-2">
-            <DialogTitle>采购单详情 #{detailReceipt?.id}</DialogTitle>
-          </DialogHeader>
-          {detailReceipt && (
-            <div className="px-6 pb-6 space-y-4">
-              {/* 基本信息 */}
-              <div className="grid grid-cols-3 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">采购日期：</span>
-                  <span>{formatDateTime(detailReceipt.receiptDate)}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">负责人：</span>
-                  <span>{detailReceipt.operatorName || detailReceipt.operator || "—"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">总金额：</span>
-                  <span className="font-semibold">
-                    ¥{Number(detailReceipt.totalAmount).toFixed(2)}
-                  </span>
-                </div>
-                <div className="col-span-3">
-                  <span className="text-muted-foreground">摘要：</span>
-                  <span>{detailReceipt.summary || "—"}</span>
-                </div>
-              </div>
-
-              {/* 明细表格 */}
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-8">#</TableHead>
-                      <TableHead>食材名称</TableHead>
-                      <TableHead>规格</TableHead>
-                      <TableHead>数量</TableHead>
-                      <TableHead>单价</TableHead>
-                      <TableHead>金额</TableHead>
-                      <TableHead>入库量</TableHead>
-                      <TableHead>储存</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {detailReceipt.items.map((item, idx) => (
-                      <TableRow key={item.id}>
-                        <TableCell className="text-muted-foreground text-xs">
-                          {idx + 1}
-                        </TableCell>
-                        <TableCell className="font-medium">
-                          {item.ingredient?.name || item.itemName}
-                        </TableCell>
-                        <TableCell>{item.spec || "—"}</TableCell>
-                        <TableCell>
-                          {item.qty}
-                          {item.priceUnit}
-                        </TableCell>
-                        <TableCell>
-                          ¥{Number(item.unitPrice).toFixed(2)}/{item.priceUnit}
-                        </TableCell>
-                        <TableCell className="font-semibold">
-                          ¥{Number(item.amount).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {item.stockInQty}
-                          {item.stockUnit}
-                        </TableCell>
-                        <TableCell>
-                          <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
-                            {item.storage}
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setDetailReceipt(null)}
-                >
-                  关闭
-                </Button>
-                {!detailReceipt.isSettled && (
+        <DialogContent className="sm:max-w-[1100px] w-full max-w-[calc(100%-2rem)] h-[calc(100vh-2rem)] max-h-[900px] p-0 flex flex-col overflow-hidden [&>button]:cursor-pointer">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-base">
+                采购单详情 #{detailReceipt?.id}
+                {detailReceipt && <StatusBadge status={detailReceipt.status} />}
+                {detailReceipt?.status === "待结算" && (
                   <Button
                     variant="destructive"
-                    onClick={() => {
-                      setDetailReceipt(null);
-                      setDeleteId(detailReceipt.id);
-                    }}
+                    size="sm"
+                    onClick={() => setVoidId(detailReceipt.id)}
                   >
-                    删除采购单
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    作废
                   </Button>
                 )}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+          {detailReceipt && (
+            <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 p-5 overflow-hidden">
+              {/* 左侧 */}
+              <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
+                <div className="rounded-md border p-4 space-y-3 shrink-0">
+                  <h4 className="font-medium text-sm">基础信息</h4>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">采购日期：</span>
+                      <span>{formatDate(detailReceipt.receiptDate)}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">供应商：</span>
+                      <span>{detailReceipt.supplierName || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">操作人：</span>
+                      <span>
+                        {detailReceipt.operatorName ||
+                          detailReceipt.operator ||
+                          "—"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">创建时间：</span>
+                      <span>{formatDateTime(detailReceipt.createdAt)}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">摘要：</span>
+                      <span>{detailReceipt.summary || "—"}</span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">总金额：</span>
+                      <span className="font-semibold text-base">
+                        ¥{Number(detailReceipt.totalAmount).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {detailReceipt.imageUrl && (
+                  <div className="rounded-md border p-3 space-y-2 shrink-0">
+                    <h4 className="font-medium text-sm">采购单图片</h4>
+                    <div
+                      className="h-[140px] rounded-md bg-muted/50 flex items-center justify-center cursor-pointer overflow-hidden"
+                      onClick={() => setPreviewImage(detailReceipt.imageUrl)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={detailReceipt.imageUrl}
+                        alt="采购单"
+                        className="max-w-full max-h-full object-contain"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 右侧明细 */}
+              <div className="rounded-md border flex flex-col min-h-0 overflow-hidden">
+                <h4 className="font-medium text-sm px-4 py-3 border-b shrink-0">
+                  采购明细（{detailReceipt.items.length} 项）
+                </h4>
+                <div className="flex-1 overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background z-10">
+                      <TableRow>
+                        <TableHead className="w-8">#</TableHead>
+                        <TableHead>分类</TableHead>
+                        <TableHead>食材名称</TableHead>
+                        <TableHead>规格</TableHead>
+                        <TableHead>采购数量</TableHead>
+                        <TableHead>金额</TableHead>
+                        <TableHead>入库</TableHead>
+                        <TableHead>单价</TableHead>
+                        <TableHead>来源</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {detailReceipt.items.map((item, idx) => (
+                        <TableRow key={item.id}>
+                          <TableCell className="text-muted-foreground text-xs">
+                            {idx + 1}
+                          </TableCell>
+                          <TableCell>
+                            <CategoryTag
+                              l2Code={item.l2Code}
+                              name={item.l2Name || item.l2Code || "—"}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {item.ingredient?.name ||
+                              item.seasoningIngredient?.name ||
+                              item.itemName}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {item.spec || "—"}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {item.qty}
+                            {item.purchaseUnit}
+                          </TableCell>
+                          <TableCell className="font-semibold whitespace-nowrap text-sm">
+                            ¥{Number(item.amount).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-sm">
+                            {item.stockInQty}
+                            {item.stockUnit}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap text-xs">
+                            ¥
+                            {item.stockInQty > 0
+                              ? (item.amount / item.stockInQty).toFixed(2)
+                              : "0.00"}
+                            /{item.stockUnit}
+                          </TableCell>
+                          <TableCell className="text-xs">
+                            {item.isManual ? (
+                              <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
+                                手动
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
+                                AI
+                              </span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
           )}
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认弹窗 */}
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+      {/* 作废确认弹窗 */}
+      <Dialog open={voidId !== null} onOpenChange={() => setVoidId(null)}>
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle>确认删除</DialogTitle>
+            <DialogTitle>确认作废</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-sm">
-            确定要删除采购单 #{deleteId} 吗？此操作将同步回滚库存，不可撤销。
+            确定要作废采购单 #{voidId} 吗？此操作将同步回滚库存，不可撤销。
           </p>
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button variant="outline" onClick={() => setVoidId(null)}>
               取消
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteId && handleDelete(deleteId)}
+              onClick={() => voidId && handleVoid(voidId)}
             >
-              确认删除
+              确认作废
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      <ImagePreviewModal
+        src={previewImage || ""}
+        open={!!previewImage}
+        onClose={() => setPreviewImage(null)}
+      />
     </div>
   );
 }

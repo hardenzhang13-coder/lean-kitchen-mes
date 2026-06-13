@@ -27,7 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { toast } from "sonner";
@@ -48,9 +48,10 @@ export default function UnitsPage() {
   const [data, setData] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
-  const [form, setForm] = useState({ name: "", category: "weight" });
+  const [editForm, setEditForm] = useState({ name: "", category: "weight" });
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: "", category: "weight" });
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
@@ -59,16 +60,18 @@ export default function UnitsPage() {
       const res = await fetch("/api/units");
       const json = await res.json();
       setData(json);
-    } catch (e) {
+    } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchData();
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const filtered = useMemo(() => {
     return data.filter(
@@ -78,42 +81,52 @@ export default function UnitsPage() {
     );
   }, [data, search]);
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", category: "weight" });
-    setDialogOpen(true);
-  };
-
   const openEdit = (row: Unit) => {
     setEditing(row);
-    setForm({ name: row.name, category: row.category });
-    setDialogOpen(true);
+    setEditForm({ name: row.name, category: row.category });
   };
 
-  const handleSubmit = async () => {
-    if (!form.name.trim()) {
+  const closeEdit = () => {
+    setEditing(null);
+    setEditForm({ name: "", category: "weight" });
+  };
+
+  const handleCreate = async () => {
+    if (!createForm.name.trim()) {
       toast.error("名称不能为空");
       return;
     }
     try {
-      if (editing) {
-        await fetch(`/api/units/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-        toast.success("更新成功");
-      } else {
-        await fetch("/api/units", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
-        });
-        toast.success("创建成功");
-      }
-      setDialogOpen(false);
+      await fetch("/api/units", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(createForm),
+      });
+      toast.success("创建成功");
+      setCreateForm({ name: "", category: "weight" });
+      setShowCreate(false);
       fetchData();
-    } catch (e) {
+    } catch {
+      toast.error("操作失败");
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editing) return;
+    if (!editForm.name.trim()) {
+      toast.error("名称不能为空");
+      return;
+    }
+    try {
+      await fetch(`/api/units/${editing.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editForm),
+      });
+      toast.success("更新成功");
+      closeEdit();
+      fetchData();
+    } catch {
       toast.error("操作失败");
     }
   };
@@ -124,7 +137,7 @@ export default function UnitsPage() {
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("删除失败");
     }
   };
@@ -133,10 +146,6 @@ export default function UnitsPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <PageHeader showBack title="单位" description="管理重量、体积、计数等单位字典" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增
-        </Button>
       </div>
 
       <Card>
@@ -151,7 +160,7 @@ export default function UnitsPage() {
             />
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {loading ? (
             <SkeletonTable cols={4} rows={5} />
           ) : (
@@ -195,29 +204,91 @@ export default function UnitsPage() {
               </TableBody>
             </Table>
           )}
+
+          {!loading && (
+            <>
+              {!showCreate ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCreate(true)}
+                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
+                >
+                  <Plus className="h-4 w-4" /> 新增单位
+                </button>
+              ) : (
+                <div className="rounded-md border p-4 space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid gap-2.5">
+                      <Label htmlFor="create-name" className="text-base">名称</Label>
+                      <Input
+                        id="create-name"
+                        value={createForm.name}
+                        onChange={(e) =>
+                          setCreateForm({ ...createForm, name: e.target.value })
+                        }
+                        placeholder="如 斤"
+                        className="h-11 text-base px-4"
+                      />
+                    </div>
+                    <div className="grid gap-2.5">
+                      <Label htmlFor="create-category" className="text-base">分类</Label>
+                      <Select
+                        value={createForm.category}
+                        onValueChange={(v) => v && setCreateForm({ ...createForm, category: v })}
+                      >
+                        <SelectTrigger id="create-category" className="h-11">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowCreate(false);
+                        setCreateForm({ name: "", category: "weight" });
+                      }}
+                    >
+                      取消
+                    </Button>
+                    <Button size="sm" onClick={handleCreate}>保存</Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={editing !== null} onOpenChange={() => editing && closeEdit()}>
         <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
+            <DialogTitle className="text-lg">编辑单位</DialogTitle>
           </DialogHeader>
           <div className="grid gap-5 py-5">
             <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
+              <Label htmlFor="edit-name" className="text-base">名称</Label>
               <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                id="edit-name"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                 placeholder="如 斤"
                 className="h-11 text-base px-4"
               />
             </div>
             <div className="grid gap-2.5">
-              <Label htmlFor="category" className="text-base">分类</Label>
-              <Select value={form.category} onValueChange={(v) => v && setForm({ ...form, category: v })}>
-                <SelectTrigger id="category" className="h-11">
+              <Label htmlFor="edit-category" className="text-base">分类</Label>
+              <Select value={editForm.category} onValueChange={(v) => v && setEditForm({ ...editForm, category: v })}>
+                <SelectTrigger id="edit-category" className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -231,12 +302,10 @@ export default function UnitsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
+            <Button variant="outline" onClick={closeEdit} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
-            </Button>
+            <Button onClick={handleUpdate} className="h-11 px-6">保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

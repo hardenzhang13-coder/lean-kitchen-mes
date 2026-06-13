@@ -496,6 +496,57 @@
 
 ---
 
+## 2026-06-13（Day 7）— 采购单录入流程问题修复
+
+### 问题来源
+
+采购单录入流程测试中发现 5 个问题：
+1. 一级分类「调味品」与二级分类「调料」无法正常选择；
+2. 新增原料提交后，二级分类回显展示为编号；
+3. 采购单无法正常提交；
+4. AI 识别结果中「食材名称」实际为产品品牌名称，需要区分「食材名称」与「产品品牌名称/别名」；
+5. 编辑按钮带图标，且编辑表单缺少食材 ID 与一二级分类展示。
+
+### 修复内容
+
+**分类字典打通**：
+- `prisma/seed.ts` 新增标准「调味品」一级分类（SEA）和「调料」二级分类（SEA-SEA），并保留旧「米面粮油-调味品」（GRA-SEA）兼容。
+- 移除代码中硬编码的 `SEASONING_L2_CODE = "SEA-SEA"`，改为按字典名称匹配判断调料。
+- `app/components/ingredient-form-dialog.tsx`：根据当前选中的二级分类名称/父级名称判断是否为调料。
+- `app/api/purchase-receipts/recognize/route.ts`：AI 识别时动态查询字典中的调料二级分类。
+- `app/api/seasoning-ingredients/route.ts` 及其 `[id]/route.ts`：创建/更新调料时动态查询「调料」二级分类。
+- `app/ingredients/seasoning/page.tsx`：新增调料时自动查找当前字典中的「调料」二级分类。
+
+**字段语义重定义**：
+- `lib/ai.ts`：AI prompt 增加 `productName`（完整产品品牌名称/别名）、`ingredientName`（提取后的食材名称）、`brand`（品牌前缀）。
+- `app/api/purchase-receipts/recognize/route.ts`：`brand` 保存完整产品品牌名称/别名，`itemName` 保存提取后的食材名称。
+- `app/purchases/new/page.tsx`：表格/编辑表单列头「产品品牌」改为「产品品牌名称/别名」。
+- `app/components/ingredient-form-dialog.tsx`：调料场景的「产品品牌」标签同步改为「产品品牌名称/别名」。
+
+**新增原料回显修复**：
+- `app/purchases/new/page.tsx` 中 `handleIngredientSuccess` 根据返回的 `l2Code` 从字典反查 `l2Name` 与一级分类名，避免展示编号。
+
+**采购单提交修复**：
+- `app/purchases/new/page.tsx` 的 `handleSubmit` 为每个 item 补充 `storage` 字段（默认「常温」）。
+- `app/api/purchase-receipts/route.ts` 的 POST handler 对 `storage` 做兜底，防止 Prisma 写入失败。
+
+**编辑体验优化**：
+- `app/purchases/new/page.tsx`：移除表格行「编辑」按钮前的 `Pencil` 图标。
+- 编辑表单新增只读字段：食材 ID、一级分类、二级分类。
+- `app/components/form-field.tsx`：新增 `readOnly` 属性，避免只读字段显示「(可选)」提示。
+
+### 验证
+
+- `npx prisma db seed` ✅ 成功写入新分类。
+- `npx eslint` 检查本次修改文件 ✅ 无错误。
+- 本地 dev server 验证：
+  - AI 识别测试图片后，调料行二级分类显示「调料」，原料行二级分类显示「速冻食品」。
+  - 食材名称与产品品牌名称/别名按新语义展示。
+  - 编辑按钮无图标，编辑表单展示食材 ID、一级分类、二级分类。
+  - 点击「确认录入」后成功跳转 `/purchases`，显示「采购单录入成功」。
+
+---
+
 ## 累计交付状态
 
 | 模块 | 状态 | 说明 |
@@ -704,3 +755,175 @@ POST /api/schedules/[id]/execute-purchase
 **P1（建议完成）**：任务 5
 
 如果当天时间紧张，可放弃任务 5，先确保「排程采购计划 → 采购单 → 编辑 → 报销」主链路闭环。
+
+---
+
+## 2026-06-13（Day 7）— AI 识别修复 + 采购模块数据模型与录入重构
+
+### 上午：提交权限/设置重构并修复 AI 识别
+
+**已提交 commit**：
+- `24e29f7` feat: 用户权限、设置模块重构与全局交互升级（2026-06-12 完成的内容，今日凌晨提交）
+- `6b8e742` fix: 修复 AI 采购单识别返回空内容的问题
+
+**AI 识别修复详情**：
+- 问题根因：Qwen 视觉模型在启用 `response_format: { type: "json_object" }` 时，`content` 字段被强制返回空数组 `[]`
+- 修复方案：移除 `response_format` 参数，改为直接输出 JSON 代码块，后端用正则清洗并解析
+- 在识别接口增加关键步骤日志，便于后续线上排查
+
+### 下午/晚上：采购模块数据模型与录入流程重构（进行中，未提交）
+
+**新增规划文档**：
+- `DEVELOPMENT_PLAN.md` — 基于源码审计的生产级开发计划方案，覆盖现状诊断、四阶段路线图、技术债务、API/路由规划
+
+**Schema 扩展**：
+- `PurchaseReceipt`：`status` 默认值由 `completed` 改为 `待结算`，新增 `supplierName`、`imageUrl`
+- `PurchaseReceiptItem`：新增 `brand`、`l2Code`、`l2Name`、`isManual`、`purchaseUnit`、`seasoningIngredientId`
+- `Ingredient`：新增 `brand`、`purchaseUnit`、`stockUnit`、`latestRefPrice`
+- `SeasoningIngredient`：新增 `l2Code`、`stockUnit`、`latestRefPrice`，建立与 `PurchaseReceiptItem` 的反向关联
+
+**新增可复用组件**：
+- `app/components/category-tag.tsx` — 按一/二级分类代码渲染彩色标签
+- `app/components/image-preview-modal.tsx` — 图片预览弹窗
+- `app/components/searchable-select.tsx` — 可搜索下拉选择
+- `app/components/searchable-table-select.tsx` — 表格弹窗搜索选择
+- `app/components/supplier-select.tsx` — 供应商选择器（基于 SearchableTableSelect）
+- `app/components/ingredient-form-dialog.tsx` — 原料/调料快速新增/编辑弹窗
+
+**新增工具**：
+- `lib/spec-parser.ts` — 采购规格解析：支持从 `1千克*10袋`、`1件=20袋`、`10袋` 等格式自动换算入库数量与库存单位
+
+**采购单录入页重构（`/purchases/new`）**：
+- 表头增加供应商选择（`SupplierSelect`）
+- AI 识别结果自动回填供应商、摘要
+- 识别出的食材支持：
+  - 未匹配项一键「新增食材」或关联现有食材
+  - 已匹配项直接编辑规格/单位/单价
+  - 规格按 `spec-parser` 自动换算入库量
+- 新增「手动添加」弹窗，支持录入无图片的采购项
+- 调料类食材可直接关联 `SeasoningIngredient`
+
+**采购单列表页重构（`/purchases`）**：
+- 状态 Tab 筛选：待结算 / 已结算 / 已作废 / 全部
+- 删除改为「作废」：将 `status` 更新为 `已作废`，并回滚库存/台账
+- 列表展示供应商名称
+- 详情弹窗支持图片预览
+
+**API 调整**：
+- `GET /api/purchase-receipts`：支持 `status` 筛选，返回 `supplier` 关联与调料关联
+- `POST /api/purchase-receipts`：保存 `supplierName`、新字段、调料ID；入库时回写 `latestRefPrice`
+- `PUT /api/purchase-receipts/[id]`：同步支持新字段与作废逻辑
+- `PUT /api/ingredients/[id]` / `POST /api/ingredients`：支持新字段
+- `PUT /api/seasoning-ingredients/[id]` / `POST /api/seasoning-ingredients`：支持新字段
+
+### 验证
+- `npm run build` ⏳ 未执行（存在未提交变更，待明日完成模块闭环后统一验证）
+
+---
+
+## 累计交付状态
+
+| 模块 | 状态 | 说明 |
+|------|------|------|
+| 数据库设计 | ✅ 完成 | 25 张表 + 本次采购单字段扩展 |
+| 基础字典 | ✅ 完成 | 菜品类别 / 食材分类 / 单位 / 供应商，迁移至设置模块 |
+| 食材库 | ⚠️ 迭代中 | 5 类食材 CRUD 完成；原料/调料新增字段与规格解析已落地 |
+| 菜品库 | ✅ 完成 | 卡片列表 + 详情页 + 5 步创建向导（草稿/发布）+ TileSelect 交互 |
+| 工作台 | ✅ 完成 | 模块入口总览 + 今日排程展示 |
+| 部署上线 | ✅ 完成 | Zeabur 自动部署 |
+| 采购管理 | ⚠️ 重构中 | 列表/录入/作废流程已重构；采购计划执行页、采购单编辑页尚未开始 |
+| 库存管理 | ✅ 完成 | 实时库存 / 台账（采购单维度聚合） |
+| 排程管理 | ✅ 完成 | 排程创建 / 自动拆解切配工单+采购计划 / 状态流转 |
+| 用户权限 | ✅ 基础完成 | 角色字段 + 用户 CRUD + 个人设置 + 操作人姓名解析 |
+| 系统设置 | ✅ 完成 | 字典迁移 + 个人设置 + 用户管理 |
+
+---
+
+## 关键技术决策记录
+
+| 决策 | 方案 | 原因 |
+|------|------|------|
+| Prisma Client 初始化 | `@prisma/adapter-pg` | Prisma 7 强制要求传入 adapter |
+| 组件库 | 保持 shadcn/ui | 已深度集成，与 Next.js 16 / Tailwind v4 完全兼容 |
+| 部署平台 | Zeabur | 支持 Next.js 自动检测，一键部署 |
+| 数据库 | 复用同一套远程 PG | 本地开发与线上生产数据一致 |
+| 编号生成 | 服务端自动生成 | 避免人工输入编号格式错误，保证唯一性 |
+| BOM 表设计 | 5 张独立关联表 | 主料/辅料/净料/调料/酱料各一张，逻辑更清晰 |
+| 图片存储 | Cloudinary Unsigned Upload | Zeabur 无状态容器不支持本地磁盘存储 |
+| 库存模型 | 统一走原料库存 | 净料出库按出成率换算扣除对应原料；调料无映射不入库 |
+| 结算状态 | 报销即视为结算 | 创建报销单后自动更新关联 ledger 记录 |
+| 排程拆解 | 服务端事务内自动计算 | 保证数据一致性，前端只负责提交菜品清单 |
+| 切配工单分类 | 一二级分类合并单元格 | 按厨房实际分类组织，便于切配人员按类领取 |
+| AI 识别 | 通义千问 qwen3.6-flash | DeepSeek V4 预览版不支持图片输入；Qwen 多模态稳定且便宜 |
+| 单选交互规范 | ≤5 Tile 平铺 / >5 TileSelect 弹窗 | 选项少时一眼可见，选项多时支持搜索筛选 |
+| 操作人展示 | 统一解析 username → name | 各业务列表/详情均展示真实姓名而非账号 |
+| 字典入口 | 从 `/dictionaries` 合并到 `/settings` | 设置模块统一承载基础数据与个人配置 |
+| 采购单状态 | `待结算 / 已结算 / 已作废` | 替代原 `completed`，支持作废后库存回滚且保留单据 |
+| 规格换算 | `lib/spec-parser.ts` 独立工具 | 采购规格到入库数量的换算属于通用逻辑，抽离便于测试复用 |
+| 录入流食材创建 | 弹窗内直接新增/编辑原料或调料 | 减少 AI 识别未匹配时跳转页面的心智负担 |
+
+---
+
+## 已知问题与 TODO
+
+- [ ] **采购计划执行页**：排程采购计划仍需 `/schedules/[id]/purchase` 执行入口
+- [ ] **采购单编辑页**：`/purchases/[id]/edit` 尚未创建
+- [ ] **采购计划执行 API**：`POST /api/schedules/[id]/execute-purchase` 尚未创建
+- [ ] **采购对账/结算**：报销流程已存在，但缺少按供应商/时间段的汇总对账视图
+- [ ] **加工工艺 stage 当前为 `初加工/切配/烹饪/装盘`，与 Database.md 定义的 `初加工/预处理/上灶加工/出锅成品` 不一致
+- [ ] **Cloudinary 环境变量需在生产环境配置 `CLOUDINARY_CLOUD_NAME` 和 `CLOUDINARY_UPLOAD_PRESET`
+
+---
+
+# 明日开发计划（2026-06-14）— 完成采购模块闭环
+
+## 目标
+在今日重构基础上，完成「排程采购计划 → 采购单生成 → 采购单编辑 → 报销」的完整闭环。
+
+## 任务拆解
+
+### 任务 1：采购计划执行页 + API
+- 创建 `/schedules/[id]/purchase/page.tsx`
+- 在 `/schedules/[id]/page.tsx` 增加「执行采购」入口
+- 创建 `POST /api/schedules/[id]/execute-purchase`
+- 按供应商分组生成采购单，并更新采购计划状态为 `completed`
+
+### 任务 2：采购单编辑页
+- 创建 `/purchases/[id]/edit/page.tsx`
+- 在 `/api/purchase-receipts/[id]/route.ts` 增加 `PUT` 方法
+- 编辑时回滚库存/台账，按新明细重新入库
+- 已结算/已作废采购单禁止编辑
+
+### 任务 3：供应商对账视图（可选）
+- `/purchases/reconciliation` 或在报销页增加「按供应商汇总」Tab
+
+## 验收标准
+
+| # | 验收项 | 标准 |
+|---|--------|------|
+| 1 | 采购计划执行页可进入 | 从排程详情点击「执行采购」跳转，展示该排程所有采购计划 |
+| 2 | 可填写实际采购信息 | 每行可填实际采购量、实际金额、选择供应商、备注 |
+| 3 | 可生成采购单 | 点击「生成采购单」后按供应商分组生成多张采购单，并入库 |
+| 4 | 采购计划状态更新 | 已执行的采购计划状态变为 `completed`，不可重复执行 |
+| 5 | 采购单可编辑 | 未结算采购单可修改明细、供应商、摘要、金额，保存后库存/台账/报销金额正确回滚/更新 |
+| 6 | 供应商展示 | 采购单列表、详情、编辑页正确展示供应商名称 |
+| 7 | 构建通过 | `npm run build` 成功 |
+| 8 | 端到端验证 | 创建排程 → 执行采购 → 查看采购单 → 编辑采购单 → 创建报销单，数据一致 |
+
+## 预估工时
+
+| 任务 | 工时 |
+|------|------|
+| 任务 1：采购计划执行页 + API | 4-5h |
+| 任务 2：采购单编辑页（含 API） | 4-5h |
+| 任务 3：供应商对账视图（可选） | 2-3h |
+| **合计** | **10-13h** |
+
+## 风险与应对
+
+| 风险 | 概率 | 影响 | 应对 |
+|------|------|------|------|
+| 采购计划单位与采购单入库单位换算复杂 | 中 | 中 | 复用 `spec-parser.ts`，采购单中记录 `qty`（采购单位）和 `stockInQty`（库存单位） |
+| 编辑采购单时库存回滚导致负库存 | 中 | 高 | 回滚前校验 `currentQty >= stockInQty`，不足时拒绝编辑并提示 |
+| 编辑影响已结算报销单 | 低 | 高 | 已结算/已作废采购单禁止编辑；pending 报销单编辑后需同步 `totalAmount` |
+| 多供应商分组逻辑复杂 | 低 | 中 | 前端按 supplierId 分组展示，后端接收扁平数组后重新分组 |
