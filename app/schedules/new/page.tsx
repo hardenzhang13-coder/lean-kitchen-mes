@@ -62,7 +62,7 @@ export default function NewSchedulePage() {
     try {
       const res = await fetch("/api/dishes");
       const data = await res.json();
-      setDishes(data);
+      setDishes(data.data || []);
     } catch {
       toast.error("获取菜品数据失败");
     } finally {
@@ -148,7 +148,7 @@ export default function NewSchedulePage() {
         return;
       }
       toast.success("排程创建成功");
-      router.push(`/schedules/${data.id}`);
+      router.push(`/schedules/${data.data?.id}`);
     } catch {
       toast.error("提交出错");
     } finally {

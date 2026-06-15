@@ -25,11 +25,12 @@ export default function ProfilePage() {
     fetch("/api/auth/me")
       .then((res) => res.json())
       .then((json) => {
-        if (json.user) {
+        const user = json.data?.user;
+        if (user) {
           setForm((f) => ({
             ...f,
-            name: json.user.name || "",
-            username: json.user.username || "",
+            name: user.name || "",
+            username: user.username || "",
           }));
         }
       })
@@ -74,7 +75,7 @@ export default function ProfilePage() {
       toast.success("保存成功");
       setForm((f) => ({ ...f, oldPassword: "", newPassword: "", confirmPassword: "" }));
 
-      if (json.needRelogin) {
+      if (json.data?.needRelogin) {
         toast.info("账号已变更，请重新登录");
         router.push("/login");
       } else {

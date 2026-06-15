@@ -94,7 +94,7 @@ export default function ScheduleDetailPage() {
         toast.error(d.error || "获取失败");
         return;
       }
-      setData(d);
+      setData(d.data);
     } catch {
       toast.error("获取排程数据失败");
     } finally {

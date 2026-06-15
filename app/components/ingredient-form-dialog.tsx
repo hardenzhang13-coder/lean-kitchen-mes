@@ -282,18 +282,19 @@ export function IngredientFormDialog({
         return;
       }
 
+      const result = data.data || {};
       toast.success(initialData?.id ? "更新成功" : "创建成功");
       onSuccess(
         {
-          id: data.id,
-          name: data.name,
-          alias: isSeasoning ? undefined : data.alias,
-          brand: isSeasoning ? data.brand : undefined,
-          l2Code: data.l2Code,
-          stockUnit: data.stockUnit,
-          purchaseUnit: data.purchaseUnit,
-          priceUnit: data.priceUnit,
-          unit: data.unit,
+          id: result.id,
+          name: result.name,
+          alias: isSeasoning ? undefined : result.alias,
+          brand: isSeasoning ? result.brand : undefined,
+          l2Code: result.l2Code,
+          stockUnit: result.stockUnit,
+          purchaseUnit: result.purchaseUnit,
+          priceUnit: result.priceUnit,
+          unit: result.unit,
         },
         isSeasoning ? "seasoning" : "ingredient"
       );

@@ -121,7 +121,7 @@ export default function PurchasesPage() {
       if (status && status !== "all") params.set("status", status);
       const res = await fetch(`/api/purchase-receipts?${params.toString()}`);
       const data = await res.json();
-      setReceipts(data);
+      setReceipts(data.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

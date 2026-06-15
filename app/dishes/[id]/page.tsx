@@ -145,7 +145,7 @@ export default function DishDetailPage() {
     try {
       const res = await fetch(`/api/dishes/${dishId}`);
       const data = await res.json();
-      setDish(data);
+      setDish(data.data);
     } catch {
       toast.error("获取菜品详情失败");
     } finally {

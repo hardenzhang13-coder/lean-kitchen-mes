@@ -60,16 +60,17 @@ export default function EditSchedulePage() {
         toast.error(data.error || "获取失败");
         return;
       }
-      if (data.status !== "待生效") {
+      const schedule = data.data;
+      if (schedule.status !== "待生效") {
         toast.error("只有待生效的排程可以修改");
         router.push(`/schedules/${id}`);
         return;
       }
-      setTitle(data.title);
-      setScheduleDate(data.scheduleDate.split("T")[0]);
-      setScope(data.scope);
+      setTitle(schedule.title);
+      setScheduleDate(schedule.scheduleDate.split("T")[0]);
+      setScope(schedule.scope);
       setSelected(
-        data.items.map((it: any) => ({
+        schedule.items.map((it: any) => ({
           dishId: it.dishId,
           name: it.dish.name,
           code: it.dish.code,
@@ -88,7 +89,7 @@ export default function EditSchedulePage() {
     try {
       const res = await fetch("/api/dishes");
       const data = await res.json();
-      setDishes(data);
+      setDishes(data.data || []);
     } catch {
       toast.error("获取菜品数据失败");
     }

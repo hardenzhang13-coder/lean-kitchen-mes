@@ -91,7 +91,8 @@ export default function RawIngredientsPage() {
         fetch("/api/ingredient-categories"),
         fetch("/api/units"),
       ]);
-      setData(await ingRes.json());
+      const ingData = await ingRes.json();
+      setData(ingData.data || []);
       setCategories(await catRes.json());
       if (unitRes.ok) setUnits(await unitRes.json());
     } catch {

@@ -335,7 +335,7 @@ export function DishCreateWizard({
         });
         const data = await res.json();
         if (!res.ok) { toast.error(data.error || "创建失败"); return; }
-        dishId = data.id;
+        dishId = data.data?.id;
       }
 
       // Save BOM

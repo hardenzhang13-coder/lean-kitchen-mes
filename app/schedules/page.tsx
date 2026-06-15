@@ -59,7 +59,7 @@ export default function SchedulesPage() {
       if (search) params.set("q", search);
       const res = await fetch(`/api/schedules?${params.toString()}`);
       const data = await res.json();
-      setRows(data);
+      setRows(data.data || []);
     } catch {
       toast.error("获取排程数据失败");
     } finally {

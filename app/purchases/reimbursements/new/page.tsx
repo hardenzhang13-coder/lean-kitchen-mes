@@ -37,7 +37,7 @@ export default function NewReimbursementPage() {
       if (endDate) params.set("endDate", endDate);
       const res = await fetch(`/api/purchase-receipts?${params.toString()}`);
       const data = await res.json();
-      setReceipts(data);
+      setReceipts(data.data || []);
     } catch {
       toast.error("获取采购单失败");
     } finally {

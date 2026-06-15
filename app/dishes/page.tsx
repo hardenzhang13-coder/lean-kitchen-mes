@@ -104,7 +104,8 @@ export default function DishesPage() {
         fetch("/api/seasoning-ingredients"),
         fetch("/api/sauce-ingredients"),
       ]);
-      setDishes(await dRes.json());
+      const dData = await dRes.json();
+      setDishes(dData.data || []);
       setCategories(await cRes.json());
       setNetIngredients(await nRes.json());
       setMinorIngredients(await mRes.json());

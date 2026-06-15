@@ -95,7 +95,11 @@ export function SearchableTableSelect<
     fetch(fetchUrl)
       .then((r) => r.json() as Promise<unknown>)
       .then((data) => {
-        const list = Array.isArray(data) ? (data as T[]) : [];
+        const list = Array.isArray(data)
+          ? (data as T[])
+          : Array.isArray((data as { data?: unknown }).data)
+            ? ((data as { data: T[] }).data as T[])
+            : [];
         setItems(list);
       })
       .catch(() => setItems([]))

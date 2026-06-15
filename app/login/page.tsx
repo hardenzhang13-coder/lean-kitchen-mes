@@ -39,7 +39,7 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success(`欢迎，${data.user?.name || data.user?.username}`);
+        toast.success(`欢迎，${data.data?.user?.name || data.data?.user?.username}`);
         router.replace("/");
         router.refresh();
       } else {
