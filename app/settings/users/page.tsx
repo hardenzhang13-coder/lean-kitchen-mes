@@ -31,6 +31,8 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { Pagination } from "@/app/components/pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 import { ROLE_OPTIONS } from "@/lib/roles";
 
@@ -60,20 +62,6 @@ export default function UsersPage() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/users");
-      if (!res.ok) throw new Error("获取用户列表失败");
-      const json = await res.json();
-      setData(json);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -99,13 +87,29 @@ export default function UsersPage() {
   }, []);
 
   const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return data;
     return data.filter(
       (d) =>
-        d.username.includes(search) ||
-        d.name.includes(search) ||
-        d.role.includes(search)
+        d.username.toLowerCase().includes(s) ||
+        d.name.toLowerCase().includes(s) ||
+        d.role.toLowerCase().includes(s)
     );
   }, [data, search]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageItems,
+    totalPages,
+    totalItems,
+    start,
+    end,
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, setCurrentPage]);
 
   const openCreate = () => {
     setEditing(null);
@@ -163,7 +167,11 @@ export default function UsersPage() {
         toast.success("创建成功");
       }
       setDialogOpen(false);
-      fetchData();
+      // 重新加载用户列表和当前用户
+      const usersRes = await fetch("/api/users");
+      if (usersRes.ok) {
+        setData(await usersRes.json());
+      }
     } catch {
       toast.error("操作失败");
     }
@@ -184,7 +192,10 @@ export default function UsersPage() {
       }
       toast.success("删除成功");
       setDeleteId(null);
-      fetchData();
+      const usersRes = await fetch("/api/users");
+      if (usersRes.ok) {
+        setData(await usersRes.json());
+      }
     } catch {
       toast.error("删除失败");
     }
@@ -224,56 +235,70 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <SkeletonTable cols={6} rows={5} />
+            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">序号</TableHead>
-                  <TableHead>账号</TableHead>
-                  <TableHead>姓名</TableHead>
-                  <TableHead>角色</TableHead>
-                  <TableHead>创建时间</TableHead>
-                  <TableHead className="w-[120px] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground">
-                      暂无数据
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((row, idx) => (
-                    <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
-                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{row.username}</TableCell>
-                      <TableCell>{row.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">{row.role}</Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDate(row.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => setDeleteId(row.id)}
-                          disabled={row.id === currentUser?.id}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]">序号</TableHead>
+                      <TableHead>账号</TableHead>
+                      <TableHead>姓名</TableHead>
+                      <TableHead>角色</TableHead>
+                      <TableHead>创建时间</TableHead>
+                      <TableHead className="w-[120px] text-right">操作</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {pageItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pageItems.map((row, idx) => (
+                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                          <TableCell className="text-muted-foreground">
+                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">{row.username}</TableCell>
+                          <TableCell>{row.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary">{row.role}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">
+                            {formatDate(row.createdAt)}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteId(row.id)}
+                              disabled={row.id === currentUser?.id}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                start={start}
+                end={end}
+                onPageChange={setCurrentPage}
+              />
+            </>
           )}
         </CardContent>
       </Card>

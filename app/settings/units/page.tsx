@@ -30,6 +30,8 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { Pagination } from "@/app/components/pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
 type Unit = {
@@ -48,10 +50,9 @@ export default function UnitsPage() {
   const [data, setData] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Unit | null>(null);
-  const [editForm, setEditForm] = useState({ name: "", category: "weight" });
-  const [showCreate, setShowCreate] = useState(false);
-  const [createForm, setCreateForm] = useState({ name: "", category: "weight" });
+  const [form, setForm] = useState({ name: "", category: "weight" });
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
@@ -67,64 +68,74 @@ export default function UnitsPage() {
     }
   };
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     fetchData();
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return data;
     return data.filter(
       (d) =>
-        d.name.includes(search) ||
-        d.category.toLowerCase().includes(search.toLowerCase())
+        d.name.toLowerCase().includes(s) ||
+        d.category.toLowerCase().includes(s)
     );
   }, [data, search]);
 
+  const {
+    currentPage,
+    setCurrentPage,
+    pageItems,
+    totalPages,
+    totalItems,
+    start,
+    end,
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, setCurrentPage]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: "", category: "weight" });
+    setDialogOpen(true);
+  };
+
   const openEdit = (row: Unit) => {
     setEditing(row);
-    setEditForm({ name: row.name, category: row.category });
+    setForm({ name: row.name, category: row.category });
+    setDialogOpen(true);
   };
 
-  const closeEdit = () => {
+  const closeDialog = () => {
+    setDialogOpen(false);
     setEditing(null);
-    setEditForm({ name: "", category: "weight" });
+    setForm({ name: "", category: "weight" });
   };
 
-  const handleCreate = async () => {
-    if (!createForm.name.trim()) {
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
       toast.error("名称不能为空");
       return;
     }
     try {
-      await fetch("/api/units", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(createForm),
-      });
-      toast.success("创建成功");
-      setCreateForm({ name: "", category: "weight" });
-      setShowCreate(false);
-      fetchData();
-    } catch {
-      toast.error("操作失败");
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (!editing) return;
-    if (!editForm.name.trim()) {
-      toast.error("名称不能为空");
-      return;
-    }
-    try {
-      await fetch(`/api/units/${editing.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-      toast.success("更新成功");
-      closeEdit();
+      if (editing) {
+        await fetch(`/api/units/${editing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        toast.success("更新成功");
+      } else {
+        await fetch("/api/units", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(form),
+        });
+        toast.success("创建成功");
+      }
+      closeDialog();
       fetchData();
     } catch {
       toast.error("操作失败");
@@ -146,6 +157,10 @@ export default function UnitsPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <PageHeader showBack title="单位" description="管理重量、体积、计数等单位字典" />
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          新增
+        </Button>
       </div>
 
       <Card>
@@ -160,135 +175,90 @@ export default function UnitsPage() {
             />
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent>
           {loading ? (
-            <SkeletonTable cols={4} rows={5} />
+            <SkeletonTable cols={4} rows={DEFAULT_PAGE_SIZE} />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">序号</TableHead>
-                  <TableHead>名称</TableHead>
-                  <TableHead>分类</TableHead>
-                  <TableHead className="w-[120px] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center text-muted-foreground">
-                      暂无数据
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((row, idx) => (
-                    <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
-                      <TableCell className="text-muted-foreground">{idx + 1}</TableCell>
-                      <TableCell className="font-medium">{row.name}</TableCell>
-                      <TableCell>
-                        <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                          {categories.find((c) => c.value === row.category)?.label || row.category}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-
-          {!loading && (
             <>
-              {!showCreate ? (
-                <button
-                  type="button"
-                  onClick={() => setShowCreate(true)}
-                  className="text-sm text-muted-foreground hover:text-foreground flex items-center gap-1"
-                >
-                  <Plus className="h-4 w-4" /> 新增单位
-                </button>
-              ) : (
-                <div className="rounded-md border p-4 space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="grid gap-2.5">
-                      <Label htmlFor="create-name" className="text-base">名称</Label>
-                      <Input
-                        id="create-name"
-                        value={createForm.name}
-                        onChange={(e) =>
-                          setCreateForm({ ...createForm, name: e.target.value })
-                        }
-                        placeholder="如 斤"
-                        className="h-11 text-base px-4"
-                      />
-                    </div>
-                    <div className="grid gap-2.5">
-                      <Label htmlFor="create-category" className="text-base">分类</Label>
-                      <Select
-                        value={createForm.category}
-                        onValueChange={(v) => v && setCreateForm({ ...createForm, category: v })}
-                      >
-                        <SelectTrigger id="create-category" className="h-11">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {categories.map((c) => (
-                            <SelectItem key={c.value} value={c.value}>
-                              {c.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setShowCreate(false);
-                        setCreateForm({ name: "", category: "weight" });
-                      }}
-                    >
-                      取消
-                    </Button>
-                    <Button size="sm" onClick={handleCreate}>保存</Button>
-                  </div>
-                </div>
-              )}
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]">序号</TableHead>
+                      <TableHead>名称</TableHead>
+                      <TableHead>分类</TableHead>
+                      <TableHead className="w-[120px] text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={4} className="text-center text-muted-foreground">
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pageItems.map((row, idx) => (
+                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                          <TableCell className="text-muted-foreground">
+                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
+                          </TableCell>
+                          <TableCell className="font-medium">{row.name}</TableCell>
+                          <TableCell>
+                            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
+                              {categories.find((c) => c.value === row.category)?.label || row.category}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(row.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                start={start}
+                end={end}
+                onPageChange={setCurrentPage}
+              />
             </>
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={editing !== null} onOpenChange={() => editing && closeEdit()}>
+      <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
         <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle className="text-lg">编辑单位</DialogTitle>
+            <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-5 py-5">
             <div className="grid gap-2.5">
-              <Label htmlFor="edit-name" className="text-base">名称</Label>
+              <Label htmlFor="name" className="text-base">名称</Label>
               <Input
-                id="edit-name"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="如 斤"
                 className="h-11 text-base px-4"
               />
             </div>
             <div className="grid gap-2.5">
-              <Label htmlFor="edit-category" className="text-base">分类</Label>
-              <Select value={editForm.category} onValueChange={(v) => v && setEditForm({ ...editForm, category: v })}>
-                <SelectTrigger id="edit-category" className="h-11">
+              <Label htmlFor="category" className="text-base">分类</Label>
+              <Select
+                value={form.category}
+                onValueChange={(v) => v && setForm({ ...form, category: v })}
+              >
+                <SelectTrigger id="category" className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -302,10 +272,12 @@ export default function UnitsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={closeEdit} className="h-11 px-6">
+            <Button variant="outline" onClick={closeDialog} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleUpdate} className="h-11 px-6">保存</Button>
+            <Button onClick={handleSubmit} className="h-11 px-6">
+              保存
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

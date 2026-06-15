@@ -47,8 +47,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const { type, code, name, parentCode, description } = body;
 
+  if (!code?.trim() || !name?.trim()) {
+    return NextResponse.json({ error: "编号和名称不能为空" }, { status: 400 });
+  }
+
   try {
     if (type === "l1") {
+      const existing = await prisma.ingredientCategoryL1.findFirst({
+        where: { code, NOT: { id: Number(id) } },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "编号已存在" }, { status: 400 });
+      }
       const row = await prisma.ingredientCategoryL1.update({
         where: { id: Number(id) },
         data: { code, name },
@@ -57,6 +67,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json(row);
     }
     if (type === "l2") {
+      const existing = await prisma.ingredientCategoryL2.findFirst({
+        where: { code, NOT: { id: Number(id) } },
+      });
+      if (existing) {
+        return NextResponse.json({ error: "编号已存在" }, { status: 400 });
+      }
+      const parent = await prisma.ingredientCategoryL1.findUnique({ where: { code: parentCode } });
+      if (!parent) {
+        return NextResponse.json({ error: "所属一级分类不存在" }, { status: 400 });
+      }
       const row = await prisma.ingredientCategoryL2.update({
         where: { id: Number(id) },
         data: { code, name, parentCode, description: description || null },

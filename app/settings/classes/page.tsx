@@ -13,13 +13,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -27,9 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { Pagination } from "@/app/components/pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { TileSelect } from "@/app/components/tile-select";
 import { toast } from "sonner";
 
 type L1 = {
@@ -66,7 +62,7 @@ export default function ClassesPage() {
       const res = await fetch("/api/ingredient-categories");
       const json = await res.json();
       setData(json);
-    } catch (e) {
+    } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
@@ -77,17 +73,16 @@ export default function ClassesPage() {
     fetchData();
   }, []);
 
-  const l1Options = useMemo(() => data.map((d) => ({ code: d.code, name: d.name })), [data]);
-
   const filtered = useMemo(() => {
-    if (!search.trim()) return data;
+    const s = search.trim().toLowerCase();
+    if (!s) return data;
     return data
       .map((l1) => {
         const l1Match =
-          l1.name.includes(search) || l1.code.toLowerCase().includes(search.toLowerCase());
+          l1.name.toLowerCase().includes(s) || l1.code.toLowerCase().includes(s);
         const matchedChildren = l1.children.filter(
           (c) =>
-            c.name.includes(search) || c.code.toLowerCase().includes(search.toLowerCase())
+            c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s)
         );
         if (l1Match) return l1;
         if (matchedChildren.length) return { ...l1, children: matchedChildren };
@@ -95,6 +90,25 @@ export default function ClassesPage() {
       })
       .filter(Boolean) as L1[];
   }, [data, search]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageItems: pageL1Items,
+    totalPages,
+    totalItems,
+    start,
+    end,
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, setCurrentPage]);
+
+  const l1Options = useMemo(
+    () => data.map((d) => ({ value: d.code, label: d.name, description: d.code })),
+    [data]
+  );
 
   const toggleExpand = (id: number) => {
     const next = new Set(expanded);
@@ -147,7 +161,7 @@ export default function ClassesPage() {
     }
     try {
       if (editing) {
-        await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
+        const res = await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -158,9 +172,14 @@ export default function ClassesPage() {
             description: form.description || null,
           }),
         });
+        if (!res.ok) {
+          const err = await res.json();
+          toast.error(err.error || "更新失败");
+          return;
+        }
         toast.success("更新成功");
       } else {
-        await fetch("/api/ingredient-categories", {
+        const res = await fetch("/api/ingredient-categories", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -171,11 +190,16 @@ export default function ClassesPage() {
             description: form.description || null,
           }),
         });
+        if (!res.ok) {
+          const err = await res.json();
+          toast.error(err.error || "创建失败");
+          return;
+        }
         toast.success("创建成功");
       }
       setDialogOpen(false);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("操作失败");
     }
   };
@@ -189,7 +213,7 @@ export default function ClassesPage() {
       toast.success("删除成功");
       setDeleteTarget(null);
       fetchData();
-    } catch (e) {
+    } catch {
       toast.error("删除失败");
     }
   };
@@ -218,95 +242,115 @@ export default function ClassesPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <SkeletonTable cols={5} rows={6} />
+            <SkeletonTable cols={5} rows={DEFAULT_PAGE_SIZE} />
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">序号</TableHead>
-                  <TableHead>编号</TableHead>
-                  <TableHead>名称</TableHead>
-                  <TableHead>说明</TableHead>
-                  <TableHead className="w-[180px] text-right">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      暂无数据
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filtered.map((l1, l1Idx) => {
-                    const isExpanded = expanded.has(l1.id);
-                    return (
-                      <>
-                        <TableRow key={`l1-${l1.id}`} className="bg-muted/30 transition-colors hover:bg-muted/50">
-                          <TableCell className="text-muted-foreground">{l1Idx + 1}</TableCell>
-                          <TableCell className="font-medium">
-                            <button
-                              onClick={() => toggleExpand(l1.id)}
-                              className="inline-flex items-center gap-1 mr-1"
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]">序号</TableHead>
+                      <TableHead>编号</TableHead>
+                      <TableHead>名称</TableHead>
+                      <TableHead>说明</TableHead>
+                      <TableHead className="w-[180px] text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageL1Items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pageL1Items.map((l1, l1Idx) => {
+                        const isExpanded = expanded.has(l1.id);
+                        return (
+                          <>
+                            <TableRow
+                              key={`l1-${l1.id}`}
+                              className="bg-muted/30 transition-colors hover:bg-muted/50"
                             >
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4" />
-                              )}
-                            </button>
-                            {l1.code}
-                          </TableCell>
-                          <TableCell className="font-semibold">{l1.name}</TableCell>
-                          <TableCell className="text-muted-foreground">—</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm" onClick={() => openCreateL2(l1.code)}>
-                              <Plus className="h-3 w-3 mr-1" />
-                              二级
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => openEditL1(l1)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                        {isExpanded &&
-                          l1.children.map((l2, l2Idx) => (
-                            <TableRow key={`l2-${l2.id}`} className="transition-colors hover:bg-muted/30">
-                              <TableCell className="pl-10 text-muted-foreground text-sm">
-                                {l1Idx + 1}.{l2Idx + 1}
+                              <TableCell className="text-muted-foreground">
+                                {(currentPage - 1) * DEFAULT_PAGE_SIZE + l1Idx + 1}
                               </TableCell>
-                              <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
-                              <TableCell className="pl-10">{l2.name}</TableCell>
-                              <TableCell className="pl-10 text-muted-foreground">
-                                {l2.description || "—"}
+                              <TableCell className="font-medium">
+                                <button
+                                  onClick={() => toggleExpand(l1.id)}
+                                  className="inline-flex items-center gap-1 mr-1"
+                                >
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                  )}
+                                </button>
+                                {l1.code}
                               </TableCell>
+                              <TableCell className="font-semibold">{l1.name}</TableCell>
+                              <TableCell className="text-muted-foreground">—</TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="icon" onClick={() => openEditL2(l2)}>
+                                <Button variant="ghost" size="sm" onClick={() => openCreateL2(l1.code)}>
+                                  <Plus className="h-3 w-3 mr-1" />
+                                  二级
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => openEditL1(l1)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
+                                  onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
                                 </Button>
                               </TableCell>
                             </TableRow>
-                          ))}
-                      </>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
+                            {isExpanded &&
+                              l1.children.map((l2, l2Idx) => (
+                                <TableRow
+                                  key={`l2-${l2.id}`}
+                                  className="transition-colors hover:bg-muted/30"
+                                >
+                                  <TableCell className="pl-10 text-muted-foreground text-sm">
+                                    {(currentPage - 1) * DEFAULT_PAGE_SIZE + l1Idx + 1}.{l2Idx + 1}
+                                  </TableCell>
+                                  <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
+                                  <TableCell className="pl-10">{l2.name}</TableCell>
+                                  <TableCell className="pl-10 text-muted-foreground">
+                                    {l2.description || "—"}
+                                  </TableCell>
+                                  <TableCell className="text-right">
+                                    <Button variant="ghost" size="icon" onClick={() => openEditL2(l2)}>
+                                      <Pencil className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
+                                    >
+                                      <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                          </>
+                        );
+                      })
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                start={start}
+                end={end}
+                onPageChange={setCurrentPage}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -324,18 +368,15 @@ export default function ClassesPage() {
             {dialogType === "l2" && (
               <div className="grid gap-2.5">
                 <Label htmlFor="parentCode" className="text-base">所属一级分类</Label>
-                <Select value={form.parentCode} onValueChange={(v) => v && setForm({ ...form, parentCode: v })}>
-                  <SelectTrigger id="parentCode" className="h-11">
-                    <SelectValue placeholder="请选择" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {l1Options.map((opt) => (
-                      <SelectItem key={opt.code} value={opt.code}>
-                        {opt.name} ({opt.code})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <TileSelect
+                  options={l1Options}
+                  value={form.parentCode}
+                  onChange={(v) => setForm({ ...form, parentCode: v })}
+                  placeholder="请选择一级分类"
+                  title="选择所属一级分类"
+                  searchPlaceholder="搜索一级分类..."
+                  required
+                />
               </div>
             )}
             <div className="grid gap-2.5">

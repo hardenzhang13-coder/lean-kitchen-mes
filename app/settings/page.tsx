@@ -11,7 +11,6 @@ const settingsItems = [
     desc: "管理菜品分类，如猪肉类、牛肉类、蔬菜类等",
     icon: Tags,
     color: "text-rose-500",
-    count: "19 项",
   },
   {
     href: "/settings/classes",
@@ -19,7 +18,6 @@ const settingsItems = [
     desc: "管理食材一级和二级分类体系",
     icon: FolderTree,
     color: "text-emerald-500",
-    count: "8 + 25 项",
   },
   {
     href: "/settings/units",
@@ -27,7 +25,6 @@ const settingsItems = [
     desc: "管理重量、体积、计数等单位",
     icon: Ruler,
     color: "text-blue-500",
-    count: "15 项",
   },
   {
     href: "/settings/suppliers",
@@ -35,7 +32,6 @@ const settingsItems = [
     desc: "管理采购供应商信息",
     icon: Truck,
     color: "text-amber-500",
-    count: "0 项",
   },
 ];
 
@@ -45,7 +41,6 @@ const adminItem = {
   desc: "管理系统用户账号与角色权限",
   icon: Users,
   color: "text-indigo-500",
-  count: "",
 };
 
 export default async function SettingsPage() {
@@ -70,11 +65,6 @@ export default async function SettingsPage() {
                   <div className="flex-1">
                     <CardTitle className="text-lg">{item.label}</CardTitle>
                   </div>
-                  {item.count && (
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                      {item.count}
-                    </span>
-                  )}
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm text-muted-foreground">{item.desc}</p>

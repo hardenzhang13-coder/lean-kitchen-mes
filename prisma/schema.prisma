@@ -31,7 +31,7 @@ model IngredientCategoryL2 {
   name        String
   parentCode  String               @map("parent_code")
   description String?
-  parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code])
+  parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code], onDelete: Cascade)
 
   @@map("ingredient_categories_l2")
 }
