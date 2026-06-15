@@ -6,6 +6,7 @@ checkRequiredEnvVars();
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  transpilePackages: ["jose"],
   async redirects() {
     return [
       { source: "/dictionaries", destination: "/settings", permanent: true },
