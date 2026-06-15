@@ -1,99 +1,101 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code (claude.ai/code) 在处理本仓库代码时提供指引。
 
-## Project Overview
+## 项目概述
 
-**Lean Kitchen Management System V3** (精益厨房 V3) — A Next.js-based kitchen operations management system for small-to-medium restaurants. Manages dish recipes (BOM), production schedules, purchasing, and inventory.
+**精益厨房管理系统 V3**（精益厨房 V3）—— 基于 Next.js 的中小型餐厅后厨运营管理系统。管理菜品配方（BOM）、生产排程、采购及库存。
 
-## Common Commands
+## 常用命令
 
-| Command | Purpose |
-|---------|---------|
-| `npm run dev` | Start development server on http://localhost:3000 |
-| `npm run build` | Production build (runs `prisma generate && next build`) |
-| `npm run start` | Start production server (requires build first) |
-| `npm run lint` | Run ESLint |
-| `npx prisma db push` | Push schema changes to PostgreSQL |
-| `npx prisma db seed` | Run seed script (`prisma/seed.ts`) |
-| `npx prisma generate` | Regenerate Prisma Client |
+| 命令 | 用途 |
+|------|------|
+| `npm run dev` | 启动开发服务器，http://localhost:3000 |
+| `npm run build` | 生产构建（执行 `prisma generate && next build`） |
+| `npm run start` | 启动生产服务器（需先构建） |
+| `npm run lint` | 运行 ESLint |
+| `npx prisma db push` | 推送 schema 变更到 PostgreSQL |
+| `npx prisma db seed` | 运行种子脚本（`prisma/seed.ts`） |
+| `npx prisma generate` | 重新生成 Prisma Client |
 
-**Note:** There is currently no test framework configured.
+**注意：** 目前尚未配置测试框架。如需添加测试，建议从核心算法（`schedule-utils.ts`）和规格解析（`spec-parser.ts`）开始。
 
-## Architecture
+## 架构
 
-### Stack
-- **Framework:** Next.js 16 (App Router), React 19, TypeScript 5
-- **Database:** PostgreSQL via Prisma 7 with `@prisma/adapter-pg`
-- **Styling:** Tailwind CSS v4 + shadcn/ui (`style: base-rhea`)
-- **Auth:** JWT (jose, HS256) in httpOnly cookies
-- **AI/OCR:** OpenAI SDK → Alibaba Qwen for receipt recognition
-- **Icons:** lucide-react
-- **Toast notifications:** sonner
+### 技术栈
+- **框架：** Next.js 16（App Router），React 19，TypeScript 5
+- **数据库：** PostgreSQL，通过 Prisma 7 及 `@prisma/adapter-pg` 连接
+- **样式：** Tailwind CSS v4 + shadcn/ui（`style: base-rhea`）
+- **认证：** 自研 JWT（jose，HS256），存储于 httpOnly cookie
+- **AI/识别：** OpenAI SDK → 阿里通义千问，用于采购单识别
+- **图标：** lucide-react
+- **通知：** sonner
 
-### Key Directories
+### 关键目录
 
 ```
 app/                  # Next.js App Router
-  (routes)/           # Page routes (schedules, dishes, inventory, etc.)
-  api/                # API routes (REST, no tRPC)
-  components/         # Shared client components (sidebar, wizard, etc.)
-  lib/                # Client-side utilities (csv.ts, schedule-utils.ts)
-lib/                  # Server-side utilities (prisma, auth, session, ai)
-components/ui/        # shadcn/ui components
-prisma/               # Schema + seed
+  (routes)/           # 页面路由（排程、菜品、库存等）
+  api/                # API 路由（REST，无 tRPC）
+  components/         # 共享客户端组件（侧边栏、向导等）
+  lib/                # 客户端工具（csv.ts、schedule-utils.ts）
+lib/                  # 服务端工具（prisma、auth、session、ai）
+components/ui/        # shadcn/ui 组件
+prisma/               # 数据库 Schema + 种子脚本
 ```
 
-### Domain Model (Big Picture)
+### 领域模型（全局视角）
 
-The system centers on a **3-layer ingredient hierarchy** that drives cost calculation and procurement:
+系统核心为**三层食材体系**，驱动成本计算与采购：
 
 ```
-Ingredient (原料) → NetIngredient (净料) → Dish (菜品)
-                        ↑                      ↑
-                   yieldRate              BOM details
+原料（Ingredient） → 净料（NetIngredient） → 菜品（Dish）
+                          ↑                      ↑
+                     出成率（yieldRate）      BOM 明细
 ```
 
-- **Ingredient**: Raw goods purchased from suppliers (e.g., whole chicken)
-- **NetIngredient**: Processed/prepped ingredient with a `yieldRate` (e.g., deboned chicken at 65% yield)
-- **Dish**: Composed of NetIngredients (主料/辅料), MinorIngredients (小料), SeasoningIngredients (调料), and SauceIngredients (酱料), plus `DishProcess` steps
+- **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）
+- **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）
+- **菜品（Dish）**：由净料（主料/辅料）、小料（MinorIngredients）、调料（SeasoningIngredients）、酱料（SauceIngredients）及 `DishProcess` 工序组成
 
-**Schedule (排程)** is the operational core:
-1. User creates a `Schedule` with dishes and quantities
-2. `buildCuttingOrders()` in `app/lib/schedule-utils.ts` aggregates net/minor ingredients by category
-3. `buildPurchasePlans()` calculates gross needs using yield rates, subtracts current inventory, and generates `PurchasePlan` rows
-4. `CuttingOrder` and `PurchasePlan` are auto-created in a Prisma `$transaction`
+**排程（排程）** 是业务核心：
+1. 用户创建 `Schedule`，选择菜品及份数
+2. `app/lib/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料/小料
+3. `buildPurchasePlans()` 根据出成率计算毛需求，扣除当前库存，生成 `PurchasePlan` 行
+4. `CuttingOrder` 和 `PurchasePlan` 在 Prisma `$transaction` 事务中自动创建
 
-**Purchase Flow:**
-- `PurchaseReceipt` + `PurchaseReceiptItem` records actual deliveries
-- AI recognition (`lib/ai.ts`) parses receipt images via Qwen and auto-matches to ingredient catalog
-- Receipts with `status = "completed"` are protected from deletion
-- `PurchaseReimbursement` groups multiple receipts for settlement
+**采购流程：**
+- `PurchaseReceipt` + `PurchaseReceiptItem` 记录实际到货
+- AI 识别（`lib/ai.ts`）通过通义千问解析采购单图片，匹配到食材目录中的**原料**或**调料**
+- **原料和调料均精确入库**：采购后更新对应库存量，并创建 `InventoryLedger` 流水记录
+- 未匹配的食材可弹窗直接创建新的原料或调料，无需跳转页面
+- 采购单状态：`待结算` / `已结算` / `已作废`。已结算后不可作废，作废后回滚库存
+- `PurchaseReimbursement` 将多张采购单归并为报销单进行结算
 
-**Inventory:**
-- `Inventory` tracks current qty per ingredient
-- `InventoryLedger` is an immutable transaction log (入库/出库)
-- No manual adjustment UI yet; stock changes only via purchase receipt auto-inbound
+**库存：**
+- `Inventory` 追踪每种食材的当前库存量
+- `InventoryLedger` 为不可篡改的交易流水（入库/出库）
+- 暂无手动调整 UI；库存变动仅通过采购单自动入库触发
 
-## Auth & Middleware
+## 认证与中间件
 
-Auth is custom JWT (not NextAuth). See `middleware.ts` and `lib/session.ts`:
+认证为自研 JWT（非 NextAuth）。详见 `middleware.ts` 及 `lib/session.ts`：
 
-- **Middleware** (`middleware.ts`) verifies the `session` cookie on all routes except `/login` and `/api/auth/*`
-- For API routes, it injects `x-user-id` and `x-username` headers instead of redirecting
-- **Server actions/components** use `getCurrentUser()` from `lib/session.ts`
-- **API routes** use `getUserFromRequest(req)` from `lib/api-auth.ts` to read the injected headers
-- Operation logs (`OperationLog` model) are written via `logOperation()` helpers
+- **中间件**（`middleware.ts`）在所有路由上验证 `session` cookie，除 `/login` 和 `/api/auth/*` 外
+- 对于 API 路由，注入 `x-user-id` 和 `x-username` 请求头，而非重定向
+- **服务端动作/组件** 使用 `lib/session.ts` 的 `getCurrentUser()`
+- **API 路由** 使用 `lib/api-auth.ts` 的 `getUserFromRequest(req)` 读取注入的请求头
+- 操作日志（`OperationLog` 模型）通过 `logOperation()` 辅助函数写入
 
-**Warning:** `SESSION_SECRET` has a hardcoded fallback in `lib/session.ts`. Production must set the env var.
+**警告：** `lib/session.ts` 中 `SESSION_SECRET` 存在硬编码兜底值。生产环境必须设置环境变量。
 
-## Key Code Patterns
+## 关键代码模式
 
-### Prisma Usage
-`lib/prisma.ts` uses the new Prisma v5+ `PrismaPg` adapter pattern. The client is global-singleton cached in development.
+### Prisma 使用
+`lib/prisma.ts` 使用 Prisma v5+ 的新 `PrismaPg` 适配器模式。开发环境下客户端以全局单例缓存。
 
-### API Route Pattern
-Most API routes follow this structure:
+### API 路由模式
+大多数 API 路由遵循以下结构：
 ```ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -103,37 +105,36 @@ export async function GET(req: NextRequest) { /* ... */ }
 export async function POST(req: NextRequest) { /* ... */ }
 ```
 
-- Prisma `where` clauses often use `const where: any = {}` due to dynamic filters. This is a known tech debt item.
-- There is **no input validation layer** (no zod). All POST bodies are used directly after minimal manual checks.
+- Prisma `where` 子句常因动态过滤而使用 `const where: any = {}`。这是已知的技术债。
+- **无输入校验层**（无 zod）。所有 POST 请求体在经过最少量的手动校验后直接使用。
 
-### Client Components
-Many pages are `"use client"` and fetch data via `fetch()` to their corresponding `/api/*` endpoints rather than using Server Components. Shared components live in `app/components/`.
+### 客户端组件
+许多页面均为 `"use client"`，通过 `fetch()` 向对应 `/api/*` 端点获取数据，而非使用服务端组件。共享组件位于 `app/components/`。
 
-### Dish Creation Wizard
-`app/components/dish-create-wizard.tsx` is a multi-step Dialog (not a page) that manages BOM state locally and submits to:
-1. `POST /api/dishes` (create base info)
-2. `PUT /api/dishes/[id]/bom` (save BOM)
-3. `PUT /api/dishes/[id]/processes` (save processes)
+### 菜品创建向导
+`app/components/dish-create-wizard.tsx` 是一个多步弹窗（非页面），在本地管理 BOM 状态，提交到：
+1. `POST /api/dishes`（创建基础信息）
+2. `PUT /api/dishes/[id]/bom`（保存 BOM）
+3. `PUT /api/dishes/[id]/processes`（保存工序）
 
-### Schedule Utils
-`app/lib/schedule-utils.ts` (~430 lines) contains the core business logic for BOM explosion. It is called inside Prisma `$transaction` during schedule creation. **Do not modify lightly** — it handles yield rate math, inventory deduction logic, and unit conversions.
+### 排程工具
+`app/lib/schedule-utils.ts`（约 430 行）包含 BOM 拆解的核心业务逻辑。在排程创建时，于 Prisma `$transaction` 事务内调用。**请勿轻易修改**——它处理出成率计算、库存扣除逻辑及单位换算。
 
-### CSV Handling
-`app/lib/csv.ts` provides custom CSV parse/build/download utilities. Used for bulk ingredient import (`/api/ingredients/import`).
+### CSV 处理
+`app/lib/csv.ts` 提供自定义 CSV 解析/构建/下载工具。用于批量导入原料（`/api/ingredients/import`）。
 
-## Styling Conventions
+## 样式约定
 
-- Tailwind v4 with `@import "tailwindcss"` syntax in `app/globals.css`
-- Theme uses oklch color values and CSS variables
-- Custom focus style: blue ring (`#007AFF`) on inputs (Apple-style)
-- shadcn/ui components use `base-rhea` style variant
-- Font stack: DM Sans (body), Public Sans (headings), Geist (mono)
-- Layout: fixed 80px sidebar on left, main content offset with `ml-20`
+- Tailwind v4，在 `app/globals.css` 中使用 `@import "tailwindcss"` 语法
+- 主题使用 oklch 色值及 CSS 变量
+- 自定义聚焦样式：输入框使用蓝色环（`#007AFF`，苹果风格）
+- shadcn/ui 组件使用 `base-rhea` 风格变体
+- 字体栈：DM Sans（正文）、Public Sans（标题）、Geist（等宽）
+- 布局：左侧固定 80px 侧边栏，主内容区通过 `ml-20` 偏移
 
-## Important Notes
+## 重要说明
 
-- **Next.js breaking changes:** This is Next.js 16 with React 19. APIs and conventions may differ from older versions. Read `node_modules/next/dist/docs/` when unsure. See `AGENTS.md`.
-- **Dish status lifecycle:** `draft` → `pending` → `published`. The wizard allows saving as `draft` at any step or `published` only after validation passes.
-- **Code generation bugs known:** `generateDishCode` in `app/api/dishes/route.ts` has a template string bug that needs fixing.
-- **No tests:** The project has zero test coverage. Any test framework addition would be new infrastructure.
-- **Deployment:** `next.config.ts` sets `output: "standalone"`. Build requires `DATABASE_URL` env var.
+- **Next.js 破坏性变更：** 这是 Next.js 16 配合 React 19。API 和约定可能与旧版本不同。不确定时，请查阅 `node_modules/next/dist/docs/`。详见 `AGENTS.md`。
+- **菜品状态生命周期：** `draft` → `pending` → `published`。向导允许在任意步骤保存为 `draft`，或仅在校验通过后保存为 `published`。
+- **无测试覆盖：** 尚未配置测试框架。如需添加，建议从 `schedule-utils.ts`（BOM 计算）和 `spec-parser.ts`（规格解析）开始。
+- **部署：** `next.config.ts` 设置 `output: "standalone"`。构建需要 `DATABASE_URL` 环境变量。
