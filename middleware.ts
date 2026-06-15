@@ -1,10 +1,7 @@
 import { jwtVerify } from "jose";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "lean-kitchen-mes-secret-key-2026"
-);
+import { SESSION_SECRET } from "@/lib/env-check";
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -14,7 +11,7 @@ export async function middleware(req: NextRequest) {
   if (isLoginPage) {
     if (token) {
       try {
-        await jwtVerify(token, SECRET_KEY, { clockTolerance: 60 });
+        await jwtVerify(token, SESSION_SECRET, { clockTolerance: 60 });
         return NextResponse.redirect(new URL("/", req.url));
       } catch {
         // invalid token, allow access to login
@@ -34,7 +31,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     try {
-      const { payload } = await jwtVerify(token, SECRET_KEY, { clockTolerance: 60 });
+      const { payload } = await jwtVerify(token, SESSION_SECRET, { clockTolerance: 60 });
       const requestHeaders = new Headers(req.headers);
       requestHeaders.set("x-user-id", String(payload.userId));
       requestHeaders.set("x-username", encodeURIComponent(String(payload.username || "")));
@@ -50,7 +47,7 @@ export async function middleware(req: NextRequest) {
   }
 
   try {
-    await jwtVerify(token, SECRET_KEY, { clockTolerance: 60 });
+    await jwtVerify(token, SESSION_SECRET, { clockTolerance: 60 });
     return NextResponse.next();
   } catch {
     return NextResponse.redirect(new URL("/login", req.url));

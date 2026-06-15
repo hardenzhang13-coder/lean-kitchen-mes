@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { getErrorMessage } from "@/lib/error-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,8 +29,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     await logOperation(req, { action: "UPDATE", entity: "MinorIngredient", entityId: row.id, description: `更新: ${row.name || row.code}` });
     return NextResponse.json(row);
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: getErrorMessage(e) }, { status: 400 });
   }
 }
 
@@ -40,7 +41,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     await prisma.minorIngredient.delete({ where: { id: Number(id) } });
     await logOperation(req, { action: "DELETE", entity: "MinorIngredient", entityId: Number(id), description: `删除: ${row?.name || row?.code || id}` });
     return NextResponse.json({ success: true });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 400 });
+  } catch (e: unknown) {
+    return NextResponse.json({ error: getErrorMessage(e) }, { status: 400 });
   }
 }

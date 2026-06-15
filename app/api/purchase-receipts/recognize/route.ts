@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { recognizePurchaseReceipt } from "@/lib/ai";
 import { calculateStockInfo } from "@/lib/spec-parser";
+import { logError } from "@/lib/logger";
 
 async function findSeasoningCategory() {
   const l2Cats = await prisma.ingredientCategoryL2.findMany({
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
           seasoningIngredientId: seaMatch.id,
           itemName: displayItemName || seaMatch.name,
           l2Code: seaMatch.l2Code || seasoningL2.code,
-          l2Name: l2NameMap.get(seaMatch.l2Code) || seasoningL2.name,
+          l2Name: seaMatch.l2Code ? l2NameMap.get(seaMatch.l2Code) || seasoningL2.name : seasoningL2.name,
           category: "调料",
         };
       }
@@ -212,7 +213,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    console.error("[AI] 采购单识别接口异常:", message);
+    logError(e, { context: "POST /api/purchase-receipts/recognize" });
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 /** 克 → 斤/g 展示：≥500g 显示斤，<500g 显示 g */
 export function formatWeight(g: number): string {
@@ -23,7 +23,7 @@ interface ScheduleItemInput {
 
 /** 根据菜品清单构建切配工单数据 */
 export async function buildCuttingOrders(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   scheduleId: number,
   items: ScheduleItemInput[]
 ) {
@@ -172,7 +172,7 @@ export async function buildCuttingOrders(
 
 /** 根据菜品清单构建采购计划数据 */
 export async function buildPurchasePlans(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   scheduleId: number,
   items: ScheduleItemInput[]
 ) {

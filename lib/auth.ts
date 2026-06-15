@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { getCurrentUser } from "./session";
+import { logError } from "./logger";
 
 export async function getUser() {
   return getCurrentUser();
@@ -41,6 +42,6 @@ export async function logOperation({
     });
   } catch (e) {
     // 日志记录失败不应阻塞主流程
-    console.error("Failed to log operation:", e);
+    logError(e, { context: "logOperation" });
   }
 }

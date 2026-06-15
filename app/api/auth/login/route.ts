@@ -1,36 +1,31 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { createSession, setSessionCookie } from "@/lib/session";
+import { success, unauthorized, internalError } from "@/lib/api-response";
+import { loginSchema } from "@/lib/schemas/auth";
+import { validateBody } from "@/lib/validate";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: NextRequest) {
   try {
-    const { username, password } = await req.json();
+    const body = await req.json();
+    const validation = validateBody(loginSchema, body);
+    if (!validation.success) return validation.response;
 
-    if (!username || !password) {
-      return NextResponse.json(
-        { error: "请输入用户名和密码" },
-        { status: 400 }
-      );
-    }
+    const { username, password } = validation.data;
 
     const user = await prisma.user.findUnique({
       where: { username },
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: "用户名或密码错误" },
-        { status: 401 }
-      );
+      return unauthorized("用户名或密码错误");
     }
 
     const valid = await bcrypt.compare(password, user.password);
     if (!valid) {
-      return NextResponse.json(
-        { error: "用户名或密码错误" },
-        { status: 401 }
-      );
+      return unauthorized("用户名或密码错误");
     }
 
     const token = await createSession({
@@ -41,8 +36,7 @@ export async function POST(req: NextRequest) {
     });
     await setSessionCookie(token);
 
-    return NextResponse.json({
-      success: true,
+    return success({
       user: {
         id: user.id,
         username: user.username,
@@ -50,11 +44,8 @@ export async function POST(req: NextRequest) {
         role: user.role,
       },
     });
-  } catch (error) {
-    console.error("Login error:", error);
-    return NextResponse.json(
-      { error: "登录失败，请稍后重试" },
-      { status: 500 }
-    );
+  } catch (err) {
+    logger.error({ err }, "POST /api/auth/login failed");
+    return internalError("登录失败，请稍后重试");
   }
 }

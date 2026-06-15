@@ -1,4 +1,8 @@
 import type { NextConfig } from "next";
+import { checkRequiredEnvVars } from "@/lib/env-check-node";
+
+// 构建阶段强制检测关键环境变量
+checkRequiredEnvVars();
 
 const nextConfig: NextConfig = {
   output: "standalone",

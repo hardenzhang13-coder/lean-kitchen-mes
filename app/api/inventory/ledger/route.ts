@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -7,7 +8,7 @@ export async function GET(req: NextRequest) {
   const endDate = searchParams.get("endDate");
   const type = searchParams.get("type");
 
-  const where: any = {};
+  const where: Prisma.InventoryLedgerWhereInput = {};
   if (startDate || endDate) {
     where.changeTime = {};
     if (startDate) where.changeTime.gte = new Date(startDate);

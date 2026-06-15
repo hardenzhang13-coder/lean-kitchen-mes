@@ -1,77 +1,75 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
 import { enrichOperatorNames } from "@/lib/user-resolve";
+import { success, created, internalError } from "@/lib/api-response";
+import { createScheduleSchema, scheduleQuerySchema } from "@/lib/schemas/schedule";
+import { validateBody, validateQuery } from "@/lib/validate";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const status = searchParams.get("status");
-  const startDate = searchParams.get("startDate");
-  const endDate = searchParams.get("endDate");
-  const q = searchParams.get("q");
+  try {
+    const { searchParams } = new URL(req.url);
+    const validation = validateQuery(scheduleQuerySchema, searchParams);
+    if (!validation.success) return validation.response;
 
-  const where: any = {};
-  if (status) where.status = status;
-  if (startDate || endDate) {
-    where.createdAt = {};
-    if (startDate) where.createdAt.gte = new Date(startDate);
-    if (endDate) where.createdAt.lte = new Date(endDate);
-  }
-  if (q) {
-    where.title = { contains: q };
-  }
+    const { status, startDate, endDate, q } = validation.data;
 
-  const rows = await prisma.schedule.findMany({
-    where,
-    orderBy: { createdAt: "desc" },
-    include: {
-      items: {
-        include: {
-          dish: { select: { id: true, name: true, code: true } },
+    const where: Prisma.ScheduleWhereInput = {};
+    if (status) where.status = status;
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = new Date(startDate);
+      if (endDate) where.createdAt.lte = new Date(endDate);
+    }
+    if (q) {
+      where.title = { contains: q };
+    }
+
+    const rows = await prisma.schedule.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      include: {
+        items: {
+          include: {
+            dish: { select: { id: true, name: true, code: true } },
+          },
+        },
+        _count: {
+          select: { items: true },
         },
       },
-      _count: {
-        select: { items: true },
-      },
-    },
-  });
+    });
 
-  // 计算菜品总量
-  const enriched = await enrichOperatorNames(rows.map((r) => ({
-    ...r,
-    totalQuantity: r.items.reduce((s, it) => s + it.quantity, 0),
-    dishCount: r._count.items,
-  })));
+    const enriched = await enrichOperatorNames(
+      rows.map((r) => ({
+        ...r,
+        totalQuantity: r.items.reduce((s, it) => s + it.quantity, 0),
+        dishCount: r._count.items,
+      }))
+    );
 
-  return NextResponse.json(enriched);
+    return success(enriched);
+  } catch (err) {
+    logger.error({ err }, "GET /api/schedules failed");
+    return internalError("获取排程失败");
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, scheduleDate, scope, items }: {
-    title: string;
-    scheduleDate: string;
-    scope?: string;
-    items: Array<{ dishId: number; quantity: number }>;
-  } = body;
-
-  const user = getUserFromRequest(req);
-  const operator = user?.username || null;
-
-  if (!title.trim()) {
-    return NextResponse.json({ error: "请填写排程标题" }, { status: 400 });
-  }
-  if (!scheduleDate) {
-    return NextResponse.json({ error: "请选择生产日期" }, { status: 400 });
-  }
-  if (!items || items.length === 0) {
-    return NextResponse.json({ error: "请至少选择一道菜品" }, { status: 400 });
-  }
-
   try {
+    const body = await req.json();
+    const validation = validateBody(createScheduleSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { title, scheduleDate, scope, items } = validation.data;
+
+    const user = getUserFromRequest(req);
+    const operator = user?.username || null;
+
     const result = await prisma.$transaction(async (tx) => {
-      // 1. 创建排程
       const schedule = await tx.schedule.create({
         data: {
           title: title.trim(),
@@ -82,27 +80,24 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // 2. 创建菜品清单
       for (const item of items) {
         await tx.scheduleItem.create({
           data: {
             scheduleId: schedule.id,
             dishId: item.dishId,
-            quantity: Number(item.quantity),
+            quantity: item.quantity,
           },
         });
       }
 
-      // 3. 构建切配工单
-      const cuttingData = await buildCuttingOrders(tx as any, schedule.id, items);
+      const cuttingData = await buildCuttingOrders(tx, schedule.id, items);
       for (const co of cuttingData) {
-        await tx.cuttingOrder.create({ data: co as any });
+        await tx.cuttingOrder.create({ data: co });
       }
 
-      // 4. 构建采购计划
-      const purchaseData = await buildPurchasePlans(tx as any, schedule.id, items);
+      const purchaseData = await buildPurchasePlans(tx, schedule.id, items);
       for (const pp of purchaseData) {
-        await tx.purchasePlan.create({ data: pp as any });
+        await tx.purchasePlan.create({ data: pp });
       }
 
       return schedule;
@@ -115,9 +110,9 @@ export async function POST(req: NextRequest) {
       description: `创建排程: ${result.title}`,
     });
 
-    return NextResponse.json(result, { status: 201 });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return created(result);
+  } catch (err) {
+    logger.error({ err }, "POST /api/schedules failed");
+    return internalError("创建排程失败");
   }
 }

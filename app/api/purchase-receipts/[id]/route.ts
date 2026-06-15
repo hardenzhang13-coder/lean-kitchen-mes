@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { success, badRequest, notFound, internalError } from "@/lib/api-response";
+import { idParamSchema } from "@/lib/schemas/common";
+import { validateBody } from "@/lib/validate";
+import { logger } from "@/lib/logger";
 
 export async function GET(
-  req: NextRequest,
+  _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const receiptId = Number(id);
-  if (isNaN(receiptId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
   try {
+    const { id } = await params;
+    const validation = validateBody(idParamSchema, { id: Number(id) });
+    if (!validation.success) return validation.response;
+
+    const receiptId = validation.data.id;
     const receipt = await prisma.purchaseReceipt.findUnique({
       where: { id: receiptId },
       include: {
@@ -27,7 +30,7 @@ export async function GET(
     });
 
     if (!receipt) {
-      return NextResponse.json({ error: "采购单不存在" }, { status: 404 });
+      return notFound("采购单不存在");
     }
 
     const reimbursements = await prisma.purchaseReimbursement.findMany({
@@ -37,14 +40,14 @@ export async function GET(
       },
     });
 
-    return NextResponse.json({
+    return success({
       ...receipt,
       supplierName: receipt.supplier?.name || receipt.supplierName,
       isSettled: reimbursements.length > 0,
     });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch (err) {
+    logger.error({ err }, "GET /api/purchase-receipts/[id] failed");
+    return internalError("获取采购单失败");
   }
 }
 
@@ -52,13 +55,13 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params;
-  const receiptId = Number(id);
-  if (isNaN(receiptId)) {
-    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
-  }
-
   try {
+    const { id } = await params;
+    const validation = validateBody(idParamSchema, { id: Number(id) });
+    if (!validation.success) return validation.response;
+
+    const receiptId = validation.data.id;
+
     const reimbursements = await prisma.purchaseReimbursement.findMany({
       where: {
         status: "settled",
@@ -67,10 +70,7 @@ export async function DELETE(
     });
 
     if (reimbursements.length > 0) {
-      return NextResponse.json(
-        { error: "该采购单已被结算，无法作废" },
-        { status: 403 }
-      );
+      return badRequest("该采购单已被结算，无法作废");
     }
 
     await prisma.$transaction(async (tx) => {
@@ -90,10 +90,7 @@ export async function DELETE(
           });
 
           if (inventory) {
-            const newQty = Math.max(
-              0,
-              Number(inventory.currentQty) - Number(item.stockInQty)
-            );
+            const newQty = Math.max(0, Number(inventory.currentQty) - Number(item.stockInQty));
             await tx.inventory.update({
               where: { ingredientId: item.ingredientId },
               data: { currentQty: newQty },
@@ -122,9 +119,9 @@ export async function DELETE(
       description: `作废采购单: ${receiptId}`,
     });
 
-    return NextResponse.json({ success: true });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 500 });
+    return success({ message: "采购单已作废" });
+  } catch (err) {
+    logger.error({ err }, "DELETE /api/purchase-receipts/[id] failed");
+    return internalError("作废采购单失败");
   }
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { logOperation } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -110,14 +110,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           });
         }
 
-        const cuttingData = await buildCuttingOrders(tx as any, scheduleId, items);
+        const cuttingData = await buildCuttingOrders(tx, scheduleId, items);
         for (const co of cuttingData) {
-          await tx.cuttingOrder.create({ data: co as any });
+          await tx.cuttingOrder.create({ data: co });
         }
 
-        const purchaseData = await buildPurchasePlans(tx as any, scheduleId, items);
+        const purchaseData = await buildPurchasePlans(tx, scheduleId, items);
         for (const pp of purchaseData) {
-          await tx.purchasePlan.create({ data: pp as any });
+          await tx.purchasePlan.create({ data: pp });
         }
       }
 

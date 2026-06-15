@@ -1,9 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.SESSION_SECRET || "lean-kitchen-mes-secret-key-2026"
-);
+import { SESSION_SECRET } from "@/lib/env-check";
 
 export interface SessionPayload {
   userId: number;
@@ -17,13 +14,13 @@ export async function createSession(payload: SessionPayload): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(SECRET_KEY);
+    .sign(SESSION_SECRET);
   return token;
 }
 
 export async function verifySession(token: string): Promise<SessionPayload | null> {
   try {
-    const { payload } = await jwtVerify(token, SECRET_KEY, {
+    const { payload } = await jwtVerify(token, SESSION_SECRET, {
       clockTolerance: 60,
     });
     return payload as unknown as SessionPayload;

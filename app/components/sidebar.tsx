@@ -42,7 +42,9 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
 
       <nav className="flex flex-1 flex-col gap-2">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
+          const isActive = item.href === "/"
+            ? pathname === "/"
+            : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const Icon = item.icon;
           return (
             <Link

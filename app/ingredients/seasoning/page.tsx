@@ -32,6 +32,7 @@ type Seasoning = {
   code: string;
   name: string;
   brand: string;
+  l2Code: string | null;
   productSpec: string | null;
   purchaseUnit: string;
   latestRefPrice: number | null;

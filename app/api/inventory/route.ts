@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 export async function GET(req: NextRequest) {
@@ -6,7 +7,7 @@ export async function GET(req: NextRequest) {
   const q = searchParams.get("q");
 
   // 只查询有库存的记录（currentQty > 0）
-  const where: any = { currentQty: { gt: 0 } };
+  const where: Prisma.InventoryWhereInput = { currentQty: { gt: 0 } };
 
   const rows = await prisma.inventory.findMany({
     where,

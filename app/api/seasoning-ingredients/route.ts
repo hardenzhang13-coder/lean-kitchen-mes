@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 
@@ -19,8 +20,7 @@ async function findSeasoningL2Code() {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const l2Code = searchParams.get("l2Code");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const where: any = {};
+  const where: Prisma.SeasoningIngredientWhereInput = {};
   if (l2Code) where.l2Code = l2Code;
   const rows = await prisma.seasoningIngredient.findMany({
     where,
