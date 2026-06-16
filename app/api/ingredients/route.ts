@@ -5,6 +5,7 @@ import { logOperation } from "@/lib/api-auth";
 import { success, created, internalError } from "@/lib/api-response";
 import { createIngredientSchema, ingredientQuerySchema } from "@/lib/schemas/ingredient";
 import { validateBody, validateQuery } from "@/lib/validate";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
@@ -14,11 +15,17 @@ export async function GET(req: NextRequest) {
     if (!validation.success) return validation.response;
 
     const { l2Code } = validation.data;
+    const seasoningL2Codes = await getSeasoningL2Codes();
     const where: Prisma.IngredientWhereInput = {};
-    if (l2Code) where.l2Code = l2Code;
+    if (l2Code) {
+      where.l2Code = l2Code;
+    } else {
+      // 保留旧兼容分类 GRA-SEA，避免历史数据在原料列表中消失
+      where.l2Code = { notIn: seasoningL2Codes.filter((c) => c !== "GRA-SEA") };
+    }
 
     const rows = await prisma.ingredient.findMany({
-      where,
+      where: { ...where, deletedAt: null },
       orderBy: { id: "asc" },
     });
     return success(rows);
@@ -54,7 +61,10 @@ export async function POST(req: NextRequest) {
       storage,
     } = validation.data;
 
-    const last = await prisma.ingredient.findFirst({ orderBy: { id: "desc" } });
+    const last = await prisma.ingredient.findFirst({
+      orderBy: { code: "desc" },
+      select: { code: true },
+    });
     const code = generateIngredientCode(last?.code);
     const row = await prisma.ingredient.create({
       data: {

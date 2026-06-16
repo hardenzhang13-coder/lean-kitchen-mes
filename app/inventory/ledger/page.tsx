@@ -33,9 +33,10 @@ import { toast } from "sonner";
 
 interface LedgerItem {
   id: number;
-  ingredientId: number;
-  ingredientName: string;
-  ingredientCode: string;
+  sourceType: "ingredient" | "seasoning";
+  sourceId: number;
+  name: string;
+  code: string;
   changeQty: number;
   unit: string;
   balance: number;
@@ -359,7 +360,7 @@ export default function LedgerPage() {
                           {idx + 1}
                         </TableCell>
                         <TableCell className="font-medium">
-                          {item.ingredientName}
+                          {item.name}
                         </TableCell>
                         <TableCell>
                           {detailGroup.type === "入库" ? "+" : "-"}

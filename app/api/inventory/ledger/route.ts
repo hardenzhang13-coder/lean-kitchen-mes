@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     orderBy: { changeTime: "desc" },
     include: {
       ingredient: { select: { id: true, name: true, code: true } },
+      seasoningIngredient: { select: { id: true, name: true, code: true } },
     },
   });
 
@@ -80,6 +81,36 @@ export async function GET(req: NextRequest) {
   // 构建聚合结果
   const groups = Array.from(groupMap.values()).map((g) => {
     const receipt = g.receiptId ? receiptMap.get(g.receiptId) : null;
+    const unifiedItems = g.items
+      .map((it) => {
+        if (it.ingredient) {
+          return {
+            id: it.id,
+            sourceType: "ingredient" as const,
+            sourceId: it.ingredient.id,
+            name: it.ingredient.name,
+            code: it.ingredient.code,
+            changeQty: Number(it.changeQty),
+            unit: it.unit,
+            balance: Number(it.balance),
+          };
+        }
+        if (it.seasoningIngredient) {
+          return {
+            id: it.id,
+            sourceType: "seasoning" as const,
+            sourceId: it.seasoningIngredient.id,
+            name: it.seasoningIngredient.name,
+            code: it.seasoningIngredient.code,
+            changeQty: Number(it.changeQty),
+            unit: it.unit,
+            balance: Number(it.balance),
+          };
+        }
+        return null;
+      })
+      .filter((item): item is NonNullable<typeof item> => item !== null);
+
     return {
       key: g.source,
       type: g.type,
@@ -88,8 +119,8 @@ export async function GET(req: NextRequest) {
       operator: g.operator,
       operatorName: null as string | null,
       settlementStatus: g.settlementStatus,
-      itemCount: g.items.length,
-      totalQty: g.items.reduce((s, it) => s + Number(it.changeQty), 0),
+      itemCount: unifiedItems.length,
+      totalQty: unifiedItems.reduce((s, it) => s + it.changeQty, 0),
       // 采购单关联信息
       receiptId: g.receiptId,
       receiptDate: receipt?.receiptDate,
@@ -98,15 +129,7 @@ export async function GET(req: NextRequest) {
       receiptOperator: receipt?.operator,
       receiptOperatorName: null as string | null,
       // 明细
-      items: g.items.map((it) => ({
-        id: it.id,
-        ingredientId: it.ingredientId,
-        ingredientName: it.ingredient.name,
-        ingredientCode: it.ingredient.code,
-        changeQty: it.changeQty,
-        unit: it.unit,
-        balance: it.balance,
-      })),
+      items: unifiedItems,
     };
   });
 

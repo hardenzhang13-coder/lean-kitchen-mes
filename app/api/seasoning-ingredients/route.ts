@@ -3,27 +3,25 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
+
 async function findSeasoningL2Code() {
-  const l2 = await prisma.ingredientCategoryL2.findFirst({
-    where: { name: "调料" },
-    select: { code: true },
-  });
-  if (l2) return l2.code;
-  // 兼容旧数据：查找名为“调味品”且父级为米面粮油的二级分类
-  const legacy = await prisma.ingredientCategoryL2.findFirst({
-    where: { name: "调味品", parent: { name: "米面粮油" } },
-    select: { code: true },
-  });
-  return legacy?.code || "SEA-SEA";
+  const codes = await getSeasoningL2Codes();
+  return codes[0] || "SEA-SEA";
 }
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const l2Code = searchParams.get("l2Code");
+  const seasoningL2Codes = await getSeasoningL2Codes();
   const where: Prisma.SeasoningIngredientWhereInput = {};
-  if (l2Code) where.l2Code = l2Code;
+  if (l2Code) {
+    where.l2Code = l2Code;
+  } else {
+    where.l2Code = { in: seasoningL2Codes };
+  }
   const rows = await prisma.seasoningIngredient.findMany({
-    where,
+    where: { ...where, deletedAt: null },
     orderBy: { id: "asc" },
   });
   return NextResponse.json(rows);
@@ -51,7 +49,10 @@ export async function POST(req: NextRequest) {
   } = body;
   try {
     const seasoningL2Code = await findSeasoningL2Code();
-    const last = await prisma.seasoningIngredient.findFirst({ orderBy: { id: "desc" } });
+    const last = await prisma.seasoningIngredient.findFirst({
+      orderBy: { code: "desc" },
+      select: { code: true },
+    });
     const code = generateSeasoningCode(last?.code);
     const price = latestRefPrice != null ? Number(latestRefPrice) : purchasePrice != null ? Number(purchasePrice) : 0;
     const row = await prisma.seasoningIngredient.create({

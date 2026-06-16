@@ -192,6 +192,48 @@ export async function POST(req: NextRequest) {
             where: { id: item.seasoningIngredientId },
             data: { latestRefPrice: item.unitPrice },
           });
+
+          const existing = await tx.inventory.findUnique({
+            where: { seasoningIngredientId: item.seasoningIngredientId },
+          });
+
+          if (existing) {
+            const newQty = Number(existing.currentQty) + item.stockInQty;
+            await tx.inventory.update({
+              where: { seasoningIngredientId: item.seasoningIngredientId },
+              data: { currentQty: newQty, unit: item.stockUnit },
+            });
+            await tx.inventoryLedger.create({
+              data: {
+                seasoningIngredientId: item.seasoningIngredientId,
+                changeType: "入库",
+                changeQty: item.stockInQty,
+                unit: item.stockUnit,
+                balance: newQty,
+                source: `采购入库/${receipt.id}`,
+                operator,
+              },
+            });
+          } else {
+            await tx.inventory.create({
+              data: {
+                seasoningIngredientId: item.seasoningIngredientId,
+                currentQty: item.stockInQty,
+                unit: item.stockUnit,
+              },
+            });
+            await tx.inventoryLedger.create({
+              data: {
+                seasoningIngredientId: item.seasoningIngredientId,
+                changeType: "入库",
+                changeQty: item.stockInQty,
+                unit: item.stockUnit,
+                balance: item.stockInQty,
+                source: `采购入库/${receipt.id}`,
+                operator,
+              },
+            });
+          }
         }
       }
 

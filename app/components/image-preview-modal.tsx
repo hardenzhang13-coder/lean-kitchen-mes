@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ImagePreviewModalProps {
@@ -14,6 +14,7 @@ interface ImagePreviewModalProps {
 
 export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps) {
   const [scale, setScale] = useState(1);
+  const [rotation, setRotation] = useState(0);
   const [pos, setPos] = useState({ x: 0, y: 0 });
   const [dragging, setDragging] = useState(false);
   const dragRef = useRef<{ startX: number; startY: number; initialX: number; initialY: number } | null>(null);
@@ -22,6 +23,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
   useEffect(() => {
     if (open) {
       setScale(1);
+      setRotation(0);
       setPos({ x: 0, y: 0 });
     }
   }, [open, src]);
@@ -35,8 +37,11 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
 
   const zoomIn = () => setScale((prev) => Math.min(prev + 0.25, 5));
   const zoomOut = () => setScale((prev) => Math.max(prev - 0.25, 0.5));
+  const rotateLeft = () => setRotation((prev) => prev - 90);
+  const rotateRight = () => setRotation((prev) => prev + 90);
   const reset = () => {
     setScale(1);
+    setRotation(0);
     setPos({ x: 0, y: 0 });
   };
 
@@ -101,7 +106,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
               dragging ? "cursor-grabbing" : "cursor-grab"
             )}
             style={{
-              transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale})`,
+              transform: `translate(${pos.x}px, ${pos.y}px) scale(${scale}) rotate(${rotation}deg)`,
             }}
           />
         </div>
@@ -130,10 +135,28 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             type="button"
             variant="ghost"
             size="icon-sm"
-            onClick={reset}
+            onClick={rotateLeft}
             className="text-white hover:bg-white/20"
           >
             <RotateCcw className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={rotateRight}
+            className="text-white hover:bg-white/20"
+          >
+            <RotateCw className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={reset}
+            className="text-white hover:bg-white/20"
+          >
+            <span className="text-xs font-medium">重置</span>
           </Button>
         </div>
       </DialogContent>

@@ -25,19 +25,16 @@ import { toast } from "sonner";
 
 interface InventoryItem {
   id: number;
-  ingredientId: number;
+  sourceType: "ingredient" | "seasoning";
+  sourceId: number;
+  name: string;
+  code: string;
+  l2Code?: string;
+  l1Name?: string;
+  l2Name?: string;
   currentQty: number;
   unit: string;
   updatedAt: string;
-  ingredient: {
-    id: number;
-    name: string;
-    code: string;
-    l2Code: string;
-    unit: string;
-    l2Name?: string;
-    l1Name?: string;
-  };
 }
 
 export default function InventoryPage() {
@@ -68,19 +65,19 @@ export default function InventoryPage() {
   const l2Categories = Array.from(
     new Map(
       rows
-        .filter((r) => r.ingredient.l2Name)
-        .map((r) => [r.ingredient.l2Name, r.ingredient.l2Code])
+        .filter((r) => r.l2Name)
+        .map((r) => [r.l2Name, r.l2Code])
     ).entries()
   ).map(([name, code]) => ({ name, code }));
 
   const filtered = rows.filter((r) => {
     const matchSearch = !search
       ? true
-      : r.ingredient.name.toLowerCase().includes(search.toLowerCase()) ||
-        r.ingredient.code.toLowerCase().includes(search.toLowerCase()) ||
-        r.ingredient.l2Name?.toLowerCase().includes(search.toLowerCase()) ||
-        r.ingredient.l1Name?.toLowerCase().includes(search.toLowerCase());
-    const matchL2 = !l2Filter ? true : r.ingredient.l2Code === l2Filter;
+      : r.name.toLowerCase().includes(search.toLowerCase()) ||
+        r.code.toLowerCase().includes(search.toLowerCase()) ||
+        r.l2Name?.toLowerCase().includes(search.toLowerCase()) ||
+        r.l1Name?.toLowerCase().includes(search.toLowerCase());
+    const matchL2 = !l2Filter ? true : r.l2Code === l2Filter;
     return matchSearch && matchL2;
   });
 
@@ -89,6 +86,7 @@ export default function InventoryPage() {
       {/* 顶部：标题 + 二级菜单 */}
       <div className="flex items-center justify-between">
         <PageHeader
+          showBack
           title="库存管理"
           description="实时库存查询与管理"
         />
@@ -165,21 +163,21 @@ export default function InventoryPage() {
                   {filtered.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-medium">
-                        {row.ingredient.name}
+                        {row.name}
                       </TableCell>
                       <TableCell>
-                        {row.ingredient.l1Name ? (
+                        {row.l1Name ? (
                           <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
-                            {row.ingredient.l1Name}
+                            {row.l1Name}
                           </span>
                         ) : (
                           "—"
                         )}
                       </TableCell>
                       <TableCell>
-                        {row.ingredient.l2Name ? (
+                        {row.l2Name ? (
                           <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
-                            {row.ingredient.l2Name}
+                            {row.l2Name}
                           </span>
                         ) : (
                           "—"

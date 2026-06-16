@@ -89,6 +89,7 @@ interface IngredientFormDialogProps {
   };
   categories: CategoryL1[];
   units: Unit[];
+  mode?: "ingredient" | "seasoning" | "auto";
   onSuccess: (data: CreatedIngredient, type: "ingredient" | "seasoning") => void;
 }
 
@@ -98,6 +99,7 @@ export function IngredientFormDialog({
   initialData,
   categories,
   units,
+  mode = "auto",
   onSuccess,
 }: IngredientFormDialogProps) {
   const [form, setForm] = useState({
@@ -122,11 +124,32 @@ export function IngredientFormDialog({
     [units]
   );
 
+  const filteredCategories = useMemo(() => {
+    if (mode === "auto") return categories;
+    return categories
+      .map((l1) => {
+        const isSeasoningL1 = l1.code === "SEA" || l1.name === "调味品";
+        if (mode === "ingredient" && isSeasoningL1) return null;
+
+        if (mode === "ingredient") {
+          const filteredChildren = l1.children.filter(
+            (c) => c.code !== "GRA-SEA"
+          );
+          if (filteredChildren.length === 0) return null;
+          return { ...l1, children: filteredChildren };
+        }
+
+        if (mode === "seasoning" && !isSeasoningL1) return null;
+        return l1;
+      })
+      .filter((l1): l1 is CategoryL1 => l1 !== null);
+  }, [categories, mode]);
+
   const l2Options = useMemo(() => {
     if (!form.l1Code) return [];
-    const l1 = categories.find((c) => c.code === form.l1Code);
+    const l1 = filteredCategories.find((c) => c.code === form.l1Code);
     return (l1?.children || []).map((c) => ({ value: c.code, label: c.name }));
-  }, [form.l1Code, categories]);
+  }, [form.l1Code, filteredCategories]);
 
   const selectedL2 = (() => {
     if (!form.l2Code) return undefined;
@@ -137,7 +160,10 @@ export function IngredientFormDialog({
     return undefined;
   })();
 
-  const isSeasoning = selectedL2?.name === "调料" || selectedL2?.parentName === "调味品";
+  const isSeasoning =
+    mode === "seasoning" ||
+    (mode === "auto" &&
+      (selectedL2?.name === "调料" || selectedL2?.parentName === "调味品"));
   const aliasBrandLabel = isSeasoning ? "产品品牌名称/别名" : "别名";
 
   const findParentL1 = useCallback(
@@ -158,8 +184,7 @@ export function IngredientFormDialog({
       name: initialData?.name || "",
       l1Code: parentL1?.code || "",
       l2Code: initialData?.l2Code || "",
-      aliasOrBrand:
-        (isSeasoning ? initialData?.brand : initialData?.alias) || "",
+      aliasOrBrand: initialData?.brand || initialData?.alias || "",
       purchaseSpec: initialData?.purchaseSpec || "",
       purchaseUnit: initialData?.purchaseUnit || "",
       latestRefPrice:
@@ -188,7 +213,10 @@ export function IngredientFormDialog({
           ? `/api/seasoning-ingredients?l2Code=${encodeURIComponent(form.l2Code)}`
           : `/api/ingredients?l2Code=${encodeURIComponent(form.l2Code)}`;
         const res = await fetch(url);
-        if (res.ok) setRightList(await res.json());
+        if (res.ok) {
+          const json = await res.json();
+          setRightList(Array.isArray(json) ? json : json.data || []);
+        }
       } catch {
         // ignore
       } finally {
@@ -252,17 +280,19 @@ export function IngredientFormDialog({
           }
         );
       } else {
+        const alias = form.aliasOrBrand.trim();
         const payload = {
           name: form.name.trim(),
-          alias: form.aliasOrBrand.trim() || null,
           l2Code: form.l2Code,
           purchaseSpec: spec,
-          purchaseUnit: form.purchaseUnit,
-          stockUnit: form.stockUnit,
-          brand: null,
-          latestRefPrice: price,
+          purchaseUnit: form.purchaseUnit || undefined,
+          stockUnit: form.stockUnit || undefined,
+          unit: form.stockUnit || form.purchaseUnit,
+          priceUnit: form.purchaseUnit || undefined,
           season: form.season || "四季",
           storage: form.storage || "常温",
+          ...(alias && { alias }),
+          ...(price != null && { latestRefPrice: price }),
         };
         res = await fetch(
           initialData?.id
@@ -282,7 +312,7 @@ export function IngredientFormDialog({
         return;
       }
 
-      const result = data.data || {};
+      const result = data.data || data || {};
       toast.success(initialData?.id ? "更新成功" : "创建成功");
       onSuccess(
         {
@@ -322,7 +352,7 @@ export function IngredientFormDialog({
               <FormField label="食材分类" required className="col-span-2">
                 <div className="grid grid-cols-2 gap-3">
                   <TileSelect
-                    options={categories.map((c) => ({
+                    options={filteredCategories.map((c) => ({
                       value: c.code,
                       label: c.name,
                     }))}

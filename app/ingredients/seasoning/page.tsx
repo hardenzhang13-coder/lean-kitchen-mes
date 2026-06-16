@@ -290,6 +290,7 @@ export default function SeasoningIngredientsPage() {
         }
         categories={categories}
         units={units}
+        mode="seasoning"
         onSuccess={() => {
           setDialogOpen(false);
           fetchData();

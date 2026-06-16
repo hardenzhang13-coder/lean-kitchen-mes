@@ -59,7 +59,7 @@ export async function POST(req: NextRequest) {
   try {
     await prisma.$transaction(async (tx) => {
       const last = await tx.ingredient.findFirst({
-        orderBy: { id: "desc" },
+        orderBy: { code: "desc" },
         select: { code: true },
       });
       let lastNum = last?.code

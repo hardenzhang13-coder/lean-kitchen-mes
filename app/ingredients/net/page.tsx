@@ -116,8 +116,10 @@ export default function NetIngredientsPage() {
         fetch("/api/ingredient-categories?type=l2"),
         fetch("/api/units"),
       ]);
-      setData(await netRes.json());
-      setRawIngredients(await rawRes.json());
+      const netJson = await netRes.json();
+      setData(Array.isArray(netJson) ? netJson : netJson.data || []);
+      const rawJson = await rawRes.json();
+      setRawIngredients(Array.isArray(rawJson) ? rawJson : rawJson.data || []);
       if (catRes.ok) {
         setCategories(await catRes.json());
       }

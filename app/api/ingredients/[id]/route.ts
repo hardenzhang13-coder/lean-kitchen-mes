@@ -4,7 +4,9 @@ import { logOperation } from "@/lib/api-auth";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const row = await prisma.ingredient.findUnique({ where: { id: Number(id) } });
+  const row = await prisma.ingredient.findFirst({
+    where: { id: Number(id), deletedAt: null },
+  });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(row);
 }
@@ -27,6 +29,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     storage,
   } = body;
   try {
+    const existing = await prisma.ingredient.findFirst({
+      where: { id: Number(id), deletedAt: null },
+    });
+    if (!existing) {
+      return NextResponse.json({ error: "原料不存在或已删除" }, { status: 404 });
+    }
     const row = await prisma.ingredient.update({
       where: { id: Number(id) },
       data: {
@@ -45,7 +53,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     await logOperation(req, { action: "UPDATE", entity: "Ingredient", entityId: row.id, description: `更新原料: ${row.name}` });
-    return NextResponse.json(row);
+    return NextResponse.json({ data: row });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: message }, { status: 400 });
@@ -55,9 +63,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
-    const row = await prisma.ingredient.findUnique({ where: { id: Number(id) } });
-    await prisma.ingredient.delete({ where: { id: Number(id) } });
-    await logOperation(req, { action: "DELETE", entity: "Ingredient", entityId: Number(id), description: `删除原料: ${row?.name || id}` });
+    const row = await prisma.ingredient.findFirst({
+      where: { id: Number(id), deletedAt: null },
+    });
+    if (!row) {
+      return NextResponse.json({ error: "原料不存在或已删除" }, { status: 404 });
+    }
+    await prisma.ingredient.update({
+      where: { id: Number(id) },
+      data: { deletedAt: new Date() },
+    });
+    await logOperation(req, { action: "DELETE", entity: "Ingredient", entityId: Number(id), description: `删除原料: ${row.name}` });
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

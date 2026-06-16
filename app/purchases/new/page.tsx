@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowLeft,
   Upload,
@@ -99,8 +99,19 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+function getCategoryNames(categories: L1Category[], l2Code: string | null) {
+  for (const l1 of categories) {
+    const l2 = l1.children.find((c) => c.code === l2Code);
+    if (l2) return { l1Name: l1.name, l2Name: l2.name };
+  }
+  return { l1Name: "—", l2Name: l2Code || "—" };
+}
+
 export default function NewPurchasePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editId = searchParams.get("id");
+  const isEdit = !!editId;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [receiptDate, setReceiptDate] = useState(() => {
@@ -133,6 +144,53 @@ export default function NewPurchasePage() {
     [units]
   );
   const unitNames = useMemo(() => units.map((u) => u.name), [units]);
+
+  useEffect(() => {
+    if (!editId) return;
+    fetch(`/api/purchase-receipts/${editId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!data.success) {
+          toast.error(data.error || "加载采购单失败");
+          return;
+        }
+        const receipt = data.data;
+        setReceiptDate(receipt.receiptDate.split("T")[0]);
+        setSummary(receipt.summary || "");
+        setTotalAmount(String(Number(receipt.totalAmount).toFixed(2)));
+        setSupplierId(receipt.supplierId || "");
+        setSupplierName(receipt.supplierName || "");
+        setImageBase64(receipt.imageUrl || "");
+        setImagePreview(receipt.imageUrl || "");
+        const mappedItems: FormItem[] = receipt.items.map(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (item: any, idx: number) => ({
+            id: `edit-${idx}-${Date.now()}`,
+            ingredientId: item.ingredientId,
+            seasoningIngredientId: item.seasoningIngredientId,
+            itemName: item.itemName,
+            brand: item.brand || "",
+            spec: item.spec,
+            qty: item.qty,
+            priceUnit: item.purchaseUnit,
+            purchaseUnit: item.purchaseUnit,
+            unitPrice: Number(item.unitPrice),
+            amount: Number(item.amount),
+            stockUnit: item.stockUnit,
+            stockInQty: item.stockInQty,
+            l2Code: item.l2Code,
+            l2Name: item.l2Name || "",
+            category: getCategoryNames(categories, item.l2Code).l1Name,
+            matched: !!(item.ingredientId || item.seasoningIngredientId),
+            isManual: item.isManual,
+            storage: item.storage || "常温",
+          })
+        );
+        setItems(mappedItems);
+      })
+      .catch(() => toast.error("加载采购单失败"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
 
   useEffect(() => {
     fetch("/api/ingredient-categories")
@@ -218,10 +276,37 @@ export default function NewPurchasePage() {
         const purchaseUnit = item.purchaseUnit || item.unit || "件";
         const stockUnit =
           item.stockUnit || item.purchaseUnit || item.unit || "件";
-        const spec = item.spec || getDefaultSpec(stockUnit);
+        const rawSpec = (item.spec || "").trim();
+        const isPlaceholder = /^(散称|散装|无|—|-)?$/.test(rawSpec);
+        const spec = isPlaceholder
+          ? getDefaultSpec(stockUnit)
+          : rawSpec || getDefaultSpec(stockUnit);
         const stockInfo = isHighConfidenceSpec(spec, unitNames)
           ? calculateStockInfo({ spec, qty: item.qty ?? 1, unitNames })
           : { stockInQty: 1 };
+
+        let l2Code = item.l2Code || null;
+        let l2Name = item.l2Name || item.categoryName || "";
+        let category = item.category || "未匹配";
+
+        if (!l2Code && categories.length > 0) {
+          if (l2Name) {
+            for (const l1 of categories) {
+              const l2 = l1.children.find((c) => c.name === l2Name);
+              if (l2) {
+                l2Code = l2.code;
+                category = l1.name;
+                break;
+              }
+            }
+          } else if (category && category !== "未匹配") {
+            const l1 = categories.find((c) => c.name === category);
+            if (l1?.children[0]) {
+              l2Code = l1.children[0].code;
+              l2Name = l1.children[0].name;
+            }
+          }
+        }
 
         return {
           id: `item-${idx}-${Date.now()}`,
@@ -237,9 +322,9 @@ export default function NewPurchasePage() {
           amount: item.amount ?? (item.qty ?? 1) * (item.unitPrice ?? 0),
           stockUnit: stockInfo.stockUnit || stockUnit,
           stockInQty: stockInfo.stockInQty ?? 1,
-          l2Code: item.l2Code || null,
-          l2Name: item.l2Name || item.categoryName || "",
-          category: item.category || "未匹配",
+          l2Code,
+          l2Name,
+          category,
           matched: item.matched ?? false,
           isManual: false,
           storage: item.storage || "常温",
@@ -347,17 +432,7 @@ export default function NewPurchasePage() {
     if (!dialogItem) return;
     const isSeasoning = type === "seasoning";
 
-    // 根据返回的 l2Code 从字典查找名称
-    let l2Name = data.l2Code;
-    let l1Name = isSeasoning ? "调味品" : "原料";
-    for (const l1 of categories) {
-      const l2 = l1.children.find((c) => c.code === data.l2Code);
-      if (l2) {
-        l2Name = l2.name;
-        l1Name = l1.name;
-        break;
-      }
-    }
+    const { l1Name, l2Name } = getCategoryNames(categories, data.l2Code);
 
     setItems((prev) =>
       prev.map((it) =>
@@ -381,17 +456,6 @@ export default function NewPurchasePage() {
     );
     setDialogItem(null);
   };
-
-  const getCategoryNames = useCallback(
-    (l2Code: string | null) => {
-      for (const l1 of categories) {
-        const l2 = l1.children.find((c) => c.code === l2Code);
-        if (l2) return { l1Name: l1.name, l2Name: l2.name };
-      }
-      return { l1Name: "—", l2Name: l2Code || "—" };
-    },
-    [categories]
-  );
 
   const openEditDialog = (item: FormItem) => {
     setEditForm(patchItem({ ...item }, "qty", item.qty));
@@ -506,17 +570,21 @@ export default function NewPurchasePage() {
 
     setSubmitting(true);
     try {
-      const res = await fetch("/api/purchase-receipts", {
-        method: "POST",
+      const url = isEdit
+        ? `/api/purchase-receipts/${editId}`
+        : "/api/purchase-receipts";
+      const method = isEdit ? "PUT" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "录入失败");
+        toast.error(data.error || (isEdit ? "保存失败" : "录入失败"));
         return;
       }
-      toast.success("采购单录入成功");
+      toast.success(isEdit ? "采购单已更新" : "采购单录入成功");
       router.push("/purchases");
     } catch {
       toast.error("提交出错");
@@ -542,9 +610,13 @@ export default function NewPurchasePage() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">录入采购单</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {isEdit ? "编辑采购单" : "录入采购单"}
+            </h1>
             <p className="text-sm text-muted-foreground">
-              上传采购单图片，AI 自动识别并入库
+              {isEdit
+                ? "修改待结算采购单信息"
+                : "上传采购单图片，AI 自动识别并入库"}
             </p>
           </div>
         </div>
@@ -554,7 +626,7 @@ export default function NewPurchasePage() {
           ) : (
             <Save className="mr-2 h-4 w-4" />
           )}
-          确认录入
+          {isEdit ? "保存修改" : "确认录入"}
         </Button>
       </div>
 
@@ -895,12 +967,12 @@ export default function NewPurchasePage() {
                 </FormField>
                 <FormField label="一级分类" readOnly>
                   <div className="h-11 flex items-center px-4 border rounded-md bg-muted/50 text-sm">
-                    {getCategoryNames(editForm.l2Code).l1Name}
+                    {getCategoryNames(categories, editForm.l2Code).l1Name}
                   </div>
                 </FormField>
                 <FormField label="二级分类" readOnly>
                   <div className="h-11 flex items-center px-4 border rounded-md bg-muted/50 text-sm">
-                    {getCategoryNames(editForm.l2Code).l2Name}
+                    {getCategoryNames(categories, editForm.l2Code).l2Name}
                   </div>
                 </FormField>
                 <FormField label="食材名称" required>
@@ -1029,6 +1101,7 @@ export default function NewPurchasePage() {
                 purchaseUnit: dialogItem.purchaseUnit,
                 stockUnit: dialogItem.stockUnit,
                 latestRefPrice: dialogItem.unitPrice,
+                storage: dialogItem.storage,
               }
             : undefined
         }

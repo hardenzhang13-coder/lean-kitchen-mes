@@ -5,7 +5,7 @@ export interface PaginationParams {
   pageSize?: number;
 }
 
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 10;
 export const MAX_PAGE_SIZE = 100;
 
 export function normalizePagination(params: PaginationParams): Required<PaginationParams> {

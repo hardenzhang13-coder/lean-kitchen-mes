@@ -25,6 +25,7 @@ import { SkeletonTable } from "@/app/components/skeleton-table";
 import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { ImportDialog, ImportField, ImportRow } from "@/app/components/import-dialog";
+import { TileSelect } from "@/app/components/tile-select";
 import { Pagination } from "@/app/components/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
@@ -78,6 +79,8 @@ export default function RawIngredientsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [l1Filter, setL1Filter] = useState("");
+  const [l2Filter, setL2Filter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
@@ -109,16 +112,24 @@ export default function RawIngredientsPage() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return data;
-    const s = search.trim().toLowerCase();
-    return data.filter(
-      (d) =>
+    return data.filter((d) => {
+      if (l2Filter && d.l2Code !== l2Filter) return false;
+      if (l1Filter) {
+        const parentCode = categories.find((l1) =>
+          l1.children.some((l2) => l2.code === d.l2Code)
+        )?.code;
+        if (parentCode !== l1Filter) return false;
+      }
+      if (!search.trim()) return true;
+      const s = search.trim().toLowerCase();
+      return (
         d.name.toLowerCase().includes(s) ||
         d.code.toLowerCase().includes(s) ||
         (d.alias && d.alias.toLowerCase().includes(s)) ||
         d.l2Code.toLowerCase().includes(s)
-    );
-  }, [data, search]);
+      );
+    });
+  }, [data, search, l1Filter, l2Filter, categories]);
 
   const {
     currentPage,
@@ -132,7 +143,7 @@ export default function RawIngredientsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [search, setCurrentPage]);
+  }, [search, l1Filter, l2Filter, setCurrentPage]);
 
   const l2Map = useMemo(() => {
     const map: Record<
@@ -155,6 +166,12 @@ export default function RawIngredientsPage() {
     return map;
   }, [categories]);
 
+  const l2FilterOptions = useMemo(() => {
+    if (!l1Filter) return [];
+    const l1 = categories.find((c) => c.code === l1Filter);
+    return (l1?.children || []).map((c) => ({ value: c.code, label: c.name }));
+  }, [l1Filter, categories]);
+
   const openCreate = () => {
     setEditing(null);
     setDialogOpen(true);
@@ -167,12 +184,16 @@ export default function RawIngredientsPage() {
 
   const handleDelete = async (id: number) => {
     try {
-      await fetch(`/api/ingredients/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/ingredients/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "删除失败");
+      }
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch {
-      toast.error("删除失败");
+    } catch (e: any) {
+      toast.error(e.message || "删除失败");
     }
   };
 
@@ -247,14 +268,45 @@ export default function RawIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索编号、名称或别名..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="搜索编号、名称或别名..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3 w-[320px]">
+              <TileSelect
+                options={categories.map((c) => ({
+                  value: c.code,
+                  label: c.name,
+                }))}
+                value={l1Filter}
+                onChange={(v) => {
+                  setL1Filter(v);
+                  setL2Filter("");
+                  setCurrentPage(1);
+                }}
+                placeholder="全部一级分类"
+                title="选择一级分类"
+                searchable={false}
+              />
+              <TileSelect
+                options={l2FilterOptions}
+                value={l2Filter}
+                onChange={(v) => {
+                  setL2Filter(v);
+                  setCurrentPage(1);
+                }}
+                placeholder="全部二级分类"
+                title="选择二级分类"
+                disabled={!l1Filter}
+                searchable={false}
+              />
+            </div>
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -391,6 +443,7 @@ export default function RawIngredientsPage() {
         }
         categories={categories}
         units={units}
+        mode="ingredient"
         onSuccess={() => {
           setDialogOpen(false);
           fetchData();

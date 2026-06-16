@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, FileText, Search, Eye, Trash2 } from "lucide-react";
+import { Plus, FileText, Search, Eye, Trash2, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -110,6 +110,7 @@ export default function PurchasesPage() {
   const [status, setStatus] = useState("待结算");
   const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
   const [voidId, setVoidId] = useState<number | null>(null);
+  const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -163,6 +164,25 @@ export default function PurchasesPage() {
       fetchData();
     } catch {
       toast.error("作废出错");
+    }
+  };
+
+  const handleForceDelete = async (id: number) => {
+    try {
+      const res = await fetch(`/api/purchase-receipts/${id}?force=true`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        toast.error(data.error || "删除失败");
+        return;
+      }
+      toast.success("采购单已彻底删除");
+      setForceDeleteId(null);
+      setDetailReceipt(null);
+      fetchData();
+    } catch {
+      toast.error("删除出错");
     }
   };
 
@@ -327,6 +347,16 @@ export default function PurchasesPage() {
                         {formatDateTime(r.createdAt)}
                       </TableCell>
                       <TableCell className="text-right">
+                        {r.status === "待结算" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => router.push(`/purchases/new?id=${r.id}`)}
+                          >
+                            <Pencil className="mr-1 h-4 w-4" />
+                            编辑
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -364,6 +394,17 @@ export default function PurchasesPage() {
                   >
                     <Trash2 className="mr-1 h-4 w-4" />
                     作废
+                  </Button>
+                )}
+                {detailReceipt?.status === "已作废" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-destructive border-destructive hover:bg-destructive/10"
+                    onClick={() => setForceDeleteId(detailReceipt.id)}
+                  >
+                    <Trash2 className="mr-1 h-4 w-4" />
+                    彻底删除
                   </Button>
                 )}
               </DialogTitle>
@@ -525,6 +566,32 @@ export default function PurchasesPage() {
               onClick={() => voidId && handleVoid(voidId)}
             >
               确认作废
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 彻底删除确认弹窗 */}
+      <Dialog
+        open={forceDeleteId !== null}
+        onOpenChange={() => setForceDeleteId(null)}
+      >
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+          <DialogHeader>
+            <DialogTitle>确认彻底删除</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            确定要彻底删除采购单 #{forceDeleteId} 吗？此操作将物理删除采购单及明细记录，不可恢复。
+          </p>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setForceDeleteId(null)}>
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => forceDeleteId && handleForceDelete(forceDeleteId)}
+            >
+              确认删除
             </Button>
           </div>
         </DialogContent>

@@ -70,6 +70,7 @@ model Ingredient {
   latestRefPrice Decimal?              @map("latest_ref_price") @db.Decimal(10, 2)
   season         String                @default("四季") @map("season")
   storage        String                @map("storage")
+  deletedAt      DateTime?             @map("deleted_at")
   inventory      Inventory?
   ledger         InventoryLedger[]
   netIngredients NetIngredient[]
@@ -120,6 +121,9 @@ model SeasoningIngredient {
   stockUnit        String? @map("stock_unit")
   latestRefPrice   Decimal? @map("latest_ref_price") @db.Decimal(10, 2)
   storage          String  @map("storage")
+  deletedAt        DateTime? @map("deleted_at")
+  inventory        Inventory?
+  ledger           InventoryLedger[]
   receiptItems     PurchaseReceiptItem[]
 
   @@map("seasoning_ingredients")
@@ -334,29 +338,33 @@ model PurchaseReceiptItem {
 }
 
 model Inventory {
-  id           Int        @id @default(autoincrement())
-  ingredientId Int        @unique @map("ingredient_id")
-  currentQty   Decimal    @map("current_qty") @db.Decimal(10, 2)
-  unit         String
-  updatedAt    DateTime   @updatedAt @map("updated_at")
-  ingredient   Ingredient @relation(fields: [ingredientId], references: [id])
+  id                    Int                   @id @default(autoincrement())
+  ingredientId          Int?                  @unique @map("ingredient_id")
+  seasoningIngredientId Int?                  @unique @map("seasoning_ingredient_id")
+  currentQty            Decimal               @map("current_qty") @db.Decimal(10, 2)
+  unit                  String
+  updatedAt             DateTime              @updatedAt @map("updated_at")
+  ingredient            Ingredient?           @relation(fields: [ingredientId], references: [id])
+  seasoningIngredient   SeasoningIngredient?  @relation(fields: [seasoningIngredientId], references: [id])
 
   @@map("inventory")
 }
 
 model InventoryLedger {
-  id                Int        @id @default(autoincrement())
-  ingredientId      Int        @map("ingredient_id")
-  changeTime        DateTime   @default(now()) @map("change_time")
-  changeType        String     @map("change_type") // 入库 / 出库
-  changeQty         Decimal    @map("change_qty") @db.Decimal(10, 2)
-  unit              String
-  balance           Decimal    @db.Decimal(10, 2)
-  source            String
-  settlementStatus  String     @default("待结算") @map("settlement_status")
-  operator          String?
-  createdAt         DateTime   @default(now()) @map("created_at")
-  ingredient        Ingredient @relation(fields: [ingredientId], references: [id])
+  id                    Int        @id @default(autoincrement())
+  ingredientId          Int?       @map("ingredient_id")
+  seasoningIngredientId Int?       @map("seasoning_ingredient_id")
+  changeTime            DateTime   @default(now()) @map("change_time")
+  changeType            String     @map("change_type") // 入库 / 出库
+  changeQty             Decimal    @map("change_qty") @db.Decimal(10, 2)
+  unit                  String
+  balance               Decimal    @db.Decimal(10, 2)
+  source                String
+  settlementStatus      String     @default("待结算") @map("settlement_status")
+  operator              String?
+  createdAt             DateTime   @default(now()) @map("created_at")
+  ingredient            Ingredient? @relation(fields: [ingredientId], references: [id])
+  seasoningIngredient   SeasoningIngredient? @relation(fields: [seasoningIngredientId], references: [id])
 
   @@map("inventory_ledger")
 }
