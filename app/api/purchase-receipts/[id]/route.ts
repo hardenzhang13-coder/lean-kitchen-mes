@@ -205,7 +205,7 @@ export async function PUT(
     const bodyValidation = validateBody(createPurchaseReceiptSchema, body);
     if (!bodyValidation.success) return bodyValidation.response;
 
-    const { receiptDate, supplierId, supplierName, summary, totalAmount, imageUrl, items } =
+    const { receiptDate, supplierId, supplierName, summary, totalAmount, imageUrl, imageHash, purchasingUnit, items } =
       bodyValidation.data;
 
     const user = getUserFromRequest(req);
@@ -278,6 +278,8 @@ export async function PUT(
           summary: summary || null,
           totalAmount,
           imageUrl: imageUrl || null,
+          imageHash: imageHash || null,
+          purchasingUnit,
         },
       });
 

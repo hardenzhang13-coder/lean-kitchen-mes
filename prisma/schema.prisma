@@ -302,9 +302,11 @@ model PurchaseReceipt {
   summary      String?               // 采购摘要
   totalAmount  Decimal               @map("total_amount") @db.Decimal(10, 2)
   operator     String?
-  imageUrl     String?               @map("image_url")
-  status       String                @default("待结算") // 待结算 / 已结算 / 已作废
-  createdAt   DateTime              @default(now()) @map("created_at")
+  imageUrl       String?               @map("image_url")
+  purchasingUnit String                @default("切配中心") @map("purchasing_unit")
+  imageHash      String?               @map("image_hash")
+  status         String                @default("待结算") // 待结算 / 已结算 / 已作废
+  createdAt      DateTime              @default(now()) @map("created_at")
   items       PurchaseReceiptItem[]
   supplier    Supplier?             @relation(fields: [supplierId], references: [id])
 

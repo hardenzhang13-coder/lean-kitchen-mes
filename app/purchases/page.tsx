@@ -8,13 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -33,6 +26,8 @@ import { PageHeader } from "@/app/components/page-header";
 import { DatePicker } from "@/app/components/date-picker";
 import { ImagePreviewModal } from "@/app/components/image-preview-modal";
 import { CategoryTag } from "@/app/components/category-tag";
+import { SkeletonTable } from "@/app/components/skeleton-table";
+import { Pagination } from "@/app/components/pagination";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +59,7 @@ interface Receipt {
   operator: string | null;
   operatorName?: string | null;
   supplierName?: string | null;
+  purchasingUnit: string;
   imageUrl: string | null;
   status: string;
   createdAt: string;
@@ -71,11 +67,11 @@ interface Receipt {
   items: ReceiptItem[];
 }
 
-const statusOptions = [
-  { value: "待结算", label: "待结算" },
-  { value: "已结算", label: "已结算" },
-  { value: "已作废", label: "已作废" },
-  { value: "all", label: "全部" },
+const statusTabs = [
+  { key: "待结算", label: "待结算" },
+  { key: "已结算", label: "已结算" },
+  { key: "已作废", label: "已作废" },
+  { key: "", label: "全部" },
 ];
 
 function StatusBadge({ status }: { status: string }) {
@@ -108,6 +104,10 @@ export default function PurchasesPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [status, setStatus] = useState("待结算");
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [detailReceipt, setDetailReceipt] = useState<Receipt | null>(null);
   const [voidId, setVoidId] = useState<number | null>(null);
   const [forceDeleteId, setForceDeleteId] = useState<number | null>(null);
@@ -119,10 +119,15 @@ export default function PurchasesPage() {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
-      if (status && status !== "all") params.set("status", status);
+      if (status) params.set("status", status);
+      if (search.trim()) params.set("q", search.trim());
+      params.set("page", String(page));
+      params.set("pageSize", String(pageSize));
       const res = await fetch(`/api/purchase-receipts?${params.toString()}`);
       const data = await res.json();
       setReceipts(data.data || []);
+      setTotalCount(data.pagination?.totalItems || 0);
+      setTotalPages(data.pagination?.totalPages || 1);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -133,20 +138,20 @@ export default function PurchasesPage() {
   /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     fetchData();
-  }, [startDate, endDate, status]);
+  }, [startDate, endDate, status, page]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setPage(1);
+      fetchData();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
-  const filtered = receipts.filter((r) => {
-    if (!search) return true;
-    const s = search.toLowerCase();
-    return (
-      (r.summary && r.summary.toLowerCase().includes(s)) ||
-      (r.supplierName && r.supplierName.toLowerCase().includes(s)) ||
-      (r.operatorName && r.operatorName.toLowerCase().includes(s)) ||
-      (r.operator && r.operator.toLowerCase().includes(s)) ||
-      String(r.id).includes(s)
-    );
-  });
+  useEffect(() => {
+    setPage(1);
+  }, [startDate, endDate, status]);
 
   const handleVoid = async (id: number) => {
     try {
@@ -229,72 +234,67 @@ export default function PurchasesPage() {
         </div>
       </div>
 
+      <div className="flex items-center gap-1 bg-muted rounded-lg p-1 w-fit">
+        {statusTabs.map((tab) => (
+          <button
+            key={tab.key}
+            className={cn(
+              "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
+              status === tab.key
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+            onClick={() => setStatus(tab.key)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3 flex-wrap">
-              <Search className="h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="搜索摘要、供应商或操作人..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="max-w-xs"
-              />
-              <Label className="text-sm text-muted-foreground">创建时间</Label>
-              <DatePicker
-                value={startDate}
-                onChange={(v) => setStartDate(v)}
-                placeholder="开始日期"
-                className="w-[180px]"
-              />
-              <span className="text-sm text-muted-foreground">至</span>
-              <DatePicker
-                value={endDate}
-                onChange={(v) => setEndDate(v)}
-                placeholder="结束日期"
-                className="w-[180px]"
-              />
-              <div className="flex items-center gap-2">
-                <Label className="text-sm text-muted-foreground">状态</Label>
-                <Select
-                  value={status}
-                  onValueChange={(v) => v != null && setStatus(v)}
-                >
-                  <SelectTrigger className="w-[140px]">
-                    <SelectValue placeholder="选择状态">
-                      {statusOptions.find((o) => o.value === status)?.label ||
-                        "选择状态"}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {statusOptions.map((opt) => (
-                      <SelectItem key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {(startDate || endDate || search) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setStartDate("");
-                    setEndDate("");
-                    setSearch("");
-                  }}
-                >
-                  清除
-                </Button>
-              )}
-            </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <Search className="h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="搜索摘要、供应商或操作人..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="max-w-xs"
+            />
+            <Label className="text-sm text-muted-foreground">创建时间</Label>
+            <DatePicker
+              value={startDate}
+              onChange={(v) => setStartDate(v)}
+              placeholder="开始日期"
+              className="w-[180px]"
+            />
+            <span className="text-sm text-muted-foreground">至</span>
+            <DatePicker
+              value={endDate}
+              onChange={(v) => setEndDate(v)}
+              placeholder="结束日期"
+              className="w-[180px]"
+            />
+            {(startDate || endDate || search) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setStartDate("");
+                  setEndDate("");
+                  setSearch("");
+                  setPage(1);
+                }}
+              >
+                清除
+              </Button>
+            )}
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           {loading ? (
-            <div className="h-[300px] bg-muted rounded-md animate-pulse" />
-          ) : filtered.length === 0 ? (
+            <SkeletonTable cols={10} rows={10} />
+          ) : receipts.length === 0 ? (
             <div className="text-center text-muted-foreground py-16">
               <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
               <p>暂无采购单</p>
@@ -307,70 +307,106 @@ export default function PurchasesPage() {
               </Button>
             </div>
           ) : (
-            <div className="rounded-md border overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>编号</TableHead>
-                    <TableHead>状态</TableHead>
-                    <TableHead>采购单摘要</TableHead>
-                    <TableHead>采购日期</TableHead>
-                    <TableHead>供应商</TableHead>
-                    <TableHead>总金额</TableHead>
-                    <TableHead>操作人</TableHead>
-                    <TableHead>创建时间</TableHead>
-                    <TableHead className="w-[120px] text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((r) => (
-                    <TableRow
-                      key={r.id}
-                      className={cn(
-                        r.status === "已作废" && "opacity-60"
-                      )}
-                    >
-                      <TableCell className="font-medium">#{r.id}</TableCell>
-                      <TableCell>
-                        <StatusBadge status={r.status} />
-                      </TableCell>
-                      <TableCell>{r.summary || "—"}</TableCell>
-                      <TableCell>{formatDate(r.receiptDate)}</TableCell>
-                      <TableCell>{r.supplierName || "—"}</TableCell>
-                      <TableCell className="font-semibold">
-                        ¥{Number(r.totalAmount).toFixed(2)}
-                      </TableCell>
-                      <TableCell>
-                        {r.operatorName || r.operator || "—"}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {formatDateTime(r.createdAt)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {r.status === "待结算" && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => router.push(`/purchases/new?id=${r.id}`)}
-                          >
-                            <Pencil className="mr-1 h-4 w-4" />
-                            编辑
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDetailReceipt(r)}
-                        >
-                          <Eye className="mr-1 h-4 w-4" />
-                          详情
-                        </Button>
-                      </TableCell>
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>编号</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead>采购单位</TableHead>
+                      <TableHead>采购单摘要</TableHead>
+                      <TableHead>采购日期</TableHead>
+                      <TableHead>供应商</TableHead>
+                      <TableHead>总金额</TableHead>
+                      <TableHead>操作人</TableHead>
+                      <TableHead>创建时间</TableHead>
+                      <TableHead className="w-[160px] text-right">操作</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                  </TableHeader>
+                  <TableBody>
+                    {receipts.map((r) => (
+                      <TableRow
+                        key={r.id}
+                        className={cn(
+                          r.status === "已作废" && "opacity-60"
+                        )}
+                      >
+                        <TableCell className="font-medium">#{r.id}</TableCell>
+                        <TableCell>
+                          <StatusBadge status={r.status} />
+                        </TableCell>
+                        <TableCell>{r.purchasingUnit || "—"}</TableCell>
+                        <TableCell>{r.summary || "—"}</TableCell>
+                        <TableCell>{formatDate(r.receiptDate)}</TableCell>
+                        <TableCell>{r.supplierName || "—"}</TableCell>
+                        <TableCell className="font-semibold">
+                          ¥{Number(r.totalAmount).toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          {r.operatorName || r.operator || "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {formatDateTime(r.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {r.status === "待结算" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => router.push(`/purchases/new?id=${r.id}`)}
+                              >
+                                <Pencil className="mr-1 h-4 w-4" />
+                                编辑
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setDetailReceipt(r)}
+                            >
+                              <Eye className="mr-1 h-4 w-4" />
+                              详情
+                            </Button>
+                            {r.status === "待结算" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setVoidId(r.id)}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                作废
+                              </Button>
+                            )}
+                            {r.status === "已作废" && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => setForceDeleteId(r.id)}
+                              >
+                                <Trash2 className="mr-1 h-4 w-4" />
+                                删除
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={page}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                start={(page - 1) * pageSize + 1}
+                end={Math.min(page * pageSize, totalCount)}
+                onPageChange={setPage}
+              />
+            </>
           )}
         </CardContent>
       </Card>
@@ -424,6 +460,10 @@ export default function PurchasesPage() {
                     <div>
                       <span className="text-muted-foreground">供应商：</span>
                       <span>{detailReceipt.supplierName || "—"}</span>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">采购单位：</span>
+                      <span>{detailReceipt.purchasingUnit || "—"}</span>
                     </div>
                     <div>
                       <span className="text-muted-foreground">操作人：</span>

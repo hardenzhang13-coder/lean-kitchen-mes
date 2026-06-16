@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { enrichOperatorNames } from "@/lib/user-resolve";
-import { success, created, internalError } from "@/lib/api-response";
+import { created, internalError, paginated } from "@/lib/api-response";
 import { createPurchaseReceiptSchema, purchaseReceiptQuerySchema } from "@/lib/schemas/purchase";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
@@ -14,7 +14,19 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(purchaseReceiptQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { startDate, endDate, status } = validation.data;
+    const { startDate, endDate, status, page, pageSize, q } = validation.data;
+
+    const reimbursements = await prisma.purchaseReimbursement.findMany({
+      where: { status: "settled" },
+      select: { receiptIds: true },
+    });
+
+    const settledReceiptIds = new Set<number>();
+    for (const r of reimbursements) {
+      for (const id of r.receiptIds) {
+        settledReceiptIds.add(id);
+      }
+    }
 
     const where: Prisma.PurchaseReceiptWhereInput = {};
     if (startDate || endDate) {
@@ -23,10 +35,56 @@ export async function GET(req: NextRequest) {
       if (endDate) where.receiptDate.lte = new Date(endDate);
     }
 
-    const [receipts, reimbursements] = await Promise.all([
+    const conditions: Prisma.PurchaseReceiptWhereInput[] = [];
+
+    if (q) {
+      const query = q.trim();
+      const queryId = Number(query);
+      const or: Prisma.PurchaseReceiptWhereInput[] = [
+        { summary: { contains: query, mode: "insensitive" } },
+        { supplierName: { contains: query, mode: "insensitive" } },
+        { operator: { contains: query, mode: "insensitive" } },
+      ];
+      if (!isNaN(queryId)) {
+        or.push({ id: { equals: queryId } });
+      }
+      conditions.push({ OR: or });
+    }
+
+    if (status === "已作废") {
+      conditions.push({ status: { in: ["已作废", "voided", "cancelled"] } });
+    } else if (status === "已结算") {
+      conditions.push({
+        OR: [
+          { status: { in: ["已结算", "settled", "paid"] } },
+          { id: { in: Array.from(settledReceiptIds) } },
+        ],
+      });
+    } else if (status === "待结算") {
+      conditions.push({
+        AND: [
+          {
+            status: {
+              notIn: ["已作废", "voided", "cancelled", "已结算", "settled", "paid"],
+            },
+          },
+          { id: { notIn: Array.from(settledReceiptIds) } },
+        ],
+      });
+    }
+
+    if (conditions.length > 0) {
+      where.AND = conditions;
+    }
+
+    const skip = (page - 1) * pageSize;
+
+    const [receipts, totalCount] = await Promise.all([
       prisma.purchaseReceipt.findMany({
         where,
         orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
         include: {
           supplier: { select: { id: true, name: true } },
           items: {
@@ -37,21 +95,13 @@ export async function GET(req: NextRequest) {
           },
         },
       }),
-      prisma.purchaseReimbursement.findMany({
-        where: { status: "settled" },
-        select: { receiptIds: true },
-      }),
+      prisma.purchaseReceipt.count({ where }),
     ]);
 
-    const settledReceiptIds = new Set<number>();
-    for (const r of reimbursements) {
-      for (const id of r.receiptIds) {
-        settledReceiptIds.add(id);
-      }
-    }
-
     const result = (await enrichOperatorNames(receipts)).map((r) => {
-      const isSettled = settledReceiptIds.has(r.id);
+      const isSettled =
+        settledReceiptIds.has(r.id) ||
+        ["已结算", "settled", "paid"].includes(r.status || "");
       const rawStatus = r.status || "";
       let effectiveStatus: string;
       if (
@@ -78,11 +128,12 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    if (status) {
-      return success(result.filter((r) => r.status === status));
-    }
-
-    return success(result);
+    return paginated(result, {
+      page,
+      pageSize,
+      totalItems: totalCount,
+      totalPages: Math.ceil(totalCount / pageSize),
+    });
   } catch (err) {
     logger.error({ err }, "GET /api/purchase-receipts failed");
     return internalError("获取采购单失败");
@@ -95,7 +146,7 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createPurchaseReceiptSchema, body);
     if (!validation.success) return validation.response;
 
-    const { receiptDate, supplierId, supplierName, summary, totalAmount, imageUrl, items } =
+    const { receiptDate, supplierId, supplierName, summary, totalAmount, imageUrl, imageHash, purchasingUnit, items } =
       validation.data;
 
     const user = getUserFromRequest(req);
@@ -111,6 +162,8 @@ export async function POST(req: NextRequest) {
           totalAmount,
           operator,
           imageUrl: imageUrl || null,
+          imageHash: imageHash || null,
+          purchasingUnit,
           status: "待结算",
         },
       });

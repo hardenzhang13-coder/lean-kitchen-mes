@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { recognizePurchaseReceipt } from "@/lib/ai";
 import { calculateStockInfo } from "@/lib/spec-parser";
 import { logError } from "@/lib/logger";
+import { computeImageHash } from "@/lib/utils";
 
 async function findSeasoningCategory() {
   const l2Cats = await prisma.ingredientCategoryL2.findMany({
@@ -33,6 +34,13 @@ export async function POST(req: NextRequest) {
     }
 
     console.log("[AI] 开始识别采购单图片...");
+
+    const imageHash = computeImageHash(imageBase64);
+    const duplicate = await prisma.purchaseReceipt.findFirst({
+      where: { imageHash, status: { not: "已作废" } },
+      select: { id: true },
+      orderBy: { createdAt: "desc" },
+    });
 
     const recognized = await recognizePurchaseReceipt(imageBase64);
 
@@ -105,17 +113,17 @@ export async function POST(req: NextRequest) {
       const displayBrand = productName || brandPrefix || "";
       const displayItemName = ingredientName || productName;
 
-      // 先匹配原料（按食材名称匹配）
+      // 先匹配原料（按食材名称完全匹配）
       const ingMatch = ingredients.find(
         (i) =>
           i.name === displayItemName ||
-          i.alias === displayItemName ||
-          displayItemName.includes(i.name) ||
-          i.name.includes(displayItemName)
+          i.alias === displayItemName
       );
       if (ingMatch) {
-        const stockInfo =
-          item.stockUnit && item.stockQty != null
+        const isJin = purchaseUnit === "斤";
+        const stockInfo = isJin
+          ? { stockUnit: "斤", stockInQty: qty }
+          : item.stockUnit && item.stockQty != null
             ? { stockUnit: item.stockUnit, stockInQty: item.stockQty }
             : calculateStockInfo({ spec: spec || "", qty, unitNames });
 
@@ -144,13 +152,13 @@ export async function POST(req: NextRequest) {
       // 再匹配调料（调料不入原料库存，ingredientId 留空）
       const seaMatch = seasonings.find(
         (s) =>
-          s.name === displayItemName ||
-          displayItemName.includes(s.name) ||
-          s.name.includes(displayItemName)
+          s.name === displayItemName
       );
       if (seaMatch) {
-        const stockInfo =
-          item.stockUnit && item.stockQty != null
+        const isJin = purchaseUnit === "斤";
+        const stockInfo = isJin
+          ? { stockUnit: "斤", stockInQty: qty }
+          : item.stockUnit && item.stockQty != null
             ? { stockUnit: item.stockUnit, stockInQty: item.stockQty }
             : calculateStockInfo({ spec: spec || "", qty, unitNames });
 
@@ -178,7 +186,10 @@ export async function POST(req: NextRequest) {
       }
 
       // 未匹配
-      const stockInfo = calculateStockInfo({ spec: spec || "", qty, unitNames });
+      const isJin = purchaseUnit === "斤";
+      const stockInfo = isJin
+        ? { stockUnit: "斤", stockInQty: qty }
+        : calculateStockInfo({ spec: spec || "", qty, unitNames });
       return {
         name: productName,
         brand: displayBrand || "",
@@ -210,6 +221,13 @@ export async function POST(req: NextRequest) {
       totalAmount: recognized.totalAmount,
       supplierId,
       supplierName,
+      imageHash,
+      duplicateWarning: duplicate
+        ? {
+            receiptId: duplicate.id,
+            message: `检测到该采购单图片已录入（采购单 #${duplicate.id}）`,
+          }
+        : undefined,
     });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

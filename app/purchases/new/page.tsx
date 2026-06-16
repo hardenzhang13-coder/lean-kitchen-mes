@@ -17,7 +17,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -40,8 +39,15 @@ import { SearchableSelect } from "@/app/components/searchable-select";
 import { SupplierSelect } from "@/app/components/supplier-select";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { FormField, FormSection } from "@/app/components/form-field";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn, computeImageHash } from "@/lib/utils";
 import {
   calculateStockInfo,
   getDefaultSpec,
@@ -95,6 +101,77 @@ type CreatedIngredient = {
   storage?: string | null;
 };
 
+interface RecognizedItem {
+  name?: string;
+  productName?: string;
+  ingredientName?: string;
+  itemName?: string;
+  brand?: string;
+  spec?: string;
+  qty?: number;
+  purchaseUnit?: string;
+  unit?: string;
+  stockUnit?: string;
+  stockQty?: number;
+  unitPrice?: number;
+  amount?: number;
+  categoryName?: string;
+  l2Code?: string | null;
+  l2Name?: string;
+  category?: string;
+  matched?: boolean;
+  ingredientId?: number | null;
+  seasoningIngredientId?: number | null;
+  storage?: string;
+}
+
+interface RecognitionResponse {
+  items: RecognizedItem[];
+  summary?: string;
+  totalAmount?: number;
+  supplierId?: number;
+  supplierName?: string;
+  imageHash?: string;
+  duplicateWarning?: { receiptId: number; message: string };
+}
+
+interface ReceiptItemResponse {
+  ingredientId: number | null;
+  seasoningIngredientId: number | null;
+  itemName: string;
+  brand: string | null;
+  spec: string;
+  qty: number;
+  purchaseUnit: string;
+  unitPrice: number | string;
+  amount: number | string;
+  stockUnit: string;
+  stockInQty: number;
+  l2Code: string | null;
+  l2Name: string | null;
+  isManual: boolean;
+  storage: string | null;
+}
+
+interface ReceiptResponse {
+  receiptDate: string;
+  supplierId: number | null;
+  supplierName: string | null;
+  summary: string | null;
+  totalAmount: number | string;
+  imageUrl: string | null;
+  imageHash: string | null;
+  purchasingUnit: string;
+  items: ReceiptItemResponse[];
+}
+
+const PURCHASING_UNITS = [
+  "切配中心",
+  "新京企业食堂",
+  "印象京山会所",
+  "船九",
+] as const;
+
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
@@ -123,18 +200,24 @@ export default function NewPurchasePage() {
   const [supplierId, setSupplierId] = useState<number | "">("");
   const [supplierName, setSupplierName] = useState("");
   const [imageBase64, setImageBase64] = useState("");
+  const [imageHash, setImageHash] = useState("");
   const [imagePreview, setImagePreview] = useState("");
   const [previewOpen, setPreviewOpen] = useState(false);
   const [recognizing, setRecognizing] = useState(false);
   const [recognizeStatus, setRecognizeStatus] = useState("");
   const [items, setItems] = useState<FormItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [purchasingUnit, setPurchasingUnit] = useState<typeof PURCHASING_UNITS[number]>("切配中心");
 
   const [ingredientDialogOpen, setIngredientDialogOpen] = useState(false);
   const [dialogItem, setDialogItem] = useState<FormItem | null>(null);
 
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState<FormItem | null>(null);
+
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  const [duplicateDialogOpen, setDuplicateDialogOpen] = useState(false);
+  const [pendingRecognition, setPendingRecognition] = useState<RecognitionResponse | null>(null);
 
   const [categories, setCategories] = useState<L1Category[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
@@ -154,7 +237,7 @@ export default function NewPurchasePage() {
           toast.error(data.error || "加载采购单失败");
           return;
         }
-        const receipt = data.data;
+        const receipt = data.data as ReceiptResponse;
         setReceiptDate(receipt.receiptDate.split("T")[0]);
         setSummary(receipt.summary || "");
         setTotalAmount(String(Number(receipt.totalAmount).toFixed(2)));
@@ -162,9 +245,16 @@ export default function NewPurchasePage() {
         setSupplierName(receipt.supplierName || "");
         setImageBase64(receipt.imageUrl || "");
         setImagePreview(receipt.imageUrl || "");
+        setImageHash(receipt.imageHash || "");
+        setPurchasingUnit(
+          (PURCHASING_UNITS.includes(
+            receipt.purchasingUnit as typeof PURCHASING_UNITS[number]
+          )
+            ? receipt.purchasingUnit
+            : "切配中心") as typeof PURCHASING_UNITS[number]
+        );
         const mappedItems: FormItem[] = receipt.items.map(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (item: any, idx: number) => ({
+          (item: ReceiptItemResponse, idx: number) => ({
             id: `edit-${idx}-${Date.now()}`,
             ingredientId: item.ingredientId,
             seasoningIngredientId: item.seasoningIngredientId,
@@ -219,6 +309,7 @@ export default function NewPurchasePage() {
       const base64 = await readFileAsBase64(file);
       setImageBase64(base64);
       setImagePreview(base64);
+      setImageHash(computeImageHash(base64));
       toast.success("图片已加载");
     } catch {
       toast.error("图片读取失败");
@@ -233,6 +324,7 @@ export default function NewPurchasePage() {
         const base64 = await readFileAsBase64(file);
         setImageBase64(base64);
         setImagePreview(base64);
+        setImageHash(computeImageHash(base64));
         toast.success("图片已加载");
       } catch {
         toast.error("图片读取失败");
@@ -240,8 +332,103 @@ export default function NewPurchasePage() {
     }
   }, []);
 
-  const triggerReplace = () => {
-    fileInputRef.current?.click();
+  const handleClear = () => {
+    setItems([]);
+    setSupplierId("");
+    setSupplierName("");
+    setSummary("");
+    setTotalAmount("");
+    setPurchasingUnit("切配中心");
+    setImageBase64("");
+    setImagePreview("");
+    setImageHash("");
+    setClearDialogOpen(false);
+  };
+
+  const applyRecognition = (data: RecognitionResponse) => {
+    if (data.supplierId) {
+      setSupplierId(data.supplierId);
+      setSupplierName(data.supplierName || "");
+    }
+    if (data.summary && !summary) {
+      setSummary(data.summary);
+    }
+    if (data.imageHash) {
+      setImageHash(data.imageHash);
+    }
+
+    const mappedItems: FormItem[] = (data.items || []).map((item, idx) => {
+      const purchaseUnit = item.purchaseUnit || item.unit || "件";
+      const stockUnit =
+        item.stockUnit || item.purchaseUnit || item.unit || "件";
+      const rawSpec = (item.spec || "").trim();
+      const isPlaceholder = /^(散称|散装|无|—|-)?$/.test(rawSpec);
+      const spec = isPlaceholder
+        ? getDefaultSpec(stockUnit)
+        : rawSpec || getDefaultSpec(stockUnit);
+
+      const isJin = purchaseUnit === "斤";
+      const stockInfo = isJin
+        ? { stockUnit: "斤", stockInQty: item.qty ?? 1 }
+        : isHighConfidenceSpec(spec, unitNames)
+          ? calculateStockInfo({ spec, qty: item.qty ?? 1, unitNames })
+          : { stockInQty: 1 };
+
+      let l2Code = item.l2Code || null;
+      let l2Name = item.l2Name || item.categoryName || "";
+      let category = item.category || "未匹配";
+
+      if (!l2Code && categories.length > 0) {
+        if (l2Name) {
+          for (const l1 of categories) {
+            const l2 = l1.children.find((c) => c.name === l2Name);
+            if (l2) {
+              l2Code = l2.code;
+              category = l1.name;
+              break;
+            }
+          }
+        } else if (category && category !== "未匹配") {
+          const l1 = categories.find((c) => c.name === category);
+          if (l1?.children[0]) {
+            l2Code = l1.children[0].code;
+            l2Name = l1.children[0].name;
+          }
+        }
+      }
+
+      return {
+        id: `item-${idx}-${Date.now()}`,
+        ingredientId: item.ingredientId ?? null,
+        seasoningIngredientId: item.seasoningIngredientId ?? null,
+        itemName: item.itemName || item.name || "",
+        brand: item.brand || "",
+        spec,
+        qty: item.qty ?? 1,
+        priceUnit: purchaseUnit,
+        purchaseUnit,
+        unitPrice: item.unitPrice ?? 0,
+        amount: item.amount ?? (item.qty ?? 1) * (item.unitPrice ?? 0),
+        stockUnit: stockInfo.stockUnit || stockUnit,
+        stockInQty: stockInfo.stockInQty ?? 1,
+        l2Code,
+        l2Name,
+        category,
+        matched: item.matched ?? false,
+        isManual: false,
+        storage: item.storage || "常温",
+      };
+    });
+
+    setItems(mappedItems);
+    const autoTotal = mappedItems.reduce(
+      (s: number, it: FormItem) => s + (it.amount || 0),
+      0
+    );
+    if (autoTotal > 0 && !totalAmount) {
+      setTotalAmount(String(autoTotal.toFixed(2)));
+    }
+    toast.success(`识别完成，共 ${mappedItems.length} 项`);
   };
 
   const handleRecognize = async () => {
@@ -257,89 +444,19 @@ export default function NewPurchasePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ imageBase64 }),
       });
-      const data = await res.json();
+      const data = (await res.json()) as RecognitionResponse;
       if (!res.ok) {
-        toast.error(data.error || "识别失败");
+        toast.error((data as { error?: string }).error || "识别失败");
         return;
       }
 
-      if (data.supplierId) {
-        setSupplierId(data.supplierId);
-        setSupplierName(data.supplierName || "");
-      }
-      if (data.summary && !summary) {
-        setSummary(data.summary);
+      if (data.duplicateWarning) {
+        setPendingRecognition(data);
+        setDuplicateDialogOpen(true);
+        return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mappedItems: FormItem[] = (data.items || []).map((item: any, idx: number) => {
-        const purchaseUnit = item.purchaseUnit || item.unit || "件";
-        const stockUnit =
-          item.stockUnit || item.purchaseUnit || item.unit || "件";
-        const rawSpec = (item.spec || "").trim();
-        const isPlaceholder = /^(散称|散装|无|—|-)?$/.test(rawSpec);
-        const spec = isPlaceholder
-          ? getDefaultSpec(stockUnit)
-          : rawSpec || getDefaultSpec(stockUnit);
-        const stockInfo = isHighConfidenceSpec(spec, unitNames)
-          ? calculateStockInfo({ spec, qty: item.qty ?? 1, unitNames })
-          : { stockInQty: 1 };
-
-        let l2Code = item.l2Code || null;
-        let l2Name = item.l2Name || item.categoryName || "";
-        let category = item.category || "未匹配";
-
-        if (!l2Code && categories.length > 0) {
-          if (l2Name) {
-            for (const l1 of categories) {
-              const l2 = l1.children.find((c) => c.name === l2Name);
-              if (l2) {
-                l2Code = l2.code;
-                category = l1.name;
-                break;
-              }
-            }
-          } else if (category && category !== "未匹配") {
-            const l1 = categories.find((c) => c.name === category);
-            if (l1?.children[0]) {
-              l2Code = l1.children[0].code;
-              l2Name = l1.children[0].name;
-            }
-          }
-        }
-
-        return {
-          id: `item-${idx}-${Date.now()}`,
-          ingredientId: item.ingredientId ?? null,
-          seasoningIngredientId: item.seasoningIngredientId ?? null,
-          itemName: item.itemName || item.name || "",
-          brand: item.brand || "",
-          spec,
-          qty: item.qty ?? 1,
-          priceUnit: purchaseUnit,
-          purchaseUnit,
-          unitPrice: item.unitPrice ?? 0,
-          amount: item.amount ?? (item.qty ?? 1) * (item.unitPrice ?? 0),
-          stockUnit: stockInfo.stockUnit || stockUnit,
-          stockInQty: stockInfo.stockInQty ?? 1,
-          l2Code,
-          l2Name,
-          category,
-          matched: item.matched ?? false,
-          isManual: false,
-          storage: item.storage || "常温",
-        };
-      });
-
-      setItems(mappedItems);
-      const autoTotal = mappedItems.reduce(
-        (s: number, it: FormItem) => s + (it.amount || 0),
-        0
-      );
-      if (autoTotal > 0 && !totalAmount) {
-        setTotalAmount(String(autoTotal.toFixed(2)));
-      }
-      toast.success(`识别完成，共 ${mappedItems.length} 项`);
+      applyRecognition(data);
     } catch (err) {
       const message = err instanceof Error ? err.message : "识别请求异常";
       toast.error(`识别出错：${message}`);
@@ -458,7 +575,7 @@ export default function NewPurchasePage() {
   };
 
   const openEditDialog = (item: FormItem) => {
-    setEditForm(patchItem({ ...item }, "qty", item.qty));
+    setEditForm({ ...item });
     setEditDialogOpen(true);
   };
 
@@ -528,6 +645,10 @@ export default function NewPurchasePage() {
       toast.error("请选择采购日期");
       return;
     }
+    if (!purchasingUnit) {
+      toast.error("请选择采购单位");
+      return;
+    }
     if (items.length === 0) {
       toast.error("请至少添加一项采购明细");
       return;
@@ -548,6 +669,8 @@ export default function NewPurchasePage() {
       summary: summary || null,
       totalAmount: Number(totalAmount) || items.reduce((s, it) => s + (it.amount || 0), 0),
       imageUrl: imageBase64 || null,
+      imageHash: imageHash || null,
+      purchasingUnit,
       items: items.map((it) => ({
         ingredientId: it.ingredientId,
         seasoningIngredientId: it.seasoningIngredientId,
@@ -632,11 +755,11 @@ export default function NewPurchasePage() {
 
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
         {/* 左侧 */}
-        <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
+        <div className="flex flex-col gap-3 h-full overflow-y-auto">
           {/* 图片上传区 */}
           <div
             className={cn(
-              "relative flex-none h-[140px] border-2 border-dashed border-border rounded-md p-4 text-center hover:bg-muted/50 transition-colors cursor-pointer",
+              "relative flex-none h-[110px] border-2 border-dashed border-border rounded-md p-4 text-center hover:bg-muted/50 transition-colors cursor-pointer",
               recognizing && "pointer-events-none opacity-80"
             )}
             onClick={() => fileInputRef.current?.click()}
@@ -703,14 +826,19 @@ export default function NewPurchasePage() {
                 )}
                 {recognizing ? "识别中..." : "AI 识别"}
               </Button>
-              <Button variant="outline" onClick={triggerReplace}>
-                更换采购单
-              </Button>
+              {!isEdit && (
+                <Button
+                  variant="outline"
+                  onClick={() => setClearDialogOpen(true)}
+                >
+                  清空数据
+                </Button>
+              )}
             </div>
           )}
 
           {/* 基础信息 */}
-          <div className="flex-1 min-h-0 rounded-md border p-4 space-y-3 overflow-hidden">
+          <div className="flex-none rounded-md border p-4 space-y-2">
             <h3 className="font-medium flex-none">基础信息</h3>
             <div className="space-y-2 flex-none">
               <Label>
@@ -722,6 +850,25 @@ export default function NewPurchasePage() {
                 placeholder="请选择采购日期"
               />
             </div>
+            <FormField label="采购单位" required>
+              <Select
+                value={purchasingUnit}
+                onValueChange={(v) =>
+                  setPurchasingUnit(v as typeof PURCHASING_UNITS[number])
+                }
+              >
+                <SelectTrigger className="w-full h-11">
+                  <SelectValue placeholder="选择采购单位" />
+                </SelectTrigger>
+                <SelectContent>
+                  {PURCHASING_UNITS.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {u}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
             <div className="space-y-2 flex-none">
               <Label>供应商</Label>
               <SupplierSelect
@@ -734,11 +881,10 @@ export default function NewPurchasePage() {
             </div>
             <div className="space-y-2 flex-none">
               <Label>采购摘要</Label>
-              <Textarea
+              <Input
                 placeholder="填写采购摘要..."
                 value={summary}
                 onChange={(e) => setSummary(e.target.value)}
-                rows={2}
               />
             </div>
             <div className="space-y-2 flex-none">
@@ -760,7 +906,7 @@ export default function NewPurchasePage() {
         </div>
 
         {/* 右侧明细 */}
-        <div className="flex flex-col min-h-0 overflow-hidden">
+        <div className="flex flex-col h-full overflow-hidden">
           <div className="flex items-center justify-between flex-none mb-3">
             <h3 className="font-medium">采购明细 ({items.length} 项)</h3>
             <Button
@@ -785,8 +931,8 @@ export default function NewPurchasePage() {
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
+                    <TableHead className="whitespace-nowrap w-[120px]">操作</TableHead>
                     <TableHead className="whitespace-nowrap w-[70px]">状态</TableHead>
-                    <TableHead className="whitespace-nowrap w-[80px]"></TableHead>
                     <TableHead className="whitespace-nowrap w-10">#</TableHead>
                     <TableHead className="whitespace-nowrap min-w-[90px]">二级分类</TableHead>
                     <TableHead className="whitespace-nowrap min-w-[160px]">食材名称</TableHead>
@@ -798,7 +944,6 @@ export default function NewPurchasePage() {
                     <TableHead className="whitespace-nowrap min-w-[100px]">入库单位</TableHead>
                     <TableHead className="whitespace-nowrap min-w-[90px]">入库数量</TableHead>
                     <TableHead className="whitespace-nowrap min-w-[110px]">食材单价</TableHead>
-                    <TableHead className="whitespace-nowrap w-[60px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -813,6 +958,37 @@ export default function NewPurchasePage() {
                         className={cn(!item.matched && "bg-red-50/50")}
                       >
                         <TableCell className="py-2">
+                          <div className="flex items-center gap-1">
+                            {!item.matched ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs text-blue-600 px-1"
+                                onClick={() => openIngredientDialog(item)}
+                              >
+                                新增食材
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-xs text-blue-600 px-1"
+                                onClick={() => openEditDialog(item)}
+                              >
+                                编辑
+                              </Button>
+                            )}
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              onClick={() => removeItem(item.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell className="py-2">
                           {!item.matched ? (
                             <span className="inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
                               <AlertCircle className="mr-1 h-3 w-3" /> 未匹配
@@ -821,27 +997,6 @@ export default function NewPurchasePage() {
                             <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                               正常
                             </span>
-                          )}
-                        </TableCell>
-                        <TableCell className="py-2">
-                          {!item.matched ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-xs text-blue-600 px-1"
-                              onClick={() => openIngredientDialog(item)}
-                            >
-                              新增食材
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-xs text-blue-600 px-1"
-                              onClick={() => openEditDialog(item)}
-                            >
-                              编辑
-                            </Button>
                           )}
                         </TableCell>
                         <TableCell className="py-2">{idx + 1}</TableCell>
@@ -932,16 +1087,6 @@ export default function NewPurchasePage() {
                         <TableCell className="whitespace-nowrap text-sm py-2 min-w-[110px]">
                           ¥{stockUnitPrice}/{item.stockUnit || "—"}
                         </TableCell>
-                        <TableCell className="py-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => removeItem(item.id)}
-                          >
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -953,14 +1098,14 @@ export default function NewPurchasePage() {
       </div>
 
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[700px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[1000px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">编辑采购明细</DialogTitle>
           </DialogHeader>
           {editForm && (
             <div className="py-2">
-              <FormSection title="明细信息" cols={2}>
-                <FormField label="食材ID" readOnly className="col-span-2">
+              <FormSection title="明细信息" cols={3}>
+                <FormField label="食材ID" readOnly>
                   <div className="h-11 flex items-center px-4 border rounded-md bg-muted/50 text-sm">
                     {editForm.ingredientId || editForm.seasoningIngredientId || "—"}
                   </div>
@@ -1004,10 +1149,13 @@ export default function NewPurchasePage() {
                 <FormField label="数量" required>
                   <Input
                     type="number"
+                    step="1"
+                    min="0"
                     value={editForm.qty}
-                    onChange={(e) => updateEditForm("qty", e.target.value)}
+                    onChange={(e) => updateEditForm("qty", parseInt(e.target.value || "0", 10))
+                    }
                     placeholder="1"
-                    className="h-11 text-base px-4"
+                    className="h-11 text-base px-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </FormField>
                 <FormField label="采购单位" required>
@@ -1034,7 +1182,7 @@ export default function NewPurchasePage() {
                     className="h-11 text-base px-4"
                   />
                 </FormField>
-                <FormField label="采购金额">
+                <FormField label="采购金额" readOnly>
                   <div className="h-11 flex items-center px-4 border rounded-md bg-muted/50 text-sm">
                     ¥{Number(editForm.amount || 0).toFixed(2)}
                   </div>
@@ -1051,16 +1199,20 @@ export default function NewPurchasePage() {
                     clearable={false}
                   />
                 </FormField>
-                <FormField label="入库数量" required className="col-span-2">
+                <FormField label="入库数量" required>
                   <Input
                     type="number"
-                    step="0.01"
+                    step="1"
+                    min="0"
                     value={editForm.stockInQty}
                     onChange={(e) =>
-                      updateEditForm("stockInQty", e.target.value)
+                      updateEditForm(
+                        "stockInQty",
+                        parseInt(e.target.value || "0", 10)
+                      )
                     }
                     placeholder="默认与数量相同"
-                    className="h-11 text-base px-4"
+                    className="h-11 text-base px-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                   />
                 </FormField>
               </FormSection>
@@ -1076,6 +1228,90 @@ export default function NewPurchasePage() {
             </Button>
             <Button onClick={handleEditSave} className="h-11 px-6">
               保存
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 清空数据确认弹窗 */}
+      <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+          <DialogHeader>
+            <DialogTitle>确认清空数据</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            确定要清空所有已录入的数据吗？此操作不可撤销。
+          </p>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setClearDialogOpen(false)}
+              className="h-11 px-6"
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleClear}
+              className="h-11 px-6"
+            >
+              确认清空
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 重复识别提示弹窗 */}
+      <Dialog
+        open={duplicateDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDuplicateDialogOpen(false);
+            setPendingRecognition(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[460px] [&>button]:cursor-pointer">
+          <DialogHeader>
+            <DialogTitle>检测到重复采购单</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            {pendingRecognition?.duplicateWarning?.message}
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDuplicateDialogOpen(false);
+                setPendingRecognition(null);
+              }}
+              className="h-11 px-6"
+            >
+              取消
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const id = pendingRecognition?.duplicateWarning?.receiptId;
+                setDuplicateDialogOpen(false);
+                setPendingRecognition(null);
+                if (id) router.push(`/purchases/new?id=${id}`);
+              }}
+              className="h-11 px-6"
+            >
+              查看已有采购单
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingRecognition) {
+                  applyRecognition(pendingRecognition);
+                }
+                setDuplicateDialogOpen(false);
+                setPendingRecognition(null);
+              }}
+              className="h-11 px-6"
+            >
+              继续识别
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -19,6 +19,13 @@ export const purchaseReceiptItemSchema = z.object({
   storage: z.string().max(50).default("常温"),
 });
 
+export const PURCHASING_UNITS = [
+  "切配中心",
+  "新京企业食堂",
+  "印象京山会所",
+  "船九",
+] as const;
+
 export const createPurchaseReceiptSchema = z.object({
   receiptDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   supplierId: z.number().int().positive().nullish(),
@@ -26,6 +33,8 @@ export const createPurchaseReceiptSchema = z.object({
   summary: z.string().max(500).nullish(),
   totalAmount: z.number().nonnegative(),
   imageUrl: z.string().url().nullish(),
+  imageHash: z.string().max(128).nullish(),
+  purchasingUnit: z.enum(PURCHASING_UNITS),
   items: z.array(purchaseReceiptItemSchema).min(1),
 });
 
@@ -33,4 +42,7 @@ export const purchaseReceiptQuerySchema = z.object({
   status: z.string().optional(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  q: z.string().optional(),
 });
