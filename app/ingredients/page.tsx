@@ -10,7 +10,7 @@ const ingredientItems = [
     label: "原料清单",
     desc: "食材采购入库、库存管理的基本单位",
     icon: Carrot,
-    color: "text-orange-500",
+    color: "text-orange-500 dark:text-orange-400",
     count: "0 种",
   },
   {
@@ -18,7 +18,7 @@ const ingredientItems = [
     label: "净料清单",
     desc: "原料经初加工后的规格化半成品",
     icon: Package,
-    color: "text-emerald-500",
+    color: "text-emerald-500 dark:text-emerald-400",
     count: "0 种",
   },
   {
@@ -26,7 +26,7 @@ const ingredientItems = [
     label: "小料清单",
     desc: "用量极小的增香/去腥/提味食材",
     icon: Cherry,
-    color: "text-rose-500",
+    color: "text-rose-500 dark:text-rose-400",
     count: "0 种",
   },
   {
@@ -34,7 +34,7 @@ const ingredientItems = [
     label: "调料清单",
     desc: "标准化产品形态的基础调味品",
     icon: FlaskConical,
-    color: "text-blue-500",
+    color: "text-blue-500 dark:text-blue-400",
     count: "0 种",
   },
   {
@@ -42,7 +42,7 @@ const ingredientItems = [
     label: "酱料清单",
     desc: "复合加工调味半成品",
     icon: Wine,
-    color: "text-purple-500",
+    color: "text-purple-500 dark:text-purple-400",
     count: "0 种",
   },
 ];

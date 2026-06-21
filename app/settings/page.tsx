@@ -10,28 +10,28 @@ const settingsItems = [
     label: "菜品类别",
     desc: "管理菜品分类，如猪肉类、牛肉类、蔬菜类等",
     icon: Tags,
-    color: "text-rose-500",
+    color: "text-rose-500 dark:text-rose-400",
   },
   {
     href: "/settings/classes",
     label: "食材分类",
     desc: "管理食材一级和二级分类体系",
     icon: FolderTree,
-    color: "text-emerald-500",
+    color: "text-emerald-500 dark:text-emerald-400",
   },
   {
     href: "/settings/units",
     label: "单位",
     desc: "管理重量、体积、计数等单位",
     icon: Ruler,
-    color: "text-blue-500",
+    color: "text-blue-500 dark:text-blue-400",
   },
   {
     href: "/settings/suppliers",
     label: "供应商",
     desc: "管理采购供应商信息",
     icon: Truck,
-    color: "text-amber-500",
+    color: "text-amber-500 dark:text-amber-400",
   },
 ];
 
@@ -40,7 +40,7 @@ const adminItem = {
   label: "用户管理",
   desc: "管理系统用户账号与角色权限",
   icon: Users,
-  color: "text-indigo-500",
+  color: "text-indigo-500 dark:text-indigo-400",
 };
 
 export default async function SettingsPage() {

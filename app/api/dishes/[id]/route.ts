@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { resolveUsernameToName } from "@/lib/user-resolve";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,15 +29,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   // Enrich seasoningDetails with names
   const minorIds = row.seasoningDetails.filter((d) => d.type === "minor").map((d) => d.sourceId);
   const seasoningIds = row.seasoningDetails.filter((d) => d.type === "seasoning").map((d) => d.sourceId);
+  const seasoningL2Codes = await getSeasoningL2Codes();
 
   const [minors, seasonings] = await Promise.all([
     prisma.minorIngredient.findMany({
       where: { id: { in: minorIds } },
       select: { id: true, name: true, unitPrice: true, unit: true },
     }),
-    prisma.seasoningIngredient.findMany({
-      where: { id: { in: seasoningIds } },
-      select: { id: true, name: true, brand: true, purchasePrice: true, purchaseUnit: true },
+    prisma.ingredient.findMany({
+      where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+      select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
     }),
   ]);
 
@@ -51,7 +53,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       unitPrice:
         d.type === "minor"
           ? minors.find((m) => m.id === d.sourceId)?.unitPrice
-          : seasonings.find((s) => s.id === d.sourceId)?.purchasePrice,
+          : seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
       unit:
         d.type === "minor"
           ? minors.find((m) => m.id === d.sourceId)?.unit

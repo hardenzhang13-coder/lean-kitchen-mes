@@ -22,22 +22,22 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { Pagination } from "@/app/components/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
-type Seasoning = {
+type Ingredient = {
   id: number;
   code: string;
   name: string;
-  brand: string;
-  l2Code: string | null;
-  productSpec: string | null;
-  purchaseUnit: string;
+  alias: string | null;
+  l2Code: string;
+  purchaseSpec: string | null;
+  purchaseUnit: string | null;
   latestRefPrice: number | null;
   stockUnit: string | null;
-  storage: string;
 };
 
 type CategoryL1 = {
@@ -68,14 +68,19 @@ function findSeasoningL2Code(categories: CategoryL1[]) {
 }
 
 export default function SeasoningIngredientsPage() {
-  const [data, setData] = useState<Seasoning[]>([]);
+  const [data, setData] = useState<Ingredient[]>([]);
   const [categories, setCategories] = useState<CategoryL1[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Seasoning | null>(null);
+  const [editing, setEditing] = useState<Ingredient | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+
+  const seasoningL2Code = useMemo(
+    () => findSeasoningL2Code(categories),
+    [categories]
+  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -84,7 +89,7 @@ export default function SeasoningIngredientsPage() {
       (d) =>
         d.name.toLowerCase().includes(s) ||
         d.code.toLowerCase().includes(s) ||
-        d.brand.toLowerCase().includes(s)
+        (d.alias && d.alias.toLowerCase().includes(s))
     );
   }, [data, search]);
 
@@ -105,13 +110,22 @@ export default function SeasoningIngredientsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, catRes, unitRes] = await Promise.all([
-        fetch("/api/seasoning-ingredients"),
+      const [catRes, unitRes, ingRes] = await Promise.all([
         fetch("/api/ingredient-categories"),
         fetch("/api/units"),
+        fetch("/api/ingredients"),
       ]);
-      setData(await res.json());
-      setCategories(await catRes.json());
+      const cats = await catRes.json();
+      setCategories(cats);
+      const seasoningL2Codes = new Set<string>(
+        cats
+          .flatMap((l1: any) => l1.children)
+          .filter((l2: any) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
+          .map((l2: any) => l2.code)
+      );
+      const allIngredients = await ingRes.json();
+      const list = allIngredients.data || allIngredients || [];
+      setData(list.filter((i: any) => seasoningL2Codes.has(i.l2Code)));
       if (unitRes.ok) setUnits(await unitRes.json());
     } catch {
       toast.error("获取数据失败");
@@ -131,21 +145,35 @@ export default function SeasoningIngredientsPage() {
     setDialogOpen(true);
   };
 
-  const openEdit = (row: Seasoning) => {
+  const openEdit = (row: Ingredient) => {
     setEditing(row);
     setDialogOpen(true);
   };
 
   const handleDelete = async (id: number) => {
     try {
-      await fetch(`/api/seasoning-ingredients/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/ingredients/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "删除失败");
+      }
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch {
-      toast.error("删除失败");
+    } catch (e: any) {
+      toast.error(e.message || "删除失败");
     }
   };
+
+  const l2Map = useMemo(() => {
+    const map: Record<string, { name: string; parentCode: string }> = {};
+    categories.forEach((l1) => {
+      l1.children.forEach((l2) => {
+        map[l2.code] = { name: l2.name, parentCode: l1.code };
+      });
+    });
+    return map;
+  }, [categories]);
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -166,7 +194,7 @@ export default function SeasoningIngredientsPage() {
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索编号、名称或品牌..."
+              placeholder="搜索编号、名称或商品名称..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
@@ -184,13 +212,13 @@ export default function SeasoningIngredientsPage() {
                     <TableRow>
                       <TableHead className="w-[50px]">序号</TableHead>
                       <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>产品品牌</TableHead>
+                      <TableHead>食材名称</TableHead>
+                      <TableHead>商品名称</TableHead>
+                      <TableHead>二级分类</TableHead>
                       <TableHead>采购规格</TableHead>
                       <TableHead>采购单位</TableHead>
                       <TableHead>最新参照单价</TableHead>
                       <TableHead>入库单位</TableHead>
-                      <TableHead>储存方式</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -205,52 +233,56 @@ export default function SeasoningIngredientsPage() {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow
-                          key={row.id}
-                          className="transition-colors hover:bg-muted/40"
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {row.code}
-                          </TableCell>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell>{row.brand}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {row.productSpec || "—"}
-                          </TableCell>
-                          <TableCell>{row.purchaseUnit}</TableCell>
-                          <TableCell>
-                            {row.latestRefPrice != null
-                              ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                              : "—"}
-                          </TableCell>
-                          <TableCell>{row.stockUnit || "—"}</TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs">
-                              {row.storage}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => setDeleteId(row.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      pageItems.map((row, idx) => {
+                        const l2Info = l2Map[row.l2Code];
+                        const l2Name = l2Info?.name || row.l2Code;
+                        return (
+                          <TableRow
+                            key={row.id}
+                            className="transition-colors hover:bg-muted/40"
+                          >
+                            <TableCell className="text-muted-foreground">
+                              {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {row.code}
+                            </TableCell>
+                            <TableCell>{row.name}</TableCell>
+                            <TableCell>{row.alias || "—"}</TableCell>
+                            <TableCell>
+                              <CategoryTag l2Code={row.l2Code} name={l2Name} />
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {row.purchaseSpec || "—"}
+                            </TableCell>
+                            <TableCell>{row.purchaseUnit || "—"}</TableCell>
+                            <TableCell>
+                              {row.latestRefPrice != null
+                                ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                                : "—"}
+                            </TableCell>
+                            <TableCell>{row.stockUnit || "—"}</TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="编辑调料"
+                                onClick={() => openEdit(row)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label="删除调料"
+                                onClick={() => setDeleteId(row.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
                     )}
                   </TableBody>
                 </Table>
@@ -277,15 +309,15 @@ export default function SeasoningIngredientsPage() {
                 id: editing.id,
                 code: editing.code,
                 name: editing.name,
-                l2Code: editing.l2Code || findSeasoningL2Code(categories),
-                brand: editing.brand,
-                purchaseSpec: editing.productSpec,
-                purchaseUnit: editing.purchaseUnit,
+                l2Code: editing.l2Code,
+                alias: editing.alias,
+                purchaseSpec: editing.purchaseSpec,
+                purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
                 latestRefPrice: editing.latestRefPrice ?? null,
               }
             : {
-                l2Code: findSeasoningL2Code(categories),
+                l2Code: seasoningL2Code,
               }
         }
         categories={categories}

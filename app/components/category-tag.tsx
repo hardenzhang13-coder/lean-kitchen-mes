@@ -3,16 +3,16 @@
 import { cn } from "@/lib/utils";
 
 const colorMap: Record<string, { bg: string; text: string }> = {
-  VEG: { bg: "bg-green-100", text: "text-green-700" },
-  MEA: { bg: "bg-red-100", text: "text-red-700" },
-  AQU: { bg: "bg-blue-100", text: "text-blue-700" },
-  POU: { bg: "bg-amber-100", text: "text-amber-700" },
-  DRY: { bg: "bg-orange-100", text: "text-orange-700" },
-  BEA: { bg: "bg-cyan-100", text: "text-cyan-700" },
-  PRC: { bg: "bg-purple-100", text: "text-purple-700" },
-  GRA: { bg: "bg-slate-100", text: "text-slate-700" },
-  SEA: { bg: "bg-pink-100", text: "text-pink-700" },
-  "SEA-SEA": { bg: "bg-pink-100", text: "text-pink-700" },
+  VEG: { bg: "bg-green-100 dark:bg-green-950", text: "text-green-700 dark:text-green-300" },
+  MEA: { bg: "bg-red-100 dark:bg-red-950", text: "text-red-700 dark:text-red-300" },
+  AQU: { bg: "bg-blue-100 dark:bg-blue-950", text: "text-blue-700 dark:text-blue-300" },
+  POU: { bg: "bg-amber-100 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-300" },
+  DRY: { bg: "bg-orange-100 dark:bg-orange-950", text: "text-orange-700 dark:text-orange-300" },
+  BEA: { bg: "bg-cyan-100 dark:bg-cyan-950", text: "text-cyan-700 dark:text-cyan-300" },
+  PRC: { bg: "bg-purple-100 dark:bg-purple-950", text: "text-purple-700 dark:text-purple-300" },
+  GRA: { bg: "bg-slate-100 dark:bg-slate-900", text: "text-slate-700 dark:text-slate-300" },
+  SEA: { bg: "bg-pink-100 dark:bg-pink-950", text: "text-pink-700 dark:text-pink-300" },
+  "SEA-SEA": { bg: "bg-pink-100 dark:bg-pink-950", text: "text-pink-700 dark:text-pink-300" },
 };
 
 interface CategoryTagProps {

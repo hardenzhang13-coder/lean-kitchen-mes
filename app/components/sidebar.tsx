@@ -13,7 +13,6 @@ import {
   LogOut,
   User,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -34,10 +33,10 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-full w-20 flex-col items-center border-r border-border bg-card py-4">
       <div className="mb-6 flex flex-col items-center gap-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-indigo-500 text-xs font-bold text-white">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
           精
         </div>
-        <span className="text-[10px] font-medium text-muted-foreground">精益厨房</span>
+        <span className="text-xs font-medium text-muted-foreground">精益厨房</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
@@ -53,7 +52,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
               className={cn(
                 "flex flex-col items-center justify-center w-16 h-16 rounded-lg gap-1 transition-colors",
                 isActive
-                  ? "bg-indigo-50 text-indigo-500"
+                  ? "bg-primary/10 text-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
               title={item.label}
@@ -65,22 +64,22 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
         })}
       </nav>
 
-      <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-3">
+      <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-3 w-full px-2 pb-2 overflow-hidden">
         <button
           onClick={() => router.push("/settings/profile")}
-          className="flex flex-col items-center gap-1 w-full group"
-          title="个人设置"
+          className="flex flex-col items-center gap-1 w-full justify-center group rounded-lg py-1.5 transition-colors hover:bg-muted"
+          title={`${user?.name || user?.username || "用户"}${user?.role ? ` · ${user.role}` : ""}`}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted group-hover:bg-muted/80">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted group-hover:bg-muted/80 shrink-0">
             <User className="h-4 w-4 text-muted-foreground" />
           </div>
-          <span className="text-[10px] font-medium text-foreground">
+          <span className="text-xs font-medium text-foreground truncate max-w-full px-0.5 leading-tight">
             {user?.name || user?.username || "用户"}
           </span>
           {user?.role && (
-            <Badge variant="secondary" className="text-[9px] px-1.5 py-0 h-4">
+            <span className="text-[10px] text-muted-foreground truncate max-w-full px-0.5 leading-tight">
               {user.role}
-            </Badge>
+            </span>
           )}
         </button>
         <button
@@ -94,7 +93,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
           title="登出"
         >
           <LogOut className="h-4 w-4" />
-          <span className="text-[10px]">登出</span>
+          <span className="text-xs">登出</span>
         </button>
       </div>
     </aside>

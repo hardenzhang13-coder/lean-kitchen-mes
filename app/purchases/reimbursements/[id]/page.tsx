@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Download, Receipt, FileText } from "lucide-react";
+import { StatusBadge } from "@/app/components/status-badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -96,7 +97,7 @@ export default function ReimbursementDetailPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/purchases/reimbursements")}>
+          <Button variant="ghost" size="icon" aria-label="返回报销列表" onClick={() => router.push("/purchases/reimbursements")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -123,15 +124,7 @@ export default function ReimbursementDetailPage() {
         <div className="rounded-lg border p-4">
           <p className="text-sm text-muted-foreground">状态</p>
           <p className="mt-1">
-            <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                data.status === "settled"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {data.status === "settled" ? "已结算" : "待结算"}
-            </span>
+            <StatusBadge status={data.status === "settled" ? "已结算" : "待结算"} />
           </p>
         </div>
         <div className="rounded-lg border p-4">

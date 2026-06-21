@@ -8,7 +8,8 @@ import {
   ChefHat,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/app/components/status-badge";
+import { EmptyState } from "@/app/components/empty-state";
 import { toast } from "sonner";
 
 interface ActiveSchedule {
@@ -64,7 +65,7 @@ export default function HomePage() {
       {/* 今日排程 */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Clock className="h-5 w-5 text-blue-500" />
+          <Clock className="h-5 w-5 text-[var(--info)]" />
           今日排程
         </h2>
 
@@ -72,12 +73,16 @@ export default function HomePage() {
           <div className="h-40 bg-muted rounded-lg animate-pulse" />
         ) : activeSchedules.length === 0 ? (
           <Card className="border-dashed">
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <ChefHat className="h-10 w-10 mx-auto mb-3 text-muted-foreground/50" />
-              <p>暂无进行中的排程</p>
-              <Link href="/schedules/new" className="text-sm text-primary hover:underline mt-2 inline-block">
-                去创建一个 →
-              </Link>
+            <CardContent className="py-8">
+              <EmptyState
+                icon={ChefHat}
+                title="暂无进行中的排程"
+                action={
+                  <Link href="/schedules/new" className="text-sm text-primary hover:underline">
+                    去创建一个 →
+                  </Link>
+                }
+              />
             </CardContent>
           </Card>
         ) : (
@@ -91,7 +96,7 @@ export default function HomePage() {
                       key={s.id}
                       className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
                         activeTab === idx
-                          ? "bg-blue-50 text-blue-600"
+                          ? "bg-[var(--info-muted)] text-[var(--info)]"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                       onClick={() => setActiveTab(idx)}
@@ -108,9 +113,7 @@ export default function HomePage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold text-lg">{currentSchedule.title}</h3>
-                        <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
-                          进行中
-                        </Badge>
+                        <StatusBadge status="进行中" />
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
                         <span>

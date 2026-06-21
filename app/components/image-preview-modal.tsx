@@ -118,6 +118,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             size="icon-sm"
             onClick={zoomOut}
             className="text-white hover:bg-white/20"
+            aria-label="缩小"
           >
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -128,6 +129,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             size="icon-sm"
             onClick={zoomIn}
             className="text-white hover:bg-white/20"
+            aria-label="放大"
           >
             <ZoomIn className="h-4 w-4" />
           </Button>
@@ -137,6 +139,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             size="icon-sm"
             onClick={rotateLeft}
             className="text-white hover:bg-white/20"
+            aria-label="向左旋转"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -146,6 +149,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             size="icon-sm"
             onClick={rotateRight}
             className="text-white hover:bg-white/20"
+            aria-label="向右旋转"
           >
             <RotateCw className="h-4 w-4" />
           </Button>
@@ -155,6 +159,7 @@ export function ImagePreviewModal({ src, open, onClose }: ImagePreviewModalProps
             size="icon-sm"
             onClick={reset}
             className="text-white hover:bg-white/20"
+            aria-label="重置视图"
           >
             <span className="text-xs font-medium">重置</span>
           </Button>

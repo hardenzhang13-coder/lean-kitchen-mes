@@ -21,13 +21,9 @@ import {
 } from "@/components/ui/table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { TileSelect } from "@/app/components/tile-select";
-import { TileGroup } from "@/app/components/tile-group";
 import { SearchableSelect } from "./searchable-select";
 import { getDefaultSpec } from "@/lib/spec-parser";
 import { toast } from "sonner";
-
-const SEASONS = ["四季", "春", "夏", "秋", "冬"];
-const STORAGES = ["冷藏", "常温", "冷冻", "干货"];
 
 type CategoryL1 = {
   code: string;
@@ -45,12 +41,10 @@ export type CreatedIngredient = {
   id: number;
   name: string;
   alias?: string | null;
-  brand?: string | null;
   l2Code: string;
   stockUnit?: string | null;
   purchaseUnit?: string | null;
-  priceUnit?: string | null;
-  unit?: string | null;
+  purchaseSpec?: string | null;
 };
 
 type ListItem = {
@@ -58,16 +52,10 @@ type ListItem = {
   code?: string | null;
   name: string;
   alias?: string | null;
-  brand?: string | null;
   purchaseSpec?: string | null;
-  productSpec?: string | null;
   purchaseUnit?: string | null;
-  productUnit?: string | null;
-  unit?: string | null;
   stockUnit?: string | null;
   latestRefPrice?: number | string | null;
-  season?: string | null;
-  storage?: string | null;
 };
 
 interface IngredientFormDialogProps {
@@ -79,18 +67,15 @@ interface IngredientFormDialogProps {
     name?: string;
     l2Code?: string;
     alias?: string | null;
-    brand?: string | null;
     purchaseSpec?: string | null;
     purchaseUnit?: string | null;
     stockUnit?: string | null;
     latestRefPrice?: number | null;
-    season?: string | null;
-    storage?: string | null;
   };
   categories: CategoryL1[];
   units: Unit[];
   mode?: "ingredient" | "seasoning" | "auto";
-  onSuccess: (data: CreatedIngredient, type: "ingredient" | "seasoning") => void;
+  onSuccess: (data: CreatedIngredient) => void;
 }
 
 export function IngredientFormDialog({
@@ -106,13 +91,11 @@ export function IngredientFormDialog({
     name: "",
     l1Code: "",
     l2Code: "",
-    aliasOrBrand: "",
+    alias: "",
     purchaseSpec: "",
     purchaseUnit: "",
     latestRefPrice: "",
     stockUnit: "",
-    season: "四季",
-    storage: "常温",
   });
 
   const [rightList, setRightList] = useState<ListItem[]>([]);
@@ -164,7 +147,7 @@ export function IngredientFormDialog({
     mode === "seasoning" ||
     (mode === "auto" &&
       (selectedL2?.name === "调料" || selectedL2?.parentName === "调味品"));
-  const aliasBrandLabel = isSeasoning ? "产品品牌名称/别名" : "别名";
+  const aliasLabel = isSeasoning ? "商品名称" : "商品名称";
 
   const findParentL1 = useCallback(
     (l2Code?: string) => {
@@ -184,7 +167,7 @@ export function IngredientFormDialog({
       name: initialData?.name || "",
       l1Code: parentL1?.code || "",
       l2Code: initialData?.l2Code || "",
-      aliasOrBrand: initialData?.brand || initialData?.alias || "",
+      alias: initialData?.alias || "",
       purchaseSpec: initialData?.purchaseSpec || "",
       purchaseUnit: initialData?.purchaseUnit || "",
       latestRefPrice:
@@ -192,10 +175,8 @@ export function IngredientFormDialog({
           ? String(initialData.latestRefPrice)
           : "",
       stockUnit: initialData?.stockUnit || "",
-      season: initialData?.season || "四季",
-      storage: initialData?.storage || "常温",
     });
-  }, [open, initialData, categories, isSeasoning, findParentL1]);
+  }, [open, initialData, findParentL1]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // 当二级分类变化时，右侧列表显示对应分类下已存在的食材
@@ -209,10 +190,9 @@ export function IngredientFormDialog({
     const fetchList = async () => {
       setLoadingList(true);
       try {
-        const url = isSeasoning
-          ? `/api/seasoning-ingredients?l2Code=${encodeURIComponent(form.l2Code)}`
-          : `/api/ingredients?l2Code=${encodeURIComponent(form.l2Code)}`;
-        const res = await fetch(url);
+        const res = await fetch(
+          `/api/ingredients?l2Code=${encodeURIComponent(form.l2Code)}`
+        );
         if (res.ok) {
           const json = await res.json();
           setRightList(Array.isArray(json) ? json : json.data || []);
@@ -225,13 +205,13 @@ export function IngredientFormDialog({
     };
 
     fetchList();
-  }, [open, form.l2Code, isSeasoning]);
+  }, [open, form.l2Code]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const validate = () => {
     if (!form.name.trim()) return "名称不能为空";
     if (!form.l2Code) return "请选择二级分类";
-    if (isSeasoning && !form.aliasOrBrand.trim()) return "调料必须填写产品品牌";
+    if (isSeasoning && !form.alias.trim()) return "调料必须填写商品名称";
     if (!form.purchaseSpec.trim()) return "采购规格不能为空";
     if (!form.purchaseUnit.trim()) return "请选择采购单位";
     if (!form.stockUnit.trim()) return "请选择入库单位";
@@ -253,81 +233,58 @@ export function IngredientFormDialog({
       return;
     }
 
+    const dupRes = await fetch(
+      `/api/ingredients/check-name?name=${encodeURIComponent(form.name.trim())}` +
+        (initialData?.id ? `&excludeId=${initialData.id}` : "")
+    );
+    const dupData = await dupRes.json();
+    if (dupData.exists) {
+      toast.error("食材名称已存在");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const price = form.latestRefPrice ? Number(form.latestRefPrice) : null;
       const spec = ensureDefaultSpec(form.purchaseSpec, form.stockUnit);
-      let res;
-      if (isSeasoning) {
-        const payload = {
-          name: form.name.trim(),
-          brand: form.aliasOrBrand.trim(),
-          purchaseSpec: spec,
-          purchaseUnit: form.purchaseUnit,
-          stockUnit: form.stockUnit,
-          latestRefPrice: price,
-          storage: form.storage || "常温",
-          l2Code: form.l2Code,
-        };
-        res = await fetch(
-          initialData?.id
-            ? `/api/seasoning-ingredients/${initialData.id}`
-            : "/api/seasoning-ingredients",
-          {
-            method: initialData?.id ? "PUT" : "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-      } else {
-        const alias = form.aliasOrBrand.trim();
-        const payload = {
-          name: form.name.trim(),
-          l2Code: form.l2Code,
-          purchaseSpec: spec,
-          purchaseUnit: form.purchaseUnit || undefined,
-          stockUnit: form.stockUnit || undefined,
-          unit: form.stockUnit || form.purchaseUnit,
-          priceUnit: form.purchaseUnit || undefined,
-          season: form.season || "四季",
-          storage: form.storage || "常温",
-          ...(alias && { alias }),
-          ...(price != null && { latestRefPrice: price }),
-        };
-        res = await fetch(
-          initialData?.id
-            ? `/api/ingredients/${initialData.id}`
-            : "/api/ingredients",
-          {
-            method: initialData?.id ? "PUT" : "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-      }
+      const payload = {
+        name: form.name.trim(),
+        alias: form.alias.trim() || undefined,
+        l2Code: form.l2Code,
+        purchaseSpec: spec,
+        purchaseUnit: form.purchaseUnit,
+        stockUnit: form.stockUnit,
+        ...(price != null && { latestRefPrice: price }),
+      };
+
+      const res = await fetch(
+        initialData?.id
+          ? `/api/ingredients/${initialData.id}`
+          : "/api/ingredients",
+        {
+          method: initialData?.id ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
 
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || "保存失败");
+        toast.error(data.error || data.message || "保存失败");
         return;
       }
 
       const result = data.data || data || {};
       toast.success(initialData?.id ? "更新成功" : "创建成功");
-      onSuccess(
-        {
-          id: result.id,
-          name: result.name,
-          alias: isSeasoning ? undefined : result.alias,
-          brand: isSeasoning ? result.brand : undefined,
-          l2Code: result.l2Code,
-          stockUnit: result.stockUnit,
-          purchaseUnit: result.purchaseUnit,
-          priceUnit: result.priceUnit,
-          unit: result.unit,
-        },
-        isSeasoning ? "seasoning" : "ingredient"
-      );
+      onSuccess({
+        id: result.id,
+        name: result.name,
+        alias: result.alias,
+        l2Code: result.l2Code,
+        stockUnit: result.stockUnit,
+        purchaseUnit: result.purchaseUnit,
+        purchaseSpec: result.purchaseSpec,
+      });
       onOpenChange(false);
     } catch {
       toast.error("保存出错");
@@ -351,33 +308,35 @@ export function IngredientFormDialog({
             <FormSection title="基础信息" cols={2}>
               <FormField label="食材分类" required className="col-span-2">
                 <div className="grid grid-cols-2 gap-3">
-                  <TileSelect
-                    options={filteredCategories.map((c) => ({
-                      value: c.code,
-                      label: c.name,
-                    }))}
-                    value={form.l1Code}
-                    onChange={(v) =>
-                      setForm({ ...form, l1Code: v, l2Code: "" })
-                    }
-                    placeholder="请选择"
-                    title="选择一级分类"
-                    searchable={false}
-                    required
-                  />
+                  {!isSeasoning && (
+                    <TileSelect
+                      options={filteredCategories.map((c) => ({
+                        value: c.code,
+                        label: c.name,
+                      }))}
+                      value={form.l1Code}
+                      onChange={(v) =>
+                        setForm({ ...form, l1Code: v, l2Code: "" })
+                      }
+                      placeholder="请选择"
+                      title="选择一级分类"
+                      searchable={false}
+                      required
+                    />
+                  )}
                   <TileSelect
                     options={l2Options}
                     value={form.l2Code}
                     onChange={(v) => setForm({ ...form, l2Code: v })}
                     placeholder="请选择"
                     title="选择二级分类"
-                    disabled={!form.l1Code}
+                    disabled={!form.l1Code && !isSeasoning}
                     searchable={false}
                     required
                   />
                 </div>
               </FormField>
-              <FormField label="名称" required>
+              <FormField label="食材名称" required>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -385,11 +344,11 @@ export function IngredientFormDialog({
                   className="h-11 text-base px-4"
                 />
               </FormField>
-              <FormField label={aliasBrandLabel} required={isSeasoning}>
+              <FormField label={aliasLabel} required={isSeasoning}>
                 <Input
-                  value={form.aliasOrBrand}
+                  value={form.alias}
                   onChange={(e) =>
-                    setForm({ ...form, aliasOrBrand: e.target.value })
+                    setForm({ ...form, alias: e.target.value })
                   }
                   placeholder={isSeasoning ? "如 海天金标生抽" : "如 五花肉"}
                   className="h-11 text-base px-4"
@@ -443,25 +402,6 @@ export function IngredientFormDialog({
                 />
               </FormField>
             </FormSection>
-
-            {!isSeasoning && (
-              <FormSection title="储存与季节" cols={1}>
-                <FormField label="季节限定" required>
-                  <TileGroup
-                    options={SEASONS.map((s) => ({ value: s, label: s }))}
-                    value={form.season}
-                    onChange={(v) => setForm({ ...form, season: v })}
-                  />
-                </FormField>
-                <FormField label="储存方式" required>
-                  <TileGroup
-                    options={STORAGES.map((s) => ({ value: s, label: s }))}
-                    value={form.storage}
-                    onChange={(v) => setForm({ ...form, storage: v })}
-                  />
-                </FormField>
-              </FormSection>
-            )}
           </div>
 
           {/* 右侧列表 */}
@@ -481,17 +421,11 @@ export function IngredientFormDialog({
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">名称</TableHead>
-                      <TableHead className="whitespace-nowrap">
-                        {isSeasoning ? "产品品牌名称/别名" : "别名/产品品牌名称"}
-                      </TableHead>
+                      <TableHead className="whitespace-nowrap">商品名称</TableHead>
                       <TableHead className="whitespace-nowrap">采购规格</TableHead>
                       <TableHead className="whitespace-nowrap">采购单位</TableHead>
                       <TableHead className="whitespace-nowrap">入库单位</TableHead>
                       <TableHead className="whitespace-nowrap">最新参照单价</TableHead>
-                      {!isSeasoning && (
-                        <TableHead className="whitespace-nowrap">季节限定</TableHead>
-                      )}
-                      <TableHead className="whitespace-nowrap">储存方式</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -501,15 +435,13 @@ export function IngredientFormDialog({
                           {row.name}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {isSeasoning
-                            ? row.brand || "—"
-                            : row.alias || row.brand || "—"}
+                          {row.alias || "—"}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {row.purchaseSpec || row.productSpec || "—"}
+                          {row.purchaseSpec || "—"}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {row.purchaseUnit || row.productUnit || row.unit || "—"}
+                          {row.purchaseUnit || "—"}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {row.stockUnit || "—"}
@@ -518,16 +450,6 @@ export function IngredientFormDialog({
                           {row.latestRefPrice != null
                             ? `¥${Number(row.latestRefPrice).toFixed(2)}`
                             : "—"}
-                        </TableCell>
-                        {!isSeasoning && (
-                          <TableCell className="text-sm whitespace-nowrap">
-                            {row.season || "—"}
-                          </TableCell>
-                        )}
-                        <TableCell className="text-sm whitespace-nowrap">
-                          <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs">
-                            {row.storage || "—"}
-                          </span>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -551,8 +473,10 @@ export function IngredientFormDialog({
             disabled={submitting}
             className="h-11 px-6"
           >
-            {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            保存
+            <span aria-live="polite" className="inline-flex items-center">
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存
+            </span>
           </Button>
         </DialogFooter>
       </DialogContent>

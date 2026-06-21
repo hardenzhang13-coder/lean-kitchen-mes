@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, RotateCcw, Send } from "lucide-react";
+import { Plus, Search, Pencil, RotateCcw, Send, ChefHat } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { EmptyState } from "@/app/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,6 +18,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { DishCard } from "@/app/components/dish-card";
 import { DishCreateWizard } from "@/app/components/dish-create-wizard";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 type Dish = {
   id: number;
@@ -42,7 +44,7 @@ type Dish = {
 type DishCategory = { id: number; code: string; name: string };
 type NetIngredient = { id: number; code: string; name: string; unitPrice: number; unit: string };
 type MinorIngredient = { id: number; code: string; name: string; unitPrice: number; unit: string };
-type Seasoning = { id: number; code: string; name: string; brand: string; purchasePrice: number; purchaseUnit: string };
+type Seasoning = { id: number; code: string; name: string; alias: string | null; latestRefPrice: number | null; purchaseUnit: string | null };
 type Sauce = { id: number; code: string; name: string; unitPrice: number; unit: string };
 
 const cuisineOptions = [
@@ -96,20 +98,30 @@ export default function DishesPage() {
       if (filterCuisine) params.set("cuisine", filterCuisine);
       if (filterMeatType) params.set("meatType", filterMeatType);
       if (filterStatus) params.set("status", filterStatus);
-      const [dRes, cRes, nRes, mRes, sRes, saRes] = await Promise.all([
+      const [dRes, cRes, ingCatRes, nRes, mRes, sRes, saRes] = await Promise.all([
         fetch(`/api/dishes?${params.toString()}`),
         fetch("/api/dish-categories"),
+        fetch("/api/ingredient-categories"),
         fetch("/api/net-ingredients"),
         fetch("/api/minor-ingredients"),
-        fetch("/api/seasoning-ingredients"),
+        fetch("/api/ingredients"),
         fetch("/api/sauce-ingredients"),
       ]);
       const dData = await dRes.json();
       setDishes(dData.data || []);
       setCategories(await cRes.json());
+      const ingredientCategories = await ingCatRes.json();
+      const seasoningL2Codes = new Set<string>(
+        ingredientCategories
+          .flatMap((l1: any) => l1.children)
+          .filter((l2: any) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
+          .map((l2: any) => l2.code)
+      );
+      const allIngredients = await sRes.json();
+      const list = allIngredients.data || allIngredients || [];
+      setSeasonings(list.filter((i: any) => seasoningL2Codes.has(i.l2Code)));
       setNetIngredients(await nRes.json());
       setMinorIngredients(await mRes.json());
-      setSeasonings(await sRes.json());
       setSauces(await saRes.json());
     } catch {
       toast.error("获取数据失败");
@@ -257,7 +269,7 @@ export default function DishesPage() {
               ))}
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center text-muted-foreground py-16">暂无菜品</div>
+            <EmptyState icon={ChefHat} title="暂无菜品" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {filtered.map((d) => (

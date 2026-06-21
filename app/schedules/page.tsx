@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/app/components/date-picker";
 import { PageHeader } from "@/app/components/page-header";
+import { StatusBadge } from "@/app/components/status-badge";
+import { EmptyState } from "@/app/components/empty-state";
 import { toast } from "sonner";
 
 interface ScheduleItem {
@@ -28,12 +30,6 @@ const statusTabs = [
   { key: "进行中", label: "进行中" },
   { key: "已完成", label: "已完成" },
 ];
-
-const statusColors: Record<string, string> = {
-  待生效: "bg-amber-100 text-amber-700",
-  进行中: "bg-green-100 text-green-700",
-  已完成: "bg-gray-100 text-gray-600",
-};
 
 function getWeekDay(dateStr: string) {
   const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -141,13 +137,14 @@ export default function SchedulesPage() {
           ))}
         </div>
       ) : rows.length === 0 ? (
-        <div className="text-center text-muted-foreground py-16">
-          <CalendarDays className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-          <p>暂无排程</p>
-          <Button variant="outline" className="mt-4" onClick={() => router.push("/schedules/new")}>
-            创建第一个排程
-          </Button>
-        </div>
+        <EmptyState
+          icon={CalendarDays}
+          title="暂无排程"
+          action={{
+            label: "创建第一个排程",
+            onClick: () => router.push("/schedules/new"),
+          }}
+        />
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
@@ -159,13 +156,7 @@ export default function SchedulesPage() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3 mb-1">
                   <h3 className="font-semibold text-base">{row.title}</h3>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      statusColors[row.status] || "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {row.status}
-                  </span>
+                  <StatusBadge status={row.status} />
                 </div>
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">

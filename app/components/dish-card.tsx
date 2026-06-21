@@ -2,7 +2,8 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { ChefHat, Utensils } from "lucide-react";
+import { ChefHat } from "lucide-react";
+import { StatusBadge } from "@/app/components/status-badge";
 
 interface DishCardProps {
   code: string;
@@ -29,12 +30,12 @@ export function DishCard({
   status,
   onClick,
 }: DishCardProps) {
-  const statusMap: Record<string, { text: string; className: string }> = {
-    published: { text: "已发布", className: "bg-green-100 text-green-700" },
-    draft: { text: "草稿", className: "bg-gray-100 text-gray-700" },
-    pending: { text: "待发布", className: "bg-amber-100 text-amber-700" },
+  const statusTextMap: Record<string, string> = {
+    published: "已发布",
+    draft: "草稿",
+    pending: "待发布",
   };
-  const st = status ? statusMap[status] : null;
+  const statusText = status ? statusTextMap[status] : null;
 
   return (
     <Card
@@ -63,10 +64,8 @@ export function DishCard({
 
         {/* 状态 + 标签 */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {st && (
-            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${st.className}`}>
-              {st.text}
-            </span>
+          {statusText && (
+            <StatusBadge status={statusText} />
           )}
           {cuisine && (
             <span className="inline-flex items-center text-xs bg-muted rounded-full px-2 py-0.5">
@@ -84,7 +83,7 @@ export function DishCard({
             </span>
           )}
           {cost != null && (
-            <span className="inline-flex items-center text-xs text-green-600 bg-green-50 rounded-full px-2 py-0.5">
+            <span className="inline-flex items-center text-xs text-[var(--success)] bg-[var(--success-muted)] rounded-full px-2 py-0.5">
               ¥{Number(cost).toFixed(2)}
             </span>
           )}

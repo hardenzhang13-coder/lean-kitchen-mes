@@ -174,7 +174,8 @@ export async function buildCuttingOrders(
 export async function buildPurchasePlans(
   prisma: PrismaClient | Prisma.TransactionClient,
   scheduleId: number,
-  items: ScheduleItemInput[]
+  items: ScheduleItemInput[],
+  seasoningL2Codes: string[]
 ) {
   const dishIds = items.map((i) => i.dishId);
 
@@ -192,8 +193,8 @@ export async function buildPurchasePlans(
               id: true,
               code: true,
               name: true,
-              unit: true,
-              priceUnit: true,
+              stockUnit: true,
+              purchaseUnit: true,
               purchaseSpec: true,
               l2Code: true,
             },
@@ -218,9 +219,9 @@ export async function buildPurchasePlans(
     where: { dishId: { in: dishIds }, type: "seasoning" },
   });
   const seasoningIds = seasoningDetails.map((d) => d.sourceId);
-  const seasonings = await prisma.seasoningIngredient.findMany({
-    where: { id: { in: seasoningIds } },
-    select: { id: true, code: true, name: true, purchaseUnit: true, purchasePrice: true, productSpec: true },
+  const seasonings = await prisma.ingredient.findMany({
+    where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+    select: { id: true, code: true, name: true, l2Code: true, purchaseUnit: true, stockUnit: true, latestRefPrice: true, purchaseSpec: true },
   });
 
   // 4. 获取酱料 BOM
@@ -278,9 +279,9 @@ export async function buildPurchasePlans(
         itemName: src.name,
         l2Code: src.l2Code,
         grossNeed,
-        unit: src.unit,
+        unit: src.purchaseUnit || src.stockUnit || "斤",
         purchaseSpec: src.purchaseSpec,
-        priceUnit: src.priceUnit,
+        priceUnit: src.purchaseUnit || src.stockUnit || "斤",
       });
     }
   }
@@ -354,11 +355,11 @@ export async function buildPurchasePlans(
         sourceType: "seasoning",
         sourceId: seasoning.id,
         itemName: seasoning.name,
-        l2Code: null,
+        l2Code: seasoning.l2Code,
         grossNeed: need,
-        unit: seasoning.purchaseUnit,
-        purchaseSpec: seasoning.productSpec,
-        priceUnit: seasoning.purchaseUnit,
+        unit: seasoning.purchaseUnit || seasoning.stockUnit || "件",
+        purchaseSpec: seasoning.purchaseSpec,
+        priceUnit: seasoning.purchaseUnit || seasoning.stockUnit || "件",
       });
     }
   }

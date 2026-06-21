@@ -25,7 +25,6 @@ import { toast } from "sonner";
 
 interface InventoryItem {
   id: number;
-  sourceType: "ingredient" | "seasoning";
   sourceId: number;
   name: string;
   code: string;
@@ -167,7 +166,7 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>
                         {row.l1Name ? (
-                          <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                          <span className="inline-flex items-center rounded-full bg-[var(--info-muted)] px-2.5 py-0.5 text-xs font-medium text-[var(--info)]">
                             {row.l1Name}
                           </span>
                         ) : (
@@ -176,7 +175,7 @@ export default function InventoryPage() {
                       </TableCell>
                       <TableCell>
                         {row.l2Name ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
+                          <span className="inline-flex items-center rounded-full bg-[var(--success-muted)] px-2.5 py-0.5 text-xs font-medium text-[var(--success)]">
                             {row.l2Name}
                           </span>
                         ) : (

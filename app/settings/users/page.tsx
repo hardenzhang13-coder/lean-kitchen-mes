@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -61,6 +61,7 @@ export default function UsersPage() {
   const [form, setForm] = useState({ username: "", password: "", name: "", role: "" });
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -133,6 +134,7 @@ export default function UsersPage() {
       return;
     }
 
+    setSubmitting(true);
     try {
       const payload = {
         username: form.username.trim(),
@@ -174,6 +176,8 @@ export default function UsersPage() {
       }
     } catch {
       toast.error("操作失败");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -272,12 +276,13 @@ export default function UsersPage() {
                             {formatDate(row.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" onClick={() => openEdit(row)}>
+                            <Button variant="ghost" size="icon" aria-label="编辑用户" onClick={() => openEdit(row)}>
                               <Pencil className="h-4 w-4" />
                             </Button>
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="删除用户"
                               onClick={() => setDeleteId(row.id)}
                               disabled={row.id === currentUser?.id}
                             >
@@ -362,8 +367,11 @@ export default function UsersPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
+            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
+              <span aria-live="polite" className="inline-flex items-center">
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </span>
             </Button>
           </DialogFooter>
         </DialogContent>

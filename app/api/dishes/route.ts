@@ -7,6 +7,7 @@ import { success, created, badRequest, internalError } from "@/lib/api-response"
 import { createDishSchema, dishQuerySchema } from "@/lib/schemas/dish";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,14 +56,16 @@ export async function GET(req: NextRequest) {
     const minorIds = allSeasoningDetails.filter((d) => d.type === "minor").map((d) => d.sourceId);
     const seasoningIds = allSeasoningDetails.filter((d) => d.type === "seasoning").map((d) => d.sourceId);
 
+    const seasoningL2Codes = await getSeasoningL2Codes();
+
     const [minors, seasonings] = await Promise.all([
       prisma.minorIngredient.findMany({
         where: { id: { in: minorIds } },
         select: { id: true, name: true, unitPrice: true, unit: true },
       }),
-      prisma.seasoningIngredient.findMany({
-        where: { id: { in: seasoningIds } },
-        select: { id: true, name: true, brand: true, purchasePrice: true, purchaseUnit: true },
+      prisma.ingredient.findMany({
+        where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+        select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
       }),
     ]);
 
@@ -78,7 +81,7 @@ export async function GET(req: NextRequest) {
           unitPrice:
             d.type === "minor"
               ? minors.find((m) => m.id === d.sourceId)?.unitPrice
-              : seasonings.find((s) => s.id === d.sourceId)?.purchasePrice,
+              : seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
           unit:
             d.type === "minor"
               ? minors.find((m) => m.id === d.sourceId)?.unit

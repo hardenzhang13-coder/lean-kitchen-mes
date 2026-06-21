@@ -34,3 +34,10 @@ export async function getNonSeasoningL2Codes(): Promise<string[]> {
   });
   return l2Rows.map((r) => r.code);
 }
+
+/**
+ * 同步判断给定 l2Code 是否属于调味品体系（用于已获取列表的场景）。
+ */
+export function isSeasoningL2Code(l2Code: string, seasoningL2Codes: string[]): boolean {
+  return seasoningL2Codes.includes(l2Code);
+}

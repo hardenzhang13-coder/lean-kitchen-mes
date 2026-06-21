@@ -24,6 +24,7 @@ export function PageHeader({
           className="mt-1 shrink-0"
           onClick={() => router.back()}
           title="返回上一级"
+          aria-label="返回上一级"
         >
           <ArrowLeft className="h-5 w-5" />
         </Button>

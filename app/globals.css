@@ -27,6 +27,16 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-success-muted: var(--success-muted);
+  --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
+  --color-danger: var(--danger);
+  --color-danger-muted: var(--danger-muted);
+  --color-info: var(--info);
+  --color-info-muted: var(--info-muted);
+  --color-neutral: var(--neutral);
+  --color-neutral-muted: var(--neutral-muted);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -39,13 +49,13 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: 0.5rem;
+  --radius-sm: 0.25rem;
   --radius-md: 0.5rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.5rem;
-  --radius-2xl: 0.5rem;
-  --radius-3xl: 0.5rem;
-  --radius-4xl: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 1.75rem;
+  --radius-4xl: 2rem;
 }
 
 :root {
@@ -81,6 +91,16 @@
   --sidebar-ring: oklch(0.708 0 0);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
+  --success: oklch(0.55 0.15 145);
+  --success-muted: oklch(0.95 0.03 145);
+  --warning: oklch(0.65 0.15 85);
+  --warning-muted: oklch(0.96 0.03 85);
+  --danger: oklch(0.58 0.25 27);
+  --danger-muted: oklch(0.95 0.05 27);
+  --info: oklch(0.55 0.15 250);
+  --info-muted: oklch(0.95 0.03 250);
+  --neutral: oklch(0.55 0 0);
+  --neutral-muted: oklch(0.95 0 0);
 }
 
 .dark {
@@ -115,6 +135,16 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --success: oklch(0.65 0.12 145);
+  --success-muted: oklch(0.22 0.03 145);
+  --warning: oklch(0.70 0.12 85);
+  --warning-muted: oklch(0.22 0.03 85);
+  --danger: oklch(0.70 0.15 27);
+  --danger-muted: oklch(0.22 0.03 27);
+  --info: oklch(0.65 0.12 250);
+  --info-muted: oklch(0.22 0.03 250);
+  --neutral: oklch(0.70 0 0);
+  --neutral-muted: oklch(0.22 0 0);
 }
 
 @layer base {
@@ -130,13 +160,21 @@
   a, button, [role="button"], input[type="submit"], input[type="button"], label, select, summary {
     cursor: pointer;
   }
-  /* Apple-style form focus */
+  /* Form focus: rely on shadcn focus-visible ring; provide fallback for native inputs */
   input, select, textarea {
-    transition: all 0.2s ease;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  input:focus, select:focus, textarea:focus {
+  input:focus-visible, select:focus-visible, textarea:focus-visible {
     outline: none;
-    border-color: #007AFF;
-    box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.06);
+    box-shadow: 0 0 0 2px var(--ring), 0 0 0 4px var(--background);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

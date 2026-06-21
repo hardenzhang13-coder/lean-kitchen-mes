@@ -24,7 +24,6 @@ export async function GET(
         items: {
           include: {
             ingredient: { select: { id: true, name: true, code: true } },
-            seasoningIngredient: { select: { id: true, name: true, code: true } },
           },
         },
       },
@@ -148,27 +147,6 @@ export async function DELETE(
             },
           });
         }
-
-        if (item.seasoningIngredientId) {
-          const inventory = await tx.inventory.findUnique({
-            where: { seasoningIngredientId: item.seasoningIngredientId },
-          });
-
-          if (inventory) {
-            const newQty = Math.max(0, Number(inventory.currentQty) - Number(item.stockInQty));
-            await tx.inventory.update({
-              where: { seasoningIngredientId: item.seasoningIngredientId },
-              data: { currentQty: newQty },
-            });
-          }
-
-          await tx.inventoryLedger.deleteMany({
-            where: {
-              source: `采购入库/${receiptId}`,
-              seasoningIngredientId: item.seasoningIngredientId,
-            },
-          });
-        }
       }
 
       await tx.purchaseReceipt.update({
@@ -244,25 +222,6 @@ export async function PUT(
             },
           });
         }
-
-        if (oldItem.seasoningIngredientId) {
-          const inventory = await tx.inventory.findUnique({
-            where: { seasoningIngredientId: oldItem.seasoningIngredientId },
-          });
-          if (inventory) {
-            const newQty = Math.max(0, Number(inventory.currentQty) - Number(oldItem.stockInQty));
-            await tx.inventory.update({
-              where: { seasoningIngredientId: oldItem.seasoningIngredientId },
-              data: { currentQty: newQty },
-            });
-          }
-          await tx.inventoryLedger.deleteMany({
-            where: {
-              source: `采购入库/${receiptId}`,
-              seasoningIngredientId: oldItem.seasoningIngredientId,
-            },
-          });
-        }
       }
 
       await tx.purchaseReceiptItem.deleteMany({
@@ -288,7 +247,6 @@ export async function PUT(
           data: {
             receiptId,
             ingredientId: item.ingredientId || null,
-            seasoningIngredientId: item.seasoningIngredientId || null,
             itemName: item.itemName,
             brand: item.brand || null,
             l2Code: item.l2Code,
@@ -343,54 +301,6 @@ export async function PUT(
             await tx.inventoryLedger.create({
               data: {
                 ingredientId: item.ingredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: item.stockInQty,
-                source: `采购入库/${receiptId}`,
-                operator,
-              },
-            });
-          }
-        }
-
-        if (item.seasoningIngredientId) {
-          await tx.seasoningIngredient.update({
-            where: { id: item.seasoningIngredientId },
-            data: { latestRefPrice: item.unitPrice },
-          });
-
-          const inv = await tx.inventory.findUnique({
-            where: { seasoningIngredientId: item.seasoningIngredientId },
-          });
-          if (inv) {
-            const newQty = Number(inv.currentQty) + item.stockInQty;
-            await tx.inventory.update({
-              where: { seasoningIngredientId: item.seasoningIngredientId },
-              data: { currentQty: newQty, unit: item.stockUnit },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                seasoningIngredientId: item.seasoningIngredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: newQty,
-                source: `采购入库/${receiptId}`,
-                operator,
-              },
-            });
-          } else {
-            await tx.inventory.create({
-              data: {
-                seasoningIngredientId: item.seasoningIngredientId,
-                currentQty: item.stockInQty,
-                unit: item.stockUnit,
-              },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                seasoningIngredientId: item.seasoningIngredientId,
                 changeType: "入库",
                 changeQty: item.stockInQty,
                 unit: item.stockUnit,

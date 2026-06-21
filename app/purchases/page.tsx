@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -26,6 +25,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { DatePicker } from "@/app/components/date-picker";
 import { ImagePreviewModal } from "@/app/components/image-preview-modal";
 import { CategoryTag } from "@/app/components/category-tag";
+import { EmptyState } from "@/app/components/empty-state";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { Pagination } from "@/app/components/pagination";
 import { toast } from "sonner";
@@ -74,27 +74,7 @@ const statusTabs = [
   { key: "", label: "全部" },
 ];
 
-function StatusBadge({ status }: { status: string }) {
-  if (status === "已结算") {
-    return (
-      <Badge className="bg-green-100 text-green-700 hover:bg-green-100">
-        已结算
-      </Badge>
-    );
-  }
-  if (status === "已作废") {
-    return (
-      <Badge className="bg-red-100 text-red-700 hover:bg-red-100">
-        已作废
-      </Badge>
-    );
-  }
-  return (
-    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-      待结算
-    </Badge>
-  );
-}
+import { StatusBadge } from "@/app/components/status-badge";
 
 export default function PurchasesPage() {
   const router = useRouter();
@@ -295,17 +275,14 @@ export default function PurchasesPage() {
           {loading ? (
             <SkeletonTable cols={10} rows={10} />
           ) : receipts.length === 0 ? (
-            <div className="text-center text-muted-foreground py-16">
-              <FileText className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-              <p>暂无采购单</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => router.push("/purchases/new")}
-              >
-                录入第一单
-              </Button>
-            </div>
+            <EmptyState
+              icon={FileText}
+              title="暂无采购单"
+              action={{
+                label: "录入第一单",
+                onClick: () => router.push("/purchases/new"),
+              }}
+            />
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -115,7 +116,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           await tx.cuttingOrder.create({ data: co });
         }
 
-        const purchaseData = await buildPurchasePlans(tx, scheduleId, items);
+        const seasoningL2Codes = await getSeasoningL2Codes();
+        const purchaseData = await buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes);
         for (const pp of purchaseData) {
           await tx.purchasePlan.create({ data: pp });
         }

@@ -14,15 +14,6 @@ export async function GET(req: NextRequest) {
           name: true,
           code: true,
           l2Code: true,
-          unit: true,
-        },
-      },
-      seasoningIngredient: {
-        select: {
-          id: true,
-          name: true,
-          code: true,
-          l2Code: true,
           stockUnit: true,
         },
       },
@@ -31,7 +22,7 @@ export async function GET(req: NextRequest) {
   });
 
   const l2Codes = rows
-    .map((r) => r.ingredient?.l2Code ?? r.seasoningIngredient?.l2Code)
+    .map((r) => r.ingredient?.l2Code)
     .filter((code): code is string => !!code);
 
   const l2Categories = await prisma.ingredientCategoryL2.findMany({
@@ -49,33 +40,25 @@ export async function GET(req: NextRequest) {
   const l1NameMap = new Map(l1Categories.map((c) => [c.code, c.name]));
 
   const unified = rows.map((row) => {
-    const source = row.ingredient
-      ? ({ type: "ingredient" as const, entity: row.ingredient, unitField: row.ingredient.unit })
-      : row.seasoningIngredient
-        ? ({ type: "seasoning" as const, entity: row.seasoningIngredient, unitField: row.seasoningIngredient.stockUnit })
-        : null;
+    const ingredient = row.ingredient;
+    if (!ingredient) return null;
 
-    if (!source) {
-      return null;
-    }
-
-    const l2Code = source.entity.l2Code;
-    const l2Name = l2Code ? l2NameMap.get(l2Code) : undefined;
-    const l1Name = l2Code
+    const l2Code = ingredient.l2Code;
+    const l2Name = l2NameMap.get(l2Code);
+    const l1Name = l2Name
       ? l1NameMap.get(l2Categories.find((c) => c.code === l2Code)?.parentCode || "")
       : undefined;
 
     return {
       id: row.id,
-      sourceType: source.type,
-      sourceId: source.entity.id,
-      name: source.entity.name,
-      code: source.entity.code,
+      sourceId: ingredient.id,
+      name: ingredient.name,
+      code: ingredient.code,
       l2Code,
       l1Name,
       l2Name,
       currentQty: Number(row.currentQty),
-      unit: row.unit || source.unitField || "—",
+      unit: row.unit || ingredient.stockUnit || "—",
       updatedAt: row.updatedAt.toISOString(),
     };
   });

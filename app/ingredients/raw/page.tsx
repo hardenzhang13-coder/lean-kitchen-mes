@@ -24,7 +24,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
-import { ImportDialog, ImportField, ImportRow } from "@/app/components/import-dialog";
+import { ImportDialog, ImportField } from "@/app/components/import-dialog";
 import { TileSelect } from "@/app/components/tile-select";
 import { Pagination } from "@/app/components/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
@@ -36,13 +36,10 @@ type Ingredient = {
   name: string;
   alias: string | null;
   l2Code: string;
-  brand: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   latestRefPrice: number | null;
   stockUnit: string | null;
-  season: string;
-  storage: string;
 };
 
 type CategoryL1 = {
@@ -58,19 +55,14 @@ type Unit = {
   category: string;
 };
 
-const seasons = ["四季", "春", "夏", "秋", "冬"];
-const storages = ["冷藏", "常温", "冷冻", "干货"];
-
 const importFields: ImportField[] = [
-  { key: "name", label: "名称", required: true, sample: "带皮五花肉" },
-  { key: "alias", label: "别名", sample: "五花肉" },
+  { key: "name", label: "食材名称", required: true, sample: "带皮五花肉" },
+  { key: "alias", label: "商品名称", sample: "五花肉" },
   { key: "l2Code", label: "二级分类编码", required: true, sample: "MEA-POR" },
   { key: "purchaseSpec", label: "采购规格", sample: "散称" },
   { key: "purchaseUnit", label: "采购单位", required: true, sample: "斤" },
   { key: "stockUnit", label: "入库单位", required: true, sample: "斤" },
   { key: "latestRefPrice", label: "最新参照单价", sample: "18.50" },
-  { key: "season", label: "季节限定", sample: "四季" },
-  { key: "storage", label: "储存方式", required: true, sample: "冷藏" },
 ];
 
 export default function RawIngredientsPage() {
@@ -199,7 +191,7 @@ export default function RawIngredientsPage() {
 
   const handleValidateImport = (
     rows: Record<string, string>[]
-  ): ImportRow<Record<string, string>>[] => {
+  ) => {
     const l2Set = new Set(Object.keys(l2Map));
     return rows.map((row, index) => {
       const errors: string[] = [];
@@ -209,11 +201,6 @@ export default function RawIngredientsPage() {
         errors.push("二级分类编码不存在");
       if (!row.purchaseUnit.trim()) errors.push("采购单位不能为空");
       if (!row.stockUnit.trim()) errors.push("入库单位不能为空");
-      if (!row.storage.trim()) errors.push("储存方式不能为空");
-      else if (!storages.includes(row.storage.trim()))
-        errors.push(`储存方式只能是 ${storages.join("/")}`);
-      if (row.season && !seasons.includes(row.season.trim()))
-        errors.push(`季节限定只能是 ${seasons.join("/")}`);
       return { index, data: row, errors };
     });
   };
@@ -233,8 +220,6 @@ export default function RawIngredientsPage() {
           latestRefPrice: r.latestRefPrice?.trim()
             ? Number(r.latestRefPrice.trim())
             : undefined,
-          season: r.season?.trim() || "四季",
-          storage: r.storage.trim(),
         })),
       }),
     });
@@ -272,7 +257,7 @@ export default function RawIngredientsPage() {
             <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
               <Search className="h-4 w-4 text-muted-foreground shrink-0" />
               <Input
-                placeholder="搜索编号、名称或别名..."
+                placeholder="搜索编号、名称或商品名称..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full"
@@ -311,7 +296,7 @@ export default function RawIngredientsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={13} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={11} rows={DEFAULT_PAGE_SIZE} />
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
@@ -320,16 +305,14 @@ export default function RawIngredientsPage() {
                     <TableRow>
                       <TableHead className="w-[50px]">序号</TableHead>
                       <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>别名</TableHead>
+                      <TableHead>食材名称</TableHead>
+                      <TableHead>商品名称</TableHead>
                       <TableHead>一级分类</TableHead>
                       <TableHead>二级分类</TableHead>
                       <TableHead>采购规格</TableHead>
                       <TableHead>采购单位</TableHead>
                       <TableHead>最新参照单价</TableHead>
                       <TableHead>入库单位</TableHead>
-                      <TableHead>季节限定</TableHead>
-                      <TableHead>储存方式</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -337,7 +320,7 @@ export default function RawIngredientsPage() {
                     {pageItems.length === 0 ? (
                       <TableRow>
                         <TableCell
-                          colSpan={13}
+                          colSpan={11}
                           className="text-center text-muted-foreground"
                         >
                           暂无数据
@@ -379,16 +362,11 @@ export default function RawIngredientsPage() {
                                 : "—"}
                             </TableCell>
                             <TableCell>{row.stockUnit || "—"}</TableCell>
-                            <TableCell>{row.season}</TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs">
-                                {row.storage}
-                              </span>
-                            </TableCell>
                             <TableCell className="text-right">
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label="编辑原料"
                                 onClick={() => openEdit(row)}
                               >
                                 <Pencil className="h-4 w-4" />
@@ -396,6 +374,7 @@ export default function RawIngredientsPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
+                                aria-label="删除原料"
                                 onClick={() => setDeleteId(row.id)}
                               >
                                 <Trash2 className="h-4 w-4 text-destructive" />
@@ -436,8 +415,6 @@ export default function RawIngredientsPage() {
                 purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
                 latestRefPrice: editing.latestRefPrice ?? null,
-                season: editing.season,
-                storage: editing.storage,
               }
             : undefined
         }

@@ -278,6 +278,7 @@ export default function MinorIngredientsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="编辑小料"
                               onClick={() => openEdit(row)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -285,6 +286,7 @@ export default function MinorIngredientsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="删除小料"
                               onClick={() => setDeleteId(row.id)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />

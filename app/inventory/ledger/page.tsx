@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { BookOpen, Search, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { StatusBadge } from "@/app/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -33,7 +34,6 @@ import { toast } from "sonner";
 
 interface LedgerItem {
   id: number;
-  sourceType: "ingredient" | "seasoning";
   sourceId: number;
   name: string;
   code: string;
@@ -222,15 +222,7 @@ export default function LedgerPage() {
                   {filtered.map((g) => (
                     <TableRow key={g.key} className="hover:bg-muted/40">
                       <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            g.type === "入库"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-red-100 text-red-700"
-                          }`}
-                        >
-                          {g.type}
-                        </span>
+                        <StatusBadge status={g.type} />
                       </TableCell>
                       <TableCell className="font-medium max-w-[300px]">
                         {g.receiptSummary || g.source}
@@ -242,15 +234,7 @@ export default function LedgerPage() {
                         {g.totalQty.toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            g.settlementStatus === "已结算"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-gray-100 text-gray-700"
-                          }`}
-                        >
-                          {g.settlementStatus}
-                        </span>
+                        <StatusBadge status={g.settlementStatus} />
                       </TableCell>
                       <TableCell>
                         {g.receiptOperatorName || g.operatorName || g.receiptOperator || g.operator || "—"}
@@ -293,15 +277,7 @@ export default function LedgerPage() {
               <div className="grid grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="text-muted-foreground">类型：</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      detailGroup.type === "入库"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {detailGroup.type}
-                  </span>
+                  <StatusBadge status={detailGroup.type} />
                 </div>
                 <div>
                   <span className="text-muted-foreground">日期：</span>
@@ -315,15 +291,7 @@ export default function LedgerPage() {
                 </div>
                 <div>
                   <span className="text-muted-foreground">结算状态：</span>
-                  <span
-                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                      detailGroup.settlementStatus === "已结算"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    {detailGroup.settlementStatus}
-                  </span>
+                  <StatusBadge status={detailGroup.settlementStatus} />
                 </div>
                 {detailGroup.receiptTotalAmount != null && (
                   <div>

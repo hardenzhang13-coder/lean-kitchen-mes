@@ -163,7 +163,7 @@ export default function NewSchedulePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/schedules")}>
+          <Button variant="ghost" size="icon" aria-label="返回排程列表" onClick={() => router.push("/schedules")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -172,15 +172,17 @@ export default function NewSchedulePage() {
           </div>
         </div>
         <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          创建排程
+          <span aria-live="polite" className="inline-flex items-center">
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            创建排程
+          </span>
         </Button>
       </div>
 
       {/* 基础信息 */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-lg border p-4">
         <div className="space-y-2">
-          <Label>排程标题 <span className="text-red-500">*</span></Label>
+          <Label>排程标题 <span className="text-destructive">*</span></Label>
           <Input
             placeholder="如：周一午餐生产计划"
             value={title}
@@ -188,7 +190,7 @@ export default function NewSchedulePage() {
           />
         </div>
         <div className="space-y-2">
-          <Label>生产日期 <span className="text-red-500">*</span></Label>
+          <Label>生产日期 <span className="text-destructive">*</span></Label>
           <DatePicker
             value={scheduleDate}
             onChange={(v) => setScheduleDate(v)}
@@ -300,14 +302,14 @@ export default function NewSchedulePage() {
                     key={dish.id}
                     className={`relative rounded-lg border p-3 cursor-pointer transition-all ${
                       selectedItem
-                        ? "border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200"
+                        ? "border-primary bg-primary/5 ring-1 ring-primary/20"
                         : "hover:bg-muted/50"
                     }`}
                     onClick={() => toggleDish(dish)}
                   >
                     {selectedItem && (
                       <div className="absolute top-2 right-2">
-                        <Check className="h-4 w-4 text-indigo-500" />
+                        <Check className="h-4 w-4 text-primary" />
                       </div>
                     )}
                     <div className="font-medium text-sm truncate pr-5">{dish.name}</div>
@@ -317,7 +319,7 @@ export default function NewSchedulePage() {
                         {dish.category?.name}
                       </Badge>
                       {selectedItem && (
-                        <Badge className="text-[10px] bg-indigo-500 text-white">
+                        <Badge className="text-[10px] bg-primary text-primary-foreground">
                           {selectedItem.quantity} 份
                         </Badge>
                       )}

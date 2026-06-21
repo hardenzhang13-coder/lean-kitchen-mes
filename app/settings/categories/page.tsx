@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +41,7 @@ export default function CategoriesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState({ code: "", name: "", description: "" });
+  const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const fetchData = async () => {
@@ -105,6 +106,7 @@ export default function CategoriesPage() {
       toast.error("编号和名称不能为空");
       return;
     }
+    setSubmitting(true);
     try {
       if (editing) {
         await fetch(`/api/dish-categories/${editing.id}`, {
@@ -133,6 +135,8 @@ export default function CategoriesPage() {
       fetchData();
     } catch {
       toast.error("操作失败");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -207,6 +211,7 @@ export default function CategoriesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="编辑菜品类别"
                               onClick={() => openEdit(row)}
                             >
                               <Pencil className="h-4 w-4" />
@@ -214,6 +219,7 @@ export default function CategoriesPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              aria-label="删除菜品类别"
                               onClick={() => setDeleteId(row.id)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
@@ -280,8 +286,11 @@ export default function CategoriesPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
+            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
+              <span aria-live="polite" className="inline-flex items-center">
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </span>
             </Button>
           </DialogFooter>
         </DialogContent>

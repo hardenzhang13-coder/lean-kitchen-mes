@@ -188,7 +188,7 @@ export default function EditSchedulePage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push(`/schedules/${id}`)}>
+          <Button variant="ghost" size="icon" aria-label="返回排程详情" onClick={() => router.push(`/schedules/${id}`)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -197,18 +197,20 @@ export default function EditSchedulePage() {
           </div>
         </div>
         <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          保存修改
+          <span aria-live="polite" className="inline-flex items-center">
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            保存修改
+          </span>
         </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-lg border p-4">
         <div className="space-y-2">
-          <Label>排程标题 <span className="text-red-500">*</span></Label>
+          <Label>排程标题 <span className="text-destructive">*</span></Label>
           <Input placeholder="如：周一午餐生产计划" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div className="space-y-2">
-          <Label>生产日期 <span className="text-red-500">*</span></Label>
+          <Label>生产日期 <span className="text-destructive">*</span></Label>
           <DatePicker
             value={scheduleDate}
             onChange={(v) => setScheduleDate(v)}
@@ -290,13 +292,13 @@ export default function EditSchedulePage() {
                 <div
                   key={dish.id}
                   className={`relative rounded-lg border p-3 cursor-pointer transition-all ${
-                    selectedItem ? "border-indigo-300 bg-indigo-50/50 ring-1 ring-indigo-200" : "hover:bg-muted/50"
+                    selectedItem ? "border-primary bg-primary/5 ring-1 ring-primary/20" : "hover:bg-muted/50"
                   }`}
                   onClick={() => toggleDish(dish)}
                 >
                   {selectedItem && (
                     <div className="absolute top-2 right-2">
-                      <Check className="h-4 w-4 text-indigo-500" />
+                      <Check className="h-4 w-4 text-primary" />
                     </div>
                   )}
                   <div className="font-medium text-sm truncate pr-5">{dish.name}</div>
@@ -304,7 +306,7 @@ export default function EditSchedulePage() {
                   <div className="flex items-center gap-1 mt-2">
                     <Badge variant="secondary" className="text-[10px]">{dish.category?.name}</Badge>
                     {selectedItem && (
-                      <Badge className="text-[10px] bg-indigo-500 text-white">{selectedItem.quantity} 份</Badge>
+                      <Badge className="text-[10px] bg-primary text-primary-foreground">{selectedItem.quantity} 份</Badge>
                     )}
                   </div>
                 </div>

@@ -9,9 +9,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-export function SkeletonTable({ cols = 4, rows = 20 }: { cols?: number; rows?: number }) {
+export function SkeletonTable({ cols = 4, rows = 20, className }: { cols?: number; rows?: number; className?: string }) {
   return (
-    <Table>
+    <div className={className}>
+      <Table>
       <TableHeader>
         <TableRow>
           {Array.from({ length: cols }).map((_, i) => (
@@ -33,5 +34,6 @@ export function SkeletonTable({ cols = 4, rows = 20 }: { cols?: number; rows?: n
         ))}
       </TableBody>
     </Table>
+    </div>
   );
 }

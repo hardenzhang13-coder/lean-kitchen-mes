@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +32,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } = body;
 
   try {
+    const seasoningL2Codes = await getSeasoningL2Codes();
+
     const totalCost = await prisma.$transaction(async (tx) => {
       await tx.dishNetDetail.deleteMany({ where: { dishId } });
       await tx.dishSeasoningDetail.deleteMany({ where: { dishId } });
@@ -45,13 +48,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const [netIngs, minors, seasonings, sauces] = await Promise.all([
         tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true } }),
         tx.minorIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true } }),
-        tx.seasoningIngredient.findMany({ where: { id: { in: seasoningIds } }, select: { id: true, purchasePrice: true } }),
+        tx.ingredient.findMany({
+          where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+          select: { id: true, latestRefPrice: true },
+        }),
         tx.sauceIngredient.findMany({ where: { id: { in: sauceIds } }, select: { id: true, unitPrice: true } }),
       ]);
 
       const netPriceMap = new Map(netIngs.map((i) => [i.id, Number(i.unitPrice)]));
       const minorPriceMap = new Map(minors.map((i) => [i.id, Number(i.unitPrice)]));
-      const seasoningPriceMap = new Map(seasonings.map((i) => [i.id, Number(i.purchasePrice)]));
+      const seasoningPriceMap = new Map(seasonings.map((i) => [i.id, Number(i.latestRefPrice ?? 0)]));
       const saucePriceMap = new Map(sauces.map((i) => [i.id, Number(i.unitPrice)]));
 
       // 计算 cost = 单价 × amountG / 1000

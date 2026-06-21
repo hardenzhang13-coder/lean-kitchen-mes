@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { normalizeName } from "@/lib/duplicate-check";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
-const REQUIRED_FIELDS = ["name", "l2Code", "unit", "priceUnit", "storage"];
-const VALID_SEASONS = ["四季", "春", "夏", "秋", "冬"];
-const VALID_STORAGES = ["冷藏", "常温", "冷冻"];
+const REQUIRED_FIELDS = ["name", "l2Code", "purchaseUnit", "stockUnit"];
 
-function generateCode(seq: number) {
-  return `ING-${String(seq).padStart(4, "0")}`;
+function generateCode(prefix: string, seq: number) {
+  return `${prefix}-${String(seq).padStart(4, "0")}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -16,20 +16,20 @@ export async function POST(req: NextRequest) {
     name?: string;
     alias?: string;
     l2Code?: string;
-    unit?: string;
-    priceUnit?: string;
     purchaseSpec?: string;
-    season?: string;
-    storage?: string;
+    purchaseUnit?: string;
+    stockUnit?: string;
+    latestRefPrice?: string;
   }> = body.rows || [];
 
   if (!Array.isArray(rows) || rows.length === 0) {
     return NextResponse.json({ error: "导入数据为空" }, { status: 400 });
   }
 
-  const l2Categories = await prisma.ingredientCategoryL2.findMany({
-    select: { code: true },
-  });
+  const [l2Categories, seasoningL2Codes] = await Promise.all([
+    prisma.ingredientCategoryL2.findMany({ select: { code: true } }),
+    getSeasoningL2Codes(),
+  ]);
   const l2Set = new Set(l2Categories.map((c) => c.code));
 
   const errors: { index: number; messages: string[] }[] = [];
@@ -43,13 +43,30 @@ export async function POST(req: NextRequest) {
     if (row.l2Code && !l2Set.has(row.l2Code)) {
       msgs.push("二级分类编码不存在");
     }
-    if (row.season && !VALID_SEASONS.includes(row.season)) {
-      msgs.push(`季节限定只能是 ${VALID_SEASONS.join("/")}`);
-    }
-    if (row.storage && !VALID_STORAGES.includes(row.storage)) {
-      msgs.push(`储存方式只能是 ${VALID_STORAGES.join("/")}`);
-    }
     if (msgs.length > 0) errors.push({ index: idx, messages: msgs });
+  });
+
+  if (errors.length > 0) {
+    return NextResponse.json({ error: "数据校验失败", errors }, { status: 400 });
+  }
+
+  const existingIngredients = await prisma.ingredient.findMany({
+    where: { deletedAt: null },
+    select: { name: true },
+  });
+  const existingNormalized = new Set(
+    existingIngredients.map((r) => normalizeName(r.name))
+  );
+
+  const importNormalized = new Set<string>();
+  rows.forEach((row, idx) => {
+    const n = normalizeName(row.name || "");
+    if (!n) return;
+    const msgs: string[] = [];
+    if (existingNormalized.has(n)) msgs.push("食材名称已存在");
+    else if (importNormalized.has(n)) msgs.push("导入数据中存在重复名称");
+    if (msgs.length > 0) errors.push({ index: idx, messages: msgs });
+    else importNormalized.add(n);
   });
 
   if (errors.length > 0) {
@@ -68,16 +85,20 @@ export async function POST(req: NextRequest) {
 
       const data = rows.map((row) => {
         lastNum++;
+        const prefix = seasoningL2Codes.includes(row.l2Code!) ? "SEA" : "ING";
         return {
-          code: generateCode(lastNum),
+          code: generateCode(prefix, lastNum),
           name: row.name!.trim(),
           alias: row.alias?.trim() || null,
           l2Code: row.l2Code!.trim(),
-          unit: row.unit!.trim(),
-          priceUnit: row.priceUnit!.trim(),
           purchaseSpec: row.purchaseSpec?.trim() || null,
-          season: row.season?.trim() || "四季",
-          storage: row.storage!.trim(),
+          purchaseUnit: row.purchaseUnit!.trim(),
+          stockUnit: row.stockUnit!.trim(),
+          latestRefPrice: row.latestRefPrice?.trim()
+            ? Number(row.latestRefPrice.trim())
+            : null,
+          season: "四季",
+          storage: "常温",
         };
       });
 
@@ -87,7 +108,7 @@ export async function POST(req: NextRequest) {
     await logOperation(req, {
       action: "BULK_CREATE",
       entity: "Ingredient",
-      description: `批量导入原料 ${rows.length} 条`,
+      description: `批量导入食材 ${rows.length} 条`,
     });
 
     return NextResponse.json({ created: rows.length });

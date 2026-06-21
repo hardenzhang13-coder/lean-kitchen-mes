@@ -176,7 +176,7 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
                     共 <span className="font-medium text-foreground">{parsed.length}</span> 行
                   </span>
                   {validRows.length > 0 && (
-                    <span className="text-green-600">
+                    <span className="text-[var(--success)]">
                       有效 {validRows.length} 行
                     </span>
                   )}
@@ -224,7 +224,7 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
                               ))}
                             </ul>
                           ) : (
-                            <span className="text-xs text-green-600">通过</span>
+                            <span className="text-xs text-[var(--success)]">通过</span>
                           )}
                         </TableCell>
                       </TableRow>

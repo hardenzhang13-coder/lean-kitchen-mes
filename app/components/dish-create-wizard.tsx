@@ -12,6 +12,7 @@ import {
   Send,
   RotateCcw,
   Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ type IngredientOption = {
   name: string;
   code?: string;
   brand?: string;
+  alias?: string | null;
   unitPrice?: number;
   unit?: string;
 };
@@ -433,7 +435,7 @@ export function DishCreateWizard({
         addBomItem(setSauceBom, { ...base, brand: item.brand || "" });
         break;
       case "seasoning":
-        addBomItem(setSeasoningBom, { ...base, brand: item.brand || "" });
+        addBomItem(setSeasoningBom, { ...base, brand: item.alias || item.brand || "" });
         break;
     }
     setPickerOpen(null);
@@ -466,7 +468,7 @@ export function DishCreateWizard({
   ) => (
     <div className="space-y-2">
       <Label className="text-base">
-        {label} {required && <span className="text-red-500">*</span>}
+        {label} {required && <span className="text-destructive">*</span>}
       </Label>
       <TileSelect
         value={value}
@@ -530,6 +532,7 @@ export function DishCreateWizard({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive"
+                aria-label="删除BOM项"
                 onClick={() => removeBomItem(setter, item.id)}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -582,7 +585,7 @@ export function DishCreateWizard({
           <div className="space-y-6 py-2">
             <div className="grid grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label className="text-base">菜品名称 <span className="text-red-500">*</span></Label>
+                <Label className="text-base">菜品名称 <span className="text-destructive">*</span></Label>
                 <Input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -591,7 +594,7 @@ export function DishCreateWizard({
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-base">菜品类别 <span className="text-red-500">*</span></Label>
+                <Label className="text-base">菜品类别 <span className="text-destructive">*</span></Label>
                 <TileSelect
                   value={form.categoryId}
                   onChange={(v) => setForm({ ...form, categoryId: v })}
@@ -676,8 +679,11 @@ export function DishCreateWizard({
                 disabled={submitting}
                 className="h-10"
               >
-                <Save className="mr-1 h-4 w-4" />
-                存草稿
+                <span aria-live="polite" className="inline-flex items-center">
+                  {submitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                  <Save className="mr-1 h-4 w-4" />
+                  存草稿
+                </span>
               </Button>
             )}
             {step < 5 ? (
@@ -693,16 +699,22 @@ export function DishCreateWizard({
                   disabled={submitting}
                   className="h-10"
                 >
-                  <Save className="mr-1 h-4 w-4" />
-                  存草稿
+                  <span aria-live="polite" className="inline-flex items-center">
+                    {submitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                    <Save className="mr-1 h-4 w-4" />
+                    存草稿
+                  </span>
                 </Button>
                 <Button
                   onClick={() => handleSave("published")}
                   disabled={submitting || !canPublish()}
                   className="h-10"
                 >
-                  <Send className="mr-1 h-4 w-4" />
-                  发布
+                  <span aria-live="polite" className="inline-flex items-center">
+                    {submitting && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
+                    <Send className="mr-1 h-4 w-4" />
+                    发布
+                  </span>
                 </Button>
               </>
             )}

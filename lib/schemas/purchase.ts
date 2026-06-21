@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const purchaseReceiptItemSchema = z.object({
   ingredientId: z.number().int().positive().nullish(),
-  seasoningIngredientId: z.number().int().positive().nullish(),
   itemName: z.string().min(1).max(100),
   brand: z.string().max(100).nullish(),
   l2Code: z.string().max(20).nullish(),

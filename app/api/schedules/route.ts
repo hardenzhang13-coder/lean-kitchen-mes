@@ -8,6 +8,7 @@ import { success, created, internalError } from "@/lib/api-response";
 import { createScheduleSchema, scheduleQuerySchema } from "@/lib/schemas/schedule";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
+import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -95,7 +96,8 @@ export async function POST(req: NextRequest) {
         await tx.cuttingOrder.create({ data: co });
       }
 
-      const purchaseData = await buildPurchasePlans(tx, schedule.id, items);
+      const seasoningL2Codes = await getSeasoningL2Codes();
+      const purchaseData = await buildPurchasePlans(tx, schedule.id, items, seasoningL2Codes);
       for (const pp of purchaseData) {
         await tx.purchasePlan.create({ data: pp });
       }

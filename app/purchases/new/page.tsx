@@ -57,7 +57,6 @@ import {
 interface FormItem {
   id: string;
   ingredientId: number | null;
-  seasoningIngredientId: number | null;
   itemName: string;
   brand: string;
   spec: string;
@@ -92,13 +91,10 @@ type CreatedIngredient = {
   id: number;
   name: string;
   alias?: string | null;
-  brand?: string | null;
   l2Code: string;
   stockUnit?: string | null;
   purchaseUnit?: string | null;
-  priceUnit?: string | null;
-  unit?: string | null;
-  storage?: string | null;
+  purchaseSpec?: string | null;
 };
 
 interface RecognizedItem {
@@ -121,8 +117,8 @@ interface RecognizedItem {
   category?: string;
   matched?: boolean;
   ingredientId?: number | null;
-  seasoningIngredientId?: number | null;
   storage?: string;
+  purchaseSpec?: string | null;
 }
 
 interface RecognitionResponse {
@@ -137,7 +133,6 @@ interface RecognitionResponse {
 
 interface ReceiptItemResponse {
   ingredientId: number | null;
-  seasoningIngredientId: number | null;
   itemName: string;
   brand: string | null;
   spec: string;
@@ -257,7 +252,6 @@ export default function NewPurchasePage() {
           (item: ReceiptItemResponse, idx: number) => ({
             id: `edit-${idx}-${Date.now()}`,
             ingredientId: item.ingredientId,
-            seasoningIngredientId: item.seasoningIngredientId,
             itemName: item.itemName,
             brand: item.brand || "",
             spec: item.spec,
@@ -271,7 +265,7 @@ export default function NewPurchasePage() {
             l2Code: item.l2Code,
             l2Name: item.l2Name || "",
             category: getCategoryNames(categories, item.l2Code).l1Name,
-            matched: !!(item.ingredientId || item.seasoningIngredientId),
+            matched: !!item.ingredientId,
             isManual: item.isManual,
             storage: item.storage || "常温",
           })
@@ -361,11 +355,15 @@ export default function NewPurchasePage() {
       const purchaseUnit = item.purchaseUnit || item.unit || "件";
       const stockUnit =
         item.stockUnit || item.purchaseUnit || item.unit || "件";
+
+      const librarySpec = item.purchaseSpec;
       const rawSpec = (item.spec || "").trim();
       const isPlaceholder = /^(散称|散装|无|—|-)?$/.test(rawSpec);
-      const spec = isPlaceholder
-        ? getDefaultSpec(stockUnit)
-        : rawSpec || getDefaultSpec(stockUnit);
+      const spec = librarySpec
+        ? librarySpec
+        : isPlaceholder
+          ? getDefaultSpec(stockUnit)
+          : rawSpec || getDefaultSpec(stockUnit);
 
       const isJin = purchaseUnit === "斤";
       const stockInfo = isJin
@@ -400,7 +398,6 @@ export default function NewPurchasePage() {
       return {
         id: `item-${idx}-${Date.now()}`,
         ingredientId: item.ingredientId ?? null,
-        seasoningIngredientId: item.seasoningIngredientId ?? null,
         itemName: item.itemName || item.name || "",
         brand: item.brand || "",
         spec,
@@ -542,39 +539,121 @@ export default function NewPurchasePage() {
     setIngredientDialogOpen(true);
   };
 
-  const handleIngredientSuccess = (
-    data: CreatedIngredient,
-    type: "ingredient" | "seasoning"
-  ) => {
+  const handleIngredientSuccess = (data: CreatedIngredient) => {
     if (!dialogItem) return;
-    const isSeasoning = type === "seasoning";
 
     const { l1Name, l2Name } = getCategoryNames(categories, data.l2Code);
 
     setItems((prev) =>
-      prev.map((it) =>
-        it.id === dialogItem.id
-          ? {
-              ...it,
-              ingredientId: isSeasoning ? null : data.id,
-              seasoningIngredientId: isSeasoning ? data.id : null,
-              itemName: data.name,
-              brand: data.brand || data.alias || it.brand || "",
-              l2Code: data.l2Code,
-              l2Name,
-              stockUnit: data.stockUnit || data.unit || it.stockUnit,
-              purchaseUnit: data.purchaseUnit || data.priceUnit || it.purchaseUnit,
-              category: l1Name,
-              matched: true,
-              storage: data.storage || it.storage || "常温",
-            }
-          : it
-      )
+      prev.map((it) => {
+        if (it.id !== dialogItem.id) return it;
+
+        const purchaseUnit = data.purchaseUnit || it.purchaseUnit;
+        const stockUnit = data.stockUnit || it.stockUnit;
+        const spec = data.purchaseSpec || it.spec;
+
+        let stockInfo: { stockUnit?: string; stockInQty?: number };
+        if (purchaseUnit === "斤") {
+          stockInfo = { stockUnit: "斤", stockInQty: it.qty };
+        } else {
+          const specToUse = spec || getDefaultSpec(stockUnit);
+          if (isHighConfidenceSpec(specToUse, unitNames)) {
+            stockInfo = calculateStockInfo({
+              spec: specToUse,
+              qty: it.qty,
+              targetStockUnit: stockUnit,
+              unitNames,
+            });
+          } else {
+            stockInfo = { stockUnit, stockInQty: 1 };
+          }
+        }
+
+        return {
+          ...it,
+          ingredientId: data.id,
+          itemName: data.name,
+          brand: data.alias || it.brand || "",
+          l2Code: data.l2Code,
+          l2Name,
+          spec,
+          purchaseUnit,
+          priceUnit: purchaseUnit,
+          stockUnit: stockInfo.stockUnit || stockUnit,
+          stockInQty: stockInfo.stockInQty ?? 1,
+          category: l1Name,
+          matched: true,
+          storage: it.storage || "常温",
+        };
+      })
     );
     setDialogItem(null);
   };
 
-  const openEditDialog = (item: FormItem) => {
+  const calculateStockForItem = (
+    it: FormItem,
+    specOverride?: string
+  ): { stockUnit: string; stockInQty: number } => {
+    const purchaseUnit = it.purchaseUnit;
+    const stockUnit = it.stockUnit;
+    const spec = specOverride || it.spec;
+
+    if (purchaseUnit === "斤") {
+      return { stockUnit: "斤", stockInQty: it.qty };
+    }
+
+    const specToUse = spec || getDefaultSpec(stockUnit);
+    if (isHighConfidenceSpec(specToUse, unitNames)) {
+      const info = calculateStockInfo({
+        spec: specToUse,
+        qty: it.qty,
+        targetStockUnit: stockUnit,
+        unitNames,
+      });
+      return {
+        stockUnit: info.stockUnit || stockUnit,
+        stockInQty: info.stockInQty ?? 1,
+      };
+    }
+
+    return { stockUnit, stockInQty: 1 };
+  };
+
+  const openEditDialog = async (item: FormItem) => {
+    if (!item.matched) {
+      setEditForm({ ...item });
+      setEditDialogOpen(true);
+      return;
+    }
+
+    try {
+      if (item.ingredientId) {
+        const res = await fetch(`/api/ingredients/${item.ingredientId}`);
+        if (!res.ok) throw new Error("获取食材库数据失败");
+        const library = await res.json();
+        const data = library.data || library;
+        const merged: FormItem = {
+          ...item,
+          itemName: data.name || item.itemName,
+          brand: data.alias || item.brand,
+          spec: data.purchaseSpec || item.spec,
+          purchaseUnit: data.purchaseUnit || item.purchaseUnit,
+          priceUnit: data.purchaseUnit || item.purchaseUnit,
+          stockUnit: data.stockUnit || item.stockUnit,
+          l2Code: data.l2Code || item.l2Code,
+          storage: item.storage || "常温",
+        };
+        const stock = calculateStockForItem(merged);
+        merged.stockUnit = stock.stockUnit;
+        merged.stockInQty = stock.stockInQty;
+        setEditForm(merged);
+        setEditDialogOpen(true);
+        return;
+      }
+    } catch {
+      toast.error("读取食材库最新数据失败，使用当前快照");
+    }
+
     setEditForm({ ...item });
     setEditDialogOpen(true);
   };
@@ -673,7 +752,6 @@ export default function NewPurchasePage() {
       purchasingUnit,
       items: items.map((it) => ({
         ingredientId: it.ingredientId,
-        seasoningIngredientId: it.seasoningIngredientId,
         itemName: it.itemName,
         brand: it.brand || null,
         l2Code: it.l2Code,
@@ -728,6 +806,7 @@ export default function NewPurchasePage() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="返回采购列表"
             onClick={() => router.push("/purchases")}
           >
             <ArrowLeft className="h-5 w-5" />
@@ -744,12 +823,14 @@ export default function NewPurchasePage() {
           </div>
         </div>
         <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="mr-2 h-4 w-4" />
-          )}
-          {isEdit ? "保存修改" : "确认录入"}
+          <span aria-live="polite" className="inline-flex items-center">
+            {submitting ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="mr-2 h-4 w-4" />
+            )}
+            {isEdit ? "保存修改" : "确认录入"}
+          </span>
         </Button>
       </div>
 
@@ -842,7 +923,7 @@ export default function NewPurchasePage() {
             <h3 className="font-medium flex-none">基础信息</h3>
             <div className="space-y-2 flex-none">
               <Label>
-                采购日期 <span className="text-red-500">*</span>
+                采购日期 <span className="text-destructive">*</span>
               </Label>
               <DatePicker
                 value={receiptDate}
@@ -889,7 +970,7 @@ export default function NewPurchasePage() {
             </div>
             <div className="space-y-2 flex-none">
               <Label>
-                采购总金额 <span className="text-red-500">*</span>
+                采购总金额 <span className="text-destructive">*</span>
               </Label>
               <Input
                 type="number"
@@ -955,7 +1036,7 @@ export default function NewPurchasePage() {
                     return (
                       <TableRow
                         key={item.id}
-                        className={cn(!item.matched && "bg-red-50/50")}
+                        className={cn(!item.matched && "bg-[var(--danger-muted)]/50")}
                       >
                         <TableCell className="py-2">
                           <div className="flex items-center gap-1">
@@ -963,7 +1044,7 @@ export default function NewPurchasePage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 text-xs text-blue-600 px-1"
+                                className="h-8 text-xs text-[var(--info)] px-1"
                                 onClick={() => openIngredientDialog(item)}
                               >
                                 新增食材
@@ -972,7 +1053,7 @@ export default function NewPurchasePage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-8 text-xs text-blue-600 px-1"
+                                className="h-8 text-xs text-[var(--info)] px-1"
                                 onClick={() => openEditDialog(item)}
                               >
                                 编辑
@@ -982,6 +1063,7 @@ export default function NewPurchasePage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
+                              aria-label="删除采购明细"
                               onClick={() => removeItem(item.id)}
                             >
                               <Trash2 className="h-4 w-4 text-muted-foreground" />
@@ -1107,7 +1189,7 @@ export default function NewPurchasePage() {
               <FormSection title="明细信息" cols={3}>
                 <FormField label="食材ID" readOnly>
                   <div className="h-11 flex items-center px-4 border rounded-md bg-muted/50 text-sm">
-                    {editForm.ingredientId || editForm.seasoningIngredientId || "—"}
+                    {editForm.ingredientId || "—"}
                   </div>
                 </FormField>
                 <FormField label="一级分类" readOnly>
@@ -1331,13 +1413,11 @@ export default function NewPurchasePage() {
             ? {
                 name: dialogItem.itemName,
                 l2Code: dialogItem.l2Code || undefined,
-                brand: dialogItem.brand,
                 alias: dialogItem.brand,
                 purchaseSpec: dialogItem.spec,
                 purchaseUnit: dialogItem.purchaseUnit,
                 stockUnit: dialogItem.stockUnit,
                 latestRefPrice: dialogItem.unitPrice,
-                storage: dialogItem.storage,
               }
             : undefined
         }

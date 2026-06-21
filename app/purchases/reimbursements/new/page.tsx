@@ -101,7 +101,7 @@ export default function NewReimbursementPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/purchases/reimbursements")}>
+          <Button variant="ghost" size="icon" aria-label="返回报销列表" onClick={() => router.push("/purchases/reimbursements")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -110,8 +110,10 @@ export default function NewReimbursementPage() {
           </div>
         </div>
         <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-          生成报销单
+          <span aria-live="polite" className="inline-flex items-center">
+            {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            生成报销单
+          </span>
         </Button>
       </div>
 
@@ -120,7 +122,7 @@ export default function NewReimbursementPage() {
         <div className="space-y-4 rounded-lg border p-4 h-fit">
           <h3 className="font-medium">报销信息</h3>
           <div className="space-y-2">
-            <Label>报销主题 <span className="text-red-500">*</span></Label>
+            <Label>报销主题 <span className="text-destructive">*</span></Label>
             <Input
               placeholder="如：2024年6月食材采购报销"
               value={title}
@@ -188,12 +190,12 @@ export default function NewReimbursementPage() {
                   <div
                     key={r.id}
                     className={`flex items-center gap-3 rounded-lg border p-4 cursor-pointer transition-colors ${
-                      selected ? "border-indigo-300 bg-indigo-50/50" : "hover:bg-muted/50"
+                      selected ? "border-primary bg-primary/5" : "hover:bg-muted/50"
                     }`}
                     onClick={() => toggleSelect(r.id)}
                   >
                     {selected ? (
-                      <CheckSquare className="h-5 w-5 text-indigo-500 shrink-0" />
+                      <CheckSquare className="h-5 w-5 text-primary shrink-0" />
                     ) : (
                       <Square className="h-5 w-5 text-muted-foreground shrink-0" />
                     )}

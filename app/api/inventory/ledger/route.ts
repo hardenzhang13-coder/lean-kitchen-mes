@@ -20,8 +20,7 @@ export async function GET(req: NextRequest) {
     where,
     orderBy: { changeTime: "desc" },
     include: {
-      ingredient: { select: { id: true, name: true, code: true } },
-      seasoningIngredient: { select: { id: true, name: true, code: true } },
+      ingredient: { select: { id: true, name: true, code: true, l2Code: true } },
     },
   });
 
@@ -83,31 +82,17 @@ export async function GET(req: NextRequest) {
     const receipt = g.receiptId ? receiptMap.get(g.receiptId) : null;
     const unifiedItems = g.items
       .map((it) => {
-        if (it.ingredient) {
-          return {
-            id: it.id,
-            sourceType: "ingredient" as const,
-            sourceId: it.ingredient.id,
-            name: it.ingredient.name,
-            code: it.ingredient.code,
-            changeQty: Number(it.changeQty),
-            unit: it.unit,
-            balance: Number(it.balance),
-          };
-        }
-        if (it.seasoningIngredient) {
-          return {
-            id: it.id,
-            sourceType: "seasoning" as const,
-            sourceId: it.seasoningIngredient.id,
-            name: it.seasoningIngredient.name,
-            code: it.seasoningIngredient.code,
-            changeQty: Number(it.changeQty),
-            unit: it.unit,
-            balance: Number(it.balance),
-          };
-        }
-        return null;
+        if (!it.ingredient) return null;
+        return {
+          id: it.id,
+          sourceId: it.ingredient.id,
+          name: it.ingredient.name,
+          code: it.ingredient.code,
+          l2Code: it.ingredient.l2Code,
+          changeQty: Number(it.changeQty),
+          unit: it.unit,
+          balance: Number(it.balance),
+        };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 

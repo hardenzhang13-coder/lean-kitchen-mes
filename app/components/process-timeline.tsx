@@ -185,6 +185,7 @@ export function ProcessTimeline({ steps, onChange, readOnly = false }: ProcessTi
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
+                          aria-label="上移步骤"
                           onClick={() => moveStep(globalIndex, -1)}
                         >
                           <ChevronUp className="h-3.5 w-3.5" />
@@ -194,6 +195,7 @@ export function ProcessTimeline({ steps, onChange, readOnly = false }: ProcessTi
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
+                          aria-label="下移步骤"
                           onClick={() => moveStep(globalIndex, 1)}
                         >
                           <ChevronDown className="h-3.5 w-3.5" />
@@ -203,6 +205,7 @@ export function ProcessTimeline({ steps, onChange, readOnly = false }: ProcessTi
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7 text-destructive"
+                          aria-label="删除步骤"
                           onClick={() => removeStep(globalIndex)}
                         >
                           <Trash2 className="h-3.5 w-3.5" />

@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
@@ -7,6 +7,7 @@ import { createIngredientSchema, ingredientQuerySchema } from "@/lib/schemas/ing
 import { validateBody, validateQuery } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 import { logger } from "@/lib/logger";
+import { checkDuplicateName } from "@/lib/duplicate-check";
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,13 +16,9 @@ export async function GET(req: NextRequest) {
     if (!validation.success) return validation.response;
 
     const { l2Code } = validation.data;
-    const seasoningL2Codes = await getSeasoningL2Codes();
     const where: Prisma.IngredientWhereInput = {};
     if (l2Code) {
       where.l2Code = l2Code;
-    } else {
-      // 保留旧兼容分类 GRA-SEA，避免历史数据在原料列表中消失
-      where.l2Code = { notIn: seasoningL2Codes.filter((c) => c !== "GRA-SEA") };
     }
 
     const rows = await prisma.ingredient.findMany({
@@ -31,13 +28,13 @@ export async function GET(req: NextRequest) {
     return success(rows);
   } catch (err) {
     logger.error({ err }, "GET /api/ingredients failed");
-    return internalError("获取原料失败");
+    return internalError("获取食材失败");
   }
 }
 
-function generateIngredientCode(lastCode: string | undefined) {
+function generateCode(prefix: string, lastCode: string | undefined) {
   const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
-  return `ING-${String(num).padStart(4, "0")}`;
+  return `${prefix}-${String(num).padStart(4, "0")}`;
 }
 
 export async function POST(req: NextRequest) {
@@ -50,48 +47,52 @@ export async function POST(req: NextRequest) {
       name,
       alias,
       l2Code,
-      unit,
-      priceUnit,
       purchaseUnit,
       stockUnit,
       purchaseSpec,
-      brand,
       latestRefPrice,
       season,
       storage,
     } = validation.data;
 
+    const dupCheck = await checkDuplicateName(name);
+    if (dupCheck.exists) {
+      return NextResponse.json({ error: "食材名称已存在" }, { status: 400 });
+    }
+
+    const seasoningL2Codes = await getSeasoningL2Codes();
+    const prefix = seasoningL2Codes.includes(l2Code) ? "SEA" : "ING";
+
     const last = await prisma.ingredient.findFirst({
+      where: { code: { startsWith: `${prefix}-` } },
       orderBy: { code: "desc" },
       select: { code: true },
     });
-    const code = generateIngredientCode(last?.code);
+    const code = generateCode(prefix, last?.code);
+
     const row = await prisma.ingredient.create({
       data: {
         code,
         name,
         alias: alias ?? null,
         l2Code,
-        unit: stockUnit || unit || purchaseUnit || "斤",
-        priceUnit: purchaseUnit || priceUnit || unit || "斤",
-        purchaseUnit: purchaseUnit || priceUnit || unit || null,
-        stockUnit: stockUnit || unit || purchaseUnit || null,
+        purchaseUnit: purchaseUnit ?? null,
+        stockUnit: stockUnit ?? null,
         purchaseSpec: purchaseSpec ?? null,
-        brand: brand ?? null,
         latestRefPrice: latestRefPrice ?? null,
-        season,
-        storage,
+        season: season ?? "四季",
+        storage: storage ?? "常温",
       },
     });
     await logOperation(req, {
       action: "CREATE",
       entity: "Ingredient",
       entityId: row.id,
-      description: `创建原料: ${row.name}`,
+      description: `创建食材: ${row.name}`,
     });
     return created(row);
   } catch (err) {
     logger.error({ err }, "POST /api/ingredients failed");
-    return internalError("创建原料失败");
+    return internalError("创建食材失败");
   }
 }

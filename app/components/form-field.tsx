@@ -1,30 +1,54 @@
 "use client";
 
+import * as React from "react";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
-export function FormField({
-  label,
-  required,
-  readOnly,
-  children,
-  className,
-}: {
+interface FormFieldProps {
+  id?: string;
   label: string;
   required?: boolean;
   readOnly?: boolean;
+  error?: string;
   children: React.ReactNode;
   className?: string;
-}) {
+}
+
+export function FormField({
+  id,
+  label,
+  required,
+  readOnly,
+  error,
+  children,
+  className,
+}: FormFieldProps) {
+  const errorId = id ? `${id}-error` : undefined;
+
   return (
-    <div className={`grid gap-2 ${className || ""}`}>
-      <Label className="text-base flex items-center gap-1">
+    <div className={cn("grid gap-2", className)}>
+      <Label
+        htmlFor={id}
+        className="text-base flex items-center gap-1"
+      >
         {label}
-        {required && !readOnly && <span className="text-red-500">*</span>}
+        {required && !readOnly && <span className="text-destructive">*</span>}
         {!required && !readOnly && (
           <span className="text-muted-foreground text-sm font-normal">(可选)</span>
         )}
       </Label>
-      {children}
+      {React.isValidElement(children) && id
+        ? React.cloneElement(children as React.ReactElement<any>, {
+            id,
+            "aria-invalid": !!error || undefined,
+            "aria-describedby": error ? errorId : undefined,
+          })
+        : children}
+      {error && (
+        <p id={errorId} className="text-sm text-destructive" role="alert">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
@@ -50,7 +74,7 @@ export function FormSection({
       <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
         {title}
       </h3>
-      <div className={`grid ${colClass} gap-5`}>{children}</div>
+      <div className={cn("grid", colClass, "gap-5")}>{children}</div>
     </div>
   );
 }

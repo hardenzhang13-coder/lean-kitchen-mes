@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -53,6 +53,7 @@ export default function ClassesPage() {
   const [dialogType, setDialogType] = useState<"l1" | "l2">("l1");
   const [editing, setEditing] = useState<L1 | L2 | null>(null);
   const [form, setForm] = useState({ code: "", name: "", parentCode: "", description: "" });
+  const [submitting, setSubmitting] = useState(false);
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: "l1" | "l2" } | null>(null);
 
@@ -159,6 +160,7 @@ export default function ClassesPage() {
       toast.error("请选择所属一级分类");
       return;
     }
+    setSubmitting(true);
     try {
       if (editing) {
         const res = await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
@@ -201,6 +203,8 @@ export default function ClassesPage() {
       fetchData();
     } catch {
       toast.error("操作失败");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -295,12 +299,13 @@ export default function ClassesPage() {
                                   <Plus className="h-3 w-3 mr-1" />
                                   二级
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => openEditL1(l1)}>
+                                <Button variant="ghost" size="icon" aria-label="编辑一级分类" onClick={() => openEditL1(l1)}>
                                   <Pencil className="h-4 w-4" />
                                 </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
+                                  aria-label="删除一级分类"
                                   onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
                                 >
                                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -322,12 +327,13 @@ export default function ClassesPage() {
                                     {l2.description || "—"}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" onClick={() => openEditL2(l2)}>
+                                    <Button variant="ghost" size="icon" aria-label="编辑二级分类" onClick={() => openEditL2(l2)}>
                                       <Pencil className="h-4 w-4" />
                                     </Button>
                                     <Button
                                       variant="ghost"
                                       size="icon"
+                                      aria-label="删除二级分类"
                                       onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
                                     >
                                       <Trash2 className="h-4 w-4 text-destructive" />
@@ -414,8 +420,11 @@ export default function ClassesPage() {
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
+            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
+              <span aria-live="polite" className="inline-flex items-center">
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </span>
             </Button>
           </DialogFooter>
         </DialogContent>

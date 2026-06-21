@@ -26,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { ScheduleCuttingTable } from "@/app/components/schedule-cutting-table";
 import { SchedulePurchaseTable } from "@/app/components/schedule-purchase-table";
+import { StatusBadge } from "@/app/components/status-badge";
 
 interface ScheduleData {
   id: number;
@@ -53,12 +54,6 @@ interface ScheduleData {
   totalQuantity: number;
   dishCount: number;
 }
-
-const statusColors: Record<string, string> = {
-  待生效: "bg-amber-100 text-amber-700",
-  进行中: "bg-green-100 text-green-700",
-  已完成: "bg-gray-100 text-gray-600",
-};
 
 function getWeekDay(dateStr: string) {
   const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -182,7 +177,7 @@ export default function ScheduleDetailPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => router.push("/schedules")}>
+          <Button variant="ghost" size="icon" aria-label="返回排程列表" onClick={() => router.push("/schedules")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
@@ -219,7 +214,7 @@ export default function ScheduleDetailPage() {
       </div>
 
       {showTimeoutWarning && (
-        <div className="flex items-center gap-2 rounded-lg bg-amber-50 border border-amber-200 p-3 text-amber-700">
+        <div className="flex items-center gap-2 rounded-lg bg-[var(--warning-muted)] border border-[var(--warning)]/20 p-3 text-[var(--warning)]">
           <AlertTriangle className="h-5 w-5" />
           <span className="text-sm">该排程已过了当日 22:00，建议点击「完成生产」结束排程</span>
         </div>
@@ -249,9 +244,7 @@ export default function ScheduleDetailPage() {
             <Clock className="h-4 w-4" />
             排程状态
           </div>
-          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusColors[data.status]}`}>
-            {data.status}
-          </span>
+          <StatusBadge status={data.status} />
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">

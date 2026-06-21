@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Receipt, Search, FileText, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { StatusBadge } from "@/app/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -143,15 +144,7 @@ export default function ReimbursementsPage() {
                         ¥{Number(r.totalAmount).toFixed(2)}
                       </TableCell>
                       <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                            r.status === "settled"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-amber-100 text-amber-700"
-                          }`}
-                        >
-                          {r.status === "settled" ? "已结算" : "待结算"}
-                        </span>
+                        <StatusBadge status={r.status === "settled" ? "已结算" : "待结算"} />
                       </TableCell>
                       <TableCell>{r.operatorName || r.operator || "—"}</TableCell>
                       <TableCell>
@@ -161,6 +154,7 @@ export default function ReimbursementsPage() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          aria-label="查看报销详情"
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/purchases/reimbursements/${r.id}`);

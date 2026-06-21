@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Pencil, Save, Trash2, ArrowLeft, Plus, Send, RotateCcw } from "lucide-react";
+import { StatusBadge } from "@/app/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -130,7 +131,7 @@ export default function DishDetailPage() {
   const [categories, setCategories] = useState<Array<{ id: number; name: string }>>([]);
   const [netIngredients, setNetIngredients] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [minorIngredients, setMinorIngredients] = useState<Array<{ id: number; code: string; name: string }>>([]);
-  const [seasonings, setSeasonings] = useState<Array<{ id: number; code: string; name: string; brand: string }>>([]);
+  const [seasonings, setSeasonings] = useState<Array<{ id: number; code: string; name: string; alias: string | null }>>([]);
   const [sauces, setSauces] = useState<Array<{ id: number; code: string; name: string }>>([]);
 
   const [editBasicOpen, setEditBasicOpen] = useState(false);
@@ -154,17 +155,30 @@ export default function DishDetailPage() {
   };
 
   const fetchRefs = async () => {
-    const [cRes, nRes, mRes, sRes, saRes] = await Promise.all([
+    const [cRes, ingCatRes, nRes, mRes, sRes, saRes] = await Promise.all([
       fetch("/api/dish-categories"),
+      fetch("/api/ingredient-categories"),
       fetch("/api/net-ingredients"),
       fetch("/api/minor-ingredients"),
-      fetch("/api/seasoning-ingredients"),
+      fetch("/api/ingredients"),
       fetch("/api/sauce-ingredients"),
     ]);
     setCategories(await cRes.json());
+    const ingredientCategories = await ingCatRes.json();
+    const seasoningL2Codes = new Set<string>(
+      ingredientCategories
+        .flatMap((l1: any) => l1.children)
+        .filter((l2: any) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
+        .map((l2: any) => l2.code)
+    );
+    const allIngredients = await sRes.json();
+    setSeasonings(
+      (allIngredients.data || allIngredients || []).filter((i: any) =>
+        seasoningL2Codes.has(i.l2Code)
+      )
+    );
     setNetIngredients(await nRes.json());
     setMinorIngredients(await mRes.json());
-    setSeasonings(await sRes.json());
     setSauces(await saRes.json());
   };
 
@@ -349,7 +363,7 @@ export default function DishDetailPage() {
 
   const netOptions = useMemo(() => netIngredients.map((i) => ({ value: String(i.id), label: i.name, subLabel: i.code })), [netIngredients]);
   const minorOptions = useMemo(() => minorIngredients.map((i) => ({ value: String(i.id), label: i.name, subLabel: i.code })), [minorIngredients]);
-  const seasoningOptions = useMemo(() => seasonings.map((i) => ({ value: String(i.id), label: i.name, subLabel: i.brand })), [seasonings]);
+  const seasoningOptions = useMemo(() => seasonings.map((i) => ({ value: String(i.id), label: i.name, subLabel: i.alias || "" })), [seasonings]);
   const sauceOptions = useMemo(() => sauces.map((i) => ({ value: String(i.id), label: i.name, subLabel: i.code })), [sauces]);
 
   if (loading) {
@@ -385,17 +399,15 @@ export default function DishDetailPage() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <PageHeader title={dish.name} description={`${dish.code} · ${dish.category?.name || "—"}`} />
-          <span
-            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+          <StatusBadge
+            status={
               dish.status === "published"
-                ? "bg-green-100 text-green-700"
+                ? "已发布"
                 : dish.status === "draft"
-                ? "bg-gray-100 text-gray-700"
-                : "bg-amber-100 text-amber-700"
-            }`}
-          >
-            {dish.status === "published" ? "已发布" : dish.status === "draft" ? "草稿" : "待发布"}
-          </span>
+                ? "草稿"
+                : "待发布"
+            }
+          />
         </div>
         <div className="flex items-center gap-2">
           {dish.status === "published" ? (
@@ -486,7 +498,7 @@ export default function DishDetailPage() {
               )}
               <div className="flex justify-between pt-2 border-t">
                 <span className="text-muted-foreground">成本</span>
-                <span className="font-semibold text-green-600">
+                <span className="font-semibold text-[var(--success)]">
                   {dish.cost != null ? `¥${Number(dish.cost).toFixed(2)}` : "—"}
                 </span>
               </div>
@@ -793,7 +805,7 @@ function BomEditor({
               className="w-[90px] h-9 text-sm"
             />
           )}
-          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => onRemove(idx)}>
+          <Button type="button" variant="ghost" size="icon" className="h-8 w-8 text-destructive" aria-label="删除BOM行" onClick={() => onRemove(idx)}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>

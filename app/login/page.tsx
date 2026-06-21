@@ -2,10 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { FormField } from "@/app/components/form-field";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+
+interface FormErrors {
+  username?: string;
+  password?: string;
+  general?: string;
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,6 +20,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -24,12 +32,19 @@ export default function LoginPage() {
       .finally(() => setChecking(false));
   }, [router]);
 
+  const validate = (): boolean => {
+    const next: FormErrors = {};
+    if (!username.trim()) next.username = "请输入用户名";
+    if (!password.trim()) next.password = "请输入密码";
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!username.trim() || !password.trim()) {
-      toast.error("请输入用户名和密码");
-      return;
-    }
+    setErrors({});
+    if (!validate()) return;
+
     setLoading(true);
     try {
       const res = await fetch("/api/auth/login", {
@@ -43,10 +58,14 @@ export default function LoginPage() {
         router.replace("/");
         router.refresh();
       } else {
-        toast.error(data.error || "登录失败");
+        const message = data.error || "登录失败";
+        setErrors({ general: message });
+        toast.error(message);
       }
     } catch {
-      toast.error("网络错误，请稍后重试");
+      const message = "网络错误，请稍后重试";
+      setErrors({ general: message });
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -71,34 +90,54 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">请登录以继续</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="username">用户名</Label>
+        <form onSubmit={handleSubmit} className="space-y-4" aria-describedby={errors.general ? "login-general-error" : undefined}>
+          <FormField
+            id="username"
+            label="用户名"
+            required
+            error={errors.username}
+          >
             <Input
-              id="username"
               placeholder="请输入用户名"
               value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              onChange={(e) => {
+                setUsername(e.target.value);
+                if (errors.username) setErrors((prev) => ({ ...prev, username: undefined }));
+              }}
               autoComplete="username"
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="password">密码</Label>
+          </FormField>
+          <FormField
+            id="password"
+            label="密码"
+            required
+            error={errors.password}
+          >
             <Input
-              id="password"
               type="password"
               placeholder="请输入密码"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+              }}
               autoComplete="current-password"
             />
-          </div>
+          </FormField>
+
+          {errors.general && (
+            <p id="login-general-error" className="text-sm text-destructive text-center" role="alert">
+              {errors.general}
+            </p>
+          )}
+
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "登录中..." : "登录"}
+            <span aria-live="polite" className="inline-flex items-center justify-center gap-2">
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading ? "登录中..." : "登录"}
+            </span>
           </Button>
         </form>
-
-
       </div>
     </div>
   );
