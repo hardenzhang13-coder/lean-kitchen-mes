@@ -1,6 +1,7 @@
 "use client";
 
-import { SearchableTableSelect } from "./searchable-table-select";
+import { useEffect, useState } from "react";
+import { SelectTableMode } from "@/app/components/select-table-mode";
 
 type Supplier = {
   id: number;
@@ -23,9 +24,23 @@ export function SupplierSelect({
   placeholder = "选择供应商",
   disabled = false,
 }: SupplierSelectProps) {
+  const [data, setData] = useState<Supplier[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    fetch("/api/suppliers")
+      .then((res) => res.json())
+      .then((json) => {
+        const list = Array.isArray(json) ? json : json.data || [];
+        setData(list);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
   return (
-    <SearchableTableSelect<Supplier>
-      fetchUrl="/api/suppliers"
+    <SelectTableMode<Supplier>
+      data={data}
       value={value ? String(value) : ""}
       onChange={(val, row) => {
         if (!val || !row) {
@@ -35,16 +50,15 @@ export function SupplierSelect({
         onChange(Number(val), row.name);
       }}
       columns={[
-        { key: "name", title: "名称" },
-        { key: "contact", title: "联系人" },
-        { key: "phone", title: "电话" },
-        { key: "remark", title: "备注" },
+        { key: "name", header: "名称" },
+        { key: "contact", header: "联系人" },
+        { key: "phone", header: "电话" },
+        { key: "remark", header: "备注" },
       ]}
-      searchFields={["name", "contact", "phone", "remark"]}
       placeholder={placeholder}
       title="选择供应商"
       searchPlaceholder="搜索供应商名称、联系人、电话、备注..."
-      emptyText="暂无匹配供应商"
+      emptyText={loading ? "加载中..." : "暂无匹配供应商"}
       disabled={disabled}
       confirmSelection={true}
       displayValue={(row) => row.name}

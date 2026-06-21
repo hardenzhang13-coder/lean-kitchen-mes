@@ -34,8 +34,8 @@ export function TileGroup({
             disabled={disabled}
             onClick={() => onChange(option.value)}
             className={cn(
-              "relative flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm transition-colors",
-              "hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring",
+              "relative flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm transition-colors",
+              "hover:bg-muted/60 focus:outline-none focus:border-primary",
               active
                 ? "border-primary bg-primary/5 text-primary hover:bg-primary/10"
                 : "border-input bg-transparent text-foreground",

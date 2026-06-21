@@ -178,6 +178,8 @@
 
 标准化产品形态的基础调味品。备货制管理。编号从 SEA-0001 起。
 
+> **数据迁移记录**：2026-06-19 将原料表（`ingredients`）id=83 "生抽" 迁移至调料表。调味品应归入调料表，不归入原料表。详见文末【数据迁移规范】。
+
 | 字段 | 类型 | 说明 | 示例 |
 |------|------|------|------|
 | id | serial PK | | |
@@ -190,6 +192,10 @@
 | 采购单价 | decimal(10,2) | | 100.00 |
 | 采购单位 | varchar(20) | 件、箱、袋 | 件 |
 | 储存方式 | varchar(10) | 冷藏、常温、冷冻 | 常温 |
+| created_at | timestamp | 创建时间 | 2026-06-19 10:00:00 |
+| updated_at | timestamp | 更新时间 | 2026-06-19 10:00:00 |
+
+> **默认排序**：所有食材清单（原料/净料/小料/调料/酱料）按 `created_at` 倒序排列（最新创建在前端）。API 层或前端实现：`ORDER BY created_at DESC`。
 
 ---
 
@@ -456,4 +462,65 @@
 
 ---
 
-*版本：v1.2 | 2026.06.04 | 排程状态改为"进行中/已完成"；purchase_plans / purchase_receipt_items / inventory_ledger 中文字段名统一为英文；补全缺失的 created_at / updated_at*
+## 附录：数据迁移规范
+
+### 原料 → 调料迁移
+
+当原料表中存在调味品（如生抽、老抽、料酒、醋等）时，应迁移至调料表。
+
+**字段映射**（原料表 `ingredients` → 调料表 `seasoning_ingredients`）：
+
+| 原料字段 | 调料字段 | 映射规则 |
+|----------|----------|----------|
+| `name` | `name` | 调料品类名称（如 生抽） |
+| `alias` | `brand` | 品牌完整商品名（如 海天金标生抽） |
+| `l2_code` | `l2_code` | 二级分类，检查是否为调味品分类（如 SEA-SEA） |
+| `purchase_unit` | `purchase_unit` | 采购单位（件、箱、瓶） |
+| `purchase_spec` | `product_spec` | 产品规格（如 1.9L*6） |
+| `latest_ref_price` | `retail_ref_price` | 零售参照价 |
+| `stock_unit` | `product_unit` | 产品单位（瓶装、袋装、桶装） |
+| `storage` | `storage` | 储存方式（常温、冷藏、冷冻） |
+
+**迁移步骤**：
+1. 确认原料表记录（如 id=83, name="生抽"）
+2. 在调料表创建新记录（编号按 SEA-XXXX 序列生成）
+3. 检查 `l2_code` 是否为正确调味品分类
+4. 迁移库存记录：`inventory` 表中 `sourceType` 从 `ingredient` 改为 `seasoning`，`sourceId` 更新为新调料 ID
+5. 迁移库存台账：`inventory_ledger` 中 `source` 字段更新来源标识
+6. 软删除原料表记录（设置 `deleted_at`）
+
+**迁移脚本示例（Prisma）**：
+```typescript
+// 1. 创建调料记录
+const seasoning = await prisma.seasoningIngredient.create({
+  data: {
+    code: `SEA-${String(nextId).padStart(4, '0')}`,
+    name: ingredient.name,
+    brand: ingredient.alias || ingredient.name,
+    l2Code: ingredient.l2Code, // 检查是否为调味品分类
+    productSpec: ingredient.purchaseSpec,
+    productUnit: ingredient.stockUnit,
+    purchaseUnit: ingredient.purchaseUnit,
+    retailRefPrice: ingredient.latestRefPrice,
+    storage: ingredient.storage,
+  }
+});
+
+// 2. 迁移库存记录
+await prisma.inventory.updateMany({
+  where: { sourceType: 'ingredient', sourceId: ingredient.id },
+  data: { sourceType: 'seasoning', sourceId: seasoning.id }
+});
+
+// 3. 软删除原料记录
+await prisma.ingredient.update({
+  where: { id: ingredient.id },
+  data: { deletedAt: new Date() }
+});
+```
+
+> 注意：迁移前需确认该原料无未完成的采购单、排程引用。如有，需先处理相关业务数据。
+
+---
+
+*版本：v1.3 | 2026.06.19 | 增加：调料表默认排序（created_at DESC）、数据迁移规范（原料→调料迁移）、字段映射说明、迁移脚本示例*

@@ -2,17 +2,17 @@
 
 import { cn } from "@/lib/utils";
 
-const colorMap: Record<string, { bg: string; text: string }> = {
-  VEG: { bg: "bg-green-100 dark:bg-green-950", text: "text-green-700 dark:text-green-300" },
-  MEA: { bg: "bg-red-100 dark:bg-red-950", text: "text-red-700 dark:text-red-300" },
-  AQU: { bg: "bg-blue-100 dark:bg-blue-950", text: "text-blue-700 dark:text-blue-300" },
-  POU: { bg: "bg-amber-100 dark:bg-amber-950", text: "text-amber-700 dark:text-amber-300" },
-  DRY: { bg: "bg-orange-100 dark:bg-orange-950", text: "text-orange-700 dark:text-orange-300" },
-  BEA: { bg: "bg-cyan-100 dark:bg-cyan-950", text: "text-cyan-700 dark:text-cyan-300" },
-  PRC: { bg: "bg-purple-100 dark:bg-purple-950", text: "text-purple-700 dark:text-purple-300" },
-  GRA: { bg: "bg-slate-100 dark:bg-slate-900", text: "text-slate-700 dark:text-slate-300" },
-  SEA: { bg: "bg-pink-100 dark:bg-pink-950", text: "text-pink-700 dark:text-pink-300" },
-  "SEA-SEA": { bg: "bg-pink-100 dark:bg-pink-950", text: "text-pink-700 dark:text-pink-300" },
+const tagVarMap: Record<string, { fg: string; bg: string }> = {
+  VEG: { fg: "var(--tag-veg)", bg: "var(--tag-veg-bg)" },
+  MEA: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
+  AQU: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  POU: { fg: "var(--tag-pou)", bg: "var(--tag-pou-bg)" },
+  DRY: { fg: "var(--tag-dry)", bg: "var(--tag-dry-bg)" },
+  BEA: { fg: "var(--tag-bea)", bg: "var(--tag-bea-bg)" },
+  PRC: { fg: "var(--tag-prc)", bg: "var(--tag-prc-bg)" },
+  GRA: { fg: "var(--tag-gra)", bg: "var(--tag-gra-bg)" },
+  SEA: { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
+  "SEA-SEA": { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
 };
 
 interface CategoryTagProps {
@@ -24,16 +24,15 @@ interface CategoryTagProps {
 
 export function CategoryTag({ l2Code, l1Code, name, className }: CategoryTagProps) {
   const code = l2Code || l1Code || "";
-  const style = colorMap[code] || colorMap[code.split("-")[0]] || { bg: "bg-muted", text: "text-muted-foreground" };
+  const style = tagVarMap[code] || tagVarMap[code.split("-")[0]] || { fg: "var(--muted-foreground)", bg: "var(--muted)" };
 
   return (
     <span
       className={cn(
         "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        style.bg,
-        style.text,
         className
       )}
+      style={{ color: style.fg, backgroundColor: style.bg }}
     >
       {name || code || "—"}
     </span>

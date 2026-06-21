@@ -220,7 +220,7 @@ export default function EditSchedulePage() {
         <div className="space-y-2">
           <Label>使用范围</Label>
           <Select value={scope} onValueChange={(v) => v && setScope(v)}>
-            <SelectTrigger className="w-full h-10">
+            <SelectTrigger className="w-full h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -272,7 +272,7 @@ export default function EditSchedulePage() {
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input placeholder="搜索菜品名称或编码..." value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
             <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
-              <SelectTrigger className="w-[140px] h-10">
+              <SelectTrigger className="w-[140px] h-11">
                 <SelectValue placeholder="全部分类" />
               </SelectTrigger>
               <SelectContent>

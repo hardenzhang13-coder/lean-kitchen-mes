@@ -8,7 +8,6 @@ import {
   ImageIcon,
   Loader2,
   Sparkles,
-  AlertCircle,
   Save,
   Trash2,
   Eye,
@@ -35,9 +34,10 @@ import {
 import { DatePicker } from "@/app/components/date-picker";
 import { ImagePreviewModal } from "@/app/components/image-preview-modal";
 import { CategoryTag } from "@/app/components/category-tag";
-import { SearchableSelect } from "@/app/components/searchable-select";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { SupplierSelect } from "@/app/components/supplier-select";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
+import { StatusBadge } from "@/app/components/status-badge";
 import { FormField, FormSection } from "@/app/components/form-field";
 import {
   Select,
@@ -1072,13 +1072,9 @@ export default function NewPurchasePage() {
                         </TableCell>
                         <TableCell className="py-2">
                           {!item.matched ? (
-                            <span className="inline-flex items-center rounded-md bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                              <AlertCircle className="mr-1 h-3 w-3" /> 未匹配
-                            </span>
+                            <StatusBadge status="未匹配" />
                           ) : (
-                            <span className="inline-flex items-center rounded-md bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                              正常
-                            </span>
+                            <StatusBadge status="正常" />
                           )}
                         </TableCell>
                         <TableCell className="py-2">{idx + 1}</TableCell>
@@ -1127,7 +1123,7 @@ export default function NewPurchasePage() {
                           />
                         </TableCell>
                         <TableCell className="py-2">
-                          <SearchableSelect
+                          <SelectTileMode
                             options={unitOptions}
                             value={item.purchaseUnit}
                             onChange={(v) =>
@@ -1135,24 +1131,26 @@ export default function NewPurchasePage() {
                             }
                             placeholder="单位"
                             title="选择采购单位"
-                            searchPlaceholder="搜索单位..."
                             emptyText="暂无匹配单位"
-                            clearable={false}
+                            searchable={false}
+                            cols={3}
+                            required
                           />
                         </TableCell>
                         <TableCell className="font-semibold whitespace-nowrap py-2 min-w-[100px]">
                           ¥{(Number(item.amount) || 0).toFixed(2)}
                         </TableCell>
                         <TableCell className="py-2">
-                          <SearchableSelect
+                          <SelectTileMode
                             options={unitOptions}
                             value={item.stockUnit}
                             onChange={(v) => updateItem(item.id, "stockUnit", v)}
                             placeholder="单位"
                             title="选择入库单位"
-                            searchPlaceholder="搜索单位..."
                             emptyText="暂无匹配单位"
-                            clearable={false}
+                            searchable={false}
+                            cols={3}
+                            required
                           />
                         </TableCell>
                         <TableCell className="py-2">
@@ -1241,15 +1239,16 @@ export default function NewPurchasePage() {
                   />
                 </FormField>
                 <FormField label="采购单位" required>
-                  <SearchableSelect
+                  <SelectTileMode
                     options={unitOptions}
                     value={editForm.purchaseUnit}
                     onChange={(v) => updateEditForm("purchaseUnit", v)}
                     placeholder="选择采购单位"
                     title="选择采购单位"
-                    searchPlaceholder="搜索单位..."
                     emptyText="暂无匹配单位"
-                    clearable={false}
+                    searchable={false}
+                    cols={3}
+                    required
                   />
                 </FormField>
                 <FormField label="食材单价" required>
@@ -1270,15 +1269,16 @@ export default function NewPurchasePage() {
                   </div>
                 </FormField>
                 <FormField label="入库单位" required>
-                  <SearchableSelect
+                  <SelectTileMode
                     options={unitOptions}
                     value={editForm.stockUnit}
                     onChange={(v) => updateEditForm("stockUnit", v)}
                     placeholder="选择入库单位"
                     title="选择入库单位"
-                    searchPlaceholder="搜索单位..."
                     emptyText="暂无匹配单位"
-                    clearable={false}
+                    searchable={false}
+                    cols={3}
+                    required
                   />
                 </FormField>
                 <FormField label="入库数量" required>

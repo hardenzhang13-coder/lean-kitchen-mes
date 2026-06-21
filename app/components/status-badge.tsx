@@ -7,6 +7,7 @@ export type StatusVariant = "success" | "warning" | "danger" | "info" | "neutral
 interface StatusBadgeProps {
   status?: string | null;
   variant?: StatusVariant;
+  size?: "default" | "sm";
   className?: string;
 }
 
@@ -19,8 +20,8 @@ const statusMap: Record<string, StatusVariant> = {
   // 排程
   已发布: "success",
   待生效: "warning",
-  进行中: "info",
-  已完成: "success",
+  进行中: "success",
+  已完成: "neutral",
   已取消: "danger",
   // 库存流水
   入库: "success",
@@ -31,27 +32,31 @@ const statusMap: Record<string, StatusVariant> = {
   正常: "success",
   未匹配: "warning",
   异常: "danger",
+  // 采购来源
+  手动: "info",
+  AI: "neutral",
 };
 
 const variantStyles: Record<StatusVariant, string> = {
   success:
-    "bg-[var(--success-muted)] text-[var(--success)]",
+    "bg-[var(--status-success-bg)] text-[var(--status-success)]",
   warning:
-    "bg-[var(--warning-muted)] text-[var(--warning)]",
+    "bg-[var(--status-warning-bg)] text-[var(--status-warning)]",
   danger:
-    "bg-[var(--danger-muted)] text-[var(--danger)]",
+    "bg-[var(--status-danger-bg)] text-[var(--status-danger)]",
   info:
-    "bg-[var(--info-muted)] text-[var(--info)]",
+    "bg-[var(--status-info-bg)] text-[var(--status-info)]",
   neutral:
-    "bg-muted text-muted-foreground",
+    "bg-[var(--status-neutral-bg)] text-[var(--status-neutral)]",
 };
 
-export function StatusBadge({ status, variant, className }: StatusBadgeProps) {
+export function StatusBadge({ status, variant, size = "default", className }: StatusBadgeProps) {
   const resolved = variant || (status ? statusMap[status] : undefined) || "neutral";
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "inline-flex items-center rounded-md font-medium whitespace-nowrap",
+        size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
         variantStyles[resolved],
         className
       )}

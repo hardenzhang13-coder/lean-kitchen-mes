@@ -1,15 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface EmptyStateAction {
   label: string;
-  onClick: () => void;
+  href?: string;
+  onClick?: () => void;
 }
 
-interface EmptyStateProps {
+export interface EmptyStateProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
@@ -24,14 +26,24 @@ export function EmptyState({
   action,
   className,
 }: EmptyStateProps) {
-  const actionNode =
-    action && typeof action === "object" && "label" in action ? (
-      <Button variant="outline" className="mt-4" onClick={action.onClick}>
-        {action.label}
+  const actionNode = (() => {
+    if (!action) return null;
+    if (typeof action !== "object" || !("label" in action)) return action;
+    const { label, href, onClick } = action as EmptyStateAction;
+    const classes = "mt-4";
+    if (href) {
+      return (
+        <Link href={href} passHref legacyBehavior>
+          <Button variant="outline" className={classes}>{label}</Button>
+        </Link>
+      );
+    }
+    return (
+      <Button variant="outline" className={classes} onClick={onClick}>
+        {label}
       </Button>
-    ) : (
-      action
     );
+  })();
 
   return (
     <div

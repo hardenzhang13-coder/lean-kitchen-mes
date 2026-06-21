@@ -11,22 +11,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
-import { SkeletonTable } from "@/app/components/skeleton-table";
 import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { ImportDialog, ImportField } from "@/app/components/import-dialog";
-import { TileSelect } from "@/app/components/tile-select";
-import { Pagination } from "@/app/components/pagination";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { DataTable } from "@/app/components/data-table";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
@@ -264,7 +255,7 @@ export default function RawIngredientsPage() {
               />
             </div>
             <div className="grid grid-cols-2 gap-3 w-[320px]">
-              <TileSelect
+              <SelectTileMode
                 options={categories.map((c) => ({
                   value: c.code,
                   label: c.name,
@@ -279,7 +270,7 @@ export default function RawIngredientsPage() {
                 title="选择一级分类"
                 searchable={false}
               />
-              <TileSelect
+              <SelectTileMode
                 options={l2FilterOptions}
                 value={l2Filter}
                 onChange={(v) => {
@@ -295,108 +286,79 @@ export default function RawIngredientsPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loading ? (
-            <SkeletonTable cols={11} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>食材名称</TableHead>
-                      <TableHead>商品名称</TableHead>
-                      <TableHead>一级分类</TableHead>
-                      <TableHead>二级分类</TableHead>
-                      <TableHead>采购规格</TableHead>
-                      <TableHead>采购单位</TableHead>
-                      <TableHead>最新参照单价</TableHead>
-                      <TableHead>入库单位</TableHead>
-                      <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={11}
-                          className="text-center text-muted-foreground"
-                        >
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => {
-                        const l2Info = l2Map[row.l2Code];
-                        const l1Name = l2Info
-                          ? l1Map[l2Info.parentCode] || "—"
-                          : "—";
-                        const l2Name = l2Info?.name || row.l2Code;
-                        return (
-                          <TableRow
-                            key={row.id}
-                            className="transition-colors hover:bg-muted/40"
-                          >
-                            <TableCell className="text-muted-foreground">
-                              {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {row.code}
-                            </TableCell>
-                            <TableCell>{row.name}</TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {row.alias || "—"}
-                            </TableCell>
-                            <TableCell>{l1Name}</TableCell>
-                            <TableCell>
-                              <CategoryTag l2Code={row.l2Code} name={l2Name} />
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {row.purchaseSpec || "—"}
-                            </TableCell>
-                            <TableCell>{row.purchaseUnit || "—"}</TableCell>
-                            <TableCell>
-                              {row.latestRefPrice != null
-                                ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                                : "—"}
-                            </TableCell>
-                            <TableCell>{row.stockUnit || "—"}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="编辑原料"
-                                onClick={() => openEdit(row)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="删除原料"
-                                onClick={() => setDeleteId(row.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+          <DataTable<Ingredient>
+            data={pageItems}
+            loading={loading}
+            columns={[
+              {
+                header: "序号",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground"
+                  >{(currentPage - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}</span>
+                ),
+              },
+              { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
+              { header: "食材名称", accessorKey: "name" },
+              { header: "商品名称", cell: (row) => row.alias || "—" },
+              {
+                header: "一级分类",
+                cell: (row) => {
+                  const l2Info = l2Map[row.l2Code];
+                  return l2Info ? l1Map[l2Info.parentCode] || "—" : "—";
+                },
+              },
+              {
+                header: "二级分类",
+                cell: (row) => {
+                  const l2Info = l2Map[row.l2Code];
+                  const l2Name = l2Info?.name || row.l2Code;
+                  return <CategoryTag l2Code={row.l2Code} name={l2Name} />;
+                },
+              },
+              { header: "采购规格", cell: (row) => row.purchaseSpec || "—" },
+              { header: "采购单位", cell: (row) => row.purchaseUnit || "—" },
+              {
+                header: "最新参照单价",
+                cell: (row) =>
+                  row.latestRefPrice != null
+                    ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                    : "—",
+              },
+              { header: "入库单位", cell: (row) => row.stockUnit || "—" },
+            ]}
+            pagination={
+              totalItems > 0
+                ? {
+                    currentPage,
+                    totalPages,
+                    totalItems,
+                    pageSize: DEFAULT_PAGE_SIZE,
+                    onPageChange: setCurrentPage,
+                  }
+                : undefined
+            }
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="编辑原料"
+                  onClick={() => openEdit(row)}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="删除原料"
+                  onClick={() => setDeleteId(row.id)}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            )}
+          />
         </CardContent>
       </Card>
 

@@ -11,10 +11,12 @@ import {
   Carrot,
   Settings,
   LogOut,
+  Sliders,
   User,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/utils";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 const navItems = [
   { href: "/", label: "工作台", icon: LayoutDashboard },
@@ -33,10 +35,10 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-full w-20 flex-col items-center border-r border-border bg-card py-4">
       <div className="mb-6 flex flex-col items-center gap-1">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-primary-foreground">
-          精
+        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:brightness-105">
+          <Sliders className="h-6 w-6" />
         </div>
-        <span className="text-xs font-medium text-muted-foreground">精益厨房</span>
+        <span className="text-[10px] font-medium text-muted-foreground tracking-tight">精益厨房</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
@@ -50,9 +52,9 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-16 rounded-lg gap-1 transition-colors",
+                "flex flex-col items-center justify-center w-16 h-16 rounded-md gap-1 transition-colors relative",
                 isActive
-                  ? "bg-primary/10 text-primary"
+                  ? "bg-primary/10 text-primary before:absolute before:left-1 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:rounded-full before:bg-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
               title={item.label}
@@ -67,33 +69,33 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
       <div className="mt-auto flex flex-col items-center gap-2 border-t border-border pt-3 w-full px-2 pb-2 overflow-hidden">
         <button
           onClick={() => router.push("/settings/profile")}
-          className="flex flex-col items-center gap-1 w-full justify-center group rounded-lg py-1.5 transition-colors hover:bg-muted"
+          className="flex flex-col items-center gap-1 w-full justify-center rounded-md py-1.5"
           title={`${user?.name || user?.username || "用户"}${user?.role ? ` · ${user.role}` : ""}`}
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted group-hover:bg-muted/80 shrink-0">
-            <User className="h-4 w-4 text-muted-foreground" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-sm shrink-0">
+            {user?.name ? getInitials(user.name) : user?.username ? getInitials(user.username) : <User className="h-4 w-4" />}
           </div>
           <span className="text-xs font-medium text-foreground truncate max-w-full px-0.5 leading-tight">
             {user?.name || user?.username || "用户"}
           </span>
           {user?.role && (
-            <span className="text-[10px] text-muted-foreground truncate max-w-full px-0.5 leading-tight">
+            <Badge className="text-[10px] px-1.5 py-0 h-4 rounded-full font-medium bg-primary/10 text-primary border-0">
               {user.role}
-            </span>
+            </Badge>
           )}
         </button>
         <button
           onClick={async () => {
             await fetch("/api/auth/logout", { method: "POST" });
-            toast.success("已登出");
+            toast.success("已退出");
             router.push("/login");
             router.refresh();
           }}
-          className="flex flex-col items-center justify-center w-16 h-14 rounded-lg gap-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="登出"
+          className="flex flex-col items-center justify-center w-16 h-14 rounded-md gap-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="退出"
         >
           <LogOut className="h-4 w-4" />
-          <span className="text-xs">登出</span>
+          <span className="text-xs">退出</span>
         </button>
       </div>
     </aside>

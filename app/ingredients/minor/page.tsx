@@ -24,7 +24,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { Pagination } from "@/app/components/pagination";
-import { TileSelect } from "@/app/components/tile-select";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { TileGroup } from "@/app/components/tile-group";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
@@ -350,7 +350,7 @@ export default function MinorIngredientsPage() {
                 />
               </FormField>
               <FormField label="单位" required>
-                <TileSelect
+                <SelectTileMode
                   options={unitOptions}
                   value={form.unit}
                   onChange={(v) => setForm({ ...form, unit: v })}

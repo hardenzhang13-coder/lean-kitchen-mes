@@ -120,8 +120,8 @@ export function IngredientPicker({
                       type="button"
                       onClick={() => handleSelect(option.value)}
                       className={`
-                        flex items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm
-                        transition-colors hover:bg-muted/60 focus:outline-none focus:ring-2 focus:ring-ring
+                        flex items-center justify-between rounded-md px-3 py-2.5 text-left text-sm
+                        transition-colors hover:bg-muted/60 focus:outline-none focus:border-primary
                         ${active ? "bg-primary/5 text-primary border border-primary/20" : "border border-transparent text-foreground"}
                       `}
                     >

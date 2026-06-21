@@ -200,7 +200,7 @@ export default function NewSchedulePage() {
         <div className="space-y-2">
           <Label>使用范围</Label>
           <Select value={scope} onValueChange={(v) => v && setScope(v)}>
-            <SelectTrigger className="w-full h-10">
+            <SelectTrigger className="w-full h-11">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -267,7 +267,7 @@ export default function NewSchedulePage() {
               className="max-w-xs"
             />
             <Select value={categoryFilter} onValueChange={(v) => v && setCategoryFilter(v)}>
-              <SelectTrigger className="w-[140px] h-10">
+              <SelectTrigger className="w-[140px] h-11">
                 <SelectValue placeholder="全部分类" />
               </SelectTrigger>
               <SelectContent>

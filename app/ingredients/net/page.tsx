@@ -24,7 +24,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { Pagination } from "@/app/components/pagination";
-import { TileSelect } from "@/app/components/tile-select";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { TileGroup } from "@/app/components/tile-group";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
@@ -373,7 +373,7 @@ export default function NetIngredientsPage() {
             </FormSection>
             <FormSection title="来源与分类">
               <FormField label="来源原料" required>
-                <TileSelect
+                <SelectTileMode
                   options={rawIngredients.map((ri) => ({ value: String(ri.id), label: ri.name }))}
                   value={form.sourceIngredientId}
                   onChange={(v) => setForm({ ...form, sourceIngredientId: v })}
@@ -384,7 +384,7 @@ export default function NetIngredientsPage() {
                 />
               </FormField>
               <FormField label="二级分类" required>
-                <TileSelect
+                <SelectTileMode
                   options={categories.map((c) => ({ value: c.code, label: c.name }))}
                   value={form.l2Code}
                   onChange={(v) => setForm({ ...form, l2Code: v })}
@@ -427,7 +427,7 @@ export default function NetIngredientsPage() {
                 />
               </FormField>
               <FormField label="净料单位" required>
-                <TileSelect
+                <SelectTileMode
                   options={unitOptions}
                   value={form.unit}
                   onChange={(v) => setForm({ ...form, unit: v })}

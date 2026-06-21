@@ -25,7 +25,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { Pagination } from "@/app/components/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
-import { TileSelect } from "@/app/components/tile-select";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { toast } from "sonner";
 
 type L1 = {
@@ -295,9 +295,13 @@ export default function ClassesPage() {
                               <TableCell className="font-semibold">{l1.name}</TableCell>
                               <TableCell className="text-muted-foreground">—</TableCell>
                               <TableCell className="text-right">
-                                <Button variant="ghost" size="sm" onClick={() => openCreateL2(l1.code)}>
-                                  <Plus className="h-3 w-3 mr-1" />
-                                  二级
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="添加二级分类"
+                                  onClick={() => openCreateL2(l1.code)}
+                                >
+                                  <Plus className="h-4 w-4" />
                                 </Button>
                                 <Button variant="ghost" size="icon" aria-label="编辑一级分类" onClick={() => openEditL1(l1)}>
                                   <Pencil className="h-4 w-4" />
@@ -374,7 +378,7 @@ export default function ClassesPage() {
             {dialogType === "l2" && (
               <div className="grid gap-2.5">
                 <Label htmlFor="parentCode" className="text-base">所属一级分类</Label>
-                <TileSelect
+                <SelectTileMode
                   options={l1Options}
                   value={form.parentCode}
                   onChange={(v) => setForm({ ...form, parentCode: v })}

@@ -51,7 +51,7 @@ export function DatePicker({
         className={cn(
           "flex h-11 w-full items-center justify-start rounded-md border border-input bg-background px-4 text-left text-base font-normal shadow-sm transition-colors",
           "hover:bg-accent hover:text-accent-foreground",
-          "focus:outline-none focus:ring-2 focus:ring-ring",
+          "focus:outline-none focus:border-primary",
           !value && "text-muted-foreground",
           disabled && "cursor-not-allowed opacity-50",
           className

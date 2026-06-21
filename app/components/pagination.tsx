@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface PaginationProps {
@@ -33,8 +33,19 @@ export function Pagination({
         <Button
           variant="outline"
           size="sm"
+          onClick={() => onPageChange(1)}
+          disabled={currentPage <= 1}
+          title="首页"
+        >
+          <ChevronsLeft className="h-4 w-4 mr-1" />
+          首页
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
+          title="上一页"
         >
           <ChevronLeft className="h-4 w-4 mr-1" />
           上一页
@@ -48,9 +59,20 @@ export function Pagination({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
+          title="下一页"
         >
           下一页
           <ChevronRight className="h-4 w-4 ml-1" />
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage >= totalPages}
+          title="尾页"
+        >
+          尾页
+          <ChevronsRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
     </div>

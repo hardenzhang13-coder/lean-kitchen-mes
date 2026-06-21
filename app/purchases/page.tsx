@@ -25,11 +25,10 @@ import { PageHeader } from "@/app/components/page-header";
 import { DatePicker } from "@/app/components/date-picker";
 import { ImagePreviewModal } from "@/app/components/image-preview-modal";
 import { CategoryTag } from "@/app/components/category-tag";
-import { EmptyState } from "@/app/components/empty-state";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { Pagination } from "@/app/components/pagination";
+import { DataTable } from "@/app/components/data-table";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { StatusBadge } from "@/app/components/status-badge";
 
 interface ReceiptItem {
   id: number;
@@ -73,8 +72,6 @@ const statusTabs = [
   { key: "已作废", label: "已作废" },
   { key: "", label: "全部" },
 ];
-
-import { StatusBadge } from "@/app/components/status-badge";
 
 export default function PurchasesPage() {
   const router = useRouter();
@@ -272,119 +269,98 @@ export default function PurchasesPage() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {loading ? (
-            <SkeletonTable cols={10} rows={10} />
-          ) : receipts.length === 0 ? (
-            <EmptyState
-              icon={FileText}
-              title="暂无采购单"
-              action={{
+          <DataTable<Receipt>
+            data={receipts}
+            loading={loading}
+            columns={[
+              { header: "编号", cell: (r) => <span className="font-medium">#{r.id}</span> },
+              { header: "状态", cell: (r) => <StatusBadge status={r.status} /> },
+              { header: "采购单位", accessorKey: "purchasingUnit" },
+              { header: "采购单摘要", accessorKey: "summary" },
+              { header: "采购日期", cell: (r) => formatDate(r.receiptDate) },
+              { header: "供应商", cell: (r) => r.supplierName || "—" },
+              {
+                header: "总金额",
+                cell: (r) => (
+                  <span className="font-semibold">
+                    ¥{Number(r.totalAmount).toFixed(2)}
+                  </span>
+                ),
+              },
+              { header: "操作人", cell: (r) => r.operatorName || r.operator || "—" },
+              {
+                header: "创建时间",
+                cell: (r) => (
+                  <span className="text-muted-foreground text-sm">
+                    {formatDateTime(r.createdAt)}
+                  </span>
+                ),
+              },
+            ]}
+            pagination={
+              totalCount > 0
+                ? {
+                    currentPage: page,
+                    totalPages,
+                    totalItems: totalCount,
+                    pageSize,
+                    onPageChange: setPage,
+                  }
+                : undefined
+            }
+            emptyState={{
+              icon: FileText,
+              title: "暂无采购单",
+              action: {
                 label: "录入第一单",
                 onClick: () => router.push("/purchases/new"),
-              }}
-            />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>编号</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead>采购单位</TableHead>
-                      <TableHead>采购单摘要</TableHead>
-                      <TableHead>采购日期</TableHead>
-                      <TableHead>供应商</TableHead>
-                      <TableHead>总金额</TableHead>
-                      <TableHead>操作人</TableHead>
-                      <TableHead>创建时间</TableHead>
-                      <TableHead className="w-[160px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {receipts.map((r) => (
-                      <TableRow
-                        key={r.id}
-                        className={cn(
-                          r.status === "已作废" && "opacity-60"
-                        )}
-                      >
-                        <TableCell className="font-medium">#{r.id}</TableCell>
-                        <TableCell>
-                          <StatusBadge status={r.status} />
-                        </TableCell>
-                        <TableCell>{r.purchasingUnit || "—"}</TableCell>
-                        <TableCell>{r.summary || "—"}</TableCell>
-                        <TableCell>{formatDate(r.receiptDate)}</TableCell>
-                        <TableCell>{r.supplierName || "—"}</TableCell>
-                        <TableCell className="font-semibold">
-                          ¥{Number(r.totalAmount).toFixed(2)}
-                        </TableCell>
-                        <TableCell>
-                          {r.operatorName || r.operator || "—"}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {formatDateTime(r.createdAt)}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                            {r.status === "待结算" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => router.push(`/purchases/new?id=${r.id}`)}
-                              >
-                                <Pencil className="mr-1 h-4 w-4" />
-                                编辑
-                              </Button>
-                            )}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setDetailReceipt(r)}
-                            >
-                              <Eye className="mr-1 h-4 w-4" />
-                              详情
-                            </Button>
-                            {r.status === "待结算" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setVoidId(r.id)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4" />
-                                作废
-                              </Button>
-                            )}
-                            {r.status === "已作废" && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-destructive hover:text-destructive"
-                                onClick={() => setForceDeleteId(r.id)}
-                              >
-                                <Trash2 className="mr-1 h-4 w-4" />
-                                删除
-                              </Button>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={page}
-                totalPages={totalPages}
-                totalItems={totalCount}
-                start={(page - 1) * pageSize + 1}
-                end={Math.min(page * pageSize, totalCount)}
-                onPageChange={setPage}
-              />
-            </>
-          )}
+              },
+            }}
+            rowActions={(r) => (
+              <>
+                {r.status === "待结算" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="编辑"
+                    onClick={() => router.push(`/purchases/new?id=${r.id}`)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="查看详情"
+                  onClick={() => setDetailReceipt(r)}
+                >
+                  <Eye className="h-4 w-4" />
+                </Button>
+                {r.status === "待结算" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="作废"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setVoidId(r.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                {r.status === "已作废" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="彻底删除"
+                    className="text-destructive hover:text-destructive"
+                    onClick={() => setForceDeleteId(r.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </>
+            )}
+          />
         </CardContent>
       </Card>
 
@@ -545,13 +521,9 @@ export default function PurchasesPage() {
                           </TableCell>
                           <TableCell className="text-xs">
                             {item.isManual ? (
-                              <span className="inline-flex items-center rounded-md bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-700">
-                                手动
-                              </span>
+                              <StatusBadge status="手动" />
                             ) : (
-                              <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                                AI
-                              </span>
+                              <StatusBadge status="AI" />
                             )}
                           </TableCell>
                         </TableRow>

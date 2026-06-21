@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
 
     const rows = await prisma.ingredient.findMany({
       where: { ...where, deletedAt: null },
-      orderBy: { id: "asc" },
+      orderBy: { id: "desc" },
     });
     return success(rows);
   } catch (err) {

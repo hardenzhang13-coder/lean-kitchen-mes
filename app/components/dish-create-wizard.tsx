@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ProcessTimeline } from "./process-timeline";
-import { TileSelect } from "./tile-select";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
 
 // ---- Types ----
 type DishCategory = { id: number; code: string; name: string };
@@ -470,7 +470,7 @@ export function DishCreateWizard({
       <Label className="text-base">
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
-      <TileSelect
+      <SelectTileMode
         value={value}
         onChange={onChange}
         options={options.map((opt) => ({ value: opt, label: opt }))}
@@ -595,7 +595,7 @@ export function DishCreateWizard({
               </div>
               <div className="space-y-2">
                 <Label className="text-base">菜品类别 <span className="text-destructive">*</span></Label>
-                <TileSelect
+                <SelectTileMode
                   value={form.categoryId}
                   onChange={(v) => setForm({ ...form, categoryId: v })}
                   options={categories.map((c) => ({ value: String(c.id), label: c.name }))}

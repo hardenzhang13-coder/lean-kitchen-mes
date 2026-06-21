@@ -54,7 +54,7 @@ export default async function SettingsPage() {
         <p className="text-muted-foreground">管理系统基础数据与用户账号</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {items.map((item) => {
           const Icon = item.icon;
           return (
