@@ -78,7 +78,7 @@ export default function HomePage() {
                 icon={ChefHat}
                 title="暂无进行中的排程"
                 action={
-                  <Link href="/schedules/new" className="text-sm text-primary hover:underline">
+                  <Link href="/schedules/new" className="text-sm text-primary">
                     去创建一个 →
                   </Link>
                 }
@@ -125,7 +125,7 @@ export default function HomePage() {
                       </div>
                     </div>
                     <Link href={`/schedules/${currentSchedule.id}`}>
-                      <span className="text-sm text-primary hover:underline flex items-center gap-1">
+                      <span className="text-sm text-primary flex items-center gap-1">
                         查看详情 <ArrowRight className="h-3.5 w-3.5" />
                       </span>
                     </Link>

@@ -211,14 +211,19 @@ export default function ClassesPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await fetch(`/api/ingredient-categories/${deleteTarget.id}?type=${deleteTarget.type}`, {
+      const res = await fetch(`/api/ingredient-categories/${deleteTarget.id}?type=${deleteTarget.type}`, {
         method: "DELETE",
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "删除失败");
+      }
       toast.success("删除成功");
       setDeleteTarget(null);
       fetchData();
-    } catch {
-      toast.error("删除失败");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "删除失败";
+      toast.error(message);
     }
   };
 
@@ -366,7 +371,7 @@ export default function ClassesPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {editing

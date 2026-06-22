@@ -86,10 +86,13 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
         </button>
         <button
           onClick={async () => {
-            await fetch("/api/auth/logout", { method: "POST" });
-            toast.success("已退出");
-            router.push("/login");
-            router.refresh();
+            try {
+              await fetch("/api/auth/logout", { method: "POST" });
+              toast.success("已退出");
+            } catch {
+              toast.error("退出请求失败");
+            }
+            window.location.href = "/login";
           }}
           className="flex flex-col items-center justify-center w-16 h-14 rounded-md gap-1 text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           title="退出"

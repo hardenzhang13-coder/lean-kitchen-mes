@@ -47,18 +47,21 @@ export async function buildCuttingOrders(
   });
 
   // 2. 获取所有菜品的小料 BOM
-  const seasoningDetails = await prisma.dishSeasoningDetail.findMany({
-    where: { dishId: { in: dishIds }, type: "minor" },
-  });
-  const minorIds = seasoningDetails.map((d) => d.sourceId);
-  const minors = await prisma.minorIngredient.findMany({
-    where: { id: { in: minorIds } },
-    select: { id: true, code: true, name: true, unit: true },
+  const minorDetails = await prisma.dishMinorDetail.findMany({
+    where: { dishId: { in: dishIds } },
+    include: {
+      netIngredient: {
+        select: { id: true, code: true, name: true, unit: true, l2Code: true },
+      },
+    },
   });
 
-  // 3. 获取分类名称
+  // 3. 获取分类名称（包含小料）
   const allL2Codes = [
-    ...new Set(netDetails.map((d) => d.netIngredient.l2Code).filter(Boolean)),
+    ...new Set([
+      ...netDetails.map((d) => d.netIngredient.l2Code).filter(Boolean),
+      ...minorDetails.map((d) => d.netIngredient.l2Code).filter(Boolean),
+    ]),
   ];
   const l2Cats = await prisma.ingredientCategoryL2.findMany({
     where: { code: { in: allL2Codes } },
@@ -128,10 +131,10 @@ export async function buildCuttingOrders(
     }
   >();
 
-  for (const detail of seasoningDetails) {
+  for (const detail of minorDetails) {
     const item = items.find((i) => i.dishId === detail.dishId);
     if (!item) continue;
-    const minor = minors.find((m) => m.id === detail.sourceId);
+    const minor = detail.netIngredient;
     if (!minor) continue;
     const qty = Number(detail.amountG) * item.quantity;
 
@@ -139,14 +142,16 @@ export async function buildCuttingOrders(
     if (existing) {
       existing.requiredQty += qty;
     } else {
+      const l2 = l2Cats.find((c) => c.code === minor.l2Code);
+      const l1 = l2 ? l1Cats.find((c) => c.code === l2.parentCode) : null;
       minorMap.set(minor.id, {
         sourceType: "minor",
         sourceId: minor.id,
         itemName: minor.name,
-        l1Code: null,
-        l2Code: null,
-        l1Name: "其他",
-        l2Name: "小料",
+        l1Code: l1?.code || null,
+        l2Code: l2?.code || null,
+        l1Name: l1?.name || "其他",
+        l2Name: l2?.name || "小料",
         requiredQty: qty,
         unit: minor.unit,
       });
@@ -205,18 +210,18 @@ export async function buildPurchasePlans(
   });
 
   // 2. 获取小料 BOM
-  const minorDetails = await prisma.dishSeasoningDetail.findMany({
-    where: { dishId: { in: dishIds }, type: "minor" },
-  });
-  const minorIds = minorDetails.map((d) => d.sourceId);
-  const minors = await prisma.minorIngredient.findMany({
-    where: { id: { in: minorIds } },
-    select: { id: true, code: true, name: true, unit: true, unitPrice: true },
+  const minorDetails = await prisma.dishMinorDetail.findMany({
+    where: { dishId: { in: dishIds } },
+    include: {
+      netIngredient: {
+        select: { id: true, code: true, name: true, unit: true, unitPrice: true, l2Code: true },
+      },
+    },
   });
 
   // 3. 获取调料 BOM
   const seasoningDetails = await prisma.dishSeasoningDetail.findMany({
-    where: { dishId: { in: dishIds }, type: "seasoning" },
+    where: { dishId: { in: dishIds } },
   });
   const seasoningIds = seasoningDetails.map((d) => d.sourceId);
   const seasonings = await prisma.ingredient.findMany({
@@ -236,7 +241,7 @@ export async function buildPurchasePlans(
 
   // 5. 查询当前库存（原料）
   const sourceIngIds = [
-    ...new Set(netDetails.map((d) => d.netIngredient.sourceIngredientId).filter(Boolean)),
+    ...new Set(netDetails.map((d) => d.netIngredient.sourceIngredientId).filter((id): id is number => id != null)),
   ];
   const inventories = await prisma.inventory.findMany({
     where: { ingredientId: { in: sourceIngIds } },
@@ -304,7 +309,7 @@ export async function buildPurchasePlans(
   for (const detail of minorDetails) {
     const item = items.find((i) => i.dishId === detail.dishId);
     if (!item) continue;
-    const minor = minors.find((m) => m.id === detail.sourceId);
+    const minor = detail.netIngredient;
     if (!minor) continue;
     const need = Number(detail.amountG) * item.quantity;
 
@@ -316,7 +321,7 @@ export async function buildPurchasePlans(
         sourceType: "minor",
         sourceId: minor.id,
         itemName: minor.name,
-        l2Code: null,
+        l2Code: minor.l2Code,
         grossNeed: need,
         unit: minor.unit,
         purchaseSpec: null,

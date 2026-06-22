@@ -3,10 +3,21 @@ import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { checkDuplicateName } from "@/lib/duplicate-check";
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  const { searchParams } = new URL(req.url);
+  const includeNetIngredients = searchParams.get("includeNetIngredients") === "true";
+
   const row = await prisma.ingredient.findFirst({
     where: { id: Number(id), deletedAt: null },
+    include: includeNetIngredients
+      ? {
+          netIngredients: {
+            where: { deletedAt: null },
+            orderBy: { id: "asc" },
+          },
+        }
+      : undefined,
   });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ data: row });

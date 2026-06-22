@@ -97,15 +97,41 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   try {
     if (type === "l1") {
-      const row = await prisma.ingredientCategoryL1.findUnique({ where: { id: Number(id) } });
+      const row = await prisma.ingredientCategoryL1.findUnique({
+        where: { id: Number(id) },
+        include: { children: true },
+      });
+      if (!row) {
+        return NextResponse.json({ error: "分类不存在" }, { status: 404 });
+      }
+      const l2Codes = row.children.map((c) => c.code);
+      if (l2Codes.length > 0) {
+        const [ingredientCount, netIngredientCount] = await Promise.all([
+          prisma.ingredient.count({ where: { l2Code: { in: l2Codes }, deletedAt: null } }),
+          prisma.netIngredient.count({ where: { l2Code: { in: l2Codes }, deletedAt: null } }),
+        ]);
+        if (ingredientCount > 0 || netIngredientCount > 0) {
+          return NextResponse.json({ error: "该分类已被食材引用，无法删除" }, { status: 400 });
+        }
+      }
       await prisma.ingredientCategoryL1.delete({ where: { id: Number(id) } });
-      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL1", entityId: Number(id), description: `删除: ${row?.name || row?.code || id}` });
+      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL1", entityId: Number(id), description: `删除: ${row.name || row.code}` });
       return NextResponse.json({ success: true });
     }
     if (type === "l2") {
       const row = await prisma.ingredientCategoryL2.findUnique({ where: { id: Number(id) } });
+      if (!row) {
+        return NextResponse.json({ error: "分类不存在" }, { status: 404 });
+      }
+      const [ingredientCount, netIngredientCount] = await Promise.all([
+        prisma.ingredient.count({ where: { l2Code: row.code, deletedAt: null } }),
+        prisma.netIngredient.count({ where: { l2Code: row.code, deletedAt: null } }),
+      ]);
+      if (ingredientCount > 0 || netIngredientCount > 0) {
+        return NextResponse.json({ error: "该分类已被食材引用，无法删除" }, { status: 400 });
+      }
       await prisma.ingredientCategoryL2.delete({ where: { id: Number(id) } });
-      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL2", entityId: Number(id), description: `删除: ${row?.name || row?.code || id}` });
+      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL2", entityId: Number(id), description: `删除: ${row.name || row.code}` });
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });

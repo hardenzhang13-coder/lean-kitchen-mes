@@ -241,7 +241,7 @@ export default function UnitsPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
           </DialogHeader>

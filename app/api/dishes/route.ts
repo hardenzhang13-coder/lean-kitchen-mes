@@ -7,7 +7,6 @@ import { success, created, badRequest, internalError } from "@/lib/api-response"
 import { createDishSchema, dishQuerySchema } from "@/lib/schemas/dish";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(req: NextRequest) {
   try {
@@ -39,6 +38,7 @@ export async function GET(req: NextRequest) {
             netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
           },
         },
+        minorDetails: true,
         seasoningDetails: true,
         sauceDetails: {
           include: {
@@ -49,22 +49,16 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    const dishIds = rows.map((r) => r.id);
-    const allSeasoningDetails = await prisma.dishSeasoningDetail.findMany({
-      where: { dishId: { in: dishIds } },
-    });
-    const minorIds = allSeasoningDetails.filter((d) => d.type === "minor").map((d) => d.sourceId);
-    const seasoningIds = allSeasoningDetails.filter((d) => d.type === "seasoning").map((d) => d.sourceId);
-
-    const seasoningL2Codes = await getSeasoningL2Codes();
+    const minorIds = [...new Set(rows.flatMap((r) => r.minorDetails.map((d) => d.netIngId)))];
+    const seasoningIds = [...new Set(rows.flatMap((r) => r.seasoningDetails.map((d) => d.sourceId)))];
 
     const [minors, seasonings] = await Promise.all([
-      prisma.minorIngredient.findMany({
+      prisma.netIngredient.findMany({
         where: { id: { in: minorIds } },
         select: { id: true, name: true, unitPrice: true, unit: true },
       }),
       prisma.ingredient.findMany({
-        where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+        where: { id: { in: seasoningIds } },
         select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
       }),
     ]);
@@ -72,20 +66,17 @@ export async function GET(req: NextRequest) {
     const enriched = await enrichOperatorNames(
       rows.map((row) => ({
         ...row,
+        minorDetails: row.minorDetails.map((d) => ({
+          ...d,
+          name: minors.find((m) => m.id === d.netIngId)?.name,
+          unitPrice: minors.find((m) => m.id === d.netIngId)?.unitPrice,
+          unit: minors.find((m) => m.id === d.netIngId)?.unit,
+        })),
         seasoningDetails: row.seasoningDetails.map((d) => ({
           ...d,
-          name:
-            d.type === "minor"
-              ? minors.find((m) => m.id === d.sourceId)?.name
-              : seasonings.find((s) => s.id === d.sourceId)?.name,
-          unitPrice:
-            d.type === "minor"
-              ? minors.find((m) => m.id === d.sourceId)?.unitPrice
-              : seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
-          unit:
-            d.type === "minor"
-              ? minors.find((m) => m.id === d.sourceId)?.unit
-              : seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
+          name: seasonings.find((s) => s.id === d.sourceId)?.name,
+          unitPrice: seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
+          unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
         })),
       }))
     );

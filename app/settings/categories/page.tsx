@@ -246,7 +246,7 @@ export default function CategoriesPage() {
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑菜品类别" : "新增菜品类别"}</DialogTitle>
           </DialogHeader>

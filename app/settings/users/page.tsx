@@ -309,7 +309,7 @@ export default function UsersPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑用户" : "新增用户"}</DialogTitle>
           </DialogHeader>

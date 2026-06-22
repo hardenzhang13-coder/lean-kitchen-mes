@@ -41,3 +41,21 @@ export async function getNonSeasoningL2Codes(): Promise<string[]> {
 export function isSeasoningL2Code(l2Code: string, seasoningL2Codes: string[]): boolean {
   return seasoningL2Codes.includes(l2Code);
 }
+
+/**
+ * 返回所有属于“小料”体系的二级分类编码。
+ */
+export async function getMinorL2Codes(): Promise<string[]> {
+  const l2Rows = await prisma.ingredientCategoryL2.findMany({
+    where: { parentCode: "MIN" },
+    select: { code: true },
+  });
+  return l2Rows.map((r) => r.code);
+}
+
+/**
+ * 同步判断给定 l2Code 是否属于小料体系（用于已获取列表的场景）。
+ */
+export function isMinorL2Code(l2Code: string, minorL2Codes: string[]): boolean {
+  return minorL2Codes.includes(l2Code);
+}

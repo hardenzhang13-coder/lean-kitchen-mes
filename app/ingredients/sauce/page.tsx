@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -11,22 +12,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
+import { DataTable } from "@/app/components/data-table";
 import { FormField, FormSection } from "@/app/components/form-field";
-import { Pagination } from "@/app/components/pagination";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { TileGroup } from "@/app/components/tile-group";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { Badge } from "@/components/ui/badge";
+import { usePagination } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
 type Sauce = {
@@ -34,23 +27,20 @@ type Sauce = {
   code: string;
   name: string;
   brand: string;
+  spec: string | null;
   recipe: string | null;
-  storage: string;
+  type: string;
   unitPrice: number;
   unit: string;
 };
 
-type Unit = {
-  id: number;
-  name: string;
-  category: string;
-};
-
-const storages = ["冷藏", "常温", "冷冻"];
+const SAUCE_TYPES = [
+  { value: "自制", label: "自制" },
+  { value: "外购", label: "外购" },
+];
 
 export default function SauceIngredientsPage() {
   const [data, setData] = useState<Sauce[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,17 +48,12 @@ export default function SauceIngredientsPage() {
   const [form, setForm] = useState({
     name: "",
     brand: "",
+    spec: "",
     recipe: "",
-    storage: "常温",
+    type: "自制",
     unitPrice: "",
-    unit: "",
   });
   const [deleteId, setDeleteId] = useState<number | null>(null);
-
-  const unitOptions = useMemo(
-    () => units.map((u) => ({ value: u.name, label: u.name })),
-    [units]
-  );
 
   const filtered = useMemo(() => {
     if (!search.trim()) return data;
@@ -86,10 +71,8 @@ export default function SauceIngredientsPage() {
     setCurrentPage,
     pageItems,
     totalPages,
-    start,
-    end,
     totalItems,
-  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+  } = usePagination(filtered, 20);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -98,12 +81,9 @@ export default function SauceIngredientsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, unitRes] = await Promise.all([
-        fetch("/api/sauce-ingredients"),
-        fetch("/api/units"),
-      ]);
-      setData(await res.json());
-      if (unitRes.ok) setUnits(await unitRes.json());
+      const res = await fetch("/api/sauce-ingredients");
+      const json = await res.json();
+      setData(json.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -119,7 +99,7 @@ export default function SauceIngredientsPage() {
 
   const openCreate = () => {
     setEditing(null);
-    setForm({ name: "", brand: "", recipe: "", storage: "常温", unitPrice: "", unit: "" });
+    setForm({ name: "", brand: "", spec: "", recipe: "", type: "自制", unitPrice: "" });
     setDialogOpen(true);
   };
 
@@ -128,32 +108,27 @@ export default function SauceIngredientsPage() {
     setForm({
       name: row.name,
       brand: row.brand,
+      spec: row.spec || "",
       recipe: row.recipe || "",
-      storage: row.storage,
+      type: row.type,
       unitPrice: String(row.unitPrice),
-      unit: row.unit,
     });
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
-    if (
-      !form.name.trim() ||
-      !form.brand.trim() ||
-      !form.storage.trim() ||
-      !form.unit.trim()
-    ) {
+    if (!form.name.trim() || !form.spec.trim() || !form.recipe.trim() || !form.unitPrice.trim()) {
       toast.error("请填写所有必填项");
       return;
     }
     try {
       const payload = {
-        name: form.name,
-        brand: form.brand,
-        recipe: form.recipe || null,
-        storage: form.storage,
+        name: form.name.trim(),
+        brand: form.brand.trim(),
+        spec: form.spec.trim(),
+        recipe: form.recipe.trim() || null,
+        type: form.type,
         unitPrice: Number(form.unitPrice) || 0,
-        unit: form.unit,
       };
       if (editing) {
         const res = await fetch(`/api/sauce-ingredients/${editing.id}`, {
@@ -180,20 +155,36 @@ export default function SauceIngredientsPage() {
       }
       setDialogOpen(false);
       fetchData();
-    } catch {
-      toast.error("操作失败");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "操作失败";
+      toast.error(message);
     }
   };
 
   const handleDelete = async (id: number) => {
     try {
-      await fetch(`/api/sauce-ingredients/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/sauce-ingredients/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "删除失败");
+      }
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch {
-      toast.error("删除失败");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "删除失败";
+      toast.error(message);
     }
+  };
+
+  const typeBadge = (type: string) => {
+    if (type === "自制") {
+      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">自制</Badge>;
+    }
+    if (type === "外购") {
+      return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">外购</Badge>;
+    }
+    return <Badge>{type}</Badge>;
   };
 
   return (
@@ -211,7 +202,7 @@ export default function SauceIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="搜索编号、名称或品牌..."
@@ -223,106 +214,82 @@ export default function SauceIngredientsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={9} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={8} rows={20} />
           ) : (
-            <>
-              <div className="rounded-lg border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>品牌</TableHead>
-                      <TableHead>配方</TableHead>
-                      <TableHead>单价</TableHead>
-                      <TableHead>单位</TableHead>
-                      <TableHead>储存方式</TableHead>
-                      <TableHead className="w-[120px] text-right">
-                        操作
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center text-muted-foreground"
-                        >
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow
-                          key={row.id}
-                          className="transition-colors hover:bg-muted/40"
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {row.code}
-                          </TableCell>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell>{row.brand}</TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                            {row.recipe || "—"}
-                          </TableCell>
-                          <TableCell>¥{row.unitPrice}</TableCell>
-                          <TableCell>{row.unit}</TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
-                              {row.storage}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="编辑酱料"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="删除酱料"
-                              onClick={() => setDeleteId(row.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
+            <DataTable<Sauce>
+              data={pageItems}
+              loading={loading}
+              columns={[
+                {
+                  header: "序号",
+                  cell: (_, rowIdx) => (
+                    <span className="text-muted-foreground">
+                      {(currentPage - 1) * 20 + rowIdx + 1}
+                    </span>
+                  ),
+                },
+                {
+                  header: "编号",
+                  cell: (row) => (
+                    <span className="font-medium">{row.code}</span>
+                  ),
+                },
+                { header: "名称", accessorKey: "name" },
+                { header: "品牌", accessorKey: "brand" },
+                { header: "规格", cell: (row) => row.spec || "—" },
+                { header: "类型", cell: (row) => typeBadge(row.type) },
+                {
+                  header: "单价",
+                  cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
+                },
+                { header: "单位", accessorKey: "unit" },
+              ]}
+              pagination={
+                totalItems > 0
+                  ? {
+                      currentPage,
+                      totalPages,
+                      totalItems,
+                      pageSize: 20,
+                      onPageChange: setCurrentPage,
+                    }
+                  : undefined
+              }
+              emptyState={{ title: "暂无数据" }}
+              rowActions={(row) => (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="编辑酱料"
+                    onClick={() => openEdit(row)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="删除酱料"
+                    onClick={() => setDeleteId(row.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              )}
+            />
           )}
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[640px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+        <DialogContent className="sm:max-w-[700px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
               {editing ? "编辑酱料" : "新增酱料"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
-            <FormSection title="基础信息" cols={1}>
+            <FormSection title="基础信息" cols={2}>
               <FormField label="名称" required>
                 <Input
                   value={form.name}
@@ -331,7 +298,7 @@ export default function SauceIngredientsPage() {
                   className="h-11 text-base px-4"
                 />
               </FormField>
-              <FormField label="品牌" required>
+              <FormField label="品牌">
                 <Input
                   value={form.brand}
                   onChange={(e) => setForm({ ...form, brand: e.target.value })}
@@ -340,12 +307,12 @@ export default function SauceIngredientsPage() {
                 />
               </FormField>
             </FormSection>
-            <FormSection title="配方与价格" cols={1}>
-              <FormField label="配方说明">
+            <FormSection title="规格与价格" cols={2}>
+              <FormField label="规格" required>
                 <Input
-                  value={form.recipe}
-                  onChange={(e) => setForm({ ...form, recipe: e.target.value })}
-                  placeholder="如 蚕豆、辣椒、盐、小麦粉"
+                  value={form.spec}
+                  onChange={(e) => setForm({ ...form, spec: e.target.value })}
+                  placeholder="如 500g/瓶"
                   className="h-11 text-base px-4"
                 />
               </FormField>
@@ -353,32 +320,34 @@ export default function SauceIngredientsPage() {
                 <Input
                   type="number"
                   value={form.unitPrice}
-                  onChange={(e) =>
-                    setForm({ ...form, unitPrice: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, unitPrice: e.target.value })}
                   placeholder="如 15.00"
                   className="h-11 text-base px-4"
                 />
               </FormField>
-              <FormField label="计量单位" required>
-                <SelectTileMode
-                  options={unitOptions}
-                  value={form.unit}
-                  onChange={(v) => setForm({ ...form, unit: v })}
-                  placeholder="请选择计量单位"
-                  title="选择计量单位"
-                  searchable={false}
-                  required
+            </FormSection>
+            <FormSection title="配方说明" cols={1}>
+              <FormField label="配方说明" required>
+                <Textarea
+                  value={form.recipe}
+                  onChange={(e) => setForm({ ...form, recipe: e.target.value })}
+                  placeholder="如 蚕豆、辣椒、盐、小麦粉"
+                  className="min-h-[80px] text-base px-4 py-3"
                 />
               </FormField>
             </FormSection>
-            <FormSection title="储存信息" cols={1}>
-              <FormField label="储存方式" required>
+            <FormSection title="类型与单位" cols={2}>
+              <FormField label="类型" required>
                 <TileGroup
-                  options={storages.map((s) => ({ value: s, label: s }))}
-                  value={form.storage}
-                  onChange={(v) => setForm({ ...form, storage: v })}
+                  options={SAUCE_TYPES}
+                  value={form.type}
+                  onChange={(v) => setForm({ ...form, type: v })}
                 />
+              </FormField>
+              <FormField label="单位">
+                <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
+                  g
+                </div>
               </FormField>
             </FormSection>
           </div>

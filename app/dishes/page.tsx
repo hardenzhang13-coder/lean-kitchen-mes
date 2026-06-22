@@ -36,6 +36,7 @@ type Dish = {
   status: string;
   category?: { id: number; code: string; name: string };
   netDetails: any[];
+  minorDetails: any[];
   seasoningDetails: any[];
   sauceDetails: any[];
   processes: any[];
@@ -103,7 +104,7 @@ export default function DishesPage() {
         fetch("/api/dish-categories"),
         fetch("/api/ingredient-categories"),
         fetch("/api/net-ingredients"),
-        fetch("/api/minor-ingredients"),
+        fetch("/api/net-ingredients?l1Code=MIN"),
         fetch("/api/ingredients"),
         fetch("/api/sauce-ingredients"),
       ]);
@@ -120,9 +121,12 @@ export default function DishesPage() {
       const allIngredients = await sRes.json();
       const list = allIngredients.data || allIngredients || [];
       setSeasonings(list.filter((i: any) => seasoningL2Codes.has(i.l2Code)));
-      setNetIngredients(await nRes.json());
-      setMinorIngredients(await mRes.json());
-      setSauces(await saRes.json());
+      const netJson = await nRes.json();
+      setNetIngredients(netJson.data || netJson || []);
+      const minorJson = await mRes.json();
+      setMinorIngredients(minorJson.data || minorJson || []);
+      const sauceJson = await saRes.json();
+      setSauces(sauceJson.data || sauceJson || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

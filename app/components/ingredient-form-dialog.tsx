@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,6 +24,8 @@ import {
   CategoryL1,
   Unit,
 } from "@/app/components/ingredient-form-fields";
+import { EmptyState } from "@/app/components/empty-state";
+import { LoadingState } from "@/app/components/loading-state";
 import { getDefaultSpec } from "@/lib/spec-parser";
 import { toast } from "sonner";
 
@@ -258,7 +260,7 @@ export function IngredientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1000px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+      <DialogContent className="sm:max-w-[1200px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
             {initialData?.id ? "编辑食材" : "新增食材"}
@@ -279,17 +281,21 @@ export function IngredientFormDialog({
             />
           </div>
 
-          <div className="lg:w-[520px] flex flex-col min-h-0 border rounded-md p-4">
-            <h4 className="text-sm font-semibold text-muted-foreground mb-3">
-              该分类下已添加的食材
-            </h4>
-            <div className="flex-1 overflow-auto rounded-md border">
+          <div className="lg:w-[520px] flex flex-col min-h-0 rounded-lg border bg-card">
+            <div className="px-4 py-3 border-b">
+              <h4 className="text-sm font-semibold text-muted-foreground">
+                该分类下已添加的食材
+              </h4>
+            </div>
+            <div className="flex-1 overflow-auto">
               {loadingList ? (
-                <div className="flex items-center justify-center h-24">
-                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-                </div>
+                <LoadingState type="table" rows={5} cols={6} />
               ) : rightList.length === 0 ? (
-                <p className="text-sm text-muted-foreground p-4">暂无数据</p>
+                <EmptyState
+                  icon={PackageOpen}
+                  title="暂无数据"
+                  description="该分类下尚未添加食材"
+                />
               ) : (
                 <Table>
                   <TableHeader className="sticky top-0 bg-background z-10">
@@ -299,7 +305,7 @@ export function IngredientFormDialog({
                       <TableHead className="whitespace-nowrap">采购规格</TableHead>
                       <TableHead className="whitespace-nowrap">采购单位</TableHead>
                       <TableHead className="whitespace-nowrap">入库单位</TableHead>
-                      <TableHead className="whitespace-nowrap">最新参照单价</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">最新参照单价</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -320,7 +326,7 @@ export function IngredientFormDialog({
                         <TableCell className="text-sm whitespace-nowrap">
                           {row.stockUnit || "—"}
                         </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
+                        <TableCell className="text-sm whitespace-nowrap text-right">
                           {row.latestRefPrice != null
                             ? `¥${Number(row.latestRefPrice).toFixed(2)}`
                             : "—"}

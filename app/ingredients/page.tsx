@@ -1,8 +1,8 @@
-"use client";
-
 import Link from "next/link";
 import { Carrot, Package, Cherry, FlaskConical, Wine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { prisma } from "@/lib/prisma";
+import { getMinorL2Codes, getSeasoningL2Codes } from "@/lib/category-helpers";
 
 const ingredientItems = [
   {
@@ -11,7 +11,7 @@ const ingredientItems = [
     desc: "食材采购入库、库存管理的基本单位",
     icon: Carrot,
     color: "text-orange-500 dark:text-orange-400",
-    count: "0 种",
+    countKey: "raw",
   },
   {
     href: "/ingredients/net",
@@ -19,7 +19,7 @@ const ingredientItems = [
     desc: "原料经初加工后的规格化半成品",
     icon: Package,
     color: "text-emerald-500 dark:text-emerald-400",
-    count: "0 种",
+    countKey: "net",
   },
   {
     href: "/ingredients/minor",
@@ -27,7 +27,7 @@ const ingredientItems = [
     desc: "用量极小的增香/去腥/提味食材",
     icon: Cherry,
     color: "text-rose-500 dark:text-rose-400",
-    count: "0 种",
+    countKey: "minor",
   },
   {
     href: "/ingredients/seasoning",
@@ -35,7 +35,7 @@ const ingredientItems = [
     desc: "标准化产品形态的基础调味品",
     icon: FlaskConical,
     color: "text-blue-500 dark:text-blue-400",
-    count: "0 种",
+    countKey: "seasoning",
   },
   {
     href: "/ingredients/sauce",
@@ -43,11 +43,36 @@ const ingredientItems = [
     desc: "复合加工调味半成品",
     icon: Wine,
     color: "text-purple-500 dark:text-purple-400",
-    count: "0 种",
+    countKey: "sauce",
   },
-];
+] as const;
 
-export default function IngredientsPage() {
+async function getCounts() {
+  const [seasoningL2Codes, minorL2Codes] = await Promise.all([
+    getSeasoningL2Codes(),
+    getMinorL2Codes(),
+  ]);
+  const netCount =
+    minorL2Codes.length > 0
+      ? prisma.netIngredient.count({ where: { deletedAt: null, l2Code: { notIn: minorL2Codes } } })
+      : prisma.netIngredient.count({ where: { deletedAt: null } });
+  const minorCount =
+    minorL2Codes.length > 0
+      ? prisma.netIngredient.count({ where: { deletedAt: null, l2Code: { in: minorL2Codes } } })
+      : Promise.resolve(0);
+  const [raw, net, minor, seasoning, sauce] = await Promise.all([
+    prisma.ingredient.count({ where: { deletedAt: null, l2Code: { notIn: seasoningL2Codes } } }),
+    netCount,
+    minorCount,
+    prisma.ingredient.count({ where: { deletedAt: null, l2Code: { in: seasoningL2Codes } } }),
+    prisma.sauceIngredient.count(),
+  ]);
+  return { raw, net, minor, seasoning, sauce };
+}
+
+export default async function IngredientsPage() {
+  const counts = await getCounts();
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div>
@@ -58,6 +83,7 @@ export default function IngredientsPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {ingredientItems.map((item) => {
           const Icon = item.icon;
+          const count = counts[item.countKey];
           return (
             <Link key={item.href} href={item.href}>
               <Card className="hover:bg-muted/50 transition-colors cursor-pointer h-full">
@@ -66,8 +92,8 @@ export default function IngredientsPage() {
                   <div className="flex-1">
                     <CardTitle className="text-lg">{item.label}</CardTitle>
                   </div>
-                  <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-                    {item.count}
+                  <span className="text-2xl font-bold text-foreground">
+                    {count}
                   </span>
                 </CardHeader>
                 <CardContent>

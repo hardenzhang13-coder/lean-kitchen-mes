@@ -9,6 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const {
     netDetails,
+    minorDetails,
     seasoningDetails,
     sauceDetails,
   }: {
@@ -18,8 +19,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       amountG: number;
       spec?: string;
     }>;
+    minorDetails?: Array<{
+      netIngId: number;
+      amountG: number;
+      brand?: string;
+    }>;
     seasoningDetails?: Array<{
-      type: string;
       sourceId: number;
       amountG: number;
       brand?: string;
@@ -36,18 +41,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const totalCost = await prisma.$transaction(async (tx) => {
       await tx.dishNetDetail.deleteMany({ where: { dishId } });
+      await tx.dishMinorDetail.deleteMany({ where: { dishId } });
       await tx.dishSeasoningDetail.deleteMany({ where: { dishId } });
       await tx.dishSauceDetail.deleteMany({ where: { dishId } });
 
       // 查询所有食材价格
       const netIngIds = (netDetails || []).map((d) => d.netIngId);
-      const minorIds = (seasoningDetails || []).filter((d) => d.type === "minor").map((d) => d.sourceId);
-      const seasoningIds = (seasoningDetails || []).filter((d) => d.type === "seasoning").map((d) => d.sourceId);
+      const minorIds = (minorDetails || []).map((d) => d.netIngId);
+      const seasoningIds = (seasoningDetails || []).map((d) => d.sourceId);
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
       const [netIngs, minors, seasonings, sauces] = await Promise.all([
         tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true } }),
-        tx.minorIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true } }),
+        tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true } }),
         tx.ingredient.findMany({
           where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
           select: { id: true, latestRefPrice: true },
@@ -65,8 +71,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const price = netPriceMap.get(netIngId);
         return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
       };
-      const calcSeasoningCost = (type: string, sourceId: number, amountG: number) => {
-        const price = type === "minor" ? minorPriceMap.get(sourceId) : seasoningPriceMap.get(sourceId);
+      const calcMinorCost = (netIngId: number, amountG: number) => {
+        const price = minorPriceMap.get(netIngId);
+        return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
+      };
+      const calcSeasoningCost = (sourceId: number, amountG: number) => {
+        const price = seasoningPriceMap.get(sourceId);
         return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
       };
       const calcSauceCost = (sauceId: number, amountG: number) => {
@@ -86,15 +96,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           })),
         });
       }
+      if (minorDetails && minorDetails.length > 0) {
+        await tx.dishMinorDetail.createMany({
+          data: minorDetails.map((d) => ({
+            dishId,
+            netIngId: Number(d.netIngId),
+            amountG: Number(d.amountG),
+            brand: d.brand || null,
+            cost: calcMinorCost(Number(d.netIngId), Number(d.amountG)),
+          })),
+        });
+      }
       if (seasoningDetails && seasoningDetails.length > 0) {
         await tx.dishSeasoningDetail.createMany({
           data: seasoningDetails.map((d) => ({
             dishId,
-            type: d.type,
+            type: "seasoning",
             sourceId: Number(d.sourceId),
             amountG: Number(d.amountG),
             brand: d.brand || null,
-            cost: calcSeasoningCost(d.type, Number(d.sourceId), Number(d.amountG)),
+            cost: calcSeasoningCost(Number(d.sourceId), Number(d.amountG)),
           })),
         });
       }
@@ -111,14 +132,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
 
       // 重新计算菜品总成本
-      const [allNet, allSea, allSau] = await Promise.all([
+      const [allNet, allMinor, allSea, allSau] = await Promise.all([
         tx.dishNetDetail.findMany({ where: { dishId } }),
+        tx.dishMinorDetail.findMany({ where: { dishId } }),
         tx.dishSeasoningDetail.findMany({ where: { dishId } }),
         tx.dishSauceDetail.findMany({ where: { dishId } }),
       ]);
 
       const total =
         allNet.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
+        allMinor.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
         allSea.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
         allSau.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0);
 

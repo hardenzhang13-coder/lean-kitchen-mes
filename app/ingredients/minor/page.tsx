@@ -11,99 +11,65 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
-import { FormField, FormSection } from "@/app/components/form-field";
-import { Pagination } from "@/app/components/pagination";
+import { DataTable } from "@/app/components/data-table";
+import { CategoryTag } from "@/app/components/category-tag";
+import {
+  NetIngredientFormDialog,
+} from "@/app/components/net-ingredient-form-dialog";
+import {
+  NetIngredientEditDialog,
+  NetIngredientEditItem,
+} from "@/app/components/net-ingredient-edit-dialog";
+import { usePagination } from "@/app/lib/use-pagination";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { TileGroup } from "@/app/components/tile-group";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
-type MinorIngredient = {
+type NetIngredient = {
   id: number;
   code: string;
   name: string;
+  sourceIngredientId: number | null;
   spec: string | null;
+  yieldRate: number | null;
   unitPrice: number;
   unit: string;
-  origin: string | null;
-  storage: string;
+  l2Code: string;
+  sourceIngredient?: { id: number; name: string } | null;
 };
 
-type Unit = {
-  id: number;
+type CategoryL1 = {
+  code: string;
   name: string;
-  category: string;
+  children: { code: string; name: string }[];
 };
-
-const storages = ["冷藏", "常温", "冷冻"];
 
 export default function MinorIngredientsPage() {
-  const [data, setData] = useState<MinorIngredient[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
+  const [data, setData] = useState<NetIngredient[]>([]);
+  const [categories, setCategories] = useState<CategoryL1[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<MinorIngredient | null>(null);
-  const [form, setForm] = useState({
-    name: "",
-    spec: "",
-    unitPrice: "",
-    unit: "10g",
-    origin: "",
-    storage: "冷藏",
-  });
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [l2Filter, setL2Filter] = useState("");
 
-  const unitOptions = useMemo(
-    () => units.map((u) => ({ value: u.name, label: u.name })),
-    [units]
-  );
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<NetIngredientEditItem | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return data;
-    const s = search.trim().toLowerCase();
-    return data.filter(
-      (d) =>
-        d.name.toLowerCase().includes(s) ||
-        d.code.toLowerCase().includes(s) ||
-        (d.origin || "").toLowerCase().includes(s)
-    );
-  }, [data, search]);
-
-  const {
-    currentPage,
-    setCurrentPage,
-    pageItems,
-    totalPages,
-    start,
-    end,
-    totalItems,
-  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, setCurrentPage]);
+  const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, unitRes] = await Promise.all([
-        fetch("/api/minor-ingredients"),
-        fetch("/api/units"),
+      const [res, catRes] = await Promise.all([
+        fetch("/api/net-ingredients?l1Code=MIN"),
+        fetch("/api/ingredient-categories"),
       ]);
-      setData(await res.json());
-      if (unitRes.ok) setUnits(await unitRes.json());
+      const json = await res.json();
+      setData(json.data || []);
+      setCategories(await catRes.json());
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -117,84 +83,83 @@ export default function MinorIngredientsPage() {
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", spec: "", unitPrice: "", unit: "10g", origin: "", storage: "冷藏" });
-    setDialogOpen(true);
-  };
-
-  const openEdit = (row: MinorIngredient) => {
-    setEditing(row);
-    setForm({
-      name: row.name,
-      spec: row.spec || "",
-      unitPrice: String(row.unitPrice),
-      unit: row.unit,
-      origin: row.origin || "",
-      storage: row.storage,
+  const l2Map = useMemo(() => {
+    const map: Record<string, { name: string; parentCode: string }> = {};
+    categories.forEach((l1) => {
+      l1.children.forEach((l2) => {
+        map[l2.code] = { name: l2.name, parentCode: l1.code };
+      });
     });
-    setDialogOpen(true);
+    return map;
+  }, [categories]);
+
+  const filtered = useMemo(() => {
+    return data.filter((d) => {
+      if (l2Filter && d.l2Code !== l2Filter) return false;
+      if (!search.trim()) return true;
+      const s = search.trim().toLowerCase();
+      return (
+        d.name.toLowerCase().includes(s) || d.code.toLowerCase().includes(s)
+      );
+    });
+  }, [data, search, l2Filter]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageItems,
+    totalPages,
+    totalItems,
+  } = usePagination(filtered, 20);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, l2Filter, setCurrentPage]);
+
+  const openCreate = () => {
+    setCreateDialogOpen(true);
   };
 
-  const handleSubmit = async () => {
-    if (!form.name.trim() || !form.storage.trim()) {
-      toast.error("请填写所有必填项");
-      return;
-    }
+  const openEdit = (row: NetIngredient) => {
+    setEditing({
+      id: row.id,
+      name: row.name,
+      spec: row.spec,
+      yieldRate: row.yieldRate,
+      unitPrice: row.unitPrice,
+      sourceIngredientId: row.sourceIngredientId,
+      l2Code: row.l2Code,
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteRow) return;
+    setDeleteLoading(true);
     try {
-      const payload = {
-        name: form.name,
-        spec: form.spec || null,
-        unitPrice: Number(form.unitPrice) || 0,
-        unit: form.unit || "10g",
-        origin: form.origin || null,
-        storage: form.storage,
-      };
-      if (editing) {
-        const res = await fetch(`/api/minor-ingredients/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "更新失败");
-        }
-        toast.success("更新成功");
-      } else {
-        const res = await fetch("/api/minor-ingredients", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}));
-          throw new Error(err.error || "创建失败");
-        }
-        toast.success("创建成功");
+      const res = await fetch(`/api/net-ingredients/${deleteRow.id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(json.error || "删除失败");
       }
-      setDialogOpen(false);
-      fetchData();
-    } catch {
-      toast.error("操作失败");
-    }
-  };
-
-  const handleDelete = async (id: number) => {
-    try {
-      await fetch(`/api/minor-ingredients/${id}`, { method: "DELETE" });
       toast.success("删除成功");
-      setDeleteId(null);
+      setDeleteRow(null);
       fetchData();
-    } catch {
-      toast.error("删除失败");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "删除失败";
+      toast.error(message);
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader showBack
+        <PageHeader
+          showBack
           title="小料清单"
           description="用量极小的增香/去腥/提味食材"
         />
@@ -206,215 +171,164 @@ export default function MinorIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3 flex-wrap">
             <Search className="h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="搜索编号、名称或产地..."
+              placeholder="搜索编号、名称..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="max-w-sm"
             />
+            <SelectTileMode
+              options={
+                (categories.find((c) => c.code === "MIN")?.children || []).map((c) => ({
+                  value: c.code,
+                  label: c.name,
+                }))
+              }
+              value={l2Filter}
+              onChange={setL2Filter}
+              placeholder="全部二级分类"
+              title="选择二级分类"
+              searchable={false}
+              className="w-[180px]"
+            />
+            {(search || l2Filter) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSearch("");
+                  setL2Filter("");
+                }}
+              >
+                清除筛选
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={9} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={8} rows={20} />
           ) : (
-            <>
-              <div className="rounded-lg border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>规格</TableHead>
-                      <TableHead>单价</TableHead>
-                      <TableHead>单位</TableHead>
-                      <TableHead>产地/品牌</TableHead>
-                      <TableHead>储存方式</TableHead>
-                      <TableHead className="w-[120px] text-right">
-                        操作
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center text-muted-foreground"
-                        >
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow
-                          key={row.id}
-                          className="transition-colors hover:bg-muted/40"
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            {row.code}
-                          </TableCell>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {row.spec || "—"}
-                          </TableCell>
-                          <TableCell>¥{row.unitPrice}</TableCell>
-                          <TableCell>{row.unit}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {row.origin || "—"}
-                          </TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs">
-                              {row.storage}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="编辑小料"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="删除小料"
-                              onClick={() => setDeleteId(row.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
+            <DataTable<NetIngredient>
+              data={pageItems}
+              loading={loading}
+              columns={[
+                {
+                  header: "序号",
+                  cell: (_, rowIdx) => (
+                    <span className="text-muted-foreground">
+                      {(currentPage - 1) * 20 + rowIdx + 1}
+                    </span>
+                  ),
+                },
+                {
+                  header: "二级分类",
+                  cell: (row) => {
+                    const l2Info = l2Map[row.l2Code];
+                    return (
+                      <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
+                    );
+                  },
+                },
+                {
+                  header: "编号",
+                  cell: (row) => (
+                    <span className="font-medium">{row.code}</span>
+                  ),
+                },
+                { header: "名称", accessorKey: "name" },
+                { header: "规格", cell: (row) => row.spec || "—" },
+                {
+                  header: "单价",
+                  cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
+                },
+                { header: "单位", accessorKey: "unit" },
+              ]}
+              pagination={
+                totalItems > 0
+                  ? {
+                      currentPage,
+                      totalPages,
+                      totalItems,
+                      pageSize: 20,
+                      onPageChange: setCurrentPage,
+                    }
+                  : undefined
+              }
+              emptyState={{ title: "暂无数据" }}
+              rowActions={(row) => (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="编辑小料"
+                    onClick={() => openEdit(row)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="删除小料"
+                    onClick={() => setDeleteRow(row)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              )}
+            />
           )}
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[640px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
-          <DialogHeader className="px-6 pt-6 pb-0">
-            <DialogTitle className="text-lg">
-              {editing ? "编辑小料" : "新增小料"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
-            <FormSection title="基础信息">
-              <FormField label="名称" required>
-                <Input
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="如 蒜末"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-            </FormSection>
-            <FormSection title="规格与价格">
-              <FormField label="规格">
-                <Input
-                  value={form.spec}
-                  onChange={(e) => setForm({ ...form, spec: e.target.value })}
-                  placeholder="如 切末"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="单价" required>
-                <Input
-                  type="number"
-                  value={form.unitPrice}
-                  onChange={(e) =>
-                    setForm({ ...form, unitPrice: e.target.value })
-                  }
-                  placeholder="如 2.50"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-              <FormField label="单位" required>
-                <SelectTileMode
-                  options={unitOptions}
-                  value={form.unit}
-                  onChange={(v) => setForm({ ...form, unit: v })}
-                  placeholder="请选择单位"
-                  title="选择单位"
-                  searchable={false}
-                  required
-                />
-              </FormField>
-              <FormField label="产地/品牌">
-                <Input
-                  value={form.origin}
-                  onChange={(e) =>
-                    setForm({ ...form, origin: e.target.value })
-                  }
-                  placeholder="如 山东"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-            </FormSection>
-            <FormSection title="储存信息" cols={1}>
-              <FormField label="储存方式" required>
-                <TileGroup
-                  options={storages.map((s) => ({ value: s, label: s }))}
-                  value={form.storage}
-                  onChange={(v) => setForm({ ...form, storage: v })}
-                />
-              </FormField>
-            </FormSection>
-          </div>
-          <DialogFooter className="px-6 pt-0 pb-6">
-            <Button
-              variant="outline"
-              onClick={() => setDialogOpen(false)}
-              className="h-11 px-6"
-            >
-              取消
-            </Button>
-            <Button onClick={handleSubmit} className="h-11 px-6">
-              保存
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NetIngredientFormDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        mode="minor"
+        categories={categories}
+        rawIngredients={[]}
+        onSuccess={() => {
+          setCreateDialogOpen(false);
+          fetchData();
+        }}
+      />
 
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+      <NetIngredientEditDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        mode="minor"
+        initialData={editing}
+        categories={categories}
+        rawIngredients={[]}
+        onSuccess={fetchData}
+      />
+
+      <Dialog
+        open={deleteRow !== null}
+        onOpenChange={() => setDeleteRow(null)}
+      >
         <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除这条小料吗？此操作不可撤销。
+            确定要删除小料“{deleteRow?.name}”吗？此操作不可撤销。
           </p>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteId(null)}
+              onClick={() => setDeleteRow(null)}
+              disabled={deleteLoading}
               className="h-11 px-6"
             >
               取消
             </Button>
             <Button
               variant="destructive"
-              onClick={() => deleteId && handleDelete(deleteId)}
+              onClick={handleDelete}
+              disabled={deleteLoading}
               className="h-11 px-6"
             >
               删除

@@ -81,6 +81,7 @@ interface Props {
     meatType: string | null;
     status: string;
     netDetails: any[];
+    minorDetails: any[];
     seasoningDetails: any[];
     sauceDetails: any[];
     processes: ProcessStep[];
@@ -187,26 +188,22 @@ export function DishCreateWizard({
           })) || []
       );
       setMinorBom(
-        editingDish.seasoningDetails
-          ?.filter((d: any) => d.type === "minor")
-          .map((d: any) => ({
-            id: uid(),
-            sourceId: d.sourceId,
-            name: d.name || "",
-            amountG: String(d.amountG),
-            brand: d.brand || "",
-          })) || []
+        editingDish.minorDetails?.map((d: any) => ({
+          id: uid(),
+          sourceId: d.netIngId,
+          name: d.name || d.netIngredient?.name || "",
+          amountG: String(d.amountG),
+          brand: d.brand || "",
+        })) || []
       );
       setSeasoningBom(
-        editingDish.seasoningDetails
-          ?.filter((d: any) => d.type === "seasoning")
-          .map((d: any) => ({
-            id: uid(),
-            sourceId: d.sourceId,
-            name: d.name || "",
-            amountG: String(d.amountG),
-            brand: d.brand || "",
-          })) || []
+        editingDish.seasoningDetails?.map((d: any) => ({
+          id: uid(),
+          sourceId: d.sourceId,
+          name: d.name || "",
+          amountG: String(d.amountG),
+          brand: d.brand || "",
+        })) || []
       );
       setSauceBom(
         editingDish.sauceDetails?.map((d: any) => ({
@@ -280,16 +277,22 @@ export function DishCreateWizard({
       ...mainBom.map((b) => ({ role: "main" as const, netIngId: b.sourceId, amountG: Number(b.amountG) || 0, spec: b.spec || null })),
       ...supportBom.map((b) => ({ role: "support" as const, netIngId: b.sourceId, amountG: Number(b.amountG) || 0, spec: b.spec || null })),
     ];
-    const seasoningDetails = [
-      ...minorBom.map((b) => ({ type: "minor" as const, sourceId: b.sourceId, amountG: Number(b.amountG) || 0, brand: b.brand || null })),
-      ...seasoningBom.map((b) => ({ type: "seasoning" as const, sourceId: b.sourceId, amountG: Number(b.amountG) || 0, brand: b.brand || null })),
-    ];
+    const minorDetails = minorBom.map((b) => ({
+      netIngId: b.sourceId,
+      amountG: Number(b.amountG) || 0,
+      brand: b.brand || null,
+    }));
+    const seasoningDetails = seasoningBom.map((b) => ({
+      sourceId: b.sourceId,
+      amountG: Number(b.amountG) || 0,
+      brand: b.brand || null,
+    }));
     const sauceDetails = sauceBom.map((b) => ({
       sauceId: b.sourceId,
       amountG: Number(b.amountG) || 0,
       brand: b.brand || null,
     }));
-    return { netDetails, seasoningDetails, sauceDetails };
+    return { netDetails, minorDetails, seasoningDetails, sauceDetails };
   };
 
   const handleSave = async (targetStatus: "draft" | "pending" | "published") => {

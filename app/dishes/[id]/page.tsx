@@ -55,6 +55,7 @@ type DishDetail = {
   operatorName?: string | null;
   category?: { id: number; code: string; name: string };
   netDetails: Array<any>;
+  minorDetails: Array<any>;
   seasoningDetails: Array<any>;
   sauceDetails: Array<any>;
   processes: Array<any>;
@@ -159,7 +160,7 @@ export default function DishDetailPage() {
       fetch("/api/dish-categories"),
       fetch("/api/ingredient-categories"),
       fetch("/api/net-ingredients"),
-      fetch("/api/minor-ingredients"),
+      fetch("/api/net-ingredients?l1Code=MIN"),
       fetch("/api/ingredients"),
       fetch("/api/sauce-ingredients"),
     ]);
@@ -177,9 +178,12 @@ export default function DishDetailPage() {
         seasoningL2Codes.has(i.l2Code)
       )
     );
-    setNetIngredients(await nRes.json());
-    setMinorIngredients(await mRes.json());
-    setSauces(await saRes.json());
+    const netJson = await nRes.json();
+    setNetIngredients(netJson.data || netJson || []);
+    const minorJson = await mRes.json();
+    setMinorIngredients(minorJson.data || minorJson || []);
+    const sauceJson = await saRes.json();
+    setSauces(sauceJson.data || sauceJson || []);
   };
 
   useEffect(() => {
@@ -244,14 +248,12 @@ export default function DishDetailPage() {
         .filter((x: any) => x.netIngId && x.amountG)
         .map((x: any) => ({ role: "support", netIngId: Number(x.netIngId), amountG: Number(x.amountG), spec: x.spec || null })),
     ];
-    const seasoningDetails = [
-      ...bomDraft.minor
-        .filter((x: any) => x.sourceId && x.amountG)
-        .map((x: any) => ({ type: "minor", sourceId: Number(x.sourceId), amountG: Number(x.amountG), brand: x.brand || null })),
-      ...bomDraft.seasoning
-        .filter((x: any) => x.sourceId && x.amountG)
-        .map((x: any) => ({ type: "seasoning", sourceId: Number(x.sourceId), amountG: Number(x.amountG), brand: x.brand || null })),
-    ];
+    const minorDetails = bomDraft.minor
+      .filter((x: any) => x.sourceId && x.amountG)
+      .map((x: any) => ({ netIngId: Number(x.sourceId), amountG: Number(x.amountG), brand: x.brand || null }));
+    const seasoningDetails = bomDraft.seasoning
+      .filter((x: any) => x.sourceId && x.amountG)
+      .map((x: any) => ({ sourceId: Number(x.sourceId), amountG: Number(x.amountG), brand: x.brand || null }));
     const sauceDetails = bomDraft.sauce
       .filter((x: any) => x.sauceId && x.amountG)
       .map((x: any) => ({ sauceId: Number(x.sauceId), amountG: Number(x.amountG), brand: x.brand || null }));
@@ -260,7 +262,7 @@ export default function DishDetailPage() {
       await fetch(`/api/dishes/${dishId}/bom`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ netDetails, seasoningDetails, sauceDetails }),
+        body: JSON.stringify({ netDetails, minorDetails, seasoningDetails, sauceDetails }),
       });
       toast.success("BOM 保存成功");
       setBomEditing(false);
@@ -327,12 +329,16 @@ export default function DishDetailPage() {
       support: dish.netDetails
         .filter((d: any) => d.role === "support")
         .map((d: any) => ({ netIngId: String(d.netIngId), amountG: String(d.amountG), spec: d.spec || "" })),
-      minor: dish.seasoningDetails
-        .filter((d: any) => d.type === "minor")
-        .map((d: any) => ({ sourceId: String(d.sourceId), amountG: String(d.amountG), brand: d.brand || "" })),
-      seasoning: dish.seasoningDetails
-        .filter((d: any) => d.type === "seasoning")
-        .map((d: any) => ({ sourceId: String(d.sourceId), amountG: String(d.amountG), brand: d.brand || "" })),
+      minor: dish.minorDetails?.map((d: any) => ({
+        sourceId: String(d.netIngId),
+        amountG: String(d.amountG),
+        brand: d.brand || "",
+      })) || [],
+      seasoning: dish.seasoningDetails?.map((d: any) => ({
+        sourceId: String(d.sourceId),
+        amountG: String(d.amountG),
+        brand: d.brand || "",
+      })) || [],
       sauce: dish.sauceDetails.map((d: any) => ({ sauceId: String(d.sauceId), amountG: String(d.amountG), brand: d.brand || "" })),
     });
     setBomEditing(true);
@@ -389,8 +395,8 @@ export default function DishDetailPage() {
   const bomTabs = [
     { key: "main" as const, label: `主料 (${dish.netDetails.filter((d: any) => d.role === "main").length})` },
     { key: "support" as const, label: `辅料 (${dish.netDetails.filter((d: any) => d.role === "support").length})` },
-    { key: "minor" as const, label: `小料 (${dish.seasoningDetails.filter((d: any) => d.type === "minor").length})` },
-    { key: "seasoning" as const, label: `调料 (${dish.seasoningDetails.filter((d: any) => d.type === "seasoning").length})` },
+    { key: "minor" as const, label: `小料 (${dish.minorDetails?.length || 0})` },
+    { key: "seasoning" as const, label: `调料 (${dish.seasoningDetails?.length || 0})` },
     { key: "sauce" as const, label: `酱料 (${dish.sauceDetails.length})` },
   ];
 
@@ -702,8 +708,8 @@ function BomReadOnly({ dish, activeTab }: { dish: DishDetail; activeTab: string 
   let data: any[] = [];
   if (activeTab === "main") data = dish.netDetails.filter((d: any) => d.role === "main");
   else if (activeTab === "support") data = dish.netDetails.filter((d: any) => d.role === "support");
-  else if (activeTab === "minor") data = dish.seasoningDetails.filter((d: any) => d.type === "minor");
-  else if (activeTab === "seasoning") data = dish.seasoningDetails.filter((d: any) => d.type === "seasoning");
+  else if (activeTab === "minor") data = dish.minorDetails || [];
+  else if (activeTab === "seasoning") data = dish.seasoningDetails || [];
   else if (activeTab === "sauce") data = dish.sauceDetails;
 
   if (data.length === 0) {
@@ -711,6 +717,7 @@ function BomReadOnly({ dish, activeTab }: { dish: DishDetail; activeTab: string 
   }
 
   const isNet = activeTab === "main" || activeTab === "support";
+  const isMinor = activeTab === "minor";
   const isSauce = activeTab === "sauce";
 
   return (
@@ -730,6 +737,8 @@ function BomReadOnly({ dish, activeTab }: { dish: DishDetail; activeTab: string 
               <TableCell>
                 {isNet
                   ? row.netIngredient?.name
+                  : isMinor
+                  ? row.netIngredient?.name || row.name
                   : isSauce
                   ? row.sauce?.name
                   : row.name || `ID:${row.sourceId}`}

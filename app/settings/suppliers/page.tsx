@@ -238,7 +238,7 @@ export default function SuppliersPage() {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[540px] [&>button]:cursor-pointer">
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑供应商" : "新增供应商"}</DialogTitle>
           </DialogHeader>

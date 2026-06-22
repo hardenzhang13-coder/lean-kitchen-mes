@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { resolveUsernameToName } from "@/lib/user-resolve";
+import { success, badRequest, notFound } from "@/lib/api-response";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,6 +16,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
         },
       },
+      minorDetails: {
+        include: {
+          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
+        },
+      },
       seasoningDetails: true,
       sauceDetails: {
         include: {
@@ -24,45 +30,29 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       processes: { orderBy: [{ stage: "asc" }, { stepNo: "asc" }] },
     },
   });
-  if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!row) return notFound("菜品不存在");
 
   // Enrich seasoningDetails with names
-  const minorIds = row.seasoningDetails.filter((d) => d.type === "minor").map((d) => d.sourceId);
-  const seasoningIds = row.seasoningDetails.filter((d) => d.type === "seasoning").map((d) => d.sourceId);
+  const seasoningIds = row.seasoningDetails.map((d) => d.sourceId);
   const seasoningL2Codes = await getSeasoningL2Codes();
 
-  const [minors, seasonings] = await Promise.all([
-    prisma.minorIngredient.findMany({
-      where: { id: { in: minorIds } },
-      select: { id: true, name: true, unitPrice: true, unit: true },
-    }),
-    prisma.ingredient.findMany({
-      where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
-      select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
-    }),
-  ]);
+  const seasonings = await prisma.ingredient.findMany({
+    where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+    select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
+  });
 
   const enriched = {
     ...row,
     seasoningDetails: row.seasoningDetails.map((d) => ({
       ...d,
-      name:
-        d.type === "minor"
-          ? minors.find((m) => m.id === d.sourceId)?.name
-          : seasonings.find((s) => s.id === d.sourceId)?.name,
-      unitPrice:
-        d.type === "minor"
-          ? minors.find((m) => m.id === d.sourceId)?.unitPrice
-          : seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
-      unit:
-        d.type === "minor"
-          ? minors.find((m) => m.id === d.sourceId)?.unit
-          : seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
+      name: seasonings.find((s) => s.id === d.sourceId)?.name,
+      unitPrice: seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
+      unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
     })),
     operatorName: await resolveUsernameToName(row.operator),
   };
 
-  return NextResponse.json(enriched);
+  return success(enriched);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -99,10 +89,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       description: `更新菜品: ${row.name}`,
     });
 
-    return NextResponse.json(row);
+    return success(row);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return badRequest(message);
   }
 }
 
@@ -117,9 +107,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       entityId: Number(id),
       description: `删除菜品: ${row?.name || id}`,
     });
-    return NextResponse.json({ success: true });
+    return success({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return badRequest(message);
   }
 }

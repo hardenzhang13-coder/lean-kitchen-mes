@@ -1,7 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search, Upload } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  Search,
+  Upload,
+  ArrowRightLeft,
+} from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,6 +23,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
+import { NetIngredientFormDialog } from "@/app/components/net-ingredient-form-dialog";
 import { ImportDialog, ImportField } from "@/app/components/import-dialog";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { DataTable } from "@/app/components/data-table";
@@ -68,6 +77,8 @@ export default function RawIngredientsPage() {
   const [editing, setEditing] = useState<Ingredient | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [importOpen, setImportOpen] = useState(false);
+  const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -119,8 +130,6 @@ export default function RawIngredientsPage() {
     setCurrentPage,
     pageItems,
     totalPages,
-    start,
-    end,
     totalItems,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
@@ -175,8 +184,9 @@ export default function RawIngredientsPage() {
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch (e: any) {
-      toast.error(e.message || "删除失败");
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "删除失败";
+      toast.error(message);
     }
   };
 
@@ -298,7 +308,11 @@ export default function RawIngredientsPage() {
                 ),
               },
               { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
-              { header: "食材名称", accessorKey: "name" },
+              { header: "食材名称", cell: (row) => (
+                <Link href={`/ingredients/raw/${row.id}`} className="font-medium">
+                  {row.name}
+                </Link>
+              ) },
               { header: "商品名称", cell: (row) => row.alias || "—" },
               {
                 header: "一级分类",
@@ -340,6 +354,17 @@ export default function RawIngredientsPage() {
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="转净料"
+                  onClick={() => {
+                    setConvertSourceId(row.id);
+                    setConvertDialogOpen(true);
+                  }}
+                >
+                  <ArrowRightLeft className="h-4 w-4" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -385,6 +410,29 @@ export default function RawIngredientsPage() {
         mode="ingredient"
         onSuccess={() => {
           setDialogOpen(false);
+          fetchData();
+        }}
+      />
+
+      <NetIngredientFormDialog
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        mode="convert"
+        sourceIngredientId={convertSourceId ?? undefined}
+        categories={categories}
+        rawIngredients={data.map((d) => ({
+          id: d.id,
+          code: d.code,
+          name: d.name,
+          alias: d.alias,
+          l2Code: d.l2Code,
+          purchaseSpec: d.purchaseSpec,
+          purchaseUnit: d.purchaseUnit,
+          latestRefPrice: d.latestRefPrice,
+        }))}
+        onSuccess={() => {
+          setConvertDialogOpen(false);
+          setConvertSourceId(null);
           fetchData();
         }}
       />

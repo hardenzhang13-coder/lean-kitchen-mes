@@ -35,6 +35,7 @@ interface DataTableProps<T> {
   emptyState?: EmptyStateProps;
   rowActions?: (row: T) => React.ReactNode;
   onRowClick?: (row: T) => void;
+  isRowSelected?: (row: T) => boolean;
   className?: string;
 }
 
@@ -47,6 +48,7 @@ export function DataTable<T extends object>({
   emptyState,
   rowActions,
   onRowClick,
+  isRowSelected,
   className,
 }: DataTableProps<T>) {
   const resolvedEmptyState: EmptyStateProps = emptyState || {
@@ -107,7 +109,10 @@ export function DataTable<T extends object>({
                 <TableRow
                   key={rowIdx}
                   onClick={() => onRowClick?.(row)}
-                  className={cn(onRowClick && "cursor-pointer")}
+                  className={cn(
+                    onRowClick && "cursor-pointer",
+                    isRowSelected?.(row) && "bg-primary/5"
+                  )}
                 >
                   {columns.map((col, colIdx) => (
                     <TableCell key={colIdx} className={col.className}>
