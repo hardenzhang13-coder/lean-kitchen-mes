@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
+        omit: { imageUrl: true, imageHash: true },
         include: {
           supplier: { select: { id: true, name: true } },
           items: {
