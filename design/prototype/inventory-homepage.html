@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>库存管理首页 · 高保真原型 v0.2</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ===== 设计 Token —— 严格匹配项目 globals.css 语义变量 ===== */
+:root {
+  --font-sans: 'DM Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', monospace;
+  --transition-fast: 0.15s;
+  --transition-normal: 0.2s;
+  --transition-slow: 0.3s;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* oklch 语义变量 —— 与 globals.css 完全一致 */
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.553 0.195 38.402);
+  --primary-foreground: oklch(0.98 0.016 73.684);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --destructive-foreground: oklch(0.98 0.016 73.684);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --radius: 0.75rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+
+  --success: oklch(0.55 0.15 145);
+  --success-muted: oklch(0.95 0.03 145);
+  --warning: oklch(0.65 0.15 85);
+  --warning-muted: oklch(0.96 0.03 85);
+  --info: oklch(0.55 0.15 250);
+  --info-muted: oklch(0.95 0.03 250);
+  --neutral: oklch(0.55 0 0);
+  --neutral-muted: oklch(0.95 0 0);
+
+  /* Category tag colors */
+  --tag-veg: #22c55e; --tag-veg-bg: #f0fdf4;
+  --tag-mea: #ef4444; --tag-mea-bg: #fef2f2;
+  --tag-aqu: #3b82f6; --tag-aqu-bg: #eff6ff;
+  --tag-pou: #f59e0b; --tag-pou-bg: #fffbeb;
+  --tag-dry: #f97316; --tag-dry-bg: #fff7ed;
+  --tag-bea: #06b6d4; --tag-bea-bg: #ecfeff;
+  --tag-prc: #8b5cf6; --tag-prc-bg: #f5f3ff;
+  --tag-gra: #64748b; --tag-gra-bg: #f8fafc;
+  --tag-sea: #ec4899; --tag-sea-bg: #fdf2f8;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+/* ===== 布局 ===== */
+.page-wrapper { padding: 32px; max-width: 1400px; margin: 0 auto; }
+.hidden { display: none !important; }
+
+/* ===== PageHeader ===== */
+.page-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 24px; }
+.page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; color: var(--foreground); }
+.page-header p { font-size: 14px; color: var(--muted-foreground); margin-top: 4px; }
+.back-btn {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  border: 1px solid var(--border); background: transparent;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: var(--transition-normal) var(--ease-default); flex-shrink: 0;
+}
+.back-btn:hover { background: var(--muted); }
+.back-btn svg { width: 18px; height: 18px; color: var(--foreground); }
+
+/* ===== Tab 切换 ===== */
+.tab-bar-wrap { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+.tab-bar {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--muted); padding: 4px; border-radius: var(--radius-lg);
+}
+.tab-btn {
+  padding: 6px 16px; border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 500; border: none; cursor: pointer;
+  background: transparent; color: var(--muted-foreground);
+  transition: var(--transition-normal) var(--ease-default); white-space: nowrap;
+  font-family: var(--font-sans);
+}
+.tab-btn.active {
+  background: var(--card); color: var(--foreground);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+/* ===== KPI 看板（4 卡片） ===== */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px;
+}
+@media (max-width: 1024px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+.kpi-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px;
+  transition: var(--transition-normal) var(--ease-default);
+}
+.kpi-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+.kpi-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 14px;
+}
+.kpi-icon {
+  width: 36px; height: 36px; border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.kpi-icon.info { background: var(--info-muted); }
+.kpi-icon.success { background: var(--success-muted); }
+.kpi-icon.warning { background: var(--warning-muted); }
+.kpi-icon.danger { background: var(--destructive-foreground); }
+.kpi-icon.placeholder { background: var(--muted); opacity: 0.6; }
+.kpi-title { font-size: 13px; color: var(--muted-foreground); font-weight: 500; }
+.kpi-value {
+  font-size: 32px; font-weight: 700; color: var(--foreground);
+  letter-spacing: -0.02em; line-height: 1.1;
+  font-family: var(--font-sans);
+}
+.kpi-value.danger { color: var(--destructive); }
+.kpi-value.placeholder { color: var(--muted-foreground); font-size: 20px; }
+.kpi-unit {
+  font-size: 14px; color: var(--muted-foreground); font-weight: 400;
+  margin-left: 4px;
+}
+.kpi-footer {
+  font-size: 12px; color: var(--muted-foreground); margin-top: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.kpi-footer .highlight { color: var(--success); font-weight: 600; }
+.kpi-footer .danger { color: var(--destructive); font-weight: 600; }
+
+/* ===== 搜索 + 视图切换 ===== */
+.toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.search-box {
+  position: relative; flex: 1; min-width: 240px; max-width: 400px;
+}
+.search-box input {
+  width: 100%; padding: 9px 12px 9px 36px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  font-size: 14px; font-family: var(--font-sans);
+  background: var(--card); color: var(--foreground);
+  transition: var(--transition-normal) var(--ease-default);
+}
+.search-box input:focus {
+  outline: none; border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(194, 65, 12, 0.1);
+}
+.search-box input::placeholder { color: var(--muted-foreground); }
+.search-icon {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--muted-foreground); font-size: 16px;
+}
+.view-toggle {
+  display: flex; align-items: center; gap: 4px;
+  background: var(--muted); padding: 4px; border-radius: var(--radius-md);
+}
+.view-toggle button {
+  padding: 6px 14px; border-radius: var(--radius-sm); border: none;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  background: transparent; color: var(--muted-foreground);
+  transition: var(--transition-normal) var(--ease-default);
+  display: flex; align-items: center; gap: 6px; font-family: var(--font-sans);
+}
+.view-toggle button.active {
+  background: var(--card); color: var(--foreground);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06);
+}
+
+/* ===== 一级分类导航（仅品种数） ===== */
+.category-nav {
+  display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px;
+}
+@media (max-width: 1200px) { .category-nav { grid-template-columns: repeat(5, 1fr); } }
+@media (max-width: 900px) { .category-nav { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 640px) { .category-nav { grid-template-columns: repeat(3, 1fr); } }
+.category-pill {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 14px 16px;
+  cursor: pointer; transition: var(--transition-normal) var(--ease-default);
+  display: flex; flex-direction: column; gap: 4px; position: relative;
+}
+.category-pill:hover { background: var(--muted); border-color: var(--border); }
+.category-pill.active {
+  background: var(--primary); border-color: var(--primary);
+  color: var(--primary-foreground);
+}
+.category-pill.active .pill-count { color: rgba(255,255,255,0.85); }
+.category-pill .pill-icon { font-size: 20px; margin-bottom: 2px; line-height: 1; }
+.category-pill .pill-name { font-size: 14px; font-weight: 600; color: inherit; }
+.category-pill .pill-count {
+  font-size: 12px; color: var(--muted-foreground); font-weight: 500;
+}
+.category-pill.empty { opacity: 0.5; }
+.category-pill.empty .pill-count { color: var(--muted-foreground); }
+
+/* ===== 二级分类标题行 ===== */
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 16px;
+}
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title h3 { font-size: 16px; font-weight: 600; color: var(--foreground); }
+.section-badge {
+  padding: 2px 8px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600; background: var(--muted);
+  color: var(--muted-foreground);
+}
+
+/* ===== 食材卡片（4 列，无二级分类 badge，悬浮详情） ===== */
+.card-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+}
+@media (max-width: 1280px) { .card-grid { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 1024px) { .card-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px) { .card-grid { grid-template-columns: 1fr; } }
+
+.ingredient-card {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 18px 20px;
+  position: relative; overflow: visible;
+  transition: var(--transition-normal) var(--ease-default); cursor: default;
+}
+.ingredient-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.08); transform: translateY(-2px);
+  border-color: var(--primary); z-index: 10;
+}
+.ingredient-card .health-indicator {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 4px;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+}
+.health-indicator.sufficient { background: var(--success); }
+.health-indicator.normal { background: var(--warning); }
+.health-indicator.low { background: var(--destructive); }
+.card-name {
+  font-size: 15px; font-weight: 600; color: var(--foreground);
+  margin-bottom: 14px; padding-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-qty-row {
+  display: flex; align-items: baseline; gap: 6px;
+  padding-left: 6px; margin-bottom: 14px;
+}
+.card-qty-value {
+  font-size: 28px; font-weight: 700; color: var(--foreground);
+  letter-spacing: -0.02em; line-height: 1; font-family: var(--font-sans);
+}
+.card-qty-unit { font-size: 14px; color: var(--muted-foreground); font-weight: 500; }
+.card-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-left: 6px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.status-badge {
+  display: inline-flex; align-items: center; padding: 3px 10px;
+  border-radius: var(--radius-sm); font-size: 12px; font-weight: 600;
+}
+.status-badge.success { background: var(--success-muted); color: var(--success); }
+.status-badge.warning { background: var(--warning-muted); color: #b45309; }
+.status-badge.danger { background: var(--destructive-foreground); color: var(--destructive); }
+.card-time { font-size: 12px; color: var(--muted-foreground); }
+
+/* ===== 悬浮详情浮层 ===== */
+.card-tooltip {
+  position: absolute;
+  left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%);
+  width: 320px; max-width: 90vw;
+  background: var(--popover); border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+  padding: 0; z-index: 100;
+  opacity: 0; visibility: hidden;
+  transition: opacity var(--transition-fast) var(--ease-default), visibility var(--transition-fast);
+  pointer-events: none;
+}
+.ingredient-card:hover .card-tooltip {
+  opacity: 1; visibility: visible;
+  transition-delay: 200ms;
+}
+.card-tooltip::after {
+  content: ''; position: absolute;
+  left: 50%; top: 100%; transform: translateX(-50%);
+  border: 6px solid transparent; border-top-color: var(--popover);
+}
+.card-tooltip::before {
+  content: ''; position: absolute;
+  left: 50%; top: calc(100% + 1px); transform: translateX(-50%);
+  border: 7px solid transparent; border-top-color: var(--border);
+}
+.tooltip-header {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tooltip-header-title {
+  font-size: 14px; font-weight: 600; color: var(--foreground);
+}
+.tooltip-header-badge {
+  font-size: 11px; padding: 2px 8px; border-radius: var(--radius-sm);
+  background: var(--muted); color: var(--muted-foreground); font-weight: 500;
+}
+.tooltip-body {
+  padding: 12px 16px 14px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px;
+}
+.tooltip-field {
+  display: flex; flex-direction: column; gap: 2px;
+}
+.tooltip-field.full { grid-column: 1 / -1; }
+.tooltip-label {
+  font-size: 11px; color: var(--muted-foreground); font-weight: 500;
+}
+.tooltip-value {
+  font-size: 13px; color: var(--foreground); font-weight: 600;
+}
+.tooltip-value.empty { color: var(--muted-foreground); font-weight: 400; }
+
+/* ===== 表格 ===== */
+.data-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.data-table th, .data-table td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+.data-table th {
+  font-size: 12px; font-weight: 600; color: var(--muted-foreground);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  background: var(--muted); position: sticky; top: 0;
+}
+.data-table tbody tr:hover { background: var(--muted); }
+.data-table .cell-name { font-weight: 600; }
+.data-table .cell-qty { font-weight: 700; font-size: 15px; }
+.data-table .cell-qty.low { color: var(--destructive); }
+.data-table .cell-badge {
+  display: inline-flex; padding: 2px 8px; border-radius: var(--radius-sm);
+  font-size: 11px; font-weight: 600;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 60px 20px; text-align: center; color: var(--muted-foreground);
+}
+.empty-state-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: var(--muted); display: flex; align-items: center; justify-content: center;
+  font-size: 24px; margin-bottom: 16px;
+}
+.empty-state h3 { font-size: 16px; font-weight: 600; color: var(--foreground); margin-bottom: 4px; }
+.empty-state p { font-size: 14px; }
+
+/* ===== 骨架屏 ===== */
+.skeleton {
+  background: linear-gradient(90deg, var(--muted) 25%, #e8e8ec 50%, var(--muted) 75%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeleton-text { height: 16px; }
+.skeleton-card { height: 130px; border-radius: var(--radius-lg); }
+.skeleton-pill { height: 68px; border-radius: var(--radius-lg); }
+.skeleton-kpi { height: 96px; border-radius: var(--radius-lg); }
+
+/* ===== 原型设计说明分隔线 ===== */
+.proto-divider {
+  margin-top: 48px; padding-top: 24px;
+  border-top: 2px dashed var(--border);
+}
+.proto-note {
+  font-size: 12px; color: var(--muted-foreground);
+  margin-bottom: 16px; font-style: italic;
+}
+.proto-section { margin-bottom: 24px; }
+.proto-section h4 { font-size: 14px; font-weight: 600; color: var(--foreground); margin-bottom: 8px; }
+.proto-section p, .proto-section li { font-size: 13px; color: var(--muted-foreground); line-height: 1.6; }
+.proto-section ul { padding-left: 20px; }
+.proto-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.proto-table th, .proto-table td { padding: 8px 12px; text-align: left; border: 1px solid var(--border); }
+.proto-table th { background: var(--muted); font-weight: 600; color: var(--foreground); }
+.proto-badge {
+  display: inline-flex; padding: 1px 6px; border-radius: 3px;
+  font-size: 10px; font-weight: 600; color: #fff;
+}
+.proto-badge.new { background: #67c23a; }
+.proto-badge.edit { background: #e6a23c; }
+.proto-badge.del { background: #f56c6c; }
+</style>
+</head>
+<body>
+
+<div class="page-wrapper">
+
+<!-- ===== 页面顶部 ===== -->
+<div class="page-header">
+  <button class="back-btn" title="返回上一级">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+  </button>
+  <div>
+    <h1>库存管理</h1>
+    <p>实时库存查询与管理</p>
+  </div>
+</div>
+
+<!-- Tab 切换 -->
+<div class="tab-bar-wrap">
+  <div></div>
+  <div class="tab-bar">
+    <button class="tab-btn active" onclick="switchTab(this, 'inventory')">实时库存</button>
+    <button class="tab-btn" onclick="switchTab(this, 'ledger')">库存台账</button>
+  </div>
+</div>
+
+<!-- ===== 加载骨架屏 ===== -->
+<div id="skeleton-loading">
+  <div class="kpi-grid">
+    <div class="skeleton skeleton-kpi"></div>
+    <div class="skeleton skeleton-kpi"></div>
+    <div class="skeleton skeleton-kpi"></div>
+    <div class="skeleton skeleton-kpi"></div>
+  </div>
+  <div class="toolbar">
+    <div class="skeleton skeleton-text" style="width:320px;height:40px;border-radius:8px;"></div>
+    <div class="skeleton skeleton-text" style="width:120px;height:40px;border-radius:8px;"></div>
+  </div>
+  <div class="category-nav">
+    <div class="skeleton skeleton-pill"></div>
+    <div class="skeleton skeleton-pill"></div>
+    <div class="skeleton skeleton-pill"></div>
+    <div class="skeleton skeleton-pill"></div>
+    <div class="skeleton skeleton-pill"></div>
+    <div class="skeleton skeleton-pill"></div>
+  </div>
+  <div class="card-grid">
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+    <div class="skeleton skeleton-card"></div>
+  </div>
+</div>
+
+<!-- ===== 实际内容 ===== -->
+<div id="content-loaded" class="hidden">
+
+  <!-- KPI 看板：4 指标（当前库存食材种类、低库存预警、临期食材预警、今日更新） -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-icon info">🏷️</div>
+        <span class="kpi-title">当前库存食材种类</span>
+      </div>
+      <div class="kpi-value">47<span class="kpi-unit">种</span></div>
+      <div class="kpi-footer">较昨日 <span class="highlight">+3</span></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-icon danger">⚠️</div>
+        <span class="kpi-title">低库存预警</span>
+      </div>
+      <div class="kpi-value danger">5<span class="kpi-unit">项</span></div>
+      <div class="kpi-footer">需尽快采购补货</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-icon placeholder">📅</div>
+        <span class="kpi-title">临期食材预警</span>
+      </div>
+      <div class="kpi-value placeholder">—<span class="kpi-unit"></span></div>
+      <div class="kpi-footer">待保质期管理模块接入</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-header">
+        <div class="kpi-icon warning">🕐</div>
+        <span class="kpi-title">今日更新</span>
+      </div>
+      <div class="kpi-value">8<span class="kpi-unit">项</span></div>
+      <div class="kpi-footer">上次更新 2 小时前</div>
+    </div>
+  </div>
+
+  <!-- 搜索 + 视图切换 -->
+  <div class="toolbar">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="text" placeholder="请输入食材名称、编码或分类" id="searchInput" oninput="handleSearch(this.value)">
+    </div>
+    <div class="view-toggle">
+      <button class="active" onclick="switchView(this, 'card')" id="btn-card">
+        <span>⊞</span> 卡片视图
+      </button>
+      <button onclick="switchView(this, 'list')" id="btn-list">
+        <span>☰</span> 列表视图
+      </button>
+    </div>
+  </div>
+
+  <!-- 一级分类导航（仅品种数） -->
+  <div class="category-nav" id="categoryNav">
+    <!-- JS 生成 -->
+  </div>
+
+  <!-- 分类明细区域 -->
+  <div id="detailArea">
+    <!-- JS 生成 -->
+  </div>
+
+</div>
+
+<!-- ===== 原型设计说明 ===== -->
+<div class="proto-divider">
+  <div class="proto-note">— 以下为原型设计说明，不在实际产品页面中显示 —</div>
+
+  <div class="proto-section">
+    <h4>🎯 v0.2 主要修订</h4>
+    <ul>
+      <li>KPI 调整为 4 指标：当前库存食材种类、低库存预警、临期食材预警（占位）、今日更新。去掉总库存量。</li>
+      <li>一级分类卡片仅展示品种数，去掉库存总量。</li>
+      <li>食材卡片去掉二级分类 badge（避免与分组标题重复），一行 4 列。</li>
+      <li>食材卡片悬浮展示食材详情浮层（编码、名称、别名、采购规格、采购单位、库存单位、最新参考价、季节、储存方式、二级分类）。</li>
+      <li>视觉统一为系统 oklch 语义变量风格（--primary, --success, --destructive 等）。</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>📐 信息架构</h4>
+    <ul>
+      <li>PageHeader + Tab 切换</li>
+      <li>KPI 4 卡片：种类 / 低库存预警 / 临期预警（占位） / 今日更新</li>
+      <li>搜索 + 视图切换</li>
+      <li>一级分类导航（仅品种数，无库存总量）</li>
+      <li>分类明细：二级分组标题 + 食材卡片 4 列网格（悬浮详情浮层）</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>🎨 视觉规范</h4>
+    <ul>
+      <li>颜色：严格使用 oklch 语义变量（--primary: oklch(0.553 0.195 38.402) / 橙棕，--success: oklch(0.55 0.15 145) / 绿，--destructive: oklch(0.577 0.245 27.325) / 红）</li>
+      <li>圆角：卡片 12px（--radius-lg），按钮 8px（--radius-md），badge 4px（--radius-sm）</li>
+      <li>字体：DM Sans + Geist Mono</li>
+      <li>过渡：0.2s cubic-bezier(0.4, 0, 0.2, 1)</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>⚡ 交互规则</h4>
+    <ul>
+      <li>分类切换：点击一级分类胶囊，明细区域平滑切换</li>
+      <li>搜索：debounce 300ms，自动切回「全部」</li>
+      <li>视图切换：卡片 ↔ 列表，保持筛选状态</li>
+      <li>悬浮详情：移入卡片 200ms 后展示浮层，移出消失。浮层展示食材档案全字段。</li>
+      <li>加载：骨架屏 1.2s 后淡入</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>📝 版本变更记录</h4>
+    <table class="proto-table">
+      <tr><th>版本</th><th>时间</th><th>类型</th><th>变更内容</th></tr>
+      <tr><td>v0.1</td><td>2026-06-26</td><td><span class="proto-badge new">新增</span></td><td>初稿：KPI 4 卡（含总库存量）、分类导航（品种+总量）、卡片 3 列、临期占位</td></tr>
+      <tr><td>v0.2</td><td>2026-06-26</td><td><span class="proto-badge edit">修改</span></td><td>KPI 调整为种类/低库存/临期/更新（去掉总量）；分类导航仅品种数；卡片 4 列去二级分类 badge；悬浮详情浮层；视觉统一 oklch 变量</td></tr>
+    </table>
+  </div>
+
+</div>
+
+</div><!-- /page-wrapper -->
+
+<script>
+// ===== Mock 数据 =====
+const categories = [
+  { code: 'veg', name: '蔬菜', icon: '🥬', items: 6 },
+  { code: 'mea', name: '肉类', icon: '🥩', items: 4 },
+  { code: 'aqu', name: '水产', icon: '🐟', items: 3 },
+  { code: 'pou', name: '禽类', icon: '🍗', items: 2 },
+  { code: 'dry', name: '干货', icon: '📦', items: 3 },
+  { code: 'bea', name: '豆制品', icon: '🫘', items: 2 },
+  { code: 'gra', name: '粮油', icon: '🌾', items: 3 },
+  { code: 'prc', name: '加工品', icon: '🏭', items: 1 },
+  { code: 'sea', name: '调味品', icon: '🌶️', items: 3 },
+];
+
+const allIngredients = [
+  // 蔬菜
+  { name: '胡萝卜', code: 'VEG-001', alias: '红萝卜', qty: 12.5, unit: 'kg', l2: '根菜类', l1: '蔬菜', health: 'sufficient', updated: '2天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 3.50, season: '四季', storage: '常温' },
+  { name: '西红柿', code: 'VEG-002', alias: null, qty: 8.3, unit: 'kg', l2: '茄果类', l1: '蔬菜', health: 'normal', updated: '1天前',
+    purchaseSpec: '1kg/盒', purchaseUnit: '盒', stockUnit: 'kg', latestRefPrice: 5.20, season: '夏季', storage: '冷藏' },
+  { name: '生菜', code: 'VEG-003', alias: '莴苣', qty: 3.2, unit: 'kg', l2: '叶菜类', l1: '蔬菜', health: 'low', updated: '3天前',
+    purchaseSpec: '250g/包', purchaseUnit: '包', stockUnit: 'kg', latestRefPrice: 4.80, season: '四季', storage: '冷藏' },
+  { name: '土豆', code: 'VEG-004', alias: '马铃薯', qty: 45.0, unit: 'kg', l2: '根茎类', l1: '蔬菜', health: 'sufficient', updated: '5天前',
+    purchaseSpec: '5kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 2.30, season: '四季', storage: '阴凉' },
+  { name: '青椒', code: 'VEG-005', alias: null, qty: 6.8, unit: 'kg', l2: '茄果类', l1: '蔬菜', health: 'normal', updated: '1天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 6.50, season: '夏季', storage: '冷藏' },
+  { name: '黄瓜', code: 'VEG-006', alias: null, qty: 15.2, unit: 'kg', l2: '瓜类', l1: '蔬菜', health: 'sufficient', updated: '2天前',
+    purchaseSpec: '1kg/盒', purchaseUnit: '盒', stockUnit: 'kg', latestRefPrice: 3.80, season: '夏季', storage: '冷藏' },
+  // 肉类
+  { name: '五花肉', code: 'MEA-001', alias: null, qty: 22.5, unit: 'kg', l2: '畜肉类', l1: '肉类', health: 'sufficient', updated: '1天前',
+    purchaseSpec: '1kg/块', purchaseUnit: '块', stockUnit: 'kg', latestRefPrice: 28.00, season: '四季', storage: '冷冻' },
+  { name: '里脊肉', code: 'MEA-002', alias: '通脊', qty: 4.5, unit: 'kg', l2: '畜肉类', l1: '肉类', health: 'low', updated: '2天前',
+    purchaseSpec: '500g/盒', purchaseUnit: '盒', stockUnit: 'kg', latestRefPrice: 35.00, season: '四季', storage: '冷冻' },
+  { name: '牛腩', code: 'MEA-003', alias: null, qty: 18.0, unit: 'kg', l2: '畜肉类', l1: '肉类', health: 'sufficient', updated: '3天前',
+    purchaseSpec: '1kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 42.00, season: '四季', storage: '冷冻' },
+  { name: '排骨', code: 'MEA-004', alias: '猪肋排', qty: 9.2, unit: 'kg', l2: '畜肉类', l1: '肉类', health: 'normal', updated: '1天前',
+    purchaseSpec: '1kg/盒', purchaseUnit: '盒', stockUnit: 'kg', latestRefPrice: 32.00, season: '四季', storage: '冷冻' },
+  // 水产
+  { name: '草鱼', code: 'AQU-001', alias: null, qty: 15.0, unit: 'kg', l2: '淡水鱼', l1: '水产', health: 'sufficient', updated: '6小时前',
+    purchaseSpec: '活鱼', purchaseUnit: '条', stockUnit: 'kg', latestRefPrice: 12.00, season: '四季', storage: '活水' },
+  { name: '基围虾', code: 'AQU-002', alias: '南美白对虾', qty: 3.8, unit: 'kg', l2: '虾类', l1: '水产', health: 'low', updated: '1天前',
+    purchaseSpec: '500g/盒', purchaseUnit: '盒', stockUnit: 'kg', latestRefPrice: 45.00, season: '四季', storage: '冷藏' },
+  { name: '花蛤', code: 'AQU-003', alias: '花甲', qty: 8.5, unit: 'kg', l2: '贝类', l1: '水产', health: 'normal', updated: '2天前',
+    purchaseSpec: '1kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 8.00, season: '四季', storage: '冷藏' },
+  // 禽类
+  { name: '鸡腿肉', code: 'POU-001', alias: '去骨鸡腿', qty: 12.0, unit: 'kg', l2: '家禽', l1: '禽类', health: 'sufficient', updated: '2天前',
+    purchaseSpec: '1kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 18.00, season: '四季', storage: '冷冻' },
+  { name: '鸡翅', code: 'POU-002', alias: '翅中', qty: 4.2, unit: 'kg', l2: '家禽', l1: '禽类', health: 'low', updated: '3天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 22.00, season: '四季', storage: '冷冻' },
+  // 干货
+  { name: '干香菇', code: 'DRY-001', alias: '花菇', qty: 2.5, unit: 'kg', l2: '菌菇', l1: '干货', health: 'low', updated: '7天前',
+    purchaseSpec: '250g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 68.00, season: '四季', storage: '阴凉干燥' },
+  { name: '木耳', code: 'DRY-002', alias: '黑木耳', qty: 1.8, unit: 'kg', l2: '菌菇', l1: '干货', health: 'low', updated: '5天前',
+    purchaseSpec: '100g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 45.00, season: '四季', storage: '阴凉干燥' },
+  { name: '腐竹', code: 'DRY-003', alias: '豆皮', qty: 8.0, unit: 'kg', l2: '豆制品', l1: '干货', health: 'normal', updated: '3天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 15.00, season: '四季', storage: '阴凉干燥' },
+  // 豆制品
+  { name: '嫩豆腐', code: 'BEA-001', alias: '南豆腐', qty: 15.0, unit: '盒', l2: '鲜豆腐', l1: '豆制品', health: 'sufficient', updated: '1天前',
+    purchaseSpec: '300g/盒', purchaseUnit: '盒', stockUnit: '盒', latestRefPrice: 3.50, season: '四季', storage: '冷藏' },
+  { name: '千张', code: 'BEA-002', alias: '豆腐皮', qty: 6.5, unit: 'kg', l2: '干豆腐', l1: '豆制品', health: 'normal', updated: '2天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 8.00, season: '四季', storage: '冷藏' },
+  // 粮油
+  { name: '大米', code: 'GRA-001', alias: '东北大米', qty: 150.0, unit: 'kg', l2: '主食', l1: '粮油', health: 'sufficient', updated: '10天前',
+    purchaseSpec: '25kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 4.50, season: '四季', storage: '阴凉干燥' },
+  { name: '食用油', code: 'GRA-002', alias: '大豆油', qty: 80.0, unit: 'L', l2: '油脂', l1: '粮油', health: 'sufficient', updated: '15天前',
+    purchaseSpec: '5L/桶', purchaseUnit: '桶', stockUnit: 'L', latestRefPrice: 58.00, season: '四季', storage: '阴凉' },
+  { name: '面粉', code: 'GRA-003', alias: '中筋面粉', qty: 45.0, unit: 'kg', l2: '主食', l1: '粮油', health: 'sufficient', updated: '8天前',
+    purchaseSpec: '5kg/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 5.00, season: '四季', storage: '阴凉干燥' },
+  // 加工品
+  { name: '火腿片', code: 'PRC-001', alias: '午餐肉', qty: 3.5, unit: 'kg', l2: '腌制肉', l1: '加工品', health: 'low', updated: '5天前',
+    purchaseSpec: '340g/罐', purchaseUnit: '罐', stockUnit: 'kg', latestRefPrice: 12.00, season: '四季', storage: '常温' },
+  // 调味品
+  { name: '生抽', code: 'SEA-001', alias: '酱油', qty: 12.0, unit: 'L', l2: '酱油', l1: '调味品', health: 'sufficient', updated: '20天前',
+    purchaseSpec: '1.9L/瓶', purchaseUnit: '瓶', stockUnit: 'L', latestRefPrice: 18.00, season: '四季', storage: '常温' },
+  { name: '蚝油', code: 'SEA-002', alias: null, qty: 2.8, unit: 'L', l2: '酱料', l1: '调味品', health: 'low', updated: '7天前',
+    purchaseSpec: '700g/瓶', purchaseUnit: '瓶', stockUnit: 'L', latestRefPrice: 12.00, season: '四季', storage: '冷藏' },
+  { name: '食盐', code: 'SEA-003', alias: '精制盐', qty: 15.0, unit: 'kg', l2: '调料', l1: '调味品', health: 'sufficient', updated: '30天前',
+    purchaseSpec: '500g/袋', purchaseUnit: '袋', stockUnit: 'kg', latestRefPrice: 2.50, season: '四季', storage: '阴凉干燥' },
+];
+
+let activeCategory = '全部';
+let currentView = 'card';
+let searchTerm = '';
+
+function init() {
+  setTimeout(() => {
+    document.getElementById('skeleton-loading').classList.add('hidden');
+    document.getElementById('content-loaded').classList.remove('hidden');
+    renderCategoryNav();
+    renderDetailArea();
+  }, 1200);
+}
+
+function renderCategoryNav() {
+  const nav = document.getElementById('categoryNav');
+  const totalItems = allIngredients.length;
+
+  let html = '';
+  html += createCategoryPill('全部', '🔍', totalItems, activeCategory === '全部');
+  categories.forEach(cat => {
+    const isEmpty = cat.items === 0;
+    html += createCategoryPill(cat.name, cat.icon, cat.items, activeCategory === cat.name, isEmpty);
+  });
+  nav.innerHTML = html;
+}
+
+function createCategoryPill(name, icon, count, isActive, isEmpty = false) {
+  return `
+    <div class="category-pill ${isActive ? 'active' : ''} ${isEmpty ? 'empty' : ''}"
+         onclick="selectCategory('${name}')">
+      <div class="pill-icon">${icon}</div>
+      <div class="pill-name">${name}</div>
+      <div class="pill-count">${count} 种</div>
+    </div>
+  `;
+}
+
+function selectCategory(name) {
+  activeCategory = name;
+  renderCategoryNav();
+  renderDetailArea();
+}
+
+function renderDetailArea() {
+  const area = document.getElementById('detailArea');
+
+  let items = activeCategory === '全部'
+    ? [...allIngredients]
+    : allIngredients.filter(i => i.l1 === activeCategory);
+
+  if (searchTerm) {
+    const s = searchTerm.toLowerCase();
+    items = items.filter(i =>
+      i.name.toLowerCase().includes(s) ||
+      i.code.toLowerCase().includes(s) ||
+      i.l2.toLowerCase().includes(s) ||
+      i.l1.toLowerCase().includes(s)
+    );
+  }
+
+  if (items.length === 0) {
+    area.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">📦</div>
+        <h3>${activeCategory === '全部' ? '暂无库存数据' : '该分类下暂无库存'}</h3>
+        <p>${searchTerm ? '未找到匹配的食材' : '当前分类下没有库存记录'}</p>
+      </div>
+    `;
+    return;
+  }
+
+  const byL2 = {};
+  items.forEach(item => {
+    if (!byL2[item.l2]) byL2[item.l2] = [];
+    byL2[item.l2].push(item);
+  });
+
+  let html = '';
+
+  if (currentView === 'card') {
+    Object.entries(byL2).forEach(([l2Name, l2Items]) => {
+      html += `
+        <div class="section-header">
+          <div class="section-title">
+            <h3>${l2Name}</h3>
+            <span class="section-badge">${l2Items.length} 种</span>
+          </div>
+        </div>
+        <div class="card-grid" style="margin-bottom:24px;">
+          ${l2Items.map(item => createIngredientCard(item)).join('')}
+        </div>
+      `;
+    });
+  } else {
+    html += `<div style="border:1px solid var(--border); border-radius:var(--radius-lg); overflow:hidden;">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>食材名称</th>
+            <th>当前库存量</th>
+            <th>单位</th>
+            <th>库存状态</th>
+            <th>更新时间</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${items.map(item => `
+            <tr>
+              <td class="cell-name">${item.name}</td>
+              <td class="cell-qty ${item.health === 'low' ? 'low' : ''}">${item.qty.toFixed(1)}</td>
+              <td>${item.unit}</td>
+              <td>${createStatusBadge(item.health)}</td>
+              <td style="font-size:12px;color:var(--muted-foreground);">${item.updated}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  }
+
+  area.innerHTML = html;
+}
+
+function createIngredientCard(item) {
+  const healthLabels = { sufficient: '库存充足', normal: '库存正常', low: '低库存' };
+  const healthClasses = { sufficient: 'success', normal: 'warning', low: 'danger' };
+
+  // 悬浮详情字段
+  const tooltipFields = [
+    { label: '编码', value: item.code },
+    { label: '名称', value: item.name },
+    { label: '别名', value: item.alias || '—' },
+    { label: '采购规格', value: item.purchaseSpec || '—' },
+    { label: '采购单位', value: item.purchaseUnit || '—' },
+    { label: '库存单位', value: item.stockUnit || '—' },
+    { label: '最新参考价', value: item.latestRefPrice ? '¥' + item.latestRefPrice.toFixed(2) : '—' },
+    { label: '季节', value: item.season },
+    { label: '储存方式', value: item.storage },
+    { label: '二级分类', value: item.l2 },
+  ];
+
+  const tooltipHtml = tooltipFields.map(f => `
+    <div class="tooltip-field ${f.label === '名称' || f.label === '编码' ? 'full' : ''}">
+      <span class="tooltip-label">${f.label}</span>
+      <span class="tooltip-value ${f.value === '—' ? 'empty' : ''}">${f.value}</span>
+    </div>
+  `).join('');
+
+  return `
+    <div class="ingredient-card">
+      <div class="health-indicator ${item.health}"></div>
+      <div class="card-name">${item.name}</div>
+      <div class="card-qty-row">
+        <span class="card-qty-value">${item.qty.toFixed(1)}</span>
+        <span class="card-qty-unit">${item.unit}</span>
+      </div>
+      <div class="card-footer">
+        <span class="status-badge ${healthClasses[item.health]}">${healthLabels[item.health]}</span>
+        <span class="card-time">${item.updated}更新</span>
+      </div>
+      <!-- 悬浮详情浮层 -->
+      <div class="card-tooltip">
+        <div class="tooltip-header">
+          <span class="tooltip-header-title">${item.name}</span>
+          <span class="tooltip-header-badge">${item.code}</span>
+        </div>
+        <div class="tooltip-body">
+          ${tooltipHtml}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function createStatusBadge(health) {
+  const labels = { sufficient: '充足', normal: '正常', low: '低库存' };
+  const classes = { sufficient: 'success', normal: 'warning', low: 'danger' };
+  return `<span class="status-badge ${classes[health]}">${labels[health]}</span>`;
+}
+
+function handleSearch(value) {
+  searchTerm = value.trim();
+  if (searchTerm && activeCategory !== '全部') {
+    activeCategory = '全部';
+    renderCategoryNav();
+  }
+  renderDetailArea();
+}
+
+function switchView(btn, view) {
+  currentView = view;
+  document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderDetailArea();
+}
+
+function switchTab(btn, tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (tab === 'ledger') {
+    alert('跳转到库存台账页面（/inventory/ledger）');
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>

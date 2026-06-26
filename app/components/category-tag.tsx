@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 
 const tagVarMap: Record<string, { fg: string; bg: string }> = {
+  // 食材分类
   VEG: { fg: "var(--tag-veg)", bg: "var(--tag-veg-bg)" },
   MEA: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
   AQU: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
@@ -13,6 +14,26 @@ const tagVarMap: Record<string, { fg: string; bg: string }> = {
   GRA: { fg: "var(--tag-gra)", bg: "var(--tag-gra-bg)" },
   SEA: { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
   "SEA-SEA": { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
+  // 菜品分类
+  PORK: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
+  BEEF: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
+  MUTTON: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
+  CHICKEN: { fg: "var(--tag-pou)", bg: "var(--tag-pou-bg)" },
+  DUCK: { fg: "var(--tag-pou)", bg: "var(--tag-pou-bg)" },
+  EGG: { fg: "var(--tag-pou)", bg: "var(--tag-pou-bg)" },
+  PERCH: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  GRASS: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  CRUCIAN: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  WUCHANG: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  BLACK: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  HAIRTAIL: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  YELLOW: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  SHRIMP: { fg: "var(--tag-aqu)", bg: "var(--tag-aqu-bg)" },
+  SPECIAL: { fg: "var(--tag-prc)", bg: "var(--tag-prc-bg)" },
+  TOFU: { fg: "var(--tag-bea)", bg: "var(--tag-bea-bg)" },
+  MUSHROOM: { fg: "var(--tag-veg)", bg: "var(--tag-veg-bg)" },
+  VEGETABLE: { fg: "var(--tag-veg)", bg: "var(--tag-veg-bg)" },
+  SOUP: { fg: "var(--tag-dry)", bg: "var(--tag-dry-bg)" },
 };
 
 interface CategoryTagProps {

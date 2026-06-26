@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
     const rows = await prisma.dish.findMany({
       where,
-      orderBy: { id: "asc" },
+      orderBy: { createdAt: "desc" },
       include: {
         category: { select: { id: true, code: true, name: true } },
         netDetails: {

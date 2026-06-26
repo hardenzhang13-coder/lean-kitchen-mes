@@ -64,6 +64,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const operator = user?.username || null;
 
   try {
+    const existing = await prisma.dish.findUnique({
+      where: { id: Number(id) },
+      select: { status: true },
+    });
+    if (existing?.status === "published") {
+      const { status: requestedStatus, ...rest } = body;
+      if (Object.keys(rest).length > 0 || requestedStatus !== "draft") {
+        return badRequest("已发布菜品不可修改，请先下架");
+      }
+    }
+
     const row = await prisma.dish.update({
       where: { id: Number(id) },
       data: {
@@ -100,6 +111,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   try {
     const row = await prisma.dish.findUnique({ where: { id: Number(id) } });
+    if (row?.status === "published") {
+      return badRequest("已发布菜品不可删除");
+    }
     await prisma.dish.delete({ where: { id: Number(id) } });
     await logOperation(req, {
       action: "DELETE",

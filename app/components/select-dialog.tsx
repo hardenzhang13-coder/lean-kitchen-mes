@@ -23,6 +23,7 @@ interface SelectDialogProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  hideSearch?: boolean;
 }
 
 export function SelectDialog({
@@ -32,11 +33,11 @@ export function SelectDialog({
   searchPlaceholder = "搜索...",
   searchValue,
   onSearchChange,
-  emptyText = "暂无匹配选项",
   onCancel,
   children,
   footer,
   className,
+  hideSearch = false,
 }: SelectDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -50,15 +51,17 @@ export function SelectDialog({
           <DialogTitle className="text-lg">{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2 flex-1 min-h-0 overflow-hidden flex flex-col">
-          <div className="relative shrink-0">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="h-11 pl-9 text-base"
-            />
-          </div>
+          {!hideSearch && (
+            <div className="relative shrink-0">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchValue}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder={searchPlaceholder}
+                className="h-11 pl-9 text-base"
+              />
+            </div>
+          )}
           <div className="flex-1 min-h-0 overflow-y-auto">{children}</div>
         </div>
         <div className="flex items-center justify-end gap-2 pt-2">

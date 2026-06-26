@@ -91,6 +91,8 @@ export function SelectTileMode({
     onChange("");
   };
 
+  const hideSearch = !searchable || options.length < 5;
+
   return (
     <div className={className}>
       <Button
@@ -133,6 +135,7 @@ export function SelectTileMode({
         onSearchChange={setSearch}
         emptyText={emptyText}
         onCancel={() => setOpen(false)}
+        hideSearch={hideSearch}
       >
         {filtered.length === 0 ? (
           <div className="text-center text-sm text-muted-foreground py-8">

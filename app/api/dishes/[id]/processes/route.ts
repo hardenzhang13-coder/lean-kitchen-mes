@@ -26,6 +26,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 
   try {
+    const existing = await prisma.dish.findUnique({
+      where: { id: dishId },
+      select: { status: true },
+    });
+    if (existing?.status === "published") {
+      return NextResponse.json({ error: "已发布菜品不可修改加工工艺" }, { status: 400 });
+    }
+
     await prisma.$transaction(async (tx) => {
       await tx.dishProcess.deleteMany({ where: { dishId } });
       if (processes.length > 0) {

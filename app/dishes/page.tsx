@@ -1,261 +1,258 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Search, Pencil, RotateCcw, Send, ChefHat } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { EmptyState } from "@/app/components/empty-state";
+import { Plus, Search, Pencil, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Sheet } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { PageHeader } from "@/app/components/page-header";
-import { DishCard } from "@/app/components/dish-card";
-import { DishCreateWizard } from "@/app/components/dish-create-wizard";
+import { DataTable } from "@/app/components/data-table";
+import { SkeletonTable } from "@/app/components/skeleton-table";
+import { StatusBadge } from "@/app/components/status-badge";
+import { CategoryTag } from "@/app/components/category-tag";
+import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { DishSheetDetail } from "@/app/components/dish-sheet-detail";
+import { DishDetail } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
-import { logger } from "@/lib/logger";
 
-type Dish = {
-  id: number;
-  code: string;
-  name: string;
-  intro: string | null;
-  categoryId: number;
-  cuisine: string | null;
-  technique: string | null;
-  taste: string | null;
-  portion: string;
-  season: string;
-  meatType: string | null;
-  cost: number | null;
-  status: string;
-  category?: { id: number; code: string; name: string };
-  netDetails: any[];
-  minorDetails: any[];
-  seasoningDetails: any[];
-  sauceDetails: any[];
-  processes: any[];
-};
-
-type DishCategory = { id: number; code: string; name: string };
-type NetIngredient = { id: number; code: string; name: string; unitPrice: number; unit: string };
-type MinorIngredient = { id: number; code: string; name: string; unitPrice: number; unit: string };
-type Seasoning = { id: number; code: string; name: string; alias: string | null; latestRefPrice: number | null; purchaseUnit: string | null };
-type Sauce = { id: number; code: string; name: string; unitPrice: number; unit: string };
-
-const cuisineOptions = [
-  { value: "川菜", label: "川菜" },
-  { value: "粤菜", label: "粤菜" },
-  { value: "湘菜", label: "湘菜" },
-  { value: "鲁菜", label: "鲁菜" },
-  { value: "苏菜", label: "苏菜" },
-  { value: "浙菜", label: "浙菜" },
-  { value: "闽菜", label: "闽菜" },
-  { value: "徽菜", label: "徽菜" },
-  { value: "家常菜", label: "家常菜" },
-];
-
-const meatTypeOptions = [
-  { value: "荤菜", label: "荤菜" },
-  { value: "素菜", label: "素菜" },
-  { value: "小荤菜", label: "小荤菜" },
+const techniqueOptions = [
+  { value: "爆炒", label: "爆炒" },
+  { value: "红烧", label: "红烧" },
+  { value: "清蒸", label: "清蒸" },
+  { value: "炖煮", label: "炖煮" },
+  { value: "煎炸", label: "煎炸" },
+  { value: "凉拌", label: "凉拌" },
+  { value: "干锅", label: "干锅" },
+  { value: "烧烤", label: "烧烤" },
+  { value: "卤制", label: "卤制" },
+  { value: "煲汤", label: "煲汤" },
+  { value: "烩", label: "烩" },
+  { value: "熘", label: "熘" },
+  { value: "扒", label: "扒" },
+  { value: "焗", label: "焗" },
 ];
 
 const statusOptions = [
-  { value: "published", label: "已发布" },
-  { value: "pending", label: "待发布" },
   { value: "draft", label: "草稿" },
+  { value: "published", label: "已发布" },
 ];
+
+const formatDateTime = (dateStr: string | Date | null | undefined) => {
+  if (!dateStr) return "—";
+  const d = new Date(dateStr);
+  return d.toLocaleString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
+
+function MeatTypeBadge({ type }: { type?: string | null }) {
+  if (!type) return <span className="text-muted-foreground">—</span>;
+  const classes: Record<string, string> = {
+    荤菜: "bg-red-100 text-red-700 hover:bg-red-100",
+    素菜: "bg-green-100 text-green-700 hover:bg-green-100",
+    小荤菜: "bg-amber-100 text-amber-700 hover:bg-amber-100",
+  };
+  return (
+    <Badge className={classes[type] || "bg-muted text-muted-foreground"}>
+      {type}
+    </Badge>
+  );
+}
 
 export default function DishesPage() {
   const router = useRouter();
-  const [dishes, setDishes] = useState<Dish[]>([]);
-  const [categories, setCategories] = useState<DishCategory[]>([]);
-  const [netIngredients, setNetIngredients] = useState<NetIngredient[]>([]);
-  const [minorIngredients, setMinorIngredients] = useState<MinorIngredient[]>([]);
-  const [seasonings, setSeasonings] = useState<Seasoning[]>([]);
-  const [sauces, setSauces] = useState<Sauce[]>([]);
+  const [dishes, setDishes] = useState<DishDetail[]>([]);
+  const [categories, setCategories] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
+
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
-  const [filterCuisine, setFilterCuisine] = useState("");
-  const [filterMeatType, setFilterMeatType] = useState("");
+  const [filterTechnique, setFilterTechnique] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
-  // Wizard
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editingDish, setEditingDish] = useState<Dish | null>(null);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (filterCategory) params.set("categoryId", filterCategory);
-      if (filterCuisine) params.set("cuisine", filterCuisine);
-      if (filterMeatType) params.set("meatType", filterMeatType);
-      if (filterStatus) params.set("status", filterStatus);
-      const [dRes, cRes, ingCatRes, nRes, mRes, sRes, saRes] = await Promise.all([
-        fetch(`/api/dishes?${params.toString()}`),
-        fetch("/api/dish-categories"),
-        fetch("/api/ingredient-categories"),
-        fetch("/api/net-ingredients"),
-        fetch("/api/net-ingredients?l1Code=MIN"),
-        fetch("/api/ingredients"),
-        fetch("/api/sauce-ingredients"),
-      ]);
-      const dData = await dRes.json();
-      setDishes(dData.data || []);
-      setCategories(await cRes.json());
-      const ingredientCategories = await ingCatRes.json();
-      const seasoningL2Codes = new Set<string>(
-        ingredientCategories
-          .flatMap((l1: any) => l1.children)
-          .filter((l2: any) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
-          .map((l2: any) => l2.code)
-      );
-      const allIngredients = await sRes.json();
-      const list = allIngredients.data || allIngredients || [];
-      setSeasonings(list.filter((i: any) => seasoningL2Codes.has(i.l2Code)));
-      const netJson = await nRes.json();
-      setNetIngredients(netJson.data || netJson || []);
-      const minorJson = await mRes.json();
-      setMinorIngredients(minorJson.data || minorJson || []);
-      const sauceJson = await saRes.json();
-      setSauces(sauceJson.data || sauceJson || []);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedDish, setSelectedDish] = useState<DishDetail | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, [filterCategory, filterCuisine, filterMeatType, filterStatus]);
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (filterCategory) params.set("categoryId", filterCategory);
+        if (filterTechnique) params.set("technique", filterTechnique);
+        if (filterStatus) params.set("status", filterStatus);
+
+        const [dRes, cRes] = await Promise.all([
+          fetch(`/api/dishes?${params.toString()}`),
+          fetch("/api/dish-categories"),
+        ]);
+        const dJson = await dRes.json();
+        const cJson = await cRes.json();
+        if (cancelled) return;
+        setDishes(dJson.data || []);
+        setCategories(Array.isArray(cJson) ? cJson : cJson.data || []);
+      } catch {
+        if (!cancelled) toast.error("获取数据失败");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [filterCategory, filterTechnique, filterStatus, refreshKey]);
+
+  const refresh = () => setRefreshKey((k) => k + 1);
 
   const filtered = useMemo(() => {
-    return dishes.filter((d) => {
-      if (!search) return true;
-      const s = search.toLowerCase();
-      return (
+    if (!search.trim()) return dishes;
+    const s = search.trim().toLowerCase();
+    return dishes.filter(
+      (d) =>
         d.name.toLowerCase().includes(s) ||
         d.code.toLowerCase().includes(s) ||
         (d.intro && d.intro.toLowerCase().includes(s))
-      );
-    });
+    );
   }, [dishes, search]);
 
-  const handleStatusChange = async (dish: Dish, newStatus: string) => {
+  const { currentPage, setCurrentPage, pageItems, totalPages, totalItems } =
+    usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  const categoryOptions = useMemo(
+    () => categories.map((c) => ({ value: String(c.id), label: c.name })),
+    [categories]
+  );
+
+  const hasFilters = search || filterCategory || filterTechnique || filterStatus;
+
+  const clearFilters = () => {
+    setSearch("");
+    setFilterCategory("");
+    setFilterTechnique("");
+    setFilterStatus("");
+  };
+
+  const openSheet = (dish: DishDetail) => {
+    setSelectedDish(dish);
+    setSheetOpen(true);
+  };
+
+  const handleDelete = async (id: number) => {
     try {
-      const res = await fetch(`/api/dishes/${dish.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: dish.name,
-          categoryId: dish.categoryId,
-          status: newStatus,
-        }),
-      });
+      const res = await fetch(`/api/dishes/${id}`, { method: "DELETE" });
       if (!res.ok) {
-        const data = await res.json();
-        toast.error(data.error || "操作失败");
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "删除失败");
         return;
       }
-      toast.success(newStatus === "published" ? "已发布" : "已撤回");
-      fetchData();
+      toast.success("删除成功");
+      setDeleteId(null);
+      setSheetOpen(false);
+      refresh();
     } catch {
-      toast.error("操作失败");
+      toast.error("删除失败");
     }
   };
 
-  const openEdit = (dish: Dish) => {
-    setEditingDish(dish);
-    setWizardOpen(true);
-  };
-
-  const openCreate = () => {
-    setEditingDish(null);
-    setWizardOpen(true);
+  const handleUnpublish = async (id: number) => {
+    try {
+      const res = await fetch(`/api/dishes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "draft" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "下架失败");
+        return;
+      }
+      toast.success("已下架");
+      setSheetOpen(false);
+      refresh();
+    } catch {
+      toast.error("下架失败");
+    }
   };
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <PageHeader title="菜品库" description="管理所有菜品及其 BOM 与工艺" />
-        <Button onClick={openCreate}>
+        <Button onClick={() => router.push("/dishes/new")}>
           <Plus className="mr-2 h-4 w-4" />
           新增菜品
         </Button>
       </div>
 
-      {/* Filters */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索菜品名称或编号..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
+            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+              <Input
+                placeholder="搜索菜品名称或编号..."
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full"
+              />
+            </div>
+            <SelectTileMode
+              options={categoryOptions}
+              value={filterCategory}
+              onChange={(v) => {
+                setFilterCategory(v);
+                setCurrentPage(1);
+              }}
+              placeholder="全部类别"
+              title="选择菜品类别"
+              className="w-[180px]"
             />
-            <Select value={filterCategory || undefined} onValueChange={(v) => { v && setFilterCategory(v); }}>
-              <SelectTrigger className="w-[160px] h-10">
-                <SelectValue placeholder="全部类别" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">全部类别</SelectItem>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterCuisine || undefined} onValueChange={(v) => { v && setFilterCuisine(v); }}>
-              <SelectTrigger className="w-[140px] h-10">
-                <SelectValue placeholder="全部菜系" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">全部菜系</SelectItem>
-                {cuisineOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterMeatType || undefined} onValueChange={(v) => { v && setFilterMeatType(v); }}>
-              <SelectTrigger className="w-[140px] h-10">
-                <SelectValue placeholder="全部荤素" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">全部荤素</SelectItem>
-                {meatTypeOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={filterStatus || undefined} onValueChange={(v) => { v && setFilterStatus(v); }}>
-              <SelectTrigger className="w-[140px] h-10">
-                <SelectValue placeholder="全部状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">全部状态</SelectItem>
-                {statusOptions.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {(filterCategory || filterCuisine || filterMeatType || filterStatus || search) && (
-              <Button variant="ghost" size="sm" onClick={() => {
-                setFilterCategory("");
-                setFilterCuisine("");
-                setFilterMeatType("");
-                setFilterStatus("");
-                setSearch("");
-              }}>
+            <SelectTileMode
+              options={techniqueOptions}
+              value={filterTechnique}
+              onChange={(v) => {
+                setFilterTechnique(v);
+                setCurrentPage(1);
+              }}
+              placeholder="全部做法"
+              title="选择做法"
+              className="w-[180px]"
+            />
+            <SelectTileMode
+              options={statusOptions}
+              value={filterStatus}
+              onChange={(v) => {
+                setFilterStatus(v);
+                setCurrentPage(1);
+              }}
+              placeholder="全部状态"
+              title="选择状态"
+              className="w-[180px]"
+            />
+            {hasFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
                 清除筛选
               </Button>
             )}
@@ -263,50 +260,159 @@ export default function DishesPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="rounded-xl bg-card ring-1 ring-foreground/5 p-5 space-y-3 animate-pulse">
-                  <div className="h-4 w-24 bg-muted rounded" />
-                  <div className="h-3 w-full bg-muted rounded" />
-                  <div className="h-3 w-2/3 bg-muted rounded" />
-                </div>
-              ))}
-            </div>
-          ) : filtered.length === 0 ? (
-            <EmptyState icon={ChefHat} title="暂无菜品" />
+            <SkeletonTable cols={10} rows={10} />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {filtered.map((d) => (
-                <DishCard
-                  key={d.id}
-                  code={d.code}
-                  name={d.name}
-                  intro={d.intro}
-                  categoryName={d.category?.name || "—"}
-                  cuisine={d.cuisine}
-                  meatType={d.meatType}
-                  portion={d.portion}
-                  cost={d.cost != null ? Number(d.cost) : null}
-                  status={d.status}
-                  onClick={() => router.push(`/dishes/${d.id}`)}
-                />
-              ))}
-            </div>
+            <DataTable<DishDetail>
+              data={pageItems}
+              onRowClick={openSheet}
+              columns={[
+                {
+                  header: "序号",
+                  cell: (_, rowIdx) => (
+                    <span className="text-muted-foreground">
+                      {(currentPage - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}
+                    </span>
+                  ),
+                },
+                {
+                  header: "编号",
+                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                },
+                {
+                  header: "菜品名称",
+                  cell: (row) => <span className="font-medium">{row.name}</span>,
+                },
+                {
+                  header: "类别",
+                  cell: (row) => (
+                    <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
+                  ),
+                },
+                {
+                  header: "菜品描述",
+                  cell: (row) => (
+                    <span className="text-muted-foreground line-clamp-1">
+                      {row.intro || "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "荤素",
+                  cell: (row) => <MeatTypeBadge type={row.meatType} />,
+                },
+                {
+                  header: "成本价",
+                  className: "text-right",
+                  cell: (row) => (
+                    <span className="font-medium">
+                      {row.cost != null ? `¥${Number(row.cost).toFixed(2)}` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "状态",
+                  cell: (row) => (
+                    <StatusBadge status={row.status === "published" ? "已发布" : "草稿"} />
+                  ),
+                },
+                {
+                  header: "创建时间",
+                  cell: (row) => (
+                    <span className="text-muted-foreground">
+                      {formatDateTime(row.createdAt)}
+                    </span>
+                  ),
+                },
+              ]}
+              rowActions={(row) => (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="查看"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openSheet(row);
+                    }}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="编辑"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/dishes/${row.id}/edit`);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  {row.status === "draft" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="删除"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteId(row.id);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  )}
+                </>
+              )}
+              pagination={
+                totalItems > 0
+                  ? {
+                      currentPage,
+                      totalPages,
+                      totalItems,
+                      pageSize: DEFAULT_PAGE_SIZE,
+                      onPageChange: setCurrentPage,
+                    }
+                  : undefined
+              }
+              emptyState={{ title: "暂无数据" }}
+            />
           )}
         </CardContent>
       </Card>
 
-      <DishCreateWizard
-        open={wizardOpen}
-        onOpenChange={setWizardOpen}
-        categories={categories}
-        netIngredients={netIngredients}
-        minorIngredients={minorIngredients}
-        seasonings={seasonings}
-        sauces={sauces}
-        editingDish={editingDish}
-        onSuccess={fetchData}
-      />
+      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+        {selectedDish && (
+          <DishSheetDetail
+            dish={selectedDish}
+            onDelete={handleDelete}
+            onUnpublish={handleUnpublish}
+            onEdit={(id) => router.push(`/dishes/${id}/edit`)}
+          />
+        )}
+      </Sheet>
+
+      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认删除</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确定要删除这条菜品吗？此操作不可撤销。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteId && handleDelete(deleteId)}
+              className="h-11 px-6"
+            >
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

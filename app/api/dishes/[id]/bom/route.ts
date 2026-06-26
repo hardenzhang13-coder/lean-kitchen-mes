@@ -37,6 +37,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } = body;
 
   try {
+    const existing = await prisma.dish.findUnique({
+      where: { id: dishId },
+      select: { status: true },
+    });
+    if (existing?.status === "published") {
+      return NextResponse.json({ error: "已发布菜品不可修改 BOM" }, { status: 400 });
+    }
+
     const seasoningL2Codes = await getSeasoningL2Codes();
 
     const totalCost = await prisma.$transaction(async (tx) => {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const dishStatusSchema = z.enum(["draft", "pending", "published"]);
+export const dishStatusSchema = z.enum(["draft", "published"]);
 
 export const createDishSchema = z.object({
   name: z.string().min(1).max(100),
