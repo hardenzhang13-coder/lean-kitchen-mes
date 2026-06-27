@@ -6,6 +6,41 @@ import { logError } from "@/lib/logger";
 import { computeImageHash } from "@/lib/utils";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
+function normalizeName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^一-龥a-z0-9]/g, "")
+    .trim();
+}
+
+function nameSimilarity(a: string, b: string): number {
+  const na = normalizeName(a);
+  const nb = normalizeName(b);
+  if (!na || !nb) return 0;
+  if (na === nb) return 1;
+  if (na.includes(nb) || nb.includes(na)) return 0.9;
+  return 0;
+}
+
+function findBestIngredientMatch(
+  displayName: string,
+  ingredients: { id: number; name: string; alias: string | null; l2Code: string; purchaseSpec: string | null; stockUnit: string | null; storage: string | null }[]
+) {
+  let best: (typeof ingredients)[number] | null = null;
+  let bestScore = 0;
+  for (const ing of ingredients) {
+    const score = Math.max(
+      nameSimilarity(displayName, ing.name),
+      ing.alias ? nameSimilarity(displayName, ing.alias) : 0
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      best = ing;
+    }
+  }
+  return { match: best, score: bestScore };
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { imageBase64 } = await req.json();
@@ -82,13 +117,9 @@ export async function POST(req: NextRequest) {
       const displayBrand = productName || brandPrefix || "";
       const displayItemName = ingredientName || productName;
 
-      // 统一查询 Ingredient 表（按 name 或 alias 匹配）
-      const ingMatch = ingredients.find(
-        (i) =>
-          i.name === displayItemName ||
-          i.alias === displayItemName
-      );
-      if (ingMatch) {
+      // 统一查询 Ingredient 表（按名称相似度匹配）
+      const { match: ingMatch, score } = findBestIngredientMatch(displayItemName, ingredients);
+      if (ingMatch && score >= 0.9) {
         const isSeasoning = seasoningL2Set.has(ingMatch.l2Code);
         const isJin = purchaseUnit === "斤";
         const stockInfo = isJin
@@ -151,6 +182,13 @@ export async function POST(req: NextRequest) {
 
     const matchedCount = matchedItems.filter((i) => i.matched).length;
     console.log(`[AI] 匹配完成，已匹配: ${matchedCount}/${matchedItems.length}`);
+
+    if (matchedItems.length === 0) {
+      return NextResponse.json(
+        { error: "未能从图片中识别出任何采购物料，请检查图片清晰度后重试" },
+        { status: 422 }
+      );
+    }
 
     return NextResponse.json({
       items: matchedItems,

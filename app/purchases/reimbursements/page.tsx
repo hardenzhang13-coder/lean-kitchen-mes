@@ -33,7 +33,7 @@ export default function ReimbursementsPage() {
     try {
       const res = await fetch("/api/purchase-reimbursements");
       const data = await res.json();
-      setRows(data);
+      setRows(data.data?.items || data.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

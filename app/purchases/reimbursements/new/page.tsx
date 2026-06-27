@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DatePicker } from "@/app/components/date-picker";
+import { parseList } from "@/app/lib/api";
 import { toast } from "sonner";
 
 interface Receipt {
@@ -36,8 +37,8 @@ export default function NewReimbursementPage() {
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       const res = await fetch(`/api/purchase-receipts?${params.toString()}`);
-      const data = await res.json();
-      setReceipts(data.data || []);
+      const list = await parseList<Receipt>(res);
+      setReceipts(list);
     } catch {
       toast.error("获取采购单失败");
     } finally {

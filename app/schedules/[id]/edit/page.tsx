@@ -15,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { parseObject } from "@/app/lib/api";
 import { toast } from "sonner";
 
 interface Dish {
@@ -55,12 +56,12 @@ export default function EditSchedulePage() {
   const fetchSchedule = async () => {
     try {
       const res = await fetch(`/api/schedules/${id}`);
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "获取失败");
+      const data = await parseObject<any>(res);
+      if (!data) {
+        toast.error("排程不存在");
         return;
       }
-      const schedule = data.data;
+      const schedule = data;
       if (schedule.status !== "待生效") {
         toast.error("只有待生效的排程可以修改");
         router.push(`/schedules/${id}`);

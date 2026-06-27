@@ -120,8 +120,24 @@ export async function recognizePurchaseReceipt(imageBase64: string): Promise<{
   } catch (apiErr: unknown) {
     const err = apiErr instanceof Error ? apiErr : new Error(String(apiErr));
     console.error(`[AI] 模型调用失败: ${err.message}`);
-    if ((apiErr as { code?: string })?.code) {
-      console.error(`[AI] 错误码: ${(apiErr as { code?: string }).code}`);
+    const code = (apiErr as { code?: string }).code;
+    const status = (apiErr as { status?: number }).status;
+    if (code) {
+      console.error(`[AI] 错误码: ${code}`);
+    }
+    if (status != null) {
+      if (status === 401) {
+        throw new Error("AI 鉴权失败，请检查 QWEN_API_KEY 是否有效");
+      }
+      if (status === 429) {
+        throw new Error("AI 调用频率超限，请稍后再试");
+      }
+      if (status >= 500) {
+        throw new Error("AI 服务暂时不可用，请稍后再试");
+      }
+    }
+    if (err.message.includes("timeout") || err.message.includes("ETIMEDOUT")) {
+      throw new Error("AI 识别超时，请检查网络或稍后重试");
     }
     throw new Error(`AI 模型调用失败: ${err.message}`);
   }

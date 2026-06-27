@@ -15,6 +15,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { parseObject } from "@/app/lib/api";
 import {
   Table,
   TableBody,
@@ -84,12 +85,12 @@ export default function ScheduleDetailPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/schedules/${id}`);
-      const d = await res.json();
-      if (!res.ok) {
-        toast.error(d.error || "获取失败");
+      const d = await parseObject<ScheduleData>(res);
+      if (!d) {
+        toast.error("排程不存在");
         return;
       }
-      setData(d.data);
+      setData(d);
     } catch {
       toast.error("获取排程数据失败");
     } finally {

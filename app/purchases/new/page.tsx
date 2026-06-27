@@ -279,11 +279,11 @@ export default function NewPurchasePage() {
   useEffect(() => {
     fetch("/api/ingredient-categories")
       .then((r) => r.json())
-      .then((data) => setCategories(data))
+      .then((res) => setCategories(res.data?.items || res.data || []))
       .catch(() => {});
     fetch("/api/units")
       .then((r) => r.json())
-      .then((data) => setUnits(data))
+      .then((res) => setUnits(res.data?.items || res.data || []))
       .catch(() => {});
   }, []);
 

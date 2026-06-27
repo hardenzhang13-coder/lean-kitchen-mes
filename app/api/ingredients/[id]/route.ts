@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { success } from "@/lib/api-response";
 import { checkDuplicateName } from "@/lib/duplicate-check";
 import { updateIngredientSchema } from "@/lib/schemas/ingredient";
 import { validateBody } from "@/lib/validate";
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       : undefined,
   });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json({ data: row });
+  return success(row);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -72,7 +73,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       },
     });
     await logOperation(req, { action: "UPDATE", entity: "Ingredient", entityId: row.id, description: `更新食材: ${row.name}` });
-    return NextResponse.json({ data: row });
+    return success(row);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: message }, { status: 400 });

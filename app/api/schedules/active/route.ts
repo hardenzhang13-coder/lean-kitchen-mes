@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { success } from "@/lib/api-response";
 
 export async function GET() {
   const rows = await prisma.schedule.findMany({
@@ -20,5 +20,5 @@ export async function GET() {
     dishCount: r.items.length,
   }));
 
-  return NextResponse.json(enriched);
+  return success(enriched);
 }

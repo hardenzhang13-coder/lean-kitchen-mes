@@ -79,7 +79,8 @@ export default function RawIngredientDetailPage() {
       }
       const ingJson = await ingRes.json();
       setIngredient(ingJson.data || null);
-      setCategories(await catRes.json());
+      const catJson = await catRes.json();
+      setCategories(catJson.data?.items || catJson.data || []);
       const rawJson = await rawRes.json();
       setRawIngredients(rawJson.data || []);
     } catch (e: unknown) {

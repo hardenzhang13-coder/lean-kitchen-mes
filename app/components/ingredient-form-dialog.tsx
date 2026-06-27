@@ -26,6 +26,7 @@ import {
 } from "@/app/components/ingredient-form-fields";
 import { EmptyState } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
+import { parseList } from "@/app/lib/api";
 import { getDefaultSpec } from "@/lib/spec-parser";
 import { toast } from "sonner";
 
@@ -141,8 +142,8 @@ export function IngredientFormDialog({
           `/api/ingredients?l2Code=${encodeURIComponent(form.l2Code)}`
         );
         if (res.ok) {
-          const json = await res.json();
-          setRightList(Array.isArray(json) ? json : json.data || []);
+          const list = await parseList<ListItem>(res);
+          setRightList(list);
         }
       } catch {
         // ignore

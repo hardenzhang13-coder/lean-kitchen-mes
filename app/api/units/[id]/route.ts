@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { success } from "@/lib/api-response";
 import { updateUnitSchema } from "@/lib/schemas/unit";
 import { validateBody } from "@/lib/validate";
 import { getErrorMessage } from "@/lib/error-utils";
@@ -9,7 +10,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const row = await prisma.unit.findUnique({ where: { id: Number(id) } });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(row);
+  return success(row);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,7 +26,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: { name, category },
     });
     await logOperation(req, { action: "UPDATE", entity: "Unit", entityId: row.id, description: `更新: ${row.name}` });
-    return NextResponse.json(row);
+    return success(row);
   } catch (e: unknown) {
     return NextResponse.json({ error: getErrorMessage(e) }, { status: 400 });
   }

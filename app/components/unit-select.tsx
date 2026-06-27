@@ -34,8 +34,8 @@ export function UnitSelect({
   useEffect(() => {
     fetch("/api/units")
       .then((res) => res.json())
-      .then((data: Unit[]) => {
-        setUnits(data || []);
+      .then((res) => {
+        setUnits(res.data?.items || res.data || []);
       })
       .catch(() => {
         setUnits([]);

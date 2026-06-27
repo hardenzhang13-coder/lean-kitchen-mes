@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { success } from "@/lib/api-response";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
 import { updateScheduleSchema } from "@/lib/schemas/schedule";
 import { validateBody } from "@/lib/validate";
@@ -65,7 +66,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     dishCount: schedule.items.length,
   };
 
-  return NextResponse.json(enriched);
+  return success(enriched);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -133,7 +134,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       description: `修改排程: ${result.title}`,
     });
 
-    return NextResponse.json(result);
+    return success(result);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: message }, { status: 400 });

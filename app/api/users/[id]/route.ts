@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, logOperation } from "@/lib/api-auth";
+import { success } from "@/lib/api-response";
 import { updateUserSchema } from "@/lib/schemas/auth";
 import { validateBody } from "@/lib/validate";
 import { isAdmin, ROLE_OPTIONS } from "@/lib/roles";
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!row) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
-  return NextResponse.json(row);
+  return success(row);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -84,7 +85,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     description: `更新用户: ${row.name} (${row.username})`,
   });
 
-  return NextResponse.json(row);
+  return success(row);
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

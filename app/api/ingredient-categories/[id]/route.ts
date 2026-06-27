@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { success } from "@/lib/api-response";
 import { updateIngredientCategorySchema } from "@/lib/schemas/ingredient-category";
 import { validateBody } from "@/lib/validate";
 import { getErrorMessage } from "@/lib/error-utils";
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       include: { children: true },
     });
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(row);
+    return success(row);
   }
 
   if (type === "l2") {
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       include: { parent: true },
     });
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-    return NextResponse.json(row);
+    return success(row);
   }
 
   // 默认先查 L1，再查 L2
@@ -33,13 +34,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id: Number(id) },
     include: { children: true },
   });
-  if (l1) return NextResponse.json({ ...l1, _type: "l1" });
+  if (l1) return success({ ...l1, _type: "l1" });
 
   const l2 = await prisma.ingredientCategoryL2.findUnique({
     where: { id: Number(id) },
     include: { parent: true },
   });
-  if (l2) return NextResponse.json({ ...l2, _type: "l2" });
+  if (l2) return success({ ...l2, _type: "l2" });
 
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
@@ -69,7 +70,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data: { code, name },
       });
       await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL1", entityId: row.id, description: `更新: ${row.name || row.code}` });
-      return NextResponse.json(row);
+      return success(row);
     }
     if (type === "l2") {
       const existing = await prisma.ingredientCategoryL2.findFirst({
@@ -87,7 +88,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data: { code, name, parentCode, description: description || null },
       });
       await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL2", entityId: row.id, description: `更新: ${row.name || row.code}` });
-      return NextResponse.json(row);
+      return success(row);
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
   } catch (e: unknown) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { success } from "@/lib/api-response";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -14,5 +15,5 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, receiptDate: true, summary: true, totalAmount: true, operator: true },
   });
 
-  return NextResponse.json({ ...row, receipts });
+  return success({ ...row, receipts });
 }

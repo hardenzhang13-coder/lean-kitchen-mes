@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Download, Receipt, FileText } from "lucide-react";
 import { StatusBadge } from "@/app/components/status-badge";
+import { parseObject } from "@/app/lib/api";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -32,9 +33,9 @@ export default function ReimbursementDetailPage() {
     setLoading(true);
     try {
       const res = await fetch(`/api/purchase-reimbursements/${id}`);
-      const d = await res.json();
-      if (!res.ok) {
-        toast.error(d.error || "获取失败");
+      const d = await parseObject<any>(res);
+      if (!d) {
+        toast.error("报销单不存在");
         return;
       }
       setData(d);

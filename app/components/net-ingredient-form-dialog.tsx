@@ -26,6 +26,7 @@ import {
 } from "@/app/components/net-ingredient-form-fields";
 import { EmptyState } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
+import { parseList } from "@/app/lib/api";
 import { toast } from "sonner";
 
 export type NetIngredientItem = {
@@ -192,8 +193,8 @@ export function NetIngredientFormDialog({
           `/api/net-ingredients?sourceIngredientId=${sourceId}`
         );
         if (res.ok) {
-          const json = await res.json();
-          setRightList(json.data || []);
+          const list = await parseList<NetIngredientItem>(res);
+          setRightList(list);
         }
       } catch {
         // ignore

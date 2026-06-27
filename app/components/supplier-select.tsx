@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseList } from "@/app/lib/api";
 import { SelectTableMode } from "@/app/components/select-table-mode";
 
 type Supplier = {
@@ -30,11 +31,8 @@ export function SupplierSelect({
   useEffect(() => {
     setLoading(true);
     fetch("/api/suppliers")
-      .then((res) => res.json())
-      .then((json) => {
-        const list = Array.isArray(json) ? json : json.data || [];
-        setData(list);
-      })
+      .then((res) => parseList<Supplier>(res))
+      .then((list) => setData(list))
       .finally(() => setLoading(false));
   }, []);
 
