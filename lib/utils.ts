@@ -3,7 +3,7 @@ import { twMerge } from "tailwind-merge"
 import { pinyin } from "pinyin-pro"
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(...inputs))
+  return twMerge(clsx(inputs))
 }
 
 export function getInitials(name: string): string {
@@ -25,4 +25,47 @@ export function computeImageHash(base64: string): string {
     hash = ((hash << 5) + hash) + base64.charCodeAt(i);
   }
   return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+export function isToday(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+export function formatRelativeTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 1) return "刚刚";
+  if (diffMin < 60) return `${diffMin}分钟前`;
+  if (diffHour < 24) return `${diffHour}小时前`;
+  if (diffDay < 30) return `${diffDay}天前`;
+  if (diffDay < 365) return `${Math.floor(diffDay / 30)}个月前`;
+  return `${Math.floor(diffDay / 365)}年前`;
+}
+
+export function formatNumber(n: number, decimals = 2): string {
+  return Number(n).toFixed(decimals);
+}
+
+export function groupBy<T, K extends string | number>(
+  arr: T[],
+  keyFn: (item: T) => K
+): Record<K, T[]> {
+  return arr.reduce((acc, item) => {
+    const key = keyFn(item);
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {} as Record<K, T[]>);
 }

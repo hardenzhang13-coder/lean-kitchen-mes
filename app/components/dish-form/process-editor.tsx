@@ -15,8 +15,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/app/components/form-field";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, TOOL_OPTIONS } from "./types";
+import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, STAGE_COLORS, TOOL_OPTIONS } from "./types";
 import { ProcessStepForm } from "./process-step-form";
+import { ProcessStepCard } from "./process-step-card";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -26,13 +27,6 @@ interface ProcessEditorProps {
   onChange: (processes: ProcessStep[]) => void;
   readOnly?: boolean;
 }
-
-const STAGE_LABELS: Record<ProcessStage, string> = {
-  "初加工": "初加工",
-  "预处理": "预处理",
-  "上灶加工": "上灶加工",
-  "出锅成品": "出锅成品",
-};
 
 const stageOptions = VALID_STAGES.map((s) => ({ value: s, label: s }));
 
@@ -147,6 +141,11 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
       .find((s) => s._id === id);
   };
 
+  const openAddDialog = (stage: ProcessStage) => {
+    setNewStep((prev) => ({ ...prev, stage }));
+    setAddDialogOpen(true);
+  };
+
   const objectSelectOptions = objectOptions.map((o) => ({ value: o, label: o }));
 
   return (
@@ -168,39 +167,58 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
           )}
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {VALID_STAGES.map((stage, stageIdx) => {
+      <CardContent className="space-y-3">
+        {VALID_STAGES.map((stage) => {
           const isEditingStage = editingStepId
             ? idToStep(editingStepId)?.stage === stage
             : false;
-          const isOtherStageEditing = editingStepId != null && !isEditingStage;
           const isExpanded = expandedStages.has(stage) || isEditingStage;
           const stageSteps = stepsByStage[stage];
+          const colors = STAGE_COLORS[stage];
 
           return (
-            <div key={stage} className="relative">
-              {stageIdx > 0 && !isOtherStageEditing && (
-                <div className="absolute left-[11px] -top-4 h-4 border-l border-dashed border-muted-foreground/30" />
-              )}
-              <div
-                className={cn(
-                  "flex items-center gap-2 cursor-pointer select-none",
-                  isOtherStageEditing && "opacity-60"
-                )}
-                onClick={() => {
-                  if (isOtherStageEditing) return;
-                  toggleStage(stage);
-                }}
-              >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
-                  {STAGE_ORDER[stage] + 1}
-                </span>
-                <span className="text-sm font-semibold">{STAGE_LABELS[stage]}</span>
-                <span className="text-xs text-muted-foreground">{stageSteps.length} 步</span>
-              </div>
-
-              {(isExpanded && !isOtherStageEditing) && (
-                <div className="border-l border-dashed border-muted-foreground/30 ml-2.5 pl-4 pt-2 space-y-2">
+            <Card key={stage} className="overflow-hidden">
+              <CardHeader className="py-3">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => toggleStage(stage)}
+                    className="flex items-center gap-2 flex-1 text-left min-w-0"
+                  >
+                    <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", colors.dot)} />
+                    <span className="text-sm font-semibold">{stage}</span>
+                    <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full shrink-0", colors.badge)}>
+                      {stageSteps.length} 步
+                    </span>
+                    <ChevronDown
+                      className={cn(
+                        "h-4 w-4 text-muted-foreground transition-transform ml-auto shrink-0",
+                        isExpanded && "rotate-180"
+                      )}
+                    />
+                  </button>
+                  {!readOnly && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openAddDialog(stage)}
+                      className="h-7 text-xs shrink-0"
+                    >
+                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      添加步骤
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              {isExpanded && (
+                <CardContent className="pt-0 pb-3 space-y-2">
+                  {stageSteps.length === 0 && !readOnly && (
+                    <div className="text-sm text-muted-foreground py-2">该阶段暂无工序，点击上方“添加步骤”</div>
+                  )}
+                  {stageSteps.length === 0 && readOnly && (
+                    <div className="text-sm text-muted-foreground py-2">该阶段暂无工序</div>
+                  )}
                   {stageSteps.map((step, idx) => {
                     if (editingStepId === step._id) {
                       return (
@@ -217,25 +235,70 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
                       );
                     }
                     return (
-                      <StepPreview
+                      <ProcessStepCard
                         key={step._id}
                         step={step}
                         stepNo={idx + 1}
-                        onEdit={() => {
-                          if (readOnly) return;
-                          setEditingStepId(step._id);
-                          setExpandedStages(new Set(VALID_STAGES));
-                        }}
-                        onRemove={() => removeStep(step._id)}
-                        onMoveUp={idx > 0 ? () => moveStep(step._id, -1) : undefined}
-                        onMoveDown={idx < stageSteps.length - 1 ? () => moveStep(step._id, 1) : undefined}
-                        readOnly={readOnly}
+                        stage={stage}
+                        actions={
+                          !readOnly
+                            ? [
+                                idx > 0 && (
+                                  <Button
+                                    key="up"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => moveStep(step._id, -1)}
+                                    className="h-7 w-7"
+                                  >
+                                    <ChevronUp className="h-4 w-4" />
+                                  </Button>
+                                ),
+                                idx < stageSteps.length - 1 && (
+                                  <Button
+                                    key="down"
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => moveStep(step._id, 1)}
+                                    className="h-7 w-7"
+                                  >
+                                    <ChevronDown className="h-4 w-4" />
+                                  </Button>
+                                ),
+                                <Button
+                                  key="edit"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setEditingStepId(step._id);
+                                    setExpandedStages(new Set(VALID_STAGES));
+                                  }}
+                                  className="h-7 w-7"
+                                >
+                                  <Pencil className="h-4 w-4" />
+                                </Button>,
+                                <Button
+                                  key="remove"
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeStep(step._id)}
+                                  className="h-7 w-7 text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>,
+                              ].filter(Boolean)
+                            : undefined
+                        }
                       />
                     );
                   })}
-                </div>
+                </CardContent>
               )}
-            </div>
+            </Card>
           );
         })}
       </CardContent>
@@ -320,57 +383,5 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
         </DialogContent>
       </Dialog>
     </Card>
-  );
-}
-
-function StepPreview({
-  step,
-  stepNo,
-  onEdit,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-  readOnly,
-}: {
-  step: ProcessStep;
-  stepNo: number;
-  onEdit: () => void;
-  onRemove: () => void;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
-  readOnly?: boolean;
-}) {
-  return (
-    <div className="min-h-[36px] flex items-center gap-2 group">
-      <span className="text-xs text-muted-foreground w-6">{stepNo}.</span>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm">
-          {step.object} → {step.action}
-        </div>
-        {step.description && (
-          <div className="text-xs text-muted-foreground truncate">{step.description}</div>
-        )}
-      </div>
-      {!readOnly && (
-        <div className="flex items-center gap-0.5 opacity-100">
-          {onMoveUp && (
-            <Button type="button" variant="ghost" size="icon" onClick={onMoveUp} className="h-7 w-7">
-              <ChevronUp className="h-4 w-4" />
-            </Button>
-          )}
-          {onMoveDown && (
-            <Button type="button" variant="ghost" size="icon" onClick={onMoveDown} className="h-7 w-7">
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          )}
-          <Button type="button" variant="ghost" size="icon" onClick={onEdit} className="h-7 w-7">
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="h-7 w-7 text-destructive">
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
-      )}
-    </div>
   );
 }

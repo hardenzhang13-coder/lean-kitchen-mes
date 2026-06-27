@@ -275,6 +275,8 @@ export function NetIngredientFormDialog({
       if (!isMinor) {
         payload.sourceIngredientId = Number(form.sourceIngredientId);
         payload.yieldRate = Number(form.yieldRate);
+      } else {
+        payload.unit = "10g";
       }
 
       const url = initialData?.id

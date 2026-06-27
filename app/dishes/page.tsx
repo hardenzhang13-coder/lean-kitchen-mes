@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Search, Pencil, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,9 +21,10 @@ import { SkeletonTable } from "@/app/components/skeleton-table";
 import { StatusBadge } from "@/app/components/status-badge";
 import { CategoryTag } from "@/app/components/category-tag";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { DishSheetDetail } from "@/app/components/dish-sheet-detail";
 import { DishDetail } from "@/app/components/dish-form/types";
+import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
 
 const techniqueOptions = [
@@ -76,6 +77,8 @@ function MeatTypeBadge({ type }: { type?: string | null }) {
 
 export default function DishesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const dishIdParam = searchParams.get("dishId");
   const [dishes, setDishes] = useState<DishDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -85,13 +88,32 @@ export default function DishesPage() {
   const [filterTechnique, setFilterTechnique] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
+
   const [selectedDish, setSelectedDish] = useState<DishDetail | null>(null);
+  const [fullDish, setFullDish] = useState<DishDetail | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
+  const fetchDetail = useCallback(async (id: number) => {
+    try {
+      const res = await fetch(`/api/dishes/${id}`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "获取菜品详情失败");
+        return;
+      }
+      const json = await res.json();
+      setFullDish(json.data || json);
+    } catch {
+      toast.error("获取菜品详情失败");
+    }
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
+    const controller = new AbortController();
     const load = async () => {
       setLoading(true);
       try {
@@ -99,43 +121,41 @@ export default function DishesPage() {
         if (filterCategory) params.set("categoryId", filterCategory);
         if (filterTechnique) params.set("technique", filterTechnique);
         if (filterStatus) params.set("status", filterStatus);
+        if (search.trim()) params.set("q", search.trim());
+        params.set("page", String(page));
+        params.set("pageSize", String(DEFAULT_PAGE_SIZE));
 
         const [dRes, cRes] = await Promise.all([
-          fetch(`/api/dishes?${params.toString()}`),
-          fetch("/api/dish-categories"),
+          fetch(`/api/dishes?${params.toString()}`, { signal: controller.signal }),
+          fetch("/api/dish-categories", { signal: controller.signal }),
         ]);
         const dJson = await dRes.json();
         const cJson = await cRes.json();
-        if (cancelled) return;
+        if (controller.signal.aborted) return;
         setDishes(dJson.data || []);
+        setPagination(dJson.pagination || null);
         setCategories(Array.isArray(cJson) ? cJson : cJson.data || []);
-      } catch {
-        if (!cancelled) toast.error("获取数据失败");
+        if (dishIdParam) {
+          const id = Number(dishIdParam);
+          const dish = (dJson.data || []).find((d: DishDetail) => d.id === id);
+          if (dish) {
+            setSelectedDish(dish);
+            setSheetOpen(true);
+            fetchDetail(id);
+          }
+        }
+      } catch (err) {
+        if (controller.signal.aborted) return;
+        toast.error(err instanceof Error ? err.message : "获取数据失败");
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     load();
-    return () => {
-      cancelled = true;
-    };
-  }, [filterCategory, filterTechnique, filterStatus, refreshKey]);
+    return () => controller.abort();
+  }, [filterCategory, filterTechnique, filterStatus, search, page, refreshKey, dishIdParam, fetchDetail]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return dishes;
-    const s = search.trim().toLowerCase();
-    return dishes.filter(
-      (d) =>
-        d.name.toLowerCase().includes(s) ||
-        d.code.toLowerCase().includes(s) ||
-        (d.intro && d.intro.toLowerCase().includes(s))
-    );
-  }, [dishes, search]);
-
-  const { currentPage, setCurrentPage, pageItems, totalPages, totalItems } =
-    usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const categoryOptions = useMemo(
     () => categories.map((c) => ({ value: String(c.id), label: c.name })),
@@ -149,11 +169,14 @@ export default function DishesPage() {
     setFilterCategory("");
     setFilterTechnique("");
     setFilterStatus("");
+    setPage(1);
   };
 
   const openSheet = (dish: DishDetail) => {
     setSelectedDish(dish);
+    setFullDish(null);
     setSheetOpen(true);
+    fetchDetail(dish.id);
   };
 
   const handleDelete = async (id: number) => {
@@ -193,6 +216,39 @@ export default function DishesPage() {
     }
   };
 
+  const handlePublish = async (id: number) => {
+    try {
+      const detailRes = await fetch(`/api/dishes/${id}`);
+      if (!detailRes.ok) {
+        const data = await detailRes.json().catch(() => ({}));
+        toast.error(data.error || "获取菜品详情失败");
+        return;
+      }
+      const detailJson = await detailRes.json();
+      const dishData = detailJson.data || detailJson;
+      const error = validateDishDetailForPublish(dishData);
+      if (error) {
+        toast.error(error);
+        return;
+      }
+      const res = await fetch(`/api/dishes/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "published" }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || "发布失败");
+        return;
+      }
+      toast.success("发布成功");
+      setSheetOpen(false);
+      refresh();
+    } catch {
+      toast.error("发布失败");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
@@ -213,7 +269,7 @@ export default function DishesPage() {
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
-                  setCurrentPage(1);
+                  setPage(1);
                 }}
                 className="w-full"
               />
@@ -223,7 +279,7 @@ export default function DishesPage() {
               value={filterCategory}
               onChange={(v) => {
                 setFilterCategory(v);
-                setCurrentPage(1);
+                setPage(1);
               }}
               placeholder="全部类别"
               title="选择菜品类别"
@@ -234,7 +290,7 @@ export default function DishesPage() {
               value={filterTechnique}
               onChange={(v) => {
                 setFilterTechnique(v);
-                setCurrentPage(1);
+                setPage(1);
               }}
               placeholder="全部做法"
               title="选择做法"
@@ -245,7 +301,7 @@ export default function DishesPage() {
               value={filterStatus}
               onChange={(v) => {
                 setFilterStatus(v);
-                setCurrentPage(1);
+                setPage(1);
               }}
               placeholder="全部状态"
               title="选择状态"
@@ -263,14 +319,14 @@ export default function DishesPage() {
             <SkeletonTable cols={10} rows={10} />
           ) : (
             <DataTable<DishDetail>
-              data={pageItems}
+              data={dishes}
               onRowClick={openSheet}
               columns={[
                 {
                   header: "序号",
                   cell: (_, rowIdx) => (
                     <span className="text-muted-foreground">
-                      {(currentPage - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}
+                      {(page - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}
                     </span>
                   ),
                 },
@@ -364,13 +420,13 @@ export default function DishesPage() {
                 </>
               )}
               pagination={
-                totalItems > 0
+                pagination && pagination.totalItems > 0
                   ? {
-                      currentPage,
-                      totalPages,
-                      totalItems,
+                      currentPage: page,
+                      totalPages: pagination.totalPages,
+                      totalItems: pagination.totalItems,
                       pageSize: DEFAULT_PAGE_SIZE,
-                      onPageChange: setCurrentPage,
+                      onPageChange: setPage,
                     }
                   : undefined
               }
@@ -380,12 +436,21 @@ export default function DishesPage() {
         </CardContent>
       </Card>
 
-      <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
+      <Sheet
+        open={sheetOpen}
+        onOpenChange={(open) => {
+          setSheetOpen(open);
+          if (!open && dishIdParam) {
+            router.replace("/dishes");
+          }
+        }}
+      >
         {selectedDish && (
           <DishSheetDetail
-            dish={selectedDish}
+            dish={fullDish ?? selectedDish}
             onDelete={handleDelete}
             onUnpublish={handleUnpublish}
+            onPublish={handlePublish}
             onEdit={(id) => router.push(`/dishes/${id}/edit`)}
           />
         )}

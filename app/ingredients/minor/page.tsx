@@ -35,7 +35,7 @@ type NetIngredient = {
   spec: string | null;
   yieldRate: number | null;
   unitPrice: number;
-  unit: string;
+  unit: string | null;
   l2Code: string;
   sourceIngredient?: { id: number; name: string } | null;
 };
@@ -65,11 +65,12 @@ export default function MinorIngredientsPage() {
     try {
       const [res, catRes] = await Promise.all([
         fetch("/api/net-ingredients?l1Code=MIN"),
-        fetch("/api/ingredient-categories"),
+        fetch("/api/ingredient-categories?page=1&pageSize=100"),
       ]);
       const json = await res.json();
       setData(json.data || []);
-      setCategories(await catRes.json());
+      const catJson = await catRes.json();
+      setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -244,7 +245,10 @@ export default function MinorIngredientsPage() {
                   header: "单价",
                   cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
                 },
-                { header: "单位", accessorKey: "unit" },
+                {
+                  header: "单位",
+                  cell: (row) => row.unit || "10g",
+                },
               ]}
               pagination={
                 totalItems > 0

@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/api-response";
+import { createSauceIngredientSchema } from "@/lib/schemas/sauce-ingredient";
+import { validateBody } from "@/lib/validate";
 
 const SAUCE_TYPES = ["自制", "外购"];
 
@@ -20,24 +22,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const body = await req.json();
-    const { name, brand, spec, recipe, type, unitPrice } = body;
+    const validation = validateBody(createSauceIngredientSchema.partial(), body);
+    if (!validation.success) return validation.response;
 
-    if (!name?.trim() || !type?.trim()) {
-      return badRequest("名称和类型不能为空");
+    const { name, brand, spec, recipe, type, unitPrice } = validation.data;
+
+    const existing = await prisma.sauceIngredient.findUnique({ where: { id: Number(id) } });
+    if (!existing) return notFound("酱料不存在");
+
+    if (name !== undefined && !name.trim()) {
+      return badRequest("名称不能为空");
     }
-    if (!SAUCE_TYPES.includes(type)) {
+    if (type !== undefined && !SAUCE_TYPES.includes(type)) {
       return badRequest("类型必须是“自制”或“外购”");
     }
 
     const row = await prisma.sauceIngredient.update({
       where: { id: Number(id) },
       data: {
-        name: name.trim(),
+        name: name !== undefined ? name.trim() : existing.name,
         brand: brand?.trim() || "",
         spec: spec?.trim() || null,
         recipe: recipe?.trim() || null,
-        type: type.trim(),
-        unitPrice: unitPrice ? Number(unitPrice) : 0,
+        type: type !== undefined ? type.trim() : existing.type,
+        unitPrice: unitPrice !== undefined ? unitPrice : existing.unitPrice,
         unit: "g",
       },
     });

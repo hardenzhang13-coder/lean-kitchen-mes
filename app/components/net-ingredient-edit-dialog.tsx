@@ -139,6 +139,8 @@ export function NetIngredientEditDialog({
       if (!isMinor) {
         payload.sourceIngredientId = Number(form.sourceIngredientId);
         payload.yieldRate = Number(form.yieldRate);
+      } else {
+        payload.unit = "10g";
       }
 
       const res = await fetch(`/api/net-ingredients/${initialData.id}`, {

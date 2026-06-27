@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, RotateCcw, Pencil } from "lucide-react";
+import { Trash2, RotateCcw, Pencil, CheckCircle } from "lucide-react";
 import { SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,67 +10,14 @@ import { DataTable } from "@/app/components/data-table";
 import { StatusBadge } from "@/app/components/status-badge";
 import { CategoryTag } from "@/app/components/category-tag";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { BomType, VALID_STAGES, formatCost } from "@/app/components/dish-form/types";
-
-interface NetDetail {
-  role?: string | null;
-  amountG?: string | number | null;
-  netIngredient?: { name: string; unitPrice?: number | null; unit?: string | null } | null;
-}
-
-interface MinorDetail {
-  amountG?: string | number | null;
-  name?: string | null;
-  unitPrice?: number | null;
-  unit?: string | null;
-}
-
-interface SeasoningDetail {
-  amountG?: string | number | null;
-  name?: string | null;
-  unitPrice?: number | null;
-  unit?: string | null;
-}
-
-interface SauceDetail {
-  amountG?: string | number | null;
-  sauce?: { name: string; unitPrice?: number | null; unit?: string | null } | null;
-}
-
-interface ProcessDetail {
-  stage: string;
-  stepNo: number;
-  object: string;
-  action: string;
-  description?: string | null;
-  tool?: string | null;
-  standard?: string | null;
-}
+import { BomType, DishDetail, formatCost } from "@/app/components/dish-form/types";
+import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
 
 interface DishSheetDetailProps {
-  dish: {
-    id: number;
-    code: string;
-    name: string;
-    intro: string | null;
-    category?: { id: number; code: string; name: string } | null;
-    cuisine?: string | null;
-    technique?: string | null;
-    taste?: string | null;
-    portion?: string | null;
-    season?: string | null;
-    meatType?: string | null;
-    cost?: number | null;
-    status: string;
-    createdAt?: string | Date;
-    netDetails?: NetDetail[];
-    minorDetails?: MinorDetail[];
-    seasoningDetails?: SeasoningDetail[];
-    sauceDetails?: SauceDetail[];
-    processes?: ProcessDetail[];
-  };
+  dish: DishDetail;
   onDelete: (id: number) => void;
   onUnpublish: (id: number) => void;
+  onPublish: (id: number) => void;
   onEdit: (id: number) => void;
 }
 
@@ -125,81 +72,18 @@ function BomTypeBadge({ type }: { type: BomType }) {
   return <Badge className={BOM_TYPE_COLORS[type]}>{BOM_TYPE_LABELS[type]}</Badge>;
 }
 
-const STAGE_ORDER: Record<string, number> = {
-  "初加工": 0,
-  "预处理": 1,
-  "上灶加工": 2,
-  "出锅成品": 3,
-};
-
-function ProcessTimeline({ processes }: { processes: ProcessDetail[] }) {
-  if (processes.length === 0) {
-    return (
-      <div className="text-center text-sm text-muted-foreground py-8">
-        暂无加工工艺
-      </div>
-    );
-  }
-
-  const stepsByStage = VALID_STAGES.map((stage) => ({
-    stage,
-    steps: processes
-      .filter((p) => p.stage === stage)
-      .sort((a, b) => a.stepNo - b.stepNo),
-  }));
-
-  return (
-    <div className="space-y-4">
-      {stepsByStage.map(({ stage, steps }, stageIdx) => (
-        <div key={stage} className="relative">
-          {stageIdx > 0 && (
-            <div className="absolute left-[11px] -top-4 h-4 border-l border-dashed border-muted-foreground/30" />
-          )}
-          <div className="flex items-center gap-2 mb-2">
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-medium">
-              {STAGE_ORDER[stage] + 1}
-            </span>
-            <span className="text-sm font-semibold">{stage}</span>
-            <span className="text-xs text-muted-foreground">{steps.length} 步</span>
-          </div>
-          {steps.length > 0 && (
-            <div className="border-l border-dashed border-muted-foreground/30 ml-2.5 pl-4 pt-1 space-y-3">
-              {steps.map((step, idx) => (
-                <div key={idx} className="space-y-1">
-                  <div className="text-sm">
-                    <span className="text-muted-foreground mr-1">{idx + 1}.</span>
-                    <span className="font-medium">{step.object}</span>
-                    <span className="text-muted-foreground mx-1">→</span>
-                    <span className="font-medium">{step.action}</span>
-                  </div>
-                  {(step.tool || step.description) && (
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      {step.tool && <div>工具：{step.tool}</div>}
-                      {step.description && <div>{step.description}</div>}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 interface BomTableRow {
   id: string;
   type: BomType;
   name: string;
+  spec: string | null;
+  productName: string | null;
   amountG: string | number | null;
-  unit: string | null;
-  unitPrice: number | null;
   cost: number | null;
 }
 
-export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishSheetDetailProps) {
-  const [confirmAction, setConfirmAction] = useState<"delete" | "unpublish" | null>(null);
+export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit }: DishSheetDetailProps) {
+  const [confirmAction, setConfirmAction] = useState<"delete" | "unpublish" | "publish" | null>(null);
 
   const statusLabel = dish.status === "published" ? "已发布" : "草稿";
 
@@ -208,52 +92,55 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
       id: `main-${idx}`,
       type: "main" as BomType,
       name: d.netIngredient?.name || "—",
+      spec: d.spec ?? null,
+      productName: null,
       amountG: d.amountG ?? null,
-      unit: d.netIngredient?.unit || null,
-      unitPrice: d.netIngredient?.unitPrice ?? null,
       cost: calcLineCost(d.netIngredient?.unitPrice, d.amountG),
     })) ?? []),
     ...(dish.netDetails?.filter((d) => d.role === "support").map((d, idx) => ({
       id: `support-${idx}`,
       type: "support" as BomType,
       name: d.netIngredient?.name || "—",
+      spec: d.spec ?? null,
+      productName: null,
       amountG: d.amountG ?? null,
-      unit: d.netIngredient?.unit || null,
-      unitPrice: d.netIngredient?.unitPrice ?? null,
       cost: calcLineCost(d.netIngredient?.unitPrice, d.amountG),
     })) ?? []),
     ...(dish.minorDetails?.map((d, idx) => ({
       id: `minor-${idx}`,
       type: "minor" as BomType,
       name: d.name || "—",
+      spec: d.brand ?? null,
+      productName: null,
       amountG: d.amountG ?? null,
-      unit: d.unit || null,
-      unitPrice: d.unitPrice ?? null,
       cost: calcLineCost(d.unitPrice, d.amountG),
     })) ?? []),
     ...(dish.seasoningDetails?.map((d, idx) => ({
       id: `seasoning-${idx}`,
       type: "seasoning" as BomType,
       name: d.name || "—",
+      spec: null,
+      productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      unit: d.unit || null,
-      unitPrice: d.unitPrice ?? null,
       cost: calcLineCost(d.unitPrice, d.amountG),
     })) ?? []),
     ...(dish.sauceDetails?.map((d, idx) => ({
       id: `sauce-${idx}`,
       type: "sauce" as BomType,
       name: d.sauce?.name || "—",
+      spec: null,
+      productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      unit: d.sauce?.unit || null,
-      unitPrice: d.sauce?.unitPrice ?? null,
       cost: calcLineCost(d.sauce?.unitPrice, d.amountG),
     })) ?? []),
   ];
 
+  const computedCost = bomRows.reduce((sum, row) => sum + (row.cost ?? 0), 0);
+
   const handleConfirm = () => {
     if (confirmAction === "delete") onDelete(dish.id);
     if (confirmAction === "unpublish") onUnpublish(dish.id);
+    if (confirmAction === "publish") onPublish(dish.id);
     setConfirmAction(null);
   };
 
@@ -271,35 +158,59 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
             </SheetDescription>
           </div>
           <div className="flex items-center gap-2 shrink-0 pr-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              title="编辑"
-              onClick={() => onEdit(dish.id)}
-              className="h-8 w-8"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
             {dish.status === "draft" ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                title="删除"
-                onClick={() => setConfirmAction("delete")}
-                className="h-8 w-8 text-destructive hover:text-destructive"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="default"
+                  size="sm"
+                  title="发布"
+                  onClick={() => setConfirmAction("publish")}
+                  className="h-8"
+                >
+                  <CheckCircle className="mr-1 h-4 w-4" />
+                  发布
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="编辑"
+                  onClick={() => onEdit(dish.id)}
+                  className="h-8 w-8"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="删除"
+                  onClick={() => setConfirmAction("delete")}
+                  className="h-8 w-8 text-destructive hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </>
             ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                title="下架"
-                onClick={() => setConfirmAction("unpublish")}
-              >
-                <RotateCcw className="mr-2 h-4 w-4" />
-                下架
-              </Button>
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  title="下架"
+                  onClick={() => setConfirmAction("unpublish")}
+                  className="h-8"
+                >
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  下架
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="编辑"
+                  onClick={() => onEdit(dish.id)}
+                  className="h-8 w-8"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -311,8 +222,6 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
             <CardTitle className="text-base">基础信息</CardTitle>
           </CardHeader>
           <CardContent className="space-y-0">
-            <InfoRow label="编号" value={dish.code} />
-            <InfoRow label="名称" value={dish.name} />
             <InfoRow
               label="类别"
               value={<CategoryTag l1Code={dish.category?.code} name={dish.category?.name} />}
@@ -326,8 +235,8 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
             <InfoRow label="描述" value={dish.intro || "—"} />
             <InfoRow label="创建时间" value={formatDateTime(dish.createdAt)} />
             <InfoRow
-              label="估算总成本"
-              value={<span className="font-semibold">{formatCost(dish.cost)}</span>}
+              label="用料成本价"
+              value={<span className="text-lg font-semibold">{formatCost(computedCost)}</span>}
             />
           </CardContent>
         </Card>
@@ -340,28 +249,34 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
             <DataTable<BomTableRow>
               data={bomRows}
               columns={[
+                {
+                  header: "序号",
+                  cell: (_, rowIdx) => (
+                    <span className="text-muted-foreground">{rowIdx + 1}</span>
+                  ),
+                },
                 { header: "类型", cell: (row) => <BomTypeBadge type={row.type} /> },
                 { header: "名称", accessorKey: "name" },
                 {
+                  header: "规格",
+                  cell: (row) => (
+                    <span className="text-sm text-muted-foreground">
+                      {row.type === "seasoning" || row.type === "sauce"
+                        ? row.productName || "—"
+                        : row.spec || "—"}
+                    </span>
+                  ),
+                },
+                {
                   header: "用量",
                   cell: (row) => (
-                    <span className="text-muted-foreground">
-                      {row.amountG != null ? `${row.amountG} ${row.unit || "g"}` : "—"}
-                    </span>
-                  ),
-                },
-                { header: "单位", accessorKey: "unit" },
-                {
-                  header: "单价",
-                  cell: (row) => (
-                    <span className="text-muted-foreground">
-                      {row.unitPrice != null ? `¥${Number(row.unitPrice).toFixed(2)}` : "—"}
+                    <span className="font-medium">
+                      {row.amountG != null ? `${row.amountG}g` : "—"}
                     </span>
                   ),
                 },
                 {
-                  header: "成本",
-                  className: "text-right",
+                  header: "成本价",
                   cell: (row) => <span className="font-medium">{formatCost(row.cost)}</span>,
                 },
               ]}
@@ -375,7 +290,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
             <CardTitle className="text-base">加工工艺</CardTitle>
           </CardHeader>
           <CardContent>
-            <ProcessTimeline processes={dish.processes || []} />
+            <ProcessAccordion processes={dish.processes || []} />
           </CardContent>
         </Card>
       </div>
@@ -384,24 +299,36 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onEdit }: DishShe
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="text-lg">
-              {confirmAction === "delete" ? "确认删除" : "确认下架"}
+              {confirmAction === "delete"
+                ? "确认删除"
+                : confirmAction === "publish"
+                  ? "确认发布"
+                  : "确认下架"}
             </DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
             {confirmAction === "delete"
               ? `确定要删除菜品「${dish.name}」吗？此操作不可撤销。`
-              : `确定要下架菜品「${dish.name}」吗？下架后将回到草稿状态，可继续编辑。`}
+              : confirmAction === "publish"
+                ? `确定要发布菜品「${dish.name}」吗？发布后将锁定基础信息、菜品用料与加工工艺，不可再修改。`
+                : `确定要下架菜品「${dish.name}」吗？下架后将回到草稿状态，可继续编辑。`}
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)} className="h-11 px-6">
               取消
             </Button>
             <Button
-              variant={confirmAction === "delete" ? "destructive" : "default"}
+              variant={
+                confirmAction === "delete"
+                  ? "destructive"
+                  : confirmAction === "publish"
+                    ? "default"
+                    : "secondary"
+              }
               onClick={handleConfirm}
               className="h-11 px-6"
             >
-              {confirmAction === "delete" ? "删除" : "下架"}
+              {confirmAction === "delete" ? "删除" : confirmAction === "publish" ? "确认发布" : "确认下架"}
             </Button>
           </DialogFooter>
         </DialogContent>

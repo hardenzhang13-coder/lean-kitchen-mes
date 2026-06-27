@@ -2,6 +2,8 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/api-response";
+import { createNetIngredientSchema } from "@/lib/schemas/net-ingredient";
+import { validateBody } from "@/lib/validate";
 
 async function calculateUnitPrice(
   sourceIngredientId: number,
@@ -43,6 +45,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const body = await req.json();
+    const validation = validateBody(createNetIngredientSchema.partial(), body);
+    if (!validation.success) return validation.response;
+
     const {
       name,
       sourceIngredientId,
@@ -51,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       unitPrice,
       l2Code,
       autoCalculate,
-    } = body;
+    } = validation.data;
 
     const existing = await prisma.netIngredient.findFirst({
       where: { id: Number(id), deletedAt: null },

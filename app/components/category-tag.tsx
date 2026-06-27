@@ -14,6 +14,7 @@ const tagVarMap: Record<string, { fg: string; bg: string }> = {
   GRA: { fg: "var(--tag-gra)", bg: "var(--tag-gra-bg)" },
   SEA: { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
   "SEA-SEA": { fg: "var(--tag-sea)", bg: "var(--tag-sea-bg)" },
+  MIN: { fg: "var(--tag-prc)", bg: "var(--tag-prc-bg)" },
   // 菜品分类
   PORK: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },
   BEEF: { fg: "var(--tag-mea)", bg: "var(--tag-mea-bg)" },

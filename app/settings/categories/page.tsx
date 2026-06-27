@@ -47,9 +47,9 @@ export default function CategoriesPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/dish-categories");
+      const res = await fetch("/api/dish-categories?page=1&pageSize=100");
       const json = await res.json();
-      setData(json);
+      setData(json.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

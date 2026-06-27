@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { BookOpen, Search, Eye } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/app/components/status-badge";
+import { TabSwitcher } from "@/app/components/tab-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +30,7 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { DatePicker } from "@/app/components/date-picker";
+import { Pagination } from "@/app/components/pagination";
 import { toast } from "sonner";
 
 interface LedgerItem {
@@ -62,7 +63,6 @@ interface LedgerGroup {
 }
 
 export default function LedgerPage() {
-  const router = useRouter();
   const [groups, setGroups] = useState<LedgerGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -72,26 +72,43 @@ export default function LedgerPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [detailGroup, setDetailGroup] = useState<LedgerGroup | null>(null);
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      if (typeFilter) params.set("type", typeFilter);
-      const res = await fetch(`/api/inventory/ledger?${params.toString()}`);
-      const data = await res.json();
-      setGroups(data);
-    } catch {
-      toast.error("获取台账数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (startDate) params.set("startDate", startDate);
+        if (endDate) params.set("endDate", endDate);
+        if (typeFilter) params.set("type", typeFilter);
+        params.set("page", String(page));
+        params.set("pageSize", "20");
+        const res = await fetch(`/api/inventory/ledger?${params.toString()}`);
+        const data = await res.json();
+        if (!cancelled) {
+          setGroups(data.data || []);
+          setPagination(data.pagination || null);
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error("获取台账数据失败");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchData();
-  }, [startDate, endDate, typeFilter]);
+    return () => {
+      cancelled = true;
+    };
+  }, [startDate, endDate, typeFilter, page]);
 
   const filtered = groups.filter((g) => {
     const matchSearch = !search
@@ -123,17 +140,12 @@ export default function LedgerPage() {
           title="库存台账"
           description="按采购单/出库单维度查询库存流水"
         />
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-          <button
-            className="px-4 py-1.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-            onClick={() => router.push("/inventory")}
-          >
-            实时库存
-          </button>
-          <button className="px-4 py-1.5 rounded-md text-sm font-medium bg-background shadow-sm">
-            库存台账
-          </button>
-        </div>
+        <TabSwitcher
+          tabs={[
+            { label: "实时库存", href: "/inventory", active: false },
+            { label: "库存台账", href: "/inventory/ledger", active: true },
+          ]}
+        />
       </div>
 
       {/* 筛选区 */}
@@ -144,23 +156,32 @@ export default function LedgerPage() {
             <Input
               placeholder="搜索来源摘要或负责人..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
               className="max-w-xs"
             />
             <DatePicker
               value={startDate}
-              onChange={(v) => setStartDate(v)}
+              onChange={(v) => {
+                setStartDate(v);
+                setPage(1);
+              }}
               placeholder="开始日期"
               className="w-[180px]"
             />
             <span className="text-sm text-muted-foreground">至</span>
             <DatePicker
               value={endDate}
-              onChange={(v) => setEndDate(v)}
+              onChange={(v) => {
+                setEndDate(v);
+                setPage(1);
+              }}
               placeholder="结束日期"
               className="w-[180px]"
             />
-            <Select value={typeFilter} onValueChange={(v) => v && setTypeFilter(v)}>
+            <Select value={typeFilter} onValueChange={(v) => { v && setTypeFilter(v); setPage(1); }}>
               <SelectTrigger className="w-[120px] h-10">
                 <SelectValue placeholder="全部类型" />
               </SelectTrigger>
@@ -169,7 +190,7 @@ export default function LedgerPage() {
                 <SelectItem value="出库">出库</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
+            <Select value={statusFilter} onValueChange={(v) => { v && setStatusFilter(v); setPage(1); }}>
               <SelectTrigger className="w-[120px] h-10">
                 <SelectValue placeholder="全部状态" />
               </SelectTrigger>
@@ -188,6 +209,7 @@ export default function LedgerPage() {
                   setEndDate("");
                   setTypeFilter("");
                   setStatusFilter("");
+                  setPage(1);
                 }}
               >
                 清除
@@ -254,6 +276,16 @@ export default function LedgerPage() {
                 </TableBody>
               </Table>
             </div>
+          )}
+          {pagination && pagination.totalItems > 0 && (
+            <Pagination
+              currentPage={page}
+              totalPages={pagination.totalPages}
+              totalItems={pagination.totalItems}
+              start={(page - 1) * 20 + 1}
+              end={Math.min(page * 20, pagination.totalItems)}
+              onPageChange={setPage}
+            />
           )}
         </CardContent>
       </Card>

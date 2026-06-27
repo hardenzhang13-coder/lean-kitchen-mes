@@ -3,7 +3,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { enrichOperatorNames } from "@/lib/user-resolve";
-import { success, created, badRequest, internalError } from "@/lib/api-response";
+import { created, badRequest, internalError, paginated } from "@/lib/api-response";
 import { createDishSchema, dishQuerySchema } from "@/lib/schemas/dish";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(dishQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { categoryId, cuisine, meatType, status, q } = validation.data;
+    const { categoryId, cuisine, meatType, status, q, page, pageSize } = validation.data;
 
     const where: Prisma.DishWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
@@ -28,60 +28,40 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    const rows = await prisma.dish.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        category: { select: { id: true, code: true, name: true } },
-        netDetails: {
-          include: {
-            netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
-          },
-        },
-        minorDetails: true,
-        seasoningDetails: true,
-        sauceDetails: {
-          include: {
-            sauce: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
-          },
-        },
-        processes: { orderBy: [{ stage: "asc" }, { stepNo: "asc" }] },
-      },
-    });
+    const skip = (page - 1) * pageSize;
 
-    const minorIds = [...new Set(rows.flatMap((r) => r.minorDetails.map((d) => d.netIngId)))];
-    const seasoningIds = [...new Set(rows.flatMap((r) => r.seasoningDetails.map((d) => d.sourceId)))];
-
-    const [minors, seasonings] = await Promise.all([
-      prisma.netIngredient.findMany({
-        where: { id: { in: minorIds } },
-        select: { id: true, name: true, unitPrice: true, unit: true },
+    const [rows, totalItems] = await Promise.all([
+      prisma.dish.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          intro: true,
+          categoryId: true,
+          cuisine: true,
+          technique: true,
+          taste: true,
+          portion: true,
+          season: true,
+          meatType: true,
+          cost: true,
+          status: true,
+          createdAt: true,
+          operator: true,
+          category: { select: { id: true, code: true, name: true } },
+        },
       }),
-      prisma.ingredient.findMany({
-        where: { id: { in: seasoningIds } },
-        select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
-      }),
+      prisma.dish.count({ where }),
     ]);
 
-    const enriched = await enrichOperatorNames(
-      rows.map((row) => ({
-        ...row,
-        minorDetails: row.minorDetails.map((d) => ({
-          ...d,
-          name: minors.find((m) => m.id === d.netIngId)?.name,
-          unitPrice: minors.find((m) => m.id === d.netIngId)?.unitPrice,
-          unit: minors.find((m) => m.id === d.netIngId)?.unit,
-        })),
-        seasoningDetails: row.seasoningDetails.map((d) => ({
-          ...d,
-          name: seasonings.find((s) => s.id === d.sourceId)?.name,
-          unitPrice: seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
-          unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
-        })),
-      }))
-    );
+    const enriched = await enrichOperatorNames(rows);
+    const totalPages = Math.ceil(totalItems / pageSize);
 
-    return success(enriched);
+    return paginated(enriched, { page, pageSize, totalItems, totalPages });
   } catch (err) {
     logger.error({ err }, "GET /api/dishes failed");
     return internalError("获取菜品失败");

@@ -1,31 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
-
-const VALID_STAGES = ["初加工", "预处理", "上灶加工", "出锅成品"];
+import { dishProcessSchema } from "@/lib/schemas/dish-process";
+import { validateBody } from "@/lib/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const dishId = Number(id);
-  const body = await req.json();
-  const processes: Array<{
-    stage: string;
-    stepNo: number;
-    object: string;
-    action: string;
-    description?: string;
-    tool?: string;
-    standard?: string;
-  }> = body.processes || [];
-
-  // Validate stages
-  for (const p of processes) {
-    if (!VALID_STAGES.includes(p.stage)) {
-      return NextResponse.json({ error: `无效的阶段: ${p.stage}` }, { status: 400 });
-    }
-  }
-
   try {
+    const { id } = await params;
+    const dishId = Number(id);
+    const body = await req.json();
+    const validation = validateBody(dishProcessSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { processes } = validation.data;
     const existing = await prisma.dish.findUnique({
       where: { id: dishId },
       select: { status: true },

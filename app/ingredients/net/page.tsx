@@ -79,15 +79,16 @@ export default function NetIngredientsPage() {
     setLoading(true);
     try {
       const [netRes, rawRes, catRes] = await Promise.all([
-        fetch("/api/net-ingredients?excludeMinor=true"),
-        fetch("/api/ingredients"),
-        fetch("/api/ingredient-categories"),
+        fetch("/api/net-ingredients?excludeMinor=true&page=1&pageSize=100"),
+        fetch("/api/ingredients?page=1&pageSize=100"),
+        fetch("/api/ingredient-categories?page=1&pageSize=100"),
       ]);
       const netJson = await netRes.json();
       setData(netJson.data || []);
       const rawJson = await rawRes.json();
       setRawIngredients(rawJson.data || []);
-      setCategories(await catRes.json());
+      const catJson = await catRes.json();
+      setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

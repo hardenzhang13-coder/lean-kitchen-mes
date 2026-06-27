@@ -2,27 +2,48 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { enrichOperatorNames } from "@/lib/user-resolve";
+import { paginated, internalError } from "@/lib/api-response";
+import { paginationQuerySchema } from "@/lib/schemas/common";
+import { createPurchaseReimbursementSchema } from "@/lib/schemas/purchase-reimbursement";
+import { validateBody, validateQuery } from "@/lib/validate";
 
-export async function GET() {
-  const rows = await prisma.purchaseReimbursement.findMany({
-    orderBy: { createdAt: "desc" },
-  });
-  const enriched = await enrichOperatorNames(rows);
-  return NextResponse.json(enriched);
+export async function GET(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const validation = validateQuery(paginationQuerySchema, searchParams);
+    if (!validation.success) return validation.response;
+
+    const { page, pageSize } = validation.data;
+    const skip = (page - 1) * pageSize;
+
+    const [rows, totalItems] = await Promise.all([
+      prisma.purchaseReimbursement.findMany({
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.purchaseReimbursement.count(),
+    ]);
+
+    const enriched = await enrichOperatorNames(rows);
+    const totalPages = Math.ceil(totalItems / pageSize);
+    return paginated(enriched, { page, pageSize, totalItems, totalPages });
+  } catch {
+    return internalError("获取报销单失败");
+  }
 }
 
 export async function POST(req: NextRequest) {
-  const body = await req.json();
-  const { title, summary, receiptIds }: {
-    title: string;
-    summary?: string;
-    receiptIds: number[];
-  } = body;
-
-  const user = getUserFromRequest(req);
-  const operator = user?.username || null;
-
   try {
+    const body = await req.json();
+    const validation = validateBody(createPurchaseReimbursementSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { title, summary, receiptIds } = validation.data;
+
+    const user = getUserFromRequest(req);
+    const operator = user?.username || null;
+
     // 计算总金额
     const receipts = await prisma.purchaseReceipt.findMany({
       where: { id: { in: receiptIds } },

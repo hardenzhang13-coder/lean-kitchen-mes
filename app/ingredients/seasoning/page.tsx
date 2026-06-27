@@ -113,20 +113,22 @@ export default function SeasoningIngredientsPage() {
       const [catRes, unitRes, ingRes] = await Promise.all([
         fetch("/api/ingredient-categories"),
         fetch("/api/units"),
-        fetch("/api/ingredients"),
+        fetch("/api/ingredients?page=1&pageSize=100"),
       ]);
       const cats = await catRes.json();
-      setCategories(cats);
+      const categoryList = Array.isArray(cats) ? cats : cats.data || [];
+      setCategories(categoryList);
       const seasoningL2Codes = new Set<string>(
-        cats
-          .flatMap((l1: any) => l1.children)
-          .filter((l2: any) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
-          .map((l2: any) => l2.code)
+        categoryList
+          .flatMap((l1: CategoryL1) => l1.children)
+          .filter((l2: CategoryL1["children"][number]) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
+          .map((l2: CategoryL1["children"][number]) => l2.code)
       );
       const allIngredients = await ingRes.json();
-      const list = allIngredients.data || allIngredients || [];
-      setData(list.filter((i: any) => seasoningL2Codes.has(i.l2Code)));
-      if (unitRes.ok) setUnits(await unitRes.json());
+      const list = allIngredients.data || [];
+      setData(list.filter((i: Ingredient) => seasoningL2Codes.has(i.l2Code)));
+      const unitsData = await unitRes.json();
+      if (unitRes.ok) setUnits(Array.isArray(unitsData) ? unitsData : unitsData.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -160,8 +162,8 @@ export default function SeasoningIngredientsPage() {
       toast.success("删除成功");
       setDeleteId(null);
       fetchData();
-    } catch (e: any) {
-      toast.error(e.message || "删除失败");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "删除失败");
     }
   };
 

@@ -68,12 +68,12 @@ export default function UsersPage() {
       setLoading(true);
       try {
         const [usersRes, meRes] = await Promise.all([
-          fetch("/api/users"),
+          fetch("/api/users?page=1&pageSize=100"),
           fetch("/api/auth/me"),
         ]);
         if (!usersRes.ok) throw new Error("获取用户列表失败");
         const usersJson = await usersRes.json();
-        setData(usersJson);
+        setData(usersJson.data || []);
         if (meRes.ok) {
           const meJson = await meRes.json();
           setCurrentUser(meJson.user);
@@ -170,9 +170,10 @@ export default function UsersPage() {
       }
       setDialogOpen(false);
       // 重新加载用户列表和当前用户
-      const usersRes = await fetch("/api/users");
+      const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
-        setData(await usersRes.json());
+        const json = await usersRes.json();
+        setData(json.data || []);
       }
     } catch {
       toast.error("操作失败");
@@ -196,9 +197,10 @@ export default function UsersPage() {
       }
       toast.success("删除成功");
       setDeleteId(null);
-      const usersRes = await fetch("/api/users");
+      const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
-        setData(await usersRes.json());
+        const json = await usersRes.json();
+        setData(json.data || []);
       }
     } catch {
       toast.error("删除失败");

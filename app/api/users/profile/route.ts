@@ -4,6 +4,8 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest } from "@/lib/api-auth";
 import { createSession, setSessionCookie } from "@/lib/session";
+import { updateProfileSchema } from "@/lib/schemas/auth";
+import { validateBody } from "@/lib/validate";
 
 export async function PUT(req: NextRequest) {
   const user = getUserFromRequest(req);
@@ -12,14 +14,11 @@ export async function PUT(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { name, username, oldPassword, newPassword, confirmPassword } = body;
+  const validation = validateBody(updateProfileSchema, body);
+  if (!validation.success) return validation.response;
 
-  if (!name?.trim()) {
-    return NextResponse.json({ error: "姓名不能为空" }, { status: 400 });
-  }
-  if (!oldPassword?.trim()) {
-    return NextResponse.json({ error: "请输入旧密码" }, { status: 400 });
-  }
+  const { name, username, oldPassword, newPassword, confirmPassword } = validation.data;
+
   if (newPassword?.trim() && newPassword.trim() !== confirmPassword?.trim()) {
     return NextResponse.json({ error: "两次输入的新密码不一致" }, { status: 400 });
   }
@@ -42,8 +41,9 @@ export async function PUT(req: NextRequest) {
   }
 
   const data: Prisma.UserUpdateInput = { name: name.trim() };
-  const changedUsername = username?.trim() && username.trim() !== current.username;
-  if (changedUsername) data.username = username.trim();
+  const trimmedUsername = username?.trim();
+  const changedUsername = trimmedUsername && trimmedUsername !== current.username;
+  if (changedUsername) data.username = trimmedUsername;
   if (newPassword?.trim()) data.password = await bcrypt.hash(newPassword.trim(), 10);
 
   const updated = await prisma.user.update({

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { checkDuplicateName } from "@/lib/duplicate-check";
+import { updateIngredientSchema } from "@/lib/schemas/ingredient";
+import { validateBody } from "@/lib/validate";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -24,26 +26,31 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
-  const {
-    name,
-    alias,
-    l2Code,
-    purchaseUnit,
-    stockUnit,
-    purchaseSpec,
-    latestRefPrice,
-    season,
-    storage,
-  } = body;
-
-  const dupCheck = await checkDuplicateName(name, { excludeId: Number(id) });
-  if (dupCheck.exists) {
-    return NextResponse.json({ error: "食材名称已存在" }, { status: 400 });
-  }
-
   try {
+    const { id } = await params;
+    const body = await req.json();
+    const validation = validateBody(updateIngredientSchema, body);
+    if (!validation.success) return validation.response;
+
+    const {
+      name,
+      alias,
+      l2Code,
+      purchaseUnit,
+      stockUnit,
+      purchaseSpec,
+      latestRefPrice,
+      season,
+      storage,
+    } = validation.data;
+
+    if (name !== undefined) {
+      const dupCheck = await checkDuplicateName(name, { excludeId: Number(id) });
+      if (dupCheck.exists) {
+        return NextResponse.json({ error: "食材名称已存在" }, { status: 400 });
+      }
+    }
+
     const existing = await prisma.ingredient.findFirst({
       where: { id: Number(id), deletedAt: null },
     });
@@ -53,15 +60,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const row = await prisma.ingredient.update({
       where: { id: Number(id) },
       data: {
-        name,
-        alias: alias || null,
-        l2Code,
-        purchaseUnit: purchaseUnit ?? null,
-        stockUnit: stockUnit ?? null,
-        purchaseSpec: purchaseSpec || null,
-        latestRefPrice: latestRefPrice != null ? Number(latestRefPrice) : null,
-        season: season || "四季",
-        storage: storage || "常温",
+        name: name ?? existing.name,
+        alias: alias !== undefined ? alias || null : existing.alias,
+        l2Code: l2Code ?? existing.l2Code,
+        purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
+        stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
+        purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
+        latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
+        season: season !== undefined ? season || "四季" : existing.season,
+        storage: storage !== undefined ? storage || "常温" : existing.storage,
       },
     });
     await logOperation(req, { action: "UPDATE", entity: "Ingredient", entityId: row.id, description: `更新食材: ${row.name}` });

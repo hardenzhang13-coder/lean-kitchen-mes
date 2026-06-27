@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { updateIngredientCategorySchema } from "@/lib/schemas/ingredient-category";
+import { validateBody } from "@/lib/validate";
 import { getErrorMessage } from "@/lib/error-utils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -43,15 +45,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
-  const { type, code, name, parentCode, description } = body;
-
-  if (!code?.trim() || !name?.trim()) {
-    return NextResponse.json({ error: "编号和名称不能为空" }, { status: 400 });
-  }
-
   try {
+    const { id } = await params;
+    const body = await req.json();
+    const validation = validateBody(updateIngredientCategorySchema, body);
+    if (!validation.success) return validation.response;
+
+    const { type, code, name, parentCode, description } = validation.data;
+
+    if (!code?.trim() || !name?.trim()) {
+      return NextResponse.json({ error: "编号和名称不能为空" }, { status: 400 });
+    }
+
     if (type === "l1") {
       const existing = await prisma.ingredientCategoryL1.findFirst({
         where: { code, NOT: { id: Number(id) } },

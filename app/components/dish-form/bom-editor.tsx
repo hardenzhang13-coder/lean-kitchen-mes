@@ -13,16 +13,18 @@ interface BomEditorProps {
   bom: Record<BomType, BomItem[]>;
   onChange: (bom: Record<BomType, BomItem[]>) => void;
   refs: {
-    netIngredients: IngredientOption[];
-    minorIngredients: IngredientOption[];
-    seasonings: IngredientOption[];
-    sauces: IngredientOption[];
     ingredientCategories: Array<{ code: string; name: string; children?: Array<{ code: string; name: string; parentCode: string }> }>;
   };
+  onLoadItems: (params: {
+    type: BomType;
+    l1Code?: string;
+    l2Code?: string;
+    q?: string;
+  }) => Promise<IngredientOption[]>;
   readOnly?: boolean;
 }
 
-export function BomEditor({ bom, onChange, refs, readOnly }: BomEditorProps) {
+export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEditorProps) {
   const [pickerType, setPickerType] = useState<BomType | null>(null);
   const [pickerKey, setPickerKey] = useState(0);
 
@@ -96,12 +98,15 @@ export function BomEditor({ bom, onChange, refs, readOnly }: BomEditorProps) {
                 cost: option.unitPrice != null
                   ? Number((option.unitPrice * amount / 1000).toFixed(4))
                   : null,
+                l1Code: option.l1Code,
+                l2Code: option.l2Code,
               } as BomItem;
             });
             updateType(pickerType, [...bom[pickerType], ...newItems]);
             setPickerType(null);
           }}
           refs={refs}
+          onLoadItems={onLoadItems}
         />
       )}
     </Card>

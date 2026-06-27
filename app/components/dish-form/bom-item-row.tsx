@@ -3,6 +3,7 @@
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CategoryTag } from "@/app/components/category-tag";
 import { BomItem, BomType, calcCost, formatCost } from "./types";
 import { cn } from "@/lib/utils";
 
@@ -29,17 +30,20 @@ export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: 
   const displayLabel = isSeasoningOrSauce(type) ? "商品名称" : "规格";
 
   return (
-    <div className="grid grid-cols-[40px_1fr_120px_100px_90px_32px] items-center gap-2 rounded-md border p-2 min-h-[44px]">
-      <span className="text-sm text-muted-foreground text-center">{index + 1}</span>
-      <span className="text-sm font-medium truncate" title={item.name}>
-        {item.name}
-      </span>
+    <div className="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_100px_80px_28px] items-center gap-2 rounded-md border p-2 min-h-[44px]">
+      <span className="text-center text-sm text-muted-foreground">{index + 1}</span>
+
+      <div className="min-w-0">
+        <CategoryTag l2Code={item.l2Code} name={item.name} />
+      </div>
+
       <span
         className="text-sm text-muted-foreground truncate"
         title={`${displayLabel}：${displayValue}`}
       >
         {displayValue}
       </span>
+
       <div className="flex items-center gap-1">
         <Input
           type="number"
@@ -49,18 +53,20 @@ export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: 
           onChange={(e) => onChange({ ...item, amountG: e.target.value })}
           onBlur={handleBlur}
           disabled={readOnly}
-          className="w-[70px] h-9 text-sm px-2"
+          className="h-9 text-sm px-2 font-semibold bg-muted/40 w-full"
         />
-        <span className="text-xs text-muted-foreground">g</span>
+        <span className="text-sm font-semibold">g</span>
       </div>
+
       <span
         className={cn(
           "text-sm text-right",
-          item.cost == null ? "text-muted-foreground" : "text-foreground"
+          item.cost == null ? "text-muted-foreground" : "font-medium text-foreground"
         )}
       >
         {formatCost(item.cost)}
       </span>
+
       {!readOnly && (
         <Button
           type="button"

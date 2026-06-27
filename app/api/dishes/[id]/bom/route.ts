@@ -2,41 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
+import { dishBomSchema } from "@/lib/schemas/dish-bom";
+import { validateBody } from "@/lib/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const dishId = Number(id);
-  const body = await req.json();
-  const {
-    netDetails,
-    minorDetails,
-    seasoningDetails,
-    sauceDetails,
-  }: {
-    netDetails?: Array<{
-      role: string;
-      netIngId: number;
-      amountG: number;
-      spec?: string;
-    }>;
-    minorDetails?: Array<{
-      netIngId: number;
-      amountG: number;
-      brand?: string;
-    }>;
-    seasoningDetails?: Array<{
-      sourceId: number;
-      amountG: number;
-      brand?: string;
-    }>;
-    sauceDetails?: Array<{
-      sauceId: number;
-      amountG: number;
-      brand?: string;
-    }>;
-  } = body;
-
   try {
+    const { id } = await params;
+    const dishId = Number(id);
+    const body = await req.json();
+    const validation = validateBody(dishBomSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { netDetails, minorDetails, seasoningDetails, sauceDetails } = validation.data;
+
     const existing = await prisma.dish.findUnique({
       where: { id: dishId },
       select: { status: true },
@@ -96,7 +74,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         await tx.dishNetDetail.createMany({
           data: netDetails.map((d) => ({
             dishId,
-            role: d.role,
+            role: d.role || "主料",
             netIngId: Number(d.netIngId),
             amountG: Number(d.amountG),
             spec: d.spec || null,

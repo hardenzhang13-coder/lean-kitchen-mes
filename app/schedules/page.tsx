@@ -9,6 +9,8 @@ import { DatePicker } from "@/app/components/date-picker";
 import { PageHeader } from "@/app/components/page-header";
 import { StatusBadge } from "@/app/components/status-badge";
 import { EmptyState } from "@/app/components/empty-state";
+import { Pagination } from "@/app/components/pagination";
+import { DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
 import { toast } from "sonner";
 
 interface ScheduleItem {
@@ -45,6 +47,9 @@ export default function SchedulesPage() {
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -53,9 +58,12 @@ export default function SchedulesPage() {
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (search) params.set("q", search);
+      params.set("page", String(page));
+      params.set("pageSize", String(DEFAULT_PAGE_SIZE));
       const res = await fetch(`/api/schedules?${params.toString()}`);
       const data = await res.json();
       setRows(data.data || []);
+      setPagination(data.pagination || null);
     } catch {
       toast.error("获取排程数据失败");
     } finally {
@@ -65,7 +73,7 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [activeStatus, startDate, endDate]);
+  }, [activeStatus, startDate, endDate, page]);
 
   // 搜索防抖
   useEffect(() => {
@@ -93,7 +101,10 @@ export default function SchedulesPage() {
                 ? "bg-background shadow-sm"
                 : "text-muted-foreground hover:text-foreground"
             }`}
-            onClick={() => setActiveStatus(tab.key)}
+            onClick={() => {
+              setActiveStatus(tab.key);
+              setPage(1);
+            }}
           >
             {tab.label}
           </button>
@@ -106,24 +117,33 @@ export default function SchedulesPage() {
         <Input
           placeholder="搜索排程标题..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           className="max-w-xs"
         />
         <DatePicker
           value={startDate}
-          onChange={(v) => setStartDate(v)}
+          onChange={(v) => {
+            setStartDate(v);
+            setPage(1);
+          }}
           placeholder="开始日期"
           className="w-[180px]"
         />
         <span className="text-sm text-muted-foreground">至</span>
         <DatePicker
           value={endDate}
-          onChange={(v) => setEndDate(v)}
+          onChange={(v) => {
+            setEndDate(v);
+            setPage(1);
+          }}
           placeholder="结束日期"
           className="w-[180px]"
         />
         {(startDate || endDate || search) && (
-          <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); setPage(1); }}>
             清除
           </Button>
         )}
@@ -179,6 +199,16 @@ export default function SchedulesPage() {
             </div>
           ))}
         </div>
+      )}
+      {pagination && pagination.totalItems > 0 && (
+        <Pagination
+          currentPage={page}
+          totalPages={pagination.totalPages}
+          totalItems={pagination.totalItems}
+          start={(page - 1) * DEFAULT_PAGE_SIZE + 1}
+          end={Math.min(page * DEFAULT_PAGE_SIZE, pagination.totalItems)}
+          onPageChange={setPage}
+        />
       )}
     </div>
   );

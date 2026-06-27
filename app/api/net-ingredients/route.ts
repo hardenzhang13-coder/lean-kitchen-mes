@@ -2,7 +2,12 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { getMinorL2Codes } from "@/lib/category-helpers";
-import { success, created, badRequest, internalError } from "@/lib/api-response";
+import { created, paginated, badRequest, internalError } from "@/lib/api-response";
+import {
+  createNetIngredientSchema,
+  netIngredientQuerySchema,
+} from "@/lib/schemas/net-ingredient";
+import { validateBody, validateQuery } from "@/lib/validate";
 
 function generateNetCode(lastCode: string | undefined) {
   const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
@@ -42,17 +47,20 @@ async function getL2CodesByL1(l1Code: string): Promise<string[]> {
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const sourceIngredientId = searchParams.get("sourceIngredientId");
-    const l1Code = searchParams.get("l1Code");
-    const excludeMinor = searchParams.get("excludeMinor") === "true";
+    const validation = validateQuery(netIngredientQuerySchema, searchParams);
+    if (!validation.success) return validation.response;
+
+    const { sourceIngredientId, l1Code, l2Code, excludeMinor, q, page, pageSize } = validation.data;
 
     const where: Record<string, unknown> = { deletedAt: null };
 
     if (sourceIngredientId) {
-      where.sourceIngredientId = Number(sourceIngredientId);
+      where.sourceIngredientId = sourceIngredientId;
     }
 
-    if (l1Code) {
+    if (l2Code) {
+      where.l2Code = l2Code;
+    } else if (l1Code) {
       const l2Codes = await getL2CodesByL1(l1Code);
       where.l2Code = { in: l2Codes };
     } else if (excludeMinor) {
@@ -62,13 +70,29 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const rows = await prisma.netIngredient.findMany({
-      where,
-      orderBy: { id: "asc" },
-      include: { sourceIngredient: { select: { id: true, name: true } } },
-    });
+    if (q?.trim()) {
+      const term = q.trim();
+      where.OR = [
+        { name: { contains: term, mode: "insensitive" } },
+        { code: { contains: term, mode: "insensitive" } },
+      ];
+    }
 
-    return success(rows);
+    const skip = (page - 1) * pageSize;
+
+    const [rows, totalItems] = await Promise.all([
+      prisma.netIngredient.findMany({
+        where,
+        orderBy: { id: "asc" },
+        skip,
+        take: pageSize,
+        include: { sourceIngredient: { select: { id: true, name: true } } },
+      }),
+      prisma.netIngredient.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / pageSize);
+    return paginated(rows, { page, pageSize, totalItems, totalPages });
   } catch {
     return internalError("获取净料失败");
   }
@@ -77,6 +101,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const validation = validateBody(createNetIngredientSchema, body);
+    if (!validation.success) return validation.response;
+
     const {
       name,
       sourceIngredientId,
@@ -85,7 +112,7 @@ export async function POST(req: NextRequest) {
       unitPrice,
       l2Code,
       autoCalculate,
-    } = body;
+    } = validation.data;
 
     if (!name?.trim() || !l2Code?.trim()) {
       return badRequest("名称和二级分类不能为空");

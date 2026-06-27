@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { getUserFromRequest, logOperation } from "@/lib/api-auth";
+import { updateUserSchema } from "@/lib/schemas/auth";
+import { validateBody } from "@/lib/validate";
 import { isAdmin, ROLE_OPTIONS } from "@/lib/roles";
 
 const publicFields = {
@@ -39,7 +41,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const body = await req.json();
-  const { username, name, role, password } = body;
+  const validation = validateBody(updateUserSchema, body);
+  if (!validation.success) return validation.response;
+
+  const { username, name, role, password } = validation.data;
 
   if (name !== undefined && !name.trim()) {
     return NextResponse.json({ error: "姓名不能为空" }, { status: 400 });

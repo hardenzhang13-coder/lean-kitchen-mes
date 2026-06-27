@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
 import { enrichOperatorNames } from "@/lib/user-resolve";
-import { success, created, internalError } from "@/lib/api-response";
+import { created, paginated, internalError } from "@/lib/api-response";
 import { createScheduleSchema, scheduleQuerySchema } from "@/lib/schemas/schedule";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(scheduleQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { status, startDate, endDate, q } = validation.data;
+    const { status, startDate, endDate, q, page, pageSize } = validation.data;
 
     const where: Prisma.ScheduleWhereInput = {};
     if (status) where.status = status;
@@ -29,20 +29,27 @@ export async function GET(req: NextRequest) {
       where.title = { contains: q };
     }
 
-    const rows = await prisma.schedule.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      include: {
-        items: {
-          include: {
-            dish: { select: { id: true, name: true, code: true } },
+    const skip = (page - 1) * pageSize;
+
+    const [rows, totalItems] = await Promise.all([
+      prisma.schedule.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        include: {
+          items: {
+            include: {
+              dish: { select: { id: true, name: true, code: true } },
+            },
+          },
+          _count: {
+            select: { items: true },
           },
         },
-        _count: {
-          select: { items: true },
-        },
-      },
-    });
+      }),
+      prisma.schedule.count({ where }),
+    ]);
 
     const enriched = await enrichOperatorNames(
       rows.map((r) => ({
@@ -52,7 +59,8 @@ export async function GET(req: NextRequest) {
       }))
     );
 
-    return success(enriched);
+    const totalPages = Math.ceil(totalItems / pageSize);
+    return paginated(enriched, { page, pageSize, totalItems, totalPages });
   } catch (err) {
     logger.error({ err }, "GET /api/schedules failed");
     return internalError("获取排程失败");

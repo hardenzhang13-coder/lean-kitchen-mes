@@ -10,6 +10,8 @@ export interface BomItem {
   unitPrice: number;
   unit: string;
   cost?: number | null;
+  l1Code?: string;
+  l2Code?: string;
 }
 
 export type ProcessStage = "初加工" | "预处理" | "上灶加工" | "出锅成品";
@@ -56,10 +58,6 @@ export interface IngredientCategory {
 
 export interface DishFormRefs {
   categories: Array<{ id: number; code: string; name: string }>;
-  netIngredients: IngredientOption[];
-  minorIngredients: IngredientOption[];
-  seasonings: IngredientOption[];
-  sauces: IngredientOption[];
   ingredientCategories: IngredientCategory[];
 }
 
@@ -98,12 +96,38 @@ export const STAGE_ORDER: Record<ProcessStage, number> = {
   "出锅成品": 3,
 };
 
+export const STAGE_COLORS: Record<
+  ProcessStage,
+  { dot: string; badge: string; step: string }
+> = {
+  "初加工": {
+    dot: "bg-indigo-500",
+    badge: "bg-indigo-50 text-indigo-700",
+    step: "from-indigo-500 to-cyan-400",
+  },
+  "预处理": {
+    dot: "bg-orange-500",
+    badge: "bg-orange-50 text-orange-700",
+    step: "from-orange-500 to-amber-400",
+  },
+  "上灶加工": {
+    dot: "bg-red-500",
+    badge: "bg-red-50 text-red-700",
+    step: "from-red-500 to-rose-400",
+  },
+  "出锅成品": {
+    dot: "bg-green-500",
+    badge: "bg-green-50 text-green-700",
+    step: "from-green-500 to-emerald-400",
+  },
+};
+
 export interface DishDetail {
   id: number;
   code: string;
   name: string;
   intro: string | null;
-  categoryId: number;
+  categoryId?: number;
   category?: { id: number; code: string; name: string } | null;
   cuisine?: string | null;
   technique?: string | null;
@@ -130,6 +154,7 @@ export interface DishDetail {
     name?: string;
     unitPrice?: number | null;
     unit?: string | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; unit: string | null } | null;
   }>;
   seasoningDetails?: Array<{
     sourceId: number;
@@ -168,84 +193,75 @@ export function emptyBom(): Record<BomType, BomItem[]> {
   return { main: [], support: [], minor: [], seasoning: [], sauce: [] };
 }
 
-export function dishToBom(
-  dish: DishDetail,
-  refs: {
-    netIngredients: IngredientOption[];
-    minorIngredients: IngredientOption[];
-    seasonings: IngredientOption[];
-    sauces: IngredientOption[];
-  }
-): Record<BomType, BomItem[]> {
-  const findNet = (id: number) =>
-    refs.netIngredients.find((i) => i.id === id) || refs.minorIngredients.find((i) => i.id === id);
-  const findSeasoning = (id: number) => refs.seasonings.find((i) => i.id === id);
-  const findSauce = (id: number) => refs.sauces.find((i) => i.id === id);
-
+export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
   const bom = emptyBom();
 
   dish.netDetails?.forEach((d) => {
-    const ing = findNet(d.netIngId);
-    if (!ing) return;
+    const ing = d.netIngredient;
+    const name = ing?.name ?? "";
+    const unitPrice = ing?.unitPrice ?? 0;
+    const unit = ing?.unit ?? "g";
     const item: BomItem = {
       id: `net-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
-      name: ing.name,
-      spec: ing.spec,
+      name,
+      spec: d.spec,
       amountG: String(d.amountG),
-      unitPrice: ing.unitPrice ?? 0,
-      unit: ing.unit || "g",
-      cost: d.cost != null ? Number(d.cost) : calcCost(ing.unitPrice ?? 0, d.amountG),
+      unitPrice,
+      unit,
+      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
     };
     if (d.role === "support") bom.support.push(item);
     else bom.main.push(item);
   });
 
   dish.minorDetails?.forEach((d) => {
-    const ing = findNet(d.netIngId);
-    if (!ing) return;
+    const ing = d.netIngredient;
+    const name = ing?.name ?? d.name ?? "";
+    const unitPrice = ing?.unitPrice ?? d.unitPrice ?? 0;
+    const unit = ing?.unit ?? d.unit ?? "g";
     bom.minor.push({
       id: `minor-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
-      name: ing.name,
-      productName: d.brand || ing.productName,
-      spec: ing.spec,
+      name,
+      productName: d.brand,
       amountG: String(d.amountG),
-      unitPrice: ing.unitPrice ?? 0,
-      unit: ing.unit || "g",
-      cost: d.cost != null ? Number(d.cost) : calcCost(ing.unitPrice ?? 0, d.amountG),
+      unitPrice,
+      unit,
+      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
     });
   });
 
   dish.seasoningDetails?.forEach((d) => {
-    const ing = findSeasoning(d.sourceId);
-    if (!ing) return;
+    const name = d.name ?? "";
+    const unitPrice = d.unitPrice ?? 0;
+    const unit = d.unit ?? "g";
     bom.seasoning.push({
       id: `sea-${d.sourceId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.sourceId,
-      name: ing.name,
-      productName: d.brand || ing.productName,
-      spec: ing.spec,
+      name,
+      productName: d.brand,
       amountG: String(d.amountG),
-      unitPrice: ing.unitPrice ?? 0,
-      unit: ing.unit || "g",
-      cost: d.cost != null ? Number(d.cost) : calcCost(ing.unitPrice ?? 0, d.amountG),
+      unitPrice,
+      unit,
+      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
     });
   });
 
   dish.sauceDetails?.forEach((d) => {
-    const ing = findSauce(d.sauceId);
-    if (!ing) return;
+    const ing = d.sauce;
+    const name = ing?.name ?? "";
+    const unitPrice = ing?.unitPrice ?? 0;
+    const unit = ing?.unit ?? "g";
     bom.sauce.push({
       id: `sauce-${d.sauceId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.sauceId,
-      name: ing.name,
-      productName: d.brand || ing.productName,
-      spec: ing.spec,
+      name,
+      productName: d.brand,
       amountG: String(d.amountG),
-      unitPrice: ing.unitPrice ?? 0,
-      unit: ing.unit || "g",
-      cost: d.cost != null ? Number(d.cost) : calcCost(ing.unitPrice ?? 0, d.amountG),
+      unitPrice,
+      unit,
+      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
     });
   });
 
@@ -263,13 +279,13 @@ export function bomToPayload(bom: Record<BomType, BomItem[]>) {
         role: "main" as const,
         netIngId: item.sourceId,
         amountG: Number(item.amountG),
-        spec: null as string | null,
+        spec: item.spec || null,
       })),
       ...bom.support.map((item) => ({
         role: "support" as const,
         netIngId: item.sourceId,
         amountG: Number(item.amountG),
-        spec: null as string | null,
+        spec: item.spec || null,
       })),
     ],
     minorDetails: bom.minor.map((item) => ({
@@ -290,7 +306,7 @@ export function bomToPayload(bom: Record<BomType, BomItem[]>) {
   };
 }
 
-export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem[]>, processes: ProcessStep[]): string | null {
+export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem[]>): string | null {
   if (!form.name.trim()) return "菜品名称不能为空";
   if (!form.categoryId) return "请选择菜品类别";
   if (!form.cuisine) return "请选择菜系";
@@ -299,13 +315,20 @@ export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem
   if (!form.meatType) return "请选择荤素类型";
   if (bom.main.length === 0) return "主料不能为空";
   if (bom.support.length === 0) return "辅料不能为空";
-  if (bom.minor.length === 0) return "小料不能为空";
   if (bom.seasoning.length === 0) return "调料不能为空";
-  if (processes.length === 0) return "加工工艺不能为空";
-  const stages = new Set(processes.map((p) => p.stage));
-  for (const s of VALID_STAGES) {
-    if (!stages.has(s)) return `${s}阶段不能为空`;
-  }
+  return null;
+}
+
+export function validateDishDetailForPublish(dish: DishDetail): string | null {
+  if (!dish.name?.trim()) return "菜品名称不能为空";
+  if (!dish.categoryId) return "请选择菜品类别";
+  if (!dish.cuisine) return "请选择菜系";
+  if (!dish.technique) return "请选择做法";
+  if (!dish.taste) return "请选择口味";
+  if (!dish.meatType) return "请选择荤素类型";
+  if (!dish.netDetails?.some((d) => d.role === "main")) return "主料不能为空";
+  if (!dish.netDetails?.some((d) => d.role === "support")) return "辅料不能为空";
+  if (!dish.seasoningDetails?.length) return "调料不能为空";
   return null;
 }
 
@@ -328,4 +351,70 @@ export function totalBomCost(bom: Record<BomType, BomItem[]>): number {
     });
   });
   return Number(total.toFixed(4));
+}
+
+export function normalizeNetIngredients(items: unknown[]): IngredientOption[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item == null || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const sourceIngredient = record.sourceIngredient as Record<string, unknown> | undefined;
+      const id = Number(record.id);
+      if (Number.isNaN(id)) return null;
+      return {
+        id,
+        code: String(record.code || ""),
+        name: String(record.name || ""),
+        productName: String(sourceIngredient?.name || ""),
+        spec: String(record.spec || ""),
+        unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
+        unit: String(record.unit || "g"),
+        l2Code: String(record.l2Code || ""),
+      } as IngredientOption;
+    })
+    .filter((item): item is IngredientOption => item != null);
+}
+
+export function normalizeIngredients(items: unknown[]): IngredientOption[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item == null || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const id = Number(record.id);
+      if (Number.isNaN(id)) return null;
+      return {
+        id,
+        code: String(record.code || ""),
+        name: String(record.name || ""),
+        productName: String(record.alias || ""),
+        spec: String(record.purchaseSpec || ""),
+        unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
+        unit: String(record.purchaseUnit || "g"),
+        l2Code: String(record.l2Code || ""),
+      } as IngredientOption;
+    })
+    .filter((item): item is IngredientOption => item != null);
+}
+
+export function normalizeSauces(items: unknown[]): IngredientOption[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item == null || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const id = Number(record.id);
+      if (Number.isNaN(id)) return null;
+      return {
+        id,
+        code: String(record.code || ""),
+        name: String(record.name || ""),
+        productName: String(record.brand || ""),
+        spec: String(record.spec || ""),
+        unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
+        unit: String(record.unit || "g"),
+      } as IngredientOption;
+    })
+    .filter((item): item is IngredientOption => item != null);
 }

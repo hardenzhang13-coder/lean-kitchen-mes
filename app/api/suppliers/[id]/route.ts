@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
+import { updateSupplierSchema } from "@/lib/schemas/supplier";
+import { validateBody } from "@/lib/validate";
 import { getErrorMessage } from "@/lib/error-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -11,10 +13,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
-  const { name, contact, phone, remark } = body;
   try {
+    const { id } = await params;
+    const body = await req.json();
+    const validation = validateBody(updateSupplierSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { name, contact, phone, remark } = validation.data;
     const row = await prisma.supplier.update({
       where: { id: Number(id) },
       data: { name, contact: contact || null, phone: phone || null, remark: remark || null },

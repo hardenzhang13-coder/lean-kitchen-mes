@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
+import { updateScheduleSchema } from "@/lib/schemas/schedule";
+import { validateBody } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -70,12 +72,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const scheduleId = Number(id);
   const body = await req.json();
-  const { title, scheduleDate, scope, items }: {
-    title?: string;
-    scheduleDate?: string;
-    scope?: string;
-    items?: Array<{ dishId: number; quantity: number }>;
-  } = body;
+  const validation = validateBody(updateScheduleSchema, body);
+  if (!validation.success) return validation.response;
+
+  const { title, scheduleDate, scope, items } = validation.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {

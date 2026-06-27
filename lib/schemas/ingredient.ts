@@ -12,6 +12,11 @@ export const createIngredientSchema = z.object({
   storage: z.string().max(50).default("常温"),
 });
 
+export const updateIngredientSchema = createIngredientSchema.partial();
+
 export const ingredientQuerySchema = z.object({
   l2Code: z.string().optional(),
+  q: z.string().max(100).optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

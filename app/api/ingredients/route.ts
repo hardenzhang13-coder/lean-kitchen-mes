@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
-import { success, created, internalError } from "@/lib/api-response";
+import { created, paginated, internalError } from "@/lib/api-response";
 import { createIngredientSchema, ingredientQuerySchema } from "@/lib/schemas/ingredient";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
@@ -15,17 +15,34 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(ingredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { l2Code } = validation.data;
-    const where: Prisma.IngredientWhereInput = {};
+    const { l2Code, q, page, pageSize } = validation.data;
+    const where: Prisma.IngredientWhereInput = { deletedAt: null };
     if (l2Code) {
       where.l2Code = l2Code;
     }
+    if (q?.trim()) {
+      const term = q.trim();
+      where.OR = [
+        { name: { contains: term, mode: "insensitive" } },
+        { code: { contains: term, mode: "insensitive" } },
+        { alias: { contains: term, mode: "insensitive" } },
+      ];
+    }
 
-    const rows = await prisma.ingredient.findMany({
-      where: { ...where, deletedAt: null },
-      orderBy: { id: "desc" },
-    });
-    return success(rows);
+    const skip = (page - 1) * pageSize;
+
+    const [rows, totalItems] = await Promise.all([
+      prisma.ingredient.findMany({
+        where,
+        orderBy: { id: "desc" },
+        skip,
+        take: pageSize,
+      }),
+      prisma.ingredient.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(totalItems / pageSize);
+    return paginated(rows, { page, pageSize, totalItems, totalPages });
   } catch (err) {
     logger.error({ err }, "GET /api/ingredients failed");
     return internalError("获取食材失败");

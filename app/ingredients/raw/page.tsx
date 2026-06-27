@@ -84,14 +84,16 @@ export default function RawIngredientsPage() {
     setLoading(true);
     try {
       const [ingRes, catRes, unitRes] = await Promise.all([
-        fetch("/api/ingredients"),
-        fetch("/api/ingredient-categories"),
-        fetch("/api/units"),
+        fetch("/api/ingredients?page=1&pageSize=100"),
+        fetch("/api/ingredient-categories?page=1&pageSize=100"),
+        fetch("/api/units?page=1&pageSize=100"),
       ]);
       const ingData = await ingRes.json();
       setData(ingData.data || []);
-      setCategories(await catRes.json());
-      if (unitRes.ok) setUnits(await unitRes.json());
+      const cJson = await catRes.json();
+      setCategories(Array.isArray(cJson) ? cJson : cJson.data || []);
+      const unitData = await unitRes.json();
+      if (unitRes.ok) setUnits(Array.isArray(unitData) ? unitData : unitData.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {

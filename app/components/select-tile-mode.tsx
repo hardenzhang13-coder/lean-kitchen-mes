@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SelectDialog } from "@/app/components/select-dialog";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,6 @@ export function SelectTileMode({
   searchPlaceholder = "搜索选项...",
   emptyText = "暂无匹配选项",
   disabled = false,
-  required = false,
   searchable = true,
   cols = 3,
   className,
@@ -86,11 +85,6 @@ export function SelectTileMode({
     setSearch("");
   };
 
-  const handleClear = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onChange("");
-  };
-
   const hideSearch = !searchable || options.length < 5;
 
   return (
@@ -112,16 +106,6 @@ export function SelectTileMode({
           {selected ? selected.label : placeholder}
         </span>
         <span className="flex items-center gap-1 ml-2 shrink-0">
-          {value && !required && (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={handleClear}
-              className="rounded-sm hover:bg-muted p-0.5"
-            >
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </span>
-          )}
           <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
         </span>
       </Button>

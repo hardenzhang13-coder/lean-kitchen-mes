@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
 import { resolveUsernameToName } from "@/lib/user-resolve";
 import { success, badRequest, notFound } from "@/lib/api-response";
+import { updateDishSchema } from "@/lib/schemas/dish";
+import { validateBody } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,41 +58,45 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const body = await req.json();
-  const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, cost, status } = body;
-
-  const user = getUserFromRequest(req);
-  const operator = user?.username || null;
-
   try {
+    const { id } = await params;
+    const body = await req.json();
+    const validation = validateBody(updateDishSchema, body);
+    if (!validation.success) return validation.response;
+
+    const { name, intro, cuisine, technique, taste, portion, season, meatType, cost, status } =
+      validation.data;
+
+    const user = getUserFromRequest(req);
+    const operator = user?.username || null;
+
     const existing = await prisma.dish.findUnique({
       where: { id: Number(id) },
       select: { status: true },
     });
     if (existing?.status === "published") {
-      const { status: requestedStatus, ...rest } = body;
-      if (Object.keys(rest).length > 0 || requestedStatus !== "draft") {
+      const rest = { name, intro, cuisine, technique, taste, portion, season, meatType, cost };
+      const hasOtherChanges = Object.values(rest).some((v) => v !== undefined);
+      if (hasOtherChanges || status !== "draft") {
         return badRequest("已发布菜品不可修改，请先下架");
       }
     }
 
+    const updateData: Record<string, unknown> = { operator };
+    if (name !== undefined) updateData.name = name;
+    if (intro !== undefined) updateData.intro = intro || null;
+    if (cuisine !== undefined) updateData.cuisine = cuisine || null;
+    if (technique !== undefined) updateData.technique = technique || null;
+    if (taste !== undefined) updateData.taste = taste || null;
+    if (portion !== undefined) updateData.portion = portion || "正餐份量";
+    if (season !== undefined) updateData.season = season || "四季";
+    if (meatType !== undefined) updateData.meatType = meatType || null;
+    if (cost !== undefined) updateData.cost = cost != null ? cost : null;
+    if (status !== undefined) updateData.status = status;
+
     const row = await prisma.dish.update({
       where: { id: Number(id) },
-      data: {
-        name,
-        intro: intro || null,
-        categoryId: Number(categoryId),
-        cuisine: cuisine || null,
-        technique: technique || null,
-        taste: taste || null,
-        portion: portion || "正餐份量",
-        season: season || "四季",
-        meatType: meatType || null,
-        cost: cost != null ? Number(cost) : null,
-        status: status || undefined,
-        operator,
-      },
+      data: updateData,
     });
 
     await logOperation(req, {

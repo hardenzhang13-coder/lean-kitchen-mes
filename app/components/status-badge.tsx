@@ -37,6 +37,12 @@ const statusMap: Record<string, StatusVariant> = {
   AI: "neutral",
 };
 
+const inventoryStatusMap: Record<string, StatusVariant> = {
+  充足: "success",
+  正常: "warning",
+  低库存: "danger",
+};
+
 const variantStyles: Record<StatusVariant, string> = {
   success:
     "bg-[var(--status-success-bg)] text-[var(--status-success)]",
@@ -68,4 +74,8 @@ export function StatusBadge({ status, variant, size = "default", className }: St
 
 export function statusToVariant(status?: string | null): StatusVariant {
   return (status ? statusMap[status] : undefined) || "neutral";
+}
+
+export function inventoryStatusToVariant(status?: string | null): StatusVariant {
+  return (status ? inventoryStatusMap[status] : undefined) || "neutral";
 }
