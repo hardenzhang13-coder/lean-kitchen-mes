@@ -1,0 +1,68 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: zeabur
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d zeabur"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # 启动时自动执行迁移和种子（幂等，已有数据不会重复写入）
+  migrate:
+    build:
+      context: .
+      target: migrate
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/zeabur
+
+  web:
+    build:
+      context: .
+      target: runner
+    restart: always
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      - "80:3000"
+    environment:
+      DATABASE_URL: postgresql://postgres:${DB_PASSWORD}@db:5432/zeabur
+      SESSION_SECRET: ${SESSION_SECRET}
+      QWEN_API_KEY: ${QWEN_API_KEY}
+      QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      QWEN_MODEL: ${QWEN_MODEL:-qwen-vl-max}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
+      CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET}
+
+  # 每日 03:00 自动备份，保留 7 天
+  backup:
+    image: postgres:17-alpine
+    restart: always
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backups:/backups
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    entrypoint: >
+      sh -c "while true; do
+        f=/backups/zeabur-$$(date +%Y%m%d_%H%M%S).sql.gz;
+        pg_dump -h db -U postgres zeabur | gzip > $$f;
+        find /backups -name '*.sql.gz' -mtime +7 -delete;
+        echo \"[backup] $$f done\";
+        sleep 86400;
+      done"
+
+volumes:
+  pgdata:

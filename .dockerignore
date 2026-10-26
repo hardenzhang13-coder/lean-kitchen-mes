@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+*.log
+backups
+docs
+memory-bank
+.vscode
+.tmp-*
