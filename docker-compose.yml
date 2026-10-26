@@ -9,7 +9,7 @@ services:
     volumes:
       - mysqldata:/var/lib/mysql
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${DB_PASSWORD} --silent"]
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
       interval: 10s
       timeout: 5s
       retries: 12
@@ -44,7 +44,7 @@ services:
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET}
 
-  # 每日 03:00 自动备份，保留 7 天
+  # 每日自动备份，保留 7 天（容器内不依赖 gzip，输出明文 SQL）
   backup:
     image: mysql:8.4
     restart: always
@@ -53,11 +53,13 @@ services:
         condition: service_healthy
     volumes:
       - ./backups:/backups
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD}
     entrypoint: >
       sh -c "while true; do
-        f=/backups/lean_kms-$$(date +%Y%m%d_%H%M%S).sql.gz;
-        mysqldump -h db -uroot -p$${DB_PASSWORD} --single-transaction --routines --triggers lean_kms | gzip > $$f;
-        find /backups -name '*.sql.gz' -mtime +7 -delete;
+        f=/backups/lean_kms-$$(date +%Y%m%d_%H%M%S).sql;
+        mysqldump -h db -uroot --single-transaction --routines --triggers lean_kms > $$f;
+        find /backups -name '*.sql*' -mtime +7 -delete;
         echo \"[backup] $$f done\";
         sleep 86400;
       done"
