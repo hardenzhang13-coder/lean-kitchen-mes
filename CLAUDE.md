@@ -112,10 +112,12 @@ export async function POST(req: NextRequest) { /* ... */ }
 许多页面均为 `"use client"`，通过 `fetch()` 向对应 `/api/*` 端点获取数据，而非使用服务端组件。共享组件位于 `app/components/`。
 
 ### 菜品创建向导
-`app/components/dish-create-wizard.tsx` 是一个多步弹窗（非页面），在本地管理 BOM 状态，提交到：
+`app/components/dish-form/` 是菜品新建/编辑/查看的复合表单组件（页面级），在本地管理 BOM 状态，提交到：
 1. `POST /api/dishes`（创建基础信息）
 2. `PUT /api/dishes/[id]/bom`（保存 BOM）
 3. `PUT /api/dishes/[id]/processes`（保存工序）
+
+详见 [`app/components/dish-form/CLAUDE.md`](app/components/dish-form/CLAUDE.md)。
 
 ### 排程工具
 `app/lib/schedule-utils.ts`（约 430 行）包含 BOM 拆解的核心业务逻辑。在排程创建时，于 Prisma `$transaction` 事务内调用。**请勿轻易修改**——它处理出成率计算、库存扣除逻辑及单位换算。
@@ -131,6 +133,72 @@ export async function POST(req: NextRequest) { /* ... */ }
 - shadcn/ui 组件使用 `base-rhea` 风格变体
 - 字体栈：DM Sans（正文）、Public Sans（标题）、Geist（等宽）
 - 布局：左侧固定 80px 侧边栏，主内容区通过 `ml-20` 偏移
+
+## 文档索引
+
+| 文档 | 内容 |
+|------|------|
+| `CLAUDE.md`（本文件） | 项目全局概览与约定 |
+| `AGENTS.md` | Kimi/Daimon 工作区安全红线与提交规范 |
+| [`app/components/dish-form/CLAUDE.md`](app/components/dish-form/CLAUDE.md) | 菜品表单组件架构 |
+| [`app/lib/CLAUDE.md`](app/lib/CLAUDE.md) | 客户端工具与排程算法 |
+| [`prisma/CLAUDE.md`](prisma/CLAUDE.md) | 数据库 Schema 与迁移 |
+| [`app/api/dishes/CLAUDE.md`](app/api/dishes/CLAUDE.md) | 菜品 API 路由 |
+| [`app/api/purchase-receipts/CLAUDE.md`](app/api/purchase-receipts/CLAUDE.md) | 采购单 API 与 AI 识别 |
+| [`app/api/schedules/CLAUDE.md`](app/api/schedules/CLAUDE.md) | 排程 API 与业务链路 |
+| [`memory-bank/INDEX.md`](memory-bank/INDEX.md) | 项目记忆库索引 |
+| `memory-bank/Product.md` | 产品定义 |
+| `memory-bank/Database.md` | 数据模型详情 |
+| `memory-bank/Router.md` | 页面路由树 |
+| `memory-bank/Design.md` | UI 设计规范 |
+| `memory-bank/progress.md` | 项目推进日志 |
+| `docs/` | 产品需求文档（PRD） |
+| `design/` | 设计文档 |
+
+## 命名约定
+
+- **API 路由文件**：统一为 `route.ts`
+- **动态路由目录**：`[id]/` 用于数字 ID
+- **组件/工具文件**：kebab-case（如 `dish-sheet-detail.tsx`、`schedule-utils.ts`）
+- **Schema 文件**：`lib/schemas/{domain}.ts`（如 `dish.ts`、`purchase.ts`、`schedule.ts`）
+- **类型文件**：与业务模块同名，优先放在 `lib/schemas/` 或 `app/components/{feature}/types.ts`
+
+## 开发工作流
+
+### 提交前强制检查
+
+所有代码提交前应执行：
+
+```bash
+npx tsc --noEmit
+npm run build
+npm run lint
+```
+
+### 新增 API 必选清单
+
+1. 输入校验（zod schema 或严格手动校验）
+2. 操作日志（`logOperation`）
+3. 错误处理（标准响应格式）
+4. 类型安全（禁止新增 `any`）
+5. 分页（列表 API）
+6. 权限检查（必要时按角色控制）
+
+详见 `AGENTS.md` 完整规范。
+
+### 数据库变更流程
+
+1. 修改 `prisma/schema.prisma`
+2. 执行 `npx prisma migrate dev` 生成迁移文件
+3. 更新 [`prisma/CLAUDE.md`](prisma/CLAUDE.md)
+4. 同步更新 `lib/schemas/` 下的 zod schema 与对应 API 路由
+
+## 当前技术债
+
+- Prisma `where` 子句常使用 `const where: any = {}` 进行动态过滤
+- 部分 API 仍使用手动校验，未完全迁移到 zod
+- 测试覆盖待完善；如需添加，建议从 `app/lib/schedule-utils.ts` 和 `lib/spec-parser.ts` 开始
+- 客户端组件大量使用 `"use client"` + `fetch()`，服务端组件化可逐步推进
 
 ## 重要说明
 

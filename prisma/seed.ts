@@ -1,10 +1,9 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
-const connectionString = process.env.DATABASE_URL || "";
-const adapter = new PrismaPg({ connectionString });
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL || "");
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

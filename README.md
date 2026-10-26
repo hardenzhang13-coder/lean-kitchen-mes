@@ -38,7 +38,7 @@
 
 ```bash
 # 数据库（必须）
-DATABASE_URL="postgresql://user:pass@host:port/db"
+DATABASE_URL="mysql://user:pass@host:port/db"
 
 # 会话密钥（必须，生产环境请生成随机字符串）
 SESSION_SECRET="your-random-secret-key"

@@ -21,13 +21,18 @@ export async function GET(req: NextRequest) {
         orderBy: { createdAt: "desc" },
         skip,
         take: pageSize,
+        include: { _count: { select: { receipts: true } } },
       }),
       prisma.purchaseReimbursement.count(),
     ]);
 
     const enriched = await enrichOperatorNames(rows);
+    const items = enriched.map(({ _count, ...rest }) => ({
+      ...rest,
+      receiptCount: _count.receipts,
+    }));
     const totalPages = Math.ceil(totalItems / pageSize);
-    return paginated(enriched, { page, pageSize, totalItems, totalPages });
+    return paginated(items, { page, pageSize, totalItems, totalPages });
   } catch {
     return internalError("获取报销单失败");
   }
@@ -57,13 +62,18 @@ export async function POST(req: NextRequest) {
         data: {
           title,
           summary: summary || null,
-          receiptIds,
           totalAmount,
           operator,
         },
       });
 
-      // 将关联采购单产生的入库 ledger 标记为已结算，并更新采购单状态
+      // 关联采购单并标记为已结算
+      await tx.purchaseReceipt.updateMany({
+        where: { id: { in: receiptIds } },
+        data: { reimbursementId: reimbursement.id, status: "已结算" },
+      });
+
+      // 将关联采购单产生的入库 ledger 标记为已结算
       for (const receiptId of receiptIds) {
         await tx.inventoryLedger.updateMany({
           where: {
@@ -73,10 +83,6 @@ export async function POST(req: NextRequest) {
           data: {
             settlementStatus: "已结算",
           },
-        });
-        await tx.purchaseReceipt.update({
-          where: { id: receiptId },
-          data: { status: "已结算" },
         });
       }
 

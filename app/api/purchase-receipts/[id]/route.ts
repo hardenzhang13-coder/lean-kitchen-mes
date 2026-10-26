@@ -36,7 +36,7 @@ export async function GET(
     const reimbursements = await prisma.purchaseReimbursement.findMany({
       where: {
         status: "settled",
-        receiptIds: { has: receiptId },
+        receipts: { some: { id: receiptId } },
       },
     });
 
@@ -79,7 +79,7 @@ export async function DELETE(
       const reimbursements = await prisma.purchaseReimbursement.findMany({
         where: {
           status: "settled",
-          receiptIds: { has: receiptId },
+          receipts: { some: { id: receiptId } },
         },
       });
       if (reimbursements.length > 0) {
@@ -104,7 +104,7 @@ export async function DELETE(
     const reimbursements = await prisma.purchaseReimbursement.findMany({
       where: {
         status: "settled",
-        receiptIds: { has: receiptId },
+        receipts: { some: { id: receiptId } },
       },
     });
 

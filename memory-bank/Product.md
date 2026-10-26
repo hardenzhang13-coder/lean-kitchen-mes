@@ -121,9 +121,9 @@
 
 | 维度 | 方案 |
 |------|------|
-| 部署 | Zeabur（同时托管 Next.js 应用和 PG 数据库） |
+| 部署 | 阿里云 ECS（Docker Compose 自托管，mysql:8.4 + web + migrate + backup） |
 | 前端框架 | Next.js + shadcn/ui |
-| 数据库 | PostgreSQL |
+| 数据库 | MySQL 8.4 |
 | 图片识别 | 移动端上传 → 服务端调用多模态大模型识别 → 返回结构化数据 → 用户确认 |
 | 采购端方案 | **PWA（Progressive Web App）**。采购员在手机浏览器访问 → 添加到主屏幕 → 获得类原生体验（全屏、离线缓存、推送通知）。不需要走应用商店审核，更新即时生效 |
 | 拍照上传 | 浏览器原生 API（`<input type="file" accept="image/*">`），不需要原生 App 能力 |

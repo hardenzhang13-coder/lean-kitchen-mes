@@ -38,7 +38,7 @@ systemctl restart docker
 
 ```bash
 apt-get install -y git
-git clone <你的仓库地址> /opt/lean-kms-v3
+git clone https://github.com/hardenzhang13-coder/lean-kitchen-mes.git /opt/lean-kms-v3
 cd /opt/lean-kms-v3
 ```
 
@@ -84,7 +84,7 @@ docker compose up -d --build
 
 首次启动约 5-10 分钟（构建镜像）。compose 会自动按顺序完成：
 
-1. 启动 PostgreSQL（数据持久化在 docker 卷 `pgdata`）
+1. 启动 MySQL 8.4（数据持久化在 docker 卷 `mysqldata`，utf8mb4 编码）
 2. 执行 `prisma migrate deploy` + `seed`（自动建表、写入默认账号）
 3. 启动 Next.js 监听 80 端口
 4. 启动每日备份任务（`./backups` 目录，保留 7 天）
@@ -107,14 +107,15 @@ docker compose up -d --build web  # 更新代码后重建应用
 ls backups/                       # 查看备份文件
 
 # 手动备份
-docker compose exec db pg_dump -U postgres zeabur | gzip > backups/manual-$(date +%F).sql.gz
+docker compose exec db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction lean_kms' | gzip > backups/manual-$(date +%F).sql.gz
 
 # 从备份恢复（危险操作）
-gunzip -c backups/xxx.sql.gz | docker compose exec -T db psql -U postgres zeabur
+gunzip -c backups/xxx.sql.gz | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms'
 ```
 
 ## 注意事项
 
 - `.env` 已在 `.gitignore` 和 `.dockerignore` 中排除，不会进入镜像或仓库
-- 数据库不对外暴露端口（只在 Docker 内网），无需在防火墙开 5432
+- 数据库不对外暴露端口（只在 Docker 内网），无需在防火墙开 3306
+- 服务器代码必须用 **git clone** 管理；后续更新：`git pull && docker compose up -d --build`（不要再用 tar 上传，否则无法增量更新）
 - 旧 Zeabur 数据已过期无法迁移，系统从 seed 基础数据重新开始

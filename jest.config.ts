@@ -3,7 +3,7 @@ import nextJest from "next/jest.js";
 
 // 必须在任何测试模块加载前设置，否则 env-check 会抛异常或 process.exit(1)
 process.env.SESSION_SECRET = "test-secret-for-jest-only-do-not-use-in-production";
-process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test";
+process.env.DATABASE_URL = "mysql://test:test@localhost:3306/test";
 
 const createJestConfig = nextJest({
   dir: "./",

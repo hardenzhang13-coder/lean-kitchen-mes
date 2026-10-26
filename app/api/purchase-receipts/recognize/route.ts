@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     if (recognized.supplierName) {
       supplierName = recognized.supplierName.trim();
       const existing = await prisma.supplier.findFirst({
-        where: { name: { equals: supplierName, mode: "insensitive" } },
+        where: { name: { equals: supplierName } },
       });
       if (existing) {
         supplierId = existing.id;

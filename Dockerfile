@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 # 构建期环境变量仅用于通过启动校验，不会进入运行时镜像
-ENV DATABASE_URL="postgresql://build:build@localhost:5432/build" \
+ENV DATABASE_URL="mysql://build:build@localhost:3306/build" \
     SESSION_SECRET="build-time-placeholder-secret-32chars!" \
     QWEN_API_KEY="build-placeholder" \
     QWEN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1" \

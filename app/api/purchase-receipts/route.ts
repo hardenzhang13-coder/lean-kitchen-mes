@@ -16,17 +16,11 @@ export async function GET(req: NextRequest) {
 
     const { startDate, endDate, status, page, pageSize, q } = validation.data;
 
-    const reimbursements = await prisma.purchaseReimbursement.findMany({
-      where: { status: "settled" },
-      select: { receiptIds: true },
+    const settledReceipts = await prisma.purchaseReceipt.findMany({
+      where: { reimbursement: { status: "settled" } },
+      select: { id: true },
     });
-
-    const settledReceiptIds = new Set<number>();
-    for (const r of reimbursements) {
-      for (const id of r.receiptIds) {
-        settledReceiptIds.add(id);
-      }
-    }
+    const settledReceiptIds = new Set<number>(settledReceipts.map((r) => r.id));
 
     const where: Prisma.PurchaseReceiptWhereInput = {};
     if (startDate || endDate) {
@@ -41,9 +35,9 @@ export async function GET(req: NextRequest) {
       const query = q.trim();
       const queryId = Number(query);
       const or: Prisma.PurchaseReceiptWhereInput[] = [
-        { summary: { contains: query, mode: "insensitive" } },
-        { supplierName: { contains: query, mode: "insensitive" } },
-        { operator: { contains: query, mode: "insensitive" } },
+        { summary: { contains: query } },
+        { supplierName: { contains: query } },
+        { operator: { contains: query } },
       ];
       if (!isNaN(queryId)) {
         or.push({ id: { equals: queryId } });

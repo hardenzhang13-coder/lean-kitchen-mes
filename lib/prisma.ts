@@ -1,12 +1,11 @@
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
 import { checkRequiredEnvVars } from "@/lib/env-check-node";
 
 // 在 Node 运行时启动阶段强制检测关键环境变量
 checkRequiredEnvVars();
 
-const connectionString = process.env.DATABASE_URL!;
-const adapter = new PrismaPg({ connectionString });
+const adapter = new PrismaMariaDb(process.env.DATABASE_URL!);
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 

@@ -52,6 +52,10 @@ next-env.d.ts
 # local IDE / Claude Code configuration
 .claude/
 
+# Claude Code / browser debug tmp files
+tmp-*.json
+.tabbit-run/
+
 # receipt test images
 *.receipt-test.*
 receipt-test.*

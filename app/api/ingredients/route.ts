@@ -23,9 +23,9 @@ export async function GET(req: NextRequest) {
     if (q?.trim()) {
       const term = q.trim();
       where.OR = [
-        { name: { contains: term, mode: "insensitive" } },
-        { code: { contains: term, mode: "insensitive" } },
-        { alias: { contains: term, mode: "insensitive" } },
+        { name: { contains: term } },
+        { code: { contains: term } },
+        { alias: { contains: term } },
       ];
     }
 

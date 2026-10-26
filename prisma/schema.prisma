@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
 }
 
 model DishCategory {
@@ -292,10 +292,12 @@ model PurchaseReceipt {
   imageUrl       String?               @map("image_url")
   purchasingUnit String                @default("切配中心") @map("purchasing_unit")
   imageHash      String?               @map("image_hash")
-  status         String                @default("待结算") // 待结算 / 已结算 / 已作废
-  createdAt      DateTime              @default(now()) @map("created_at")
-  items          PurchaseReceiptItem[]
-  supplier       Supplier?             @relation(fields: [supplierId], references: [id])
+  status          String                 @default("待结算") // 待结算 / 已结算 / 已作废
+  createdAt       DateTime               @default(now()) @map("created_at")
+  reimbursementId Int?                   @map("reimbursement_id")
+  items           PurchaseReceiptItem[]
+  supplier        Supplier?              @relation(fields: [supplierId], references: [id])
+  reimbursement   PurchaseReimbursement? @relation(fields: [reimbursementId], references: [id])
 
   @@map("purchase_receipts")
 }
@@ -353,14 +355,14 @@ model InventoryLedger {
 }
 
 model PurchaseReimbursement {
-  id          Int      @id @default(autoincrement())
+  id          Int               @id @default(autoincrement())
   title       String // 报销主题
   summary     String? // 摘要
-  receiptIds  Int[]    @map("receipt_ids")
-  totalAmount Decimal  @map("total_amount") @db.Decimal(10, 2)
-  status      String   @default("pending") // pending / settled
+  totalAmount Decimal           @map("total_amount") @db.Decimal(10, 2)
+  status      String            @default("pending") // pending / settled
   operator    String?
-  createdAt   DateTime @default(now()) @map("created_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  receipts    PurchaseReceipt[]
 
   @@map("purchase_reimbursements")
 }

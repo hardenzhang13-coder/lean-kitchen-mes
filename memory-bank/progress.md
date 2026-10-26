@@ -927,3 +927,29 @@ POST /api/schedules/[id]/execute-purchase
 | 编辑采购单时库存回滚导致负库存 | 中 | 高 | 回滚前校验 `currentQty >= stockInQty`，不足时拒绝编辑并提示 |
 | 编辑影响已结算报销单 | 低 | 高 | 已结算/已作废采购单禁止编辑；pending 报销单编辑后需同步 `totalAmount` |
 | 多供应商分组逻辑复杂 | 低 | 中 | 前端按 supplierId 分组展示，后端接收扁平数组后重新分组 |
+
+
+---
+
+## 本地开发环境（2026-10-26 更新）
+
+- **本地 MySQL**：8.4.9，winget 安装于 `C:\Program Files\MySQL\MySQL Server 8.4`，Windows 服务 `MySQL84`（开机自启），数据目录 `C:\ProgramData\MySQL\MySQL Server 8.4\Data`，root 无密码，端口 3306。
+- **数据库**：`lean_kms`（业务库）+ `lean_kms_shadow`（migrate diff 影子库），均为 utf8mb4 / utf8mb4_0900_ai_ci。
+- **本地库由 seed 重建**（admin/admin123、zhang/123456、yang/123456）。
+- ~~本地 PostgreSQL（E:\pgsql17）已弃用~~，可删除。
+- **部署**：阿里云部署文件 — Dockerfile（多阶段 standalone）、docker-compose.yml（web+db+migrate+backup）、docs/aliyun-deploy.md。
+
+### 数据库切换 PostgreSQL → MySQL（2026-10-26 完成）
+
+- 适配器 `@prisma/adapter-pg` → `@prisma/adapter-mariadb`（连接串直连）
+- 删除 13 处 `mode: "insensitive"`（MySQL utf8mb4 collation 天然不区分大小写）
+- `PurchaseReimbursement.receiptIds Int[]`（PG 数组，MySQL 不支持）规范化为 `PurchaseReceipt.reimbursementId` 外键关系
+- 旧 5 个 PG 迁移全部删除，MySQL 空库上重建单一基线 `20261026113210_init`，`migrate diff` 校验零差异
+
+
+### 线上部署（2026-10-26 完成）
+
+- **服务器**：阿里云 ECS 经济型 e（2C4G / 40G ESSD），Ubuntu 26.04.1，公网 IP `101.37.64.216`
+- **架构**：Docker Compose（db=mysql:8.4 + web=standalone + migrate + backup），代码在 `/opt/lean-kms-v3`（git clone），访问 http://101.37.64.216
+- **Docker**：docker.io 29.1.3（Ubuntu 源）；镜像加速器用 `docker.m.daocloud.io` + `hub.rat.dev`（1ms.run/nju/geekery 在该机器不可用）
+- **注意**：Docker Hub 官方源和 download.docker.com 在大陆被墙，必须用加速器

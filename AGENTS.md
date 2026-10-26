@@ -48,7 +48,9 @@ npm run lint
 
 ## 4. 数据库操作规范
 
+- 数据库为 **MySQL 8.4**（Prisma provider `mysql`）：禁止使用 PG 特有特性（数组列、`mode: "insensitive"` 等）；文本搜索依赖 utf8mb4 collation，天然不区分大小写
 - Schema 变更必须通过 `prisma migrate dev` 生成迁移文件，**禁止直接 `db push` 到生产**
+- **提交前零差异校验**：`npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` 必须输出空迁移（防止迁移历史与 schema 脱节，本地需在 .env 配置 `SHADOW_DATABASE_URL`）
 - 涉及库存更新的操作必须放在 `prisma.$transaction` 中
 - 并发场景（采购单作废/编辑）必须加乐观锁或序列化事务
 - 所有表必须考虑软删除（新增 `deletedAt` 字段）

@@ -139,7 +139,7 @@ export default function ReimbursementsPage() {
                       <TableCell className="font-medium">#{r.id}</TableCell>
                       <TableCell>{r.title}</TableCell>
                       <TableCell>{r.summary || "—"}</TableCell>
-                      <TableCell>{r.receiptIds?.length || 0} 张</TableCell>
+                      <TableCell>{r.receiptCount ?? 0} 张</TableCell>
                       <TableCell className="font-semibold">
                         ¥{Number(r.totalAmount).toFixed(2)}
                       </TableCell>

@@ -36,9 +36,11 @@ export async function getSessionCookie(): Promise<string | undefined> {
 
 export async function setSessionCookie(token: string): Promise<void> {
   const cookieStore = await cookies();
+  // secure 必须显式开启（FORCE_HTTPS=true），避免 HTTP 部署下浏览器丢弃 session
+  const secure = process.env.FORCE_HTTPS === "true";
   cookieStore.set("session", token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure,
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7, // 7 days
     path: "/",

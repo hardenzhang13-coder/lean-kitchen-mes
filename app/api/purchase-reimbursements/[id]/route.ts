@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   // 获取关联的采购单
   const receipts = await prisma.purchaseReceipt.findMany({
-    where: { id: { in: row.receiptIds } },
+    where: { reimbursementId: row.id },
     select: { id: true, receiptDate: true, summary: true, totalAmount: true, operator: true },
   });
 
