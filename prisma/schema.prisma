@@ -37,9 +37,12 @@ model IngredientCategoryL2 {
 }
 
 model Unit {
-  id       Int    @id @default(autoincrement())
-  name     String @unique
-  category String
+  id           Int      @id @default(autoincrement())
+  name         String   @unique
+  category     String
+  // 重量类单位必填：1 单位合多少克（斤=500、公斤=1000、克=1），驱动换算逻辑
+  gramsPerUnit Decimal? @db.Decimal(10, 2) @map("grams_per_unit")
+  isActive     Boolean  @default(true) @map("is_active")
 
   @@map("units")
 }

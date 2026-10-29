@@ -8,6 +8,7 @@ import { createPurchaseReceiptSchema, purchaseReceiptQuerySchema } from "@/lib/s
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
+import { getJinFactors } from "@/lib/server/unit-factors";
 
 export async function GET(req: NextRequest) {
   try {
@@ -147,6 +148,9 @@ export async function POST(req: NextRequest) {
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
 
+    // 换算系数来自单位字典，事务外查询一次传入（见 lib/server/unit-factors.ts）
+    const jinFactors = await getJinFactors();
+
     const result = await prisma.$transaction(async (tx) => {
       const receipt = await tx.purchaseReceipt.create({
         data: {
@@ -190,7 +194,7 @@ export async function POST(req: NextRequest) {
             where: { id: item.ingredientId },
             select: { purchaseSpec: true },
           });
-          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec);
+          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec, jinFactors);
           await tx.ingredient.update({
             where: { id: item.ingredientId },
             data: {

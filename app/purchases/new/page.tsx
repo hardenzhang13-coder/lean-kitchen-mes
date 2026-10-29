@@ -85,6 +85,8 @@ interface Unit {
   id: number;
   name: string;
   category: string;
+  gramsPerUnit?: number | string | null;
+  isActive?: boolean;
 }
 
 type CreatedIngredient = {

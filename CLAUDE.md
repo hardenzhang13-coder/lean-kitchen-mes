@@ -93,6 +93,9 @@ prisma/               # 数据库 Schema + 种子脚本
 
 ## 关键代码模式
 
+### 单位换算
+单位换算的唯一来源是 `units` 字典表（重量类单位的 `gramsPerUnit`）：服务端经 `lib/server/unit-factors.ts` 的 `getJinFactors()` 查询、用 `lib/shared/unit-conversion.ts` 的 `buildJinFactors()` 构建「单位名 → 每斤系数」，注入 `spec-parser.ts` / `weight-format.ts` 的纯函数（第三参/第二参可选）。`DEFAULT_JIN_PER_UNIT` 与 500g/斤 仅为调用方未注入时的兜底默认值，**改换算优先改字典**。
+
 ### Prisma 使用
 `lib/prisma.ts` 使用 Prisma v5+ 的新 `PrismaPg` 适配器模式。开发环境下客户端以全局单例缓存。
 

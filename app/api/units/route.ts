@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { paginated, internalError } from "@/lib/server/api-response";
@@ -14,15 +15,19 @@ export async function GET(req: NextRequest) {
     if (!validation.success) return validation.response;
 
     const { page, pageSize } = validation.data;
+    // 业务端默认只返回启用中的单位；设置页传 includeInactive=1 获取全量
+    const includeInactive = searchParams.get("includeInactive") === "1";
+    const where = includeInactive ? {} : { isActive: true };
     const skip = (page - 1) * pageSize;
 
     const [rows, totalItems] = await Promise.all([
       prisma.unit.findMany({
+        where,
         orderBy: { id: "asc" },
         skip,
         take: pageSize,
       }),
-      prisma.unit.count(),
+      prisma.unit.count({ where }),
     ]);
 
     const totalPages = Math.ceil(totalItems / pageSize);
@@ -38,13 +43,27 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createUnitSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, category } = validation.data;
+    const { name, category, gramsPerUnit, isActive } = validation.data;
+    if (category === "weight" && (gramsPerUnit == null || gramsPerUnit <= 0)) {
+      return NextResponse.json(
+        { error: "重量类单位必须填写换算克数（1 单位合多少克）" },
+        { status: 400 }
+      );
+    }
     const row = await prisma.unit.create({
-      data: { name, category: category || "other" },
+      data: {
+        name,
+        category,
+        gramsPerUnit: gramsPerUnit ?? null,
+        isActive: isActive ?? true,
+      },
     });
     await logOperation(req, { action: "CREATE", entity: "Unit", entityId: row.id, description: `创建: ${row.name}` });
     return NextResponse.json(row, { status: 201 });
   } catch (e: unknown) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      return NextResponse.json({ error: "单位名称已存在" }, { status: 400 });
+    }
     return NextResponse.json({ error: getErrorMessage(e) }, { status: 400 });
   }
 }

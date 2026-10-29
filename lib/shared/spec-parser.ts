@@ -1,3 +1,5 @@
+import { DEFAULT_JIN_PER_UNIT } from "./unit-conversion";
+
 export interface ParsedSpec {
   /** 规格中解析出的“每采购单位包含多少库存单位” */
   multiplier: number;
@@ -134,20 +136,6 @@ function toNumber(v: unknown): number | null {
 }
 
 /**
- * 可换算为"斤"的单位及其系数（含中英文缩写）。
- * 仅这些单位可用于采购规格 → 斤的自动换算；袋/瓶/箱/升等计数或体积单位不参与换算但不阻断。
- */
-const JIN_PER_UNIT: Record<string, number> = {
-  斤: 1,
-  两: 0.1,
-  克: 0.002,
-  g: 0.002,
-  千克: 2,
-  kg: 2,
-  公斤: 2,
-};
-
-/**
  * 计算一个采购单位包含多少斤。
  * 按 * / 空格 拆分规格，每个片段提取「数字 + 单位」：
  * - 重量单位（斤/两/克/千克/公斤 及缩写）累乘 数字×系数
@@ -155,12 +143,19 @@ const JIN_PER_UNIT: Record<string, number> = {
  * - 无数字的纯单位片段（如"袋"）跳过
  * 若整个规格不含任何重量单位，返回 null（无法换算，由用户手动填写）。
  *
+ * factors 为「单位名 → 每斤系数」换算表，由调用方从单位字典构建
+ * （lib/shared/unit-conversion.ts 的 buildJinFactors）；缺省时使用内置兜底值。
+ *
  * 例：5斤/袋 -> 5；1千克*10袋 -> 2*10 = 20；1L*6瓶 -> null
  */
-export function calcJinPerPurchaseUnit(spec: string): number | null {
+export function calcJinPerPurchaseUnit(
+  spec: string,
+  factors?: Record<string, number>
+): number | null {
   const s = (spec || "").trim();
   if (!s || PLACEHOLDER_RE.test(s)) return null;
 
+  const table = factors ?? DEFAULT_JIN_PER_UNIT;
   const parts = s.split(/[*/\s]+/).map((p) => p.trim()).filter(Boolean);
   if (parts.length === 0) return null;
 
@@ -171,7 +166,7 @@ export function calcJinPerPurchaseUnit(spec: string): number | null {
     if (!m) continue; // 无数字的片段（如"袋"）跳过
     const value = Number(m[1]);
     const unit = m[2];
-    const factor = JIN_PER_UNIT[unit];
+    const factor = table[unit];
     if (factor != null) {
       jin *= value * factor;
       hasWeight = true;
@@ -193,12 +188,13 @@ export function calcJinPerPurchaseUnit(spec: string): number | null {
  */
 export function calcPricePerJin(
   refPrice: number | string | unknown,
-  spec: string | null | undefined
+  spec: string | null | undefined,
+  factors?: Record<string, number>
 ): number | null {
   const price = toNumber(refPrice);
   if (price == null || price <= 0) return null;
 
-  const jin = calcJinPerPurchaseUnit(spec || "");
+  const jin = calcJinPerPurchaseUnit(spec || "", factors);
   if (jin == null) return null;
 
   return Math.round((price / jin) * 10000) / 10000;

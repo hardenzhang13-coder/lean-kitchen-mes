@@ -7,6 +7,7 @@ import { createPurchaseReceiptSchema } from "@/lib/server/schemas/purchase";
 import { validateBody } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
+import { getJinFactors } from "@/lib/server/unit-factors";
 
 export async function GET(
   _req: NextRequest,
@@ -203,6 +204,9 @@ export async function PUT(
       return badRequest("只有待结算的采购单可以编辑");
     }
 
+    // 换算系数来自单位字典，事务外查询一次传入（见 lib/server/unit-factors.ts）
+    const jinFactors = await getJinFactors();
+
     await prisma.$transaction(async (tx) => {
       for (const oldItem of existing.items) {
         if (oldItem.ingredientId) {
@@ -270,7 +274,7 @@ export async function PUT(
             where: { id: item.ingredientId },
             select: { purchaseSpec: true },
           });
-          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec);
+          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec, jinFactors);
           await tx.ingredient.update({
             where: { id: item.ingredientId },
             data: {

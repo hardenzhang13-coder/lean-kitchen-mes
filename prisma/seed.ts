@@ -82,25 +82,33 @@ async function main() {
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 
-  // 4. 单位
+  // 4. 单位（重量类必须带 gramsPerUnit；upsert 保证老库回填系数与启用状态）
   const units = [
-    { name: "斤", category: "weight" },
-    { name: "公斤", category: "weight" },
-    { name: "克", category: "weight" },
-    { name: "升", category: "volume" },
-    { name: "毫升", category: "volume" },
-    { name: "个", category: "count" },
-    { name: "包", category: "count" },
-    { name: "瓶", category: "count" },
-    { name: "袋", category: "count" },
-    { name: "箱", category: "count" },
-    { name: "件", category: "count" },
-    { name: "条", category: "count" },
-    { name: "根", category: "count" },
-    { name: "只", category: "count" },
-    { name: "把", category: "count" },
+    { name: "斤", category: "weight", gramsPerUnit: 500 },
+    { name: "公斤", category: "weight", gramsPerUnit: 1000 },
+    { name: "千克", category: "weight", gramsPerUnit: 1000 },
+    { name: "克", category: "weight", gramsPerUnit: 1 },
+    { name: "两", category: "weight", gramsPerUnit: 50 },
+    { name: "升", category: "volume", gramsPerUnit: null },
+    { name: "毫升", category: "volume", gramsPerUnit: null },
+    { name: "个", category: "count", gramsPerUnit: null },
+    { name: "包", category: "count", gramsPerUnit: null },
+    { name: "瓶", category: "count", gramsPerUnit: null },
+    { name: "袋", category: "count", gramsPerUnit: null },
+    { name: "箱", category: "count", gramsPerUnit: null },
+    { name: "件", category: "count", gramsPerUnit: null },
+    { name: "条", category: "count", gramsPerUnit: null },
+    { name: "根", category: "count", gramsPerUnit: null },
+    { name: "只", category: "count", gramsPerUnit: null },
+    { name: "把", category: "count", gramsPerUnit: null },
   ];
-  await prisma.unit.createMany({ data: units, skipDuplicates: true });
+  for (const u of units) {
+    await prisma.unit.upsert({
+      where: { name: u.name },
+      create: u,
+      update: { category: u.category, gramsPerUnit: u.gramsPerUnit },
+    });
+  }
 
   // 5. 用户
   const users = [

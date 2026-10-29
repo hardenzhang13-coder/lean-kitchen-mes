@@ -73,7 +73,7 @@ Ingredient（原料）
 |------|------|
 | `User` | 用户，自研 JWT 认证 |
 | `OperationLog` | 操作日志，由 `logOperation()` 写入 |
-| `Unit` | 计量单位字典 |
+| `Unit` | 计量单位字典；重量类带 `gramsPerUnit`（1 单位合多少克），驱动全系统斤/克换算；`isActive` 停用后业务端下拉不再出现（设置页用 `?includeInactive=1` 查全量） |
 
 ## 软删除约定
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +28,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { parseList } from "@/lib/client/api";
 import { getDefaultSpec, calcPricePerJin } from "@/lib/shared/spec-parser";
+import { buildJinFactors } from "@/lib/shared/unit-conversion";
 import { toast } from "sonner";
 
 export type CreatedIngredient = {
@@ -137,18 +138,25 @@ export function IngredientFormDialog({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // 采购规格或最新参照单价变化时，自动计算每斤单价（无法换算则保留用户手动值）
+  // 换算系数来自单位字典（buildJinFactors），字典缺字段时由内置兜底值接管
+  // 换算系数来自单位字典（buildJinFactors）；字典为空（未加载/全停用）时回退内置兜底值
+  const jinFactors = useMemo(() => {
+    const factors = buildJinFactors(units);
+    return Object.keys(factors).length > 0 ? factors : undefined;
+  }, [units]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
     const jin = calcPricePerJin(
       form.latestRefPrice ? Number(form.latestRefPrice) : null,
-      form.purchaseSpec
+      form.purchaseSpec,
+      jinFactors
     );
     if (jin != null && String(jin) !== form.pricePerJin) {
       setForm((prev) => ({ ...prev, pricePerJin: String(jin) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, form.purchaseSpec, form.latestRefPrice]);
+  }, [open, form.purchaseSpec, form.latestRefPrice, jinFactors]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */

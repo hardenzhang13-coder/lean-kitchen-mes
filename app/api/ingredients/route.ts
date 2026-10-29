@@ -9,6 +9,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { logger } from "@/lib/server/logger";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
+import { getJinFactors } from "@/lib/server/unit-factors";
 import { nextCode } from "@/lib/shared/code-gen";
 
 export async function GET(req: NextRequest) {
@@ -85,8 +86,10 @@ export async function POST(req: NextRequest) {
     });
     const code = nextCode(prefix, last?.code);
     // 用户未传 pricePerJin 时，按采购规格自动换算；换算不出则为 null（留待手动填写）
+    // 换算系数来自单位字典（克/斤换算随字典维护，见 lib/server/unit-factors.ts）
+    const jinFactors = await getJinFactors();
     const finalPricePerJin =
-      pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "");
+      pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "", jinFactors);
 
     const row = await prisma.ingredient.create({
       data: {

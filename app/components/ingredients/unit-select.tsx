@@ -7,6 +7,8 @@ type Unit = {
   id: number;
   name: string;
   category: string;
+  gramsPerUnit?: number | string | null;
+  isActive?: boolean;
 };
 
 interface UnitSelectProps {
@@ -48,6 +50,11 @@ export function UnitSelect({
   const options = units
     .filter((u) => (category ? u.category === category : true))
     .map((u) => ({ value: u.name, label: u.name }));
+
+  // 历史数据可能引用已停用的单位：当前值不在选项中时补一项，避免下拉显示空白
+  if (value && !options.some((o) => o.value === value)) {
+    options.push({ value, label: `${value}（已停用）` });
+  }
 
   return (
     <SelectField

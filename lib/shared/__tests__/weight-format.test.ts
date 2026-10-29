@@ -25,4 +25,11 @@ describe("toWeightValue", () => {
     expect(toWeightValue(100)).toEqual({ value: 100, unit: "g" });
     expect(toWeightValue(499.6)).toEqual({ value: 500, unit: "g" });
   });
+
+  it("respects custom gramsPerJin", () => {
+    // 以「公斤」为展示基准：≥1000g 显示公斤数
+    expect(formatWeight(1000, 1000)).toBe("1.00斤");
+    expect(formatWeight(500, 1000)).toBe("500g");
+    expect(toWeightValue(2000, 1000)).toEqual({ value: 2, unit: "斤" });
+  });
 });

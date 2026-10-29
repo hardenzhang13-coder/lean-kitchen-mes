@@ -6,6 +6,7 @@ import { checkDuplicateName } from "@/lib/server/duplicate-check";
 import { updateIngredientSchema } from "@/lib/server/schemas/ingredient";
 import { validateBody } from "@/lib/server/validate";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
+import { getJinFactors } from "@/lib/server/unit-factors";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -60,6 +61,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!existing) {
       return NextResponse.json({ error: "食材不存在或已删除" }, { status: 404 });
     }
+    // 换算系数来自单位字典（见 lib/server/unit-factors.ts）
+    const jinFactors = await getJinFactors();
     const row = await prisma.ingredient.update({
       where: { id: Number(id) },
       data: {
@@ -75,7 +78,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             ? pricePerJin ?? null
             : calcPricePerJin(
                 latestRefPrice !== undefined ? latestRefPrice : existing.latestRefPrice,
-                purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec
+                purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec,
+                jinFactors
               ),
         season: season !== undefined ? season || "四季" : existing.season,
         storage: storage !== undefined ? storage || "常温" : existing.storage,
