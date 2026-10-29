@@ -12,19 +12,19 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { DataTable } from "@/app/components/data-table";
-import { CategoryTag } from "@/app/components/category-tag";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { DataTable } from "@/app/components/ui/data-table";
+import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
-} from "@/app/components/net-ingredient-form-dialog";
+} from "@/app/components/ingredients/net-ingredient-form-dialog";
 import {
   NetIngredientEditDialog,
   NetIngredientEditItem,
-} from "@/app/components/net-ingredient-edit-dialog";
+} from "@/app/components/ingredients/net-ingredient-edit-dialog";
 import { usePagination } from "@/lib/client/use-pagination";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 
 type NetIngredient = {

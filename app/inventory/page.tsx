@@ -27,19 +27,20 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { PageHeader } from "@/app/components/page-header";
-import { EmptyState } from "@/app/components/empty-state";
-import { StatusBadge, inventoryStatusToVariant } from "@/app/components/status-badge";
-import { KpiCard } from "@/app/components/kpi-card";
-import { CategoryPill } from "@/app/components/category-pill";
-import { ViewToggle } from "@/app/components/view-toggle";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { inventoryStatusToVariant } from "@/app/components/ingredients/inventory-status";
+import { KpiCard } from "@/app/components/ui/kpi-card";
+import { CategoryPill } from "@/app/components/ingredients/category-pill";
+import { ViewToggle } from "@/app/components/ui/view-toggle";
 import {
   IngredientCard,
   InventoryItemWithDetail,
-} from "@/app/components/ingredient-card";
-import { InventorySkeleton } from "@/app/components/inventory-skeleton";
-import { TabSwitcher } from "@/app/components/tab-switcher";
-import { Pagination } from "@/app/components/pagination";
+} from "@/app/components/ingredients/ingredient-card";
+import { InventorySkeleton } from "@/app/components/ui/inventory-skeleton";
+import { TabSwitcher } from "@/app/components/ui/tab-switcher";
+import { Pagination } from "@/app/components/ui/pagination";
 import {
   isToday,
   formatRelativeTime,

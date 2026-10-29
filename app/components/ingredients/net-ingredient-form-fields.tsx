@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import { X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { FormField, FormSection } from "@/app/components/form-field";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import {
   IngredientSelectorDialog,
   CategoryL1 as SelectorCategoryL1,
   IngredientForSelector,
-} from "@/app/components/ingredient-selector-dialog";
+} from "@/app/components/ingredients/ingredient-selector-dialog";
 
 export type CategoryL1 = SelectorCategoryL1;
 

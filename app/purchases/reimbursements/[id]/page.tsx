@@ -4,7 +4,7 @@ import { downloadCSV } from "@/lib/client/csv";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Download, Receipt, FileText } from "lucide-react";
-import { StatusBadge } from "@/app/components/status-badge";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { parseObject } from "@/lib/client/api";
 import { Button } from "@/components/ui/button";
 import {

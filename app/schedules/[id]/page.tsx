@@ -25,9 +25,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { ScheduleCuttingTable } from "@/app/components/schedule-cutting-table";
-import { SchedulePurchaseTable } from "@/app/components/schedule-purchase-table";
-import { StatusBadge } from "@/app/components/status-badge";
+import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
+import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 
 interface ScheduleData {
   id: number;

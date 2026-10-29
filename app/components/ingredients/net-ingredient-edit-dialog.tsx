@@ -15,7 +15,7 @@ import {
   NetIngredientFormData,
   CategoryL1,
   RawIngredientOption,
-} from "@/app/components/net-ingredient-form-fields";
+} from "@/app/components/ingredients/net-ingredient-form-fields";
 import { toast } from "sonner";
 
 export type NetIngredientEditItem = {

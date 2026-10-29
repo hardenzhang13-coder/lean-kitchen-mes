@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Receipt, Search, FileText, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { StatusBadge } from "@/app/components/status-badge";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
+import { PageHeader } from "@/app/components/ui/page-header";
 import { toast } from "sonner";
 
 export default function ReimbursementsPage() {

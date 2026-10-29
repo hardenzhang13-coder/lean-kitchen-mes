@@ -4,8 +4,8 @@ import { X, GripVertical } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { FormField } from "@/app/components/form-field";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { FormField } from "@/app/components/ui/form-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { ProcessStep, TOOL_OPTIONS } from "./types";
 
 interface ProcessStepFormProps {

@@ -20,11 +20,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { CategoryTag } from "@/app/components/category-tag";
-import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
-import { Pagination } from "@/app/components/pagination";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import { Pagination } from "@/app/components/ui/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 

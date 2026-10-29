@@ -13,8 +13,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField } from "@/app/components/form-field";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { FormField } from "@/app/components/ui/form-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, STAGE_COLORS, TOOL_OPTIONS } from "./types";
 import { ProcessStepForm } from "./process-step-form";
 import { ProcessStepCard } from "./process-step-card";

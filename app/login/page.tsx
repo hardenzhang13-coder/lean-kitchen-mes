@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { FormField } from "@/app/components/form-field";
+import { FormField } from "@/app/components/ui/form-field";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 

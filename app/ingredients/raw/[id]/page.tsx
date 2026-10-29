@@ -5,17 +5,17 @@ import { useParams } from "next/navigation";
 import { Plus, Pencil, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { DataTable } from "@/app/components/data-table";
-import { EmptyState } from "@/app/components/empty-state";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { DataTable } from "@/app/components/ui/data-table";
+import { EmptyState } from "@/app/components/ui/empty-state";
 import {
   NetIngredientFormDialog,
   NetIngredientItem,
-} from "@/app/components/net-ingredient-form-dialog";
+} from "@/app/components/ingredients/net-ingredient-form-dialog";
 import {
   NetIngredientEditDialog,
   NetIngredientEditItem,
-} from "@/app/components/net-ingredient-edit-dialog";
+} from "@/app/components/ingredients/net-ingredient-edit-dialog";
 import { toast } from "sonner";
 
 type IngredientDetail = {

@@ -11,8 +11,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { DataTable } from "@/app/components/data-table";
-import { EmptyState } from "@/app/components/empty-state";
+import { DataTable } from "@/app/components/ui/data-table";
+import { EmptyState } from "@/app/components/ui/empty-state";
 import { cn } from "@/lib/shared/utils";
 
 export type CategoryL1 = {

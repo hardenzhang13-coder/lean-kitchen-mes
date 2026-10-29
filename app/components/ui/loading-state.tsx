@@ -1,6 +1,6 @@
 "use client";
 
-import { SkeletonTable } from "@/app/components/skeleton-table";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 
 interface LoadingStateProps {
   type?: "table" | "card-grid" | "page" | "inline";

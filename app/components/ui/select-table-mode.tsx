@@ -11,8 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { SelectDialog } from "@/app/components/select-dialog";
-import { Pagination } from "@/app/components/pagination";
+import { SelectDialog } from "@/app/components/ui/select-dialog";
+import { Pagination } from "@/app/components/ui/pagination";
 import { cn } from "@/lib/shared/utils";
 
 export type SelectTableColumn<T> = {

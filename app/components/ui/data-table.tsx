@@ -8,9 +8,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { EmptyState, EmptyStateProps } from "@/app/components/empty-state";
-import { LoadingState } from "@/app/components/loading-state";
-import { Pagination } from "@/app/components/pagination";
+import { EmptyState, EmptyStateProps } from "@/app/components/ui/empty-state";
+import { LoadingState } from "@/app/components/ui/loading-state";
+import { Pagination } from "@/app/components/ui/pagination";
 import { cn } from "@/lib/shared/utils";
 
 export type ColumnDef<T> = {

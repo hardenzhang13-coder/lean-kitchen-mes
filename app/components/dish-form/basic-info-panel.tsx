@@ -2,8 +2,8 @@
 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FormField, FormSection } from "@/app/components/form-field";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DishFormData } from "./types";
 
 interface BasicInfoPanelProps {

@@ -31,14 +31,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { DatePicker } from "@/app/components/date-picker";
-import { ImagePreviewModal } from "@/app/components/image-preview-modal";
-import { CategoryTag } from "@/app/components/category-tag";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { SupplierSelect } from "@/app/components/supplier-select";
-import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
-import { StatusBadge } from "@/app/components/status-badge";
-import { FormField, FormSection } from "@/app/components/form-field";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { ImagePreviewModal } from "@/app/components/ui/image-preview-modal";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
+import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
 import {
   Select,
   SelectContent,

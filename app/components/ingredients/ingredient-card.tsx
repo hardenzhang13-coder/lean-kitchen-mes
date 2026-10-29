@@ -1,7 +1,8 @@
 "use client";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge, inventoryStatusToVariant } from "@/app/components/status-badge";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { inventoryStatusToVariant } from "@/app/components/ingredients/inventory-status";
 import { formatRelativeTime, formatNumber, cn } from "@/lib/shared/utils";
 
 export interface InventoryItemWithDetail {

@@ -23,9 +23,9 @@ import {
   IngredientFormData,
   CategoryL1,
   Unit,
-} from "@/app/components/ingredient-form-fields";
-import { EmptyState } from "@/app/components/empty-state";
-import { LoadingState } from "@/app/components/loading-state";
+} from "@/app/components/ingredients/ingredient-form-fields";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { LoadingState } from "@/app/components/ui/loading-state";
 import { parseList } from "@/lib/client/api";
 import { getDefaultSpec, calcPricePerJin } from "@/lib/shared/spec-parser";
 import { toast } from "sonner";

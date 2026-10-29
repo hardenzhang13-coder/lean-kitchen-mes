@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/app/components/date-picker";
+import { DatePicker } from "@/app/components/ui/date-picker";
 import {
   Select,
   SelectContent,

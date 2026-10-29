@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { FormField, FormSection } from "@/app/components/form-field";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 
 export type CategoryL1 = {
   code: string;

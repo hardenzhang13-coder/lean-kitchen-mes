@@ -6,9 +6,9 @@ import { SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/compo
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/app/components/data-table";
-import { StatusBadge } from "@/app/components/status-badge";
-import { CategoryTag } from "@/app/components/category-tag";
+import { DataTable } from "@/app/components/ui/data-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { CategoryTag } from "@/app/components/ui/category-tag";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BomType, DishDetail, formatCost } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";

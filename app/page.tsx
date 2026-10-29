@@ -8,8 +8,8 @@ import {
   ChefHat,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { StatusBadge } from "@/app/components/status-badge";
-import { EmptyState } from "@/app/components/empty-state";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@/app/components/ui/empty-state";
 import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 

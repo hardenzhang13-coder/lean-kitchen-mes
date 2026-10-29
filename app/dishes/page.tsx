@@ -15,14 +15,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { PageHeader } from "@/app/components/page-header";
-import { DataTable } from "@/app/components/data-table";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { StatusBadge } from "@/app/components/status-badge";
-import { CategoryTag } from "@/app/components/category-tag";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { DataTable } from "@/app/components/ui/data-table";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
-import { DishSheetDetail } from "@/app/components/dish-sheet-detail";
+import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
 import { DishDetail } from "@/app/components/dish-form/types";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";

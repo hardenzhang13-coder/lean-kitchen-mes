@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { DatePicker } from "@/app/components/date-picker";
+import { DatePicker } from "@/app/components/ui/date-picker";
 import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 

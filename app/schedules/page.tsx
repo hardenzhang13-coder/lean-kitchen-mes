@@ -5,11 +5,11 @@ import { Plus, Search, CalendarDays, ChefHat, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DatePicker } from "@/app/components/date-picker";
-import { PageHeader } from "@/app/components/page-header";
-import { StatusBadge } from "@/app/components/status-badge";
-import { EmptyState } from "@/app/components/empty-state";
-import { Pagination } from "@/app/components/pagination";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { Pagination } from "@/app/components/ui/pagination";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 

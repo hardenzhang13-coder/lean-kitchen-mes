@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { BookOpen, Search, Eye } from "lucide-react";
-import { StatusBadge } from "@/app/components/status-badge";
-import { TabSwitcher } from "@/app/components/tab-switcher";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import { TabSwitcher } from "@/app/components/ui/tab-switcher";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -28,9 +28,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { DatePicker } from "@/app/components/date-picker";
-import { Pagination } from "@/app/components/pagination";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { Pagination } from "@/app/components/ui/pagination";
 import { toast } from "sonner";
 
 interface LedgerItem {

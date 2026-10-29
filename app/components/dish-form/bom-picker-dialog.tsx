@@ -11,9 +11,9 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DataTable } from "@/app/components/data-table";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { EmptyState } from "@/app/components/empty-state";
+import { DataTable } from "@/app/components/ui/data-table";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { EmptyState } from "@/app/components/ui/empty-state";
 import { useDebounce } from "@/lib/client/hooks";
 import { BomType, IngredientOption, IngredientCategory } from "./types";
 import { cn } from "@/lib/shared/utils";

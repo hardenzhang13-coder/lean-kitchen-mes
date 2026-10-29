@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { DatePicker } from "@/app/components/date-picker";
+import { DatePicker } from "@/app/components/ui/date-picker";
 import {
   Select,
   SelectContent,

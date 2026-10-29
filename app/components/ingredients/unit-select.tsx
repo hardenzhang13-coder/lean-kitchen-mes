@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SelectField } from "./select-field";
+import { SelectField } from "@/app/components/ui/select-field";
 
 type Unit = {
   id: number;

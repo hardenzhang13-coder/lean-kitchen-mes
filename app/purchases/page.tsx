@@ -21,14 +21,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { DatePicker } from "@/app/components/date-picker";
-import { ImagePreviewModal } from "@/app/components/image-preview-modal";
-import { CategoryTag } from "@/app/components/category-tag";
-import { DataTable } from "@/app/components/data-table";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { DatePicker } from "@/app/components/ui/date-picker";
+import { ImagePreviewModal } from "@/app/components/ui/image-preview-modal";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { DataTable } from "@/app/components/ui/data-table";
 import { toast } from "sonner";
 import { cn } from "@/lib/shared/utils";
-import { StatusBadge } from "@/app/components/status-badge";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 
 interface ReceiptItem {
   id: number;

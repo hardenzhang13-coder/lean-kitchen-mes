@@ -21,11 +21,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { Pagination } from "@/app/components/pagination";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { Pagination } from "@/app/components/ui/pagination";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 
 type L1 = {

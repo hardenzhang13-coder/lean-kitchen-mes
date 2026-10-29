@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { parseList } from "@/lib/client/api";
-import { SelectTableMode } from "@/app/components/select-table-mode";
+import { SelectTableMode } from "@/app/components/ui/select-table-mode";
 
 type Supplier = {
   id: number;

@@ -20,13 +20,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { CategoryTag } from "@/app/components/category-tag";
-import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
-import { NetIngredientFormDialog } from "@/app/components/net-ingredient-form-dialog";
-import { ImportDialog, ImportField } from "@/app/components/import-dialog";
-import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { DataTable } from "@/app/components/data-table";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import { NetIngredientFormDialog } from "@/app/components/ingredients/net-ingredient-form-dialog";
+import { ImportDialog, ImportField } from "@/app/components/ui/import-dialog";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { DataTable } from "@/app/components/ui/data-table";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 

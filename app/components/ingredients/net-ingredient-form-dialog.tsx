@@ -23,9 +23,9 @@ import {
   NetIngredientFormData,
   CategoryL1,
   RawIngredientOption,
-} from "@/app/components/net-ingredient-form-fields";
-import { EmptyState } from "@/app/components/empty-state";
-import { LoadingState } from "@/app/components/loading-state";
+} from "@/app/components/ingredients/net-ingredient-form-fields";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { LoadingState } from "@/app/components/ui/loading-state";
 import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 

@@ -32,10 +32,11 @@ npm run lint
 ## 3. 项目结构约定
 
 - `app/` → Next.js App Router 页面和 API
-- `app/components/` → 共享客户端组件（复用 2 次以上的组件）
+- `app/components/` → 客户端组件（ui/ 通用，dish-form/、dishes/、ingredients/、schedule/ 业务域）
 - `components/ui/` → shadcn/ui 组件（只通过 CLI 管理，不手动修改）
-- `lib/` → 服务端工具（prisma、auth、session、ai）
-- `app/lib/` → 客户端工具（csv、schedule-utils、分页等）
+- `lib/server/` → 服务端工具（prisma、api-auth、session、ai、schemas/、schedule-utils）
+- `lib/shared/` → 前后端共用纯函数（utils、spec-parser、code-gen、name-utils、weight-format）
+- `lib/client/` → 仅客户端（hooks、api、csv、use-pagination）
 
 ### 新 API 的必选清单
 

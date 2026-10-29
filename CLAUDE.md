@@ -14,17 +14,18 @@
 | `npm run build` | 生产构建（执行 `prisma generate && next build`） |
 | `npm run start` | 启动生产服务器（需先构建） |
 | `npm run lint` | 运行 ESLint |
-| `npx prisma db push` | 推送 schema 变更到 PostgreSQL |
+| `npm test` | 运行 Jest 测试 |
+| `npx prisma db push` | 推送 schema 变更到 MySQL |
 | `npx prisma db seed` | 运行种子脚本（`prisma/seed.ts`） |
 | `npx prisma generate` | 重新生成 Prisma Client |
 
-**注意：** 目前尚未配置测试框架。如需添加测试，建议从核心算法（`schedule-utils.ts`）和规格解析（`spec-parser.ts`）开始。
+**注意：** 已配置 Jest 测试框架。核心算法测试见 `lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`。如需新增，建议从核心算法和纯函数开始。
 
 ## 架构
 
 ### 技术栈
 - **框架：** Next.js 16（App Router），React 19，TypeScript 5
-- **数据库：** PostgreSQL，通过 Prisma 7 及 `@prisma/adapter-pg` 连接
+- **数据库：** MySQL 8.4，通过 Prisma 7 及 `@prisma/adapter-mariadb` 连接
 - **样式：** Tailwind CSS v4 + shadcn/ui（`style: base-rhea`）
 - **认证：** 自研 JWT（jose，HS256），存储于 httpOnly cookie
 - **AI/识别：** OpenAI SDK → 阿里通义千问，用于采购单识别
@@ -35,12 +36,13 @@
 
 ```
 app/                  # Next.js App Router
-  (routes)/           # 页面路由（排程、菜品、库存等）
   api/                # API 路由（REST，无 tRPC）
-  components/         # 共享客户端组件（侧边栏、向导等）
-  lib/                # 客户端工具（csv.ts、schedule-utils.ts）
-lib/                  # 服务端工具（prisma、auth、session、ai）
-components/ui/        # shadcn/ui 组件
+  components/         # 客户端组件（ui/ 通用、dish-form/、dishes/、ingredients/、schedule/ 业务域）
+lib/
+  server/             # 服务端工具（prisma、api-auth、session、ai、schemas/、schedule-utils）
+  shared/             # 前后端共用纯函数（utils、spec-parser、code-gen、name-utils、weight-format）
+  client/             # 仅客户端（hooks、api、csv、use-pagination）
+components/ui/        # shadcn/ui 组件（只通过 CLI 管理）
 prisma/               # 数据库 Schema + 种子脚本
 ```
 
@@ -60,13 +62,13 @@ prisma/               # 数据库 Schema + 种子脚本
 
 **排程（排程）** 是业务核心：
 1. 用户创建 `Schedule`，选择菜品及份数
-2. `app/lib/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料/小料
+2. `lib/server/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料/小料
 3. `buildPurchasePlans()` 根据出成率计算毛需求，扣除当前库存，生成 `PurchasePlan` 行
 4. `CuttingOrder` 和 `PurchasePlan` 在 Prisma `$transaction` 事务中自动创建
 
 **采购流程：**
 - `PurchaseReceipt` + `PurchaseReceiptItem` 记录实际到货
-- AI 识别（`lib/ai.ts`）通过通义千问解析采购单图片，匹配到食材目录中的**原料**或**调料**
+- AI 识别（`lib/server/ai.ts`）通过通义千问解析采购单图片，匹配到食材目录中的**原料**或**调料**
 - **原料和调料均精确入库**：采购后更新对应库存量，并创建 `InventoryLedger` 流水记录
 - 未匹配的食材可弹窗直接创建新的原料或调料，无需跳转页面
 - 采购单状态：`待结算` / `已结算` / `已作废`。已结算后不可作废，作废后回滚库存
@@ -79,15 +81,15 @@ prisma/               # 数据库 Schema + 种子脚本
 
 ## 认证与中间件
 
-认证为自研 JWT（非 NextAuth）。详见 `middleware.ts` 及 `lib/session.ts`：
+认证为自研 JWT（非 NextAuth）。详见 `middleware.ts` 及 `lib/server/session.ts`：
 
 - **中间件**（`middleware.ts`）在所有路由上验证 `session` cookie，除 `/login` 和 `/api/auth/*` 外
 - 对于 API 路由，注入 `x-user-id` 和 `x-username` 请求头，而非重定向
-- **服务端动作/组件** 使用 `lib/session.ts` 的 `getCurrentUser()`
-- **API 路由** 使用 `lib/api-auth.ts` 的 `getUserFromRequest(req)` 读取注入的请求头
+- **服务端动作/组件** 使用 `lib/server/session.ts` 的 `getCurrentUser()`
+- **API 路由** 使用 `lib/server/api-auth.ts` 的 `getUserFromRequest(req)` 读取注入的请求头
 - 操作日志（`OperationLog` 模型）通过 `logOperation()` 辅助函数写入
 
-**警告：** `lib/session.ts` 中 `SESSION_SECRET` 存在硬编码兜底值。生产环境必须设置环境变量。
+**警告：** `lib/server/session.ts` 中 `SESSION_SECRET` 存在硬编码兜底值。生产环境必须设置环境变量。
 
 ## 关键代码模式
 
@@ -120,10 +122,10 @@ export async function POST(req: NextRequest) { /* ... */ }
 详见 [`app/components/dish-form/CLAUDE.md`](app/components/dish-form/CLAUDE.md)。
 
 ### 排程工具
-`app/lib/schedule-utils.ts`（约 430 行）包含 BOM 拆解的核心业务逻辑。在排程创建时，于 Prisma `$transaction` 事务内调用。**请勿轻易修改**——它处理出成率计算、库存扣除逻辑及单位换算。
+`lib/server/schedule-utils.ts` 包含 BOM 拆解的核心业务逻辑。在排程创建时，于 Prisma `$transaction` 事务内调用。**请勿轻易修改**——它处理出成率计算、库存扣除逻辑及单位换算。
 
 ### CSV 处理
-`app/lib/csv.ts` 提供自定义 CSV 解析/构建/下载工具。用于批量导入原料（`/api/ingredients/import`）。
+`lib/client/csv.ts` 提供自定义 CSV 解析/构建/下载工具。用于批量导入原料（`/api/ingredients/import`）。
 
 ## 样式约定
 
@@ -141,7 +143,6 @@ export async function POST(req: NextRequest) { /* ... */ }
 | `CLAUDE.md`（本文件） | 项目全局概览与约定 |
 | `AGENTS.md` | Kimi/Daimon 工作区安全红线与提交规范 |
 | [`app/components/dish-form/CLAUDE.md`](app/components/dish-form/CLAUDE.md) | 菜品表单组件架构 |
-| [`app/lib/CLAUDE.md`](app/lib/CLAUDE.md) | 客户端工具与排程算法 |
 | [`prisma/CLAUDE.md`](prisma/CLAUDE.md) | 数据库 Schema 与迁移 |
 | [`app/api/dishes/CLAUDE.md`](app/api/dishes/CLAUDE.md) | 菜品 API 路由 |
 | [`app/api/purchase-receipts/CLAUDE.md`](app/api/purchase-receipts/CLAUDE.md) | 采购单 API 与 AI 识别 |
@@ -160,8 +161,8 @@ export async function POST(req: NextRequest) { /* ... */ }
 - **API 路由文件**：统一为 `route.ts`
 - **动态路由目录**：`[id]/` 用于数字 ID
 - **组件/工具文件**：kebab-case（如 `dish-sheet-detail.tsx`、`schedule-utils.ts`）
-- **Schema 文件**：`lib/schemas/{domain}.ts`（如 `dish.ts`、`purchase.ts`、`schedule.ts`）
-- **类型文件**：与业务模块同名，优先放在 `lib/schemas/` 或 `app/components/{feature}/types.ts`
+- **Schema 文件**：`lib/server/schemas/{domain}.ts`（如 `dish.ts`、`purchase.ts`、`schedule.ts`）
+- **类型文件**：与业务模块同名，优先放在 `lib/server/schemas/` 或 `app/components/{feature}/types.ts`
 
 ## 开发工作流
 
@@ -197,7 +198,7 @@ npm run lint
 
 - Prisma `where` 子句常使用 `const where: any = {}` 进行动态过滤
 - 部分 API 仍使用手动校验，未完全迁移到 zod
-- 测试覆盖待完善；如需添加，建议从 `app/lib/schedule-utils.ts` 和 `lib/spec-parser.ts` 开始
+- 测试覆盖待完善；如需添加，建议从 `lib/server/schedule-utils.ts` 和 `lib/shared/spec-parser.ts` 开始
 - 客户端组件大量使用 `"use client"` + `fetch()`，服务端组件化可逐步推进
 
 ## 重要说明

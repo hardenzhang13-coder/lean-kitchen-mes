@@ -13,11 +13,11 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageHeader } from "@/app/components/page-header";
-import { SkeletonTable } from "@/app/components/skeleton-table";
-import { DataTable } from "@/app/components/data-table";
-import { FormField, FormSection } from "@/app/components/form-field";
-import { TileGroup } from "@/app/components/tile-group";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { DataTable } from "@/app/components/ui/data-table";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { TileGroup } from "@/app/components/ui/tile-group";
 import { Badge } from "@/components/ui/badge";
 import { usePagination } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
