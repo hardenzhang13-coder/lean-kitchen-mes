@@ -4,6 +4,7 @@ import { logOperation } from "@/lib/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/api-response";
 import { createNetIngredientSchema } from "@/lib/schemas/net-ingredient";
 import { validateBody } from "@/lib/validate";
+import { calcNetUnitPrice } from "@/lib/spec-parser";
 
 async function calculateUnitPrice(
   sourceIngredientId: number,
@@ -18,13 +19,13 @@ async function calculateUnitPrice(
 
   const ingredient = await prisma.ingredient.findUnique({
     where: { id: sourceIngredientId },
-    select: { latestRefPrice: true },
+    select: { pricePerJin: true },
   });
 
-  const price = ingredient?.latestRefPrice;
-  if (price == null || Number(price) === 0 || yieldRate === 0) return null;
-
-  return Number((Number(price) / (yieldRate / 100)).toFixed(2));
+  return calcNetUnitPrice({
+    pricePerJin: ingredient?.pricePerJin,
+    yieldRate,
+  });
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

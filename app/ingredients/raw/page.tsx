@@ -39,6 +39,7 @@ type Ingredient = {
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   latestRefPrice: number | null;
+  pricePerJin: number | null;
   stockUnit: string | null;
 };
 
@@ -340,6 +341,13 @@ export default function RawIngredientsPage() {
                     ? `¥${Number(row.latestRefPrice).toFixed(2)}`
                     : "—",
               },
+              {
+                header: "每斤单价",
+                cell: (row) =>
+                  row.pricePerJin != null
+                    ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
+                    : "—",
+              },
               { header: "入库单位", cell: (row) => row.stockUnit || "—" },
             ]}
             pagination={
@@ -404,6 +412,7 @@ export default function RawIngredientsPage() {
                 purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
                 latestRefPrice: editing.latestRefPrice ?? null,
+                pricePerJin: editing.pricePerJin ?? null,
               }
             : undefined
         }

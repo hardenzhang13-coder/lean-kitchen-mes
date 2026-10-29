@@ -7,6 +7,7 @@ import { created, internalError, paginated } from "@/lib/api-response";
 import { createPurchaseReceiptSchema, purchaseReceiptQuerySchema } from "@/lib/schemas/purchase";
 import { validateBody, validateQuery } from "@/lib/validate";
 import { logger } from "@/lib/logger";
+import { calcPricePerJin } from "@/lib/spec-parser";
 
 export async function GET(req: NextRequest) {
   try {
@@ -185,9 +186,17 @@ export async function POST(req: NextRequest) {
         });
 
         if (item.ingredientId) {
+          const ing = await tx.ingredient.findUnique({
+            where: { id: item.ingredientId },
+            select: { purchaseSpec: true },
+          });
+          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec);
           await tx.ingredient.update({
             where: { id: item.ingredientId },
-            data: { latestRefPrice: item.unitPrice },
+            data: {
+              latestRefPrice: item.unitPrice,
+              ...(jinPrice != null && { pricePerJin: jinPrice }),
+            },
           });
 
           const existing = await tx.inventory.findUnique({

@@ -8,6 +8,7 @@ import { validateBody, validateQuery } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
 import { logger } from "@/lib/logger";
 import { checkDuplicateName } from "@/lib/duplicate-check";
+import { calcPricePerJin } from "@/lib/spec-parser";
 
 export async function GET(req: NextRequest) {
   try {
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       stockUnit,
       purchaseSpec,
       latestRefPrice,
+      pricePerJin,
       season,
       storage,
     } = validation.data;
@@ -86,6 +88,9 @@ export async function POST(req: NextRequest) {
       select: { code: true },
     });
     const code = generateCode(prefix, last?.code);
+    // 用户未传 pricePerJin 时，按采购规格自动换算；换算不出则为 null（留待手动填写）
+    const finalPricePerJin =
+      pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "");
 
     const row = await prisma.ingredient.create({
       data: {
@@ -97,6 +102,7 @@ export async function POST(req: NextRequest) {
         stockUnit: stockUnit ?? null,
         purchaseSpec: purchaseSpec ?? null,
         latestRefPrice: latestRefPrice ?? null,
+        pricePerJin: finalPricePerJin,
         season: season ?? "四季",
         storage: storage ?? "常温",
       },

@@ -30,6 +30,7 @@ export type IngredientForSelector = {
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   latestRefPrice?: number | null;
+  pricePerJin?: number | null;
 };
 
 interface IngredientSelectorDialogProps {

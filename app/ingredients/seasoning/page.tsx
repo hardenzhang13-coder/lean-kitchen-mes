@@ -37,6 +37,7 @@ type Ingredient = {
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   latestRefPrice: number | null;
+  pricePerJin: number | null;
   stockUnit: string | null;
 };
 
@@ -317,6 +318,7 @@ export default function SeasoningIngredientsPage() {
                 purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
                 latestRefPrice: editing.latestRefPrice ?? null,
+                pricePerJin: editing.pricePerJin ?? null,
               }
             : {
                 l2Code: seasoningL2Code,

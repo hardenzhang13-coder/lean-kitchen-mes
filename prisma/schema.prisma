@@ -65,6 +65,7 @@ model Ingredient {
   purchaseUnit   String?               @map("purchase_unit")
   stockUnit      String?               @map("stock_unit")
   latestRefPrice Decimal?              @map("latest_ref_price") @db.Decimal(10, 2)
+  pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
   season         String                @default("四季") @map("season")
   storage        String                @default("常温") @map("storage")
   deletedAt      DateTime?             @map("deleted_at")

@@ -8,6 +8,7 @@ export const createIngredientSchema = z.object({
   stockUnit: z.string().min(1).max(20).optional(),
   purchaseSpec: z.string().max(200).optional(),
   latestRefPrice: z.number().nonnegative().optional(),
+  pricePerJin: z.number().nonnegative().optional(),
   season: z.string().max(50).default("四季"),
   storage: z.string().max(50).default("常温"),
 });

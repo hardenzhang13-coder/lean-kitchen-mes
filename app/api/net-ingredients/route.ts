@@ -8,6 +8,7 @@ import {
   netIngredientQuerySchema,
 } from "@/lib/schemas/net-ingredient";
 import { validateBody, validateQuery } from "@/lib/validate";
+import { calcNetUnitPrice } from "@/lib/spec-parser";
 
 function generateNetCode(lastCode: string | undefined) {
   const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
@@ -27,13 +28,13 @@ async function calculateUnitPrice(
 
   const ingredient = await prisma.ingredient.findUnique({
     where: { id: sourceIngredientId },
-    select: { latestRefPrice: true },
+    select: { pricePerJin: true },
   });
 
-  const price = ingredient?.latestRefPrice;
-  if (price == null || Number(price) === 0 || yieldRate === 0) return null;
-
-  return Number((Number(price) / (yieldRate / 100)).toFixed(2));
+  return calcNetUnitPrice({
+    pricePerJin: ingredient?.pricePerJin,
+    yieldRate,
+  });
 }
 
 async function getL2CodesByL1(l1Code: string): Promise<string[]> {

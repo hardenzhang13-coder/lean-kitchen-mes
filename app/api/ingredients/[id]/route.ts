@@ -5,6 +5,7 @@ import { success } from "@/lib/api-response";
 import { checkDuplicateName } from "@/lib/duplicate-check";
 import { updateIngredientSchema } from "@/lib/schemas/ingredient";
 import { validateBody } from "@/lib/validate";
+import { calcPricePerJin } from "@/lib/spec-parser";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,6 +42,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       stockUnit,
       purchaseSpec,
       latestRefPrice,
+      pricePerJin,
       season,
       storage,
     } = validation.data;
@@ -68,6 +70,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
         purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
         latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
+        pricePerJin:
+          pricePerJin !== undefined
+            ? pricePerJin ?? null
+            : calcPricePerJin(
+                latestRefPrice !== undefined ? latestRefPrice : existing.latestRefPrice,
+                purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec
+              ),
         season: season !== undefined ? season || "四季" : existing.season,
         storage: storage !== undefined ? storage || "常温" : existing.storage,
       },

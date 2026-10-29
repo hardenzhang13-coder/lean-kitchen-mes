@@ -164,10 +164,11 @@ export function NetIngredientFormDialog({
     }
 
     const raw = getRawIngredient(sourceId);
-    const price = raw?.latestRefPrice ?? null;
-    if (price == null || price === 0) return;
+    const pricePerJin = raw?.pricePerJin != null ? Number(raw.pricePerJin) : null;
+    if (pricePerJin == null || pricePerJin <= 0) return;
 
-    const calculated = Number((Number(price) / (yieldRate / 100)).toFixed(2));
+    // 净料单价 = 每斤单价 ÷ (出成率 / 100)，单位固定 500g
+    const calculated = Number((pricePerJin / (yieldRate / 100)).toFixed(2));
     setForm((prev) =>
       prev.unitPrice !== String(calculated)
         ? { ...prev, unitPrice: String(calculated) }

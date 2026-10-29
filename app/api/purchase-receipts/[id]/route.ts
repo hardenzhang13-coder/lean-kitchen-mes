@@ -6,6 +6,7 @@ import { idParamSchema } from "@/lib/schemas/common";
 import { createPurchaseReceiptSchema } from "@/lib/schemas/purchase";
 import { validateBody } from "@/lib/validate";
 import { logger } from "@/lib/logger";
+import { calcPricePerJin } from "@/lib/spec-parser";
 
 export async function GET(
   _req: NextRequest,
@@ -265,9 +266,17 @@ export async function PUT(
         });
 
         if (item.ingredientId) {
+          const ing = await tx.ingredient.findUnique({
+            where: { id: item.ingredientId },
+            select: { purchaseSpec: true },
+          });
+          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec);
           await tx.ingredient.update({
             where: { id: item.ingredientId },
-            data: { latestRefPrice: item.unitPrice },
+            data: {
+              latestRefPrice: item.unitPrice,
+              ...(jinPrice != null && { pricePerJin: jinPrice }),
+            },
           });
 
           const inv = await tx.inventory.findUnique({

@@ -26,6 +26,7 @@ export interface IngredientFormData {
   purchaseUnit: string;
   stockUnit: string;
   latestRefPrice: string;
+  pricePerJin: string;
 }
 
 export interface IngredientFormFieldsProps {
@@ -209,6 +210,19 @@ export function IngredientFormFields({
             placeholder="可选"
             className="h-11 text-base px-4"
           />
+        </FormField>
+        <FormField label="每斤单价（元/斤）" error={errors.pricePerJin}>
+          <Input
+            type="number"
+            step="0.0001"
+            value={form.pricePerJin}
+            onChange={(e) => onChange("pricePerJin", e.target.value)}
+            placeholder="按采购规格自动计算，可手动修改"
+            className="h-11 text-base px-4"
+          />
+          <p className="text-xs text-muted-foreground">
+            = 最新参照单价 ÷ 每采购单位斤数；规格含非重量单位时请手动填写
+          </p>
         </FormField>
       </FormSection>
     </div>

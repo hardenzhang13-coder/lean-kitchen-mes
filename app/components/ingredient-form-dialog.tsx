@@ -27,7 +27,7 @@ import {
 import { EmptyState } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
 import { parseList } from "@/app/lib/api";
-import { getDefaultSpec } from "@/lib/spec-parser";
+import { getDefaultSpec, calcPricePerJin } from "@/lib/spec-parser";
 import { toast } from "sonner";
 
 export type CreatedIngredient = {
@@ -49,6 +49,7 @@ type ListItem = {
   purchaseUnit?: string | null;
   stockUnit?: string | null;
   latestRefPrice?: number | string | null;
+  pricePerJin?: number | string | null;
 };
 
 interface IngredientFormDialogProps {
@@ -64,6 +65,7 @@ interface IngredientFormDialogProps {
     purchaseUnit?: string | null;
     stockUnit?: string | null;
     latestRefPrice?: number | null;
+    pricePerJin?: number | null;
   };
   categories: CategoryL1[];
   units: Unit[];
@@ -88,6 +90,7 @@ export function IngredientFormDialog({
     purchaseSpec: "",
     purchaseUnit: "",
     latestRefPrice: "",
+    pricePerJin: "",
     stockUnit: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -122,11 +125,30 @@ export function IngredientFormDialog({
         initialData?.latestRefPrice != null
           ? String(initialData.latestRefPrice)
           : "",
+      pricePerJin:
+        initialData?.pricePerJin != null
+          ? String(initialData.pricePerJin)
+          : "",
       stockUnit: initialData?.stockUnit || "",
     });
     setErrors({});
     setL2Open(false);
   }, [open, initialData, findParentL1]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // 采购规格或最新参照单价变化时，自动计算每斤单价（无法换算则保留用户手动值）
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (!open) return;
+    const jin = calcPricePerJin(
+      form.latestRefPrice ? Number(form.latestRefPrice) : null,
+      form.purchaseSpec
+    );
+    if (jin != null && String(jin) !== form.pricePerJin) {
+      setForm((prev) => ({ ...prev, pricePerJin: String(jin) }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, form.purchaseSpec, form.latestRefPrice]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -180,6 +202,8 @@ export function IngredientFormDialog({
     if (!form.stockUnit.trim()) next.stockUnit = "请选择入库单位";
     if (form.latestRefPrice && Number(form.latestRefPrice) < 0)
       next.latestRefPrice = "最新参照单价不能为负数";
+    if (form.pricePerJin && Number(form.pricePerJin) < 0)
+      next.pricePerJin = "每斤单价不能为负数";
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -212,6 +236,7 @@ export function IngredientFormDialog({
     setSubmitting(true);
     try {
       const price = form.latestRefPrice ? Number(form.latestRefPrice) : null;
+      const jinPrice = form.pricePerJin ? Number(form.pricePerJin) : null;
       const spec = ensureDefaultSpec(form.purchaseSpec, form.stockUnit);
       const payload = {
         name: form.name.trim(),
@@ -221,6 +246,7 @@ export function IngredientFormDialog({
         purchaseUnit: form.purchaseUnit,
         stockUnit: form.stockUnit,
         ...(price != null && { latestRefPrice: price }),
+        ...(jinPrice != null && { pricePerJin: jinPrice }),
       };
 
       const res = await fetch(
@@ -307,6 +333,7 @@ export function IngredientFormDialog({
                       <TableHead className="whitespace-nowrap">采购单位</TableHead>
                       <TableHead className="whitespace-nowrap">入库单位</TableHead>
                       <TableHead className="whitespace-nowrap text-right">最新参照单价</TableHead>
+                      <TableHead className="whitespace-nowrap text-right">每斤单价</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -330,6 +357,11 @@ export function IngredientFormDialog({
                         <TableCell className="text-sm whitespace-nowrap text-right">
                           {row.latestRefPrice != null
                             ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                            : "—"}
+                        </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap text-right">
+                          {row.pricePerJin != null
+                            ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
                             : "—"}
                         </TableCell>
                       </TableRow>
