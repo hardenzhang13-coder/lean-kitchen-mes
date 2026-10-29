@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCSV } from "@/lib/client/csv";
 import { Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,14 +51,7 @@ export function SchedulePurchaseTable({ rows, editable, onChange }: SchedulePurc
       r.actualAmount != null ? Number(r.actualAmount).toFixed(2) : "",
       r.l2Name,
     ]);
-    const csv = [headers, ...data]
-      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `采购计划单.csv`;
-    link.click();
+    downloadCSV("采购计划单.csv", [headers, ...data]);
   };
 
   return (

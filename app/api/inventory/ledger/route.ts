@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { paginated, internalError } from "@/lib/server/api-response";
 import { paginationQuerySchema } from "@/lib/server/schemas/common";
 import { validateQuery } from "@/lib/server/validate";
+import { resolveUsernamesToNames } from "@/lib/server/user-resolve";
 
 export async function GET(req: NextRequest) {
   try {
@@ -134,16 +135,7 @@ export async function GET(req: NextRequest) {
           .filter((x): x is string => !!x)
       )
     );
-    const userNameMap = new Map<string, string>();
-    if (usernames.length > 0) {
-      const users = await prisma.user.findMany({
-        where: { username: { in: usernames } },
-        select: { username: true, name: true },
-      });
-      for (const u of users) {
-        userNameMap.set(u.username, u.name || u.username);
-      }
-    }
+    const userNameMap = await resolveUsernamesToNames(usernames);
 
     const enriched = groups.map((g) => ({
       ...g,

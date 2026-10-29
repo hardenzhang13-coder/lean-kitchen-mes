@@ -1,5 +1,6 @@
 "use client";
 
+import { downloadCSV } from "@/lib/client/csv";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Download, Receipt, FileText } from "lucide-react";
@@ -66,15 +67,8 @@ export default function ReimbursementDetailPage() {
       [],
       headers,
       ...rows,
-    ]
-      .map((row: any[]) => row.map((cell: any) => `"${String(cell).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-
-    const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `采购报销单-${data.id}-${data.title}.csv`;
-    link.click();
+    ];
+    downloadCSV(`采购报销单-${data.id}-${data.title}.csv`, csvContent);
     toast.success("导出成功");
   };
 

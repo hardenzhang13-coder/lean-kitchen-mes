@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatWeight } from "@/lib/shared/weight-format";
+import { downloadCSV } from "@/lib/client/csv";
 
 interface CuttingOrder {
   id: number;
@@ -76,14 +77,7 @@ export function ScheduleCuttingTable({ rows, editable, onChange }: ScheduleCutti
       r.actualQty != null ? formatWeight(Number(r.actualQty)) : "",
       r.unit,
     ]);
-    const csv = [headers, ...data]
-      .map((row) => row.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = `切配工单.csv`;
-    link.click();
+    downloadCSV("切配工单.csv", [headers, ...data]);
   };
 
   return (
