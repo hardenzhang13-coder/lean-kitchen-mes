@@ -10,3 +10,4 @@ docs
 memory-bank
 .vscode
 .tmp-*
+*.traineddata

@@ -22,7 +22,6 @@ const config: Config = {
   collectCoverageFrom: [
     "app/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",
-    "types/**/*.{ts,tsx}",
     "!**/*.d.ts",
     "!**/node_modules/**",
     "!**/__tests__/**",
