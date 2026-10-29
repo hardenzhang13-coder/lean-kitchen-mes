@@ -7,6 +7,7 @@ import { created, badRequest, internalError, paginated } from "@/lib/server/api-
 import { createDishSchema, dishQuerySchema } from "@/lib/server/schemas/dish";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
+import { nextCode } from "@/lib/shared/code-gen";
 
 export async function GET(req: NextRequest) {
   try {
@@ -69,17 +70,12 @@ export async function GET(req: NextRequest) {
 }
 
 async function generateDishCode(tx: Prisma.TransactionClient, categoryCode: string): Promise<string> {
-  const prefix = `DSH-${categoryCode}-`;
+  const prefix = `DSH-${categoryCode}`;
   const last = await tx.dish.findFirst({
-    where: { code: { startsWith: prefix } },
+    where: { code: { startsWith: `${prefix}-` } },
     orderBy: { code: "desc" },
   });
-  let num = 1;
-  if (last) {
-    const parsed = parseInt(last.code.replace(prefix, ""), 10);
-    num = Number.isNaN(parsed) ? 1 : parsed + 1;
-  }
-  return `${prefix}${String(num).padStart(4, "0")}`;
+  return nextCode(prefix, last?.code);
 }
 
 export async function POST(req: NextRequest) {

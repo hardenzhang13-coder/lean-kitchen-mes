@@ -5,41 +5,7 @@ import { calculateStockInfo } from "@/lib/shared/spec-parser";
 import { logError } from "@/lib/server/logger";
 import { computeImageHash } from "@/lib/shared/utils";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
-
-function normalizeName(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/[^一-龥a-z0-9]/g, "")
-    .trim();
-}
-
-function nameSimilarity(a: string, b: string): number {
-  const na = normalizeName(a);
-  const nb = normalizeName(b);
-  if (!na || !nb) return 0;
-  if (na === nb) return 1;
-  if (na.includes(nb) || nb.includes(na)) return 0.9;
-  return 0;
-}
-
-function findBestIngredientMatch(
-  displayName: string,
-  ingredients: { id: number; name: string; alias: string | null; l2Code: string; purchaseSpec: string | null; stockUnit: string | null; storage: string | null }[]
-) {
-  let best: (typeof ingredients)[number] | null = null;
-  let bestScore = 0;
-  for (const ing of ingredients) {
-    const score = Math.max(
-      nameSimilarity(displayName, ing.name),
-      ing.alias ? nameSimilarity(displayName, ing.alias) : 0
-    );
-    if (score > bestScore) {
-      bestScore = score;
-      best = ing;
-    }
-  }
-  return { match: best, score: bestScore };
-}
+import { findBestIngredientMatch } from "@/lib/shared/name-utils";
 
 export async function POST(req: NextRequest) {
   try {

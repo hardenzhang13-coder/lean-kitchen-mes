@@ -8,34 +8,8 @@ import {
   netIngredientQuerySchema,
 } from "@/lib/server/schemas/net-ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
-import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
-
-function generateNetCode(lastCode: string | undefined) {
-  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
-  return `PRD-${String(num).padStart(4, "0")}`;
-}
-
-async function calculateUnitPrice(
-  sourceIngredientId: number,
-  yieldRate: number,
-  providedUnitPrice?: number | null
-): Promise<number | null> {
-  if (providedUnitPrice != null && !Number.isNaN(providedUnitPrice)) {
-    return providedUnitPrice;
-  }
-
-  if (!sourceIngredientId || !yieldRate) return null;
-
-  const ingredient = await prisma.ingredient.findUnique({
-    where: { id: sourceIngredientId },
-    select: { pricePerJin: true },
-  });
-
-  return calcNetUnitPrice({
-    pricePerJin: ingredient?.pricePerJin,
-    yieldRate,
-  });
-}
+import { nextCode } from "@/lib/shared/code-gen";
+import { calculateUnitPrice } from "@/lib/server/net-ingredient-utils";
 
 async function getL2CodesByL1(l1Code: string): Promise<string[]> {
   const rows = await prisma.ingredientCategoryL2.findMany({
@@ -166,7 +140,7 @@ export async function POST(req: NextRequest) {
       orderBy: { id: "desc" },
       select: { code: true },
     });
-    const code = generateNetCode(last?.code ?? undefined);
+    const code = nextCode("PRD", last?.code ?? undefined);
 
     const row = await prisma.netIngredient.create({
       data: {

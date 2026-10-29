@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { normalizeName } from "@/lib/server/duplicate-check";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { normalizeName } from "@/lib/shared/name-utils";
+import { buildCode, parseCodeSuffix } from "@/lib/shared/code-gen";
 
 const REQUIRED_FIELDS = ["name", "l2Code", "purchaseUnit", "stockUnit"];
-
-function generateCode(prefix: string, seq: number) {
-  return `${prefix}-${String(seq).padStart(4, "0")}`;
-}
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
@@ -79,15 +76,13 @@ export async function POST(req: NextRequest) {
         orderBy: { code: "desc" },
         select: { code: true },
       });
-      let lastNum = last?.code
-        ? parseInt(last.code.split("-")[1] || "0", 10)
-        : 0;
+      let lastNum = last?.code ? parseCodeSuffix(last.code) : 0;
 
       const data = rows.map((row) => {
         lastNum++;
         const prefix = seasoningL2Codes.includes(row.l2Code!) ? "SEA" : "ING";
         return {
-          code: generateCode(prefix, lastNum),
+          code: buildCode(prefix, lastNum),
           name: row.name!.trim(),
           alias: row.alias?.trim() || null,
           l2Code: row.l2Code!.trim(),

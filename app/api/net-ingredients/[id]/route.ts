@@ -4,29 +4,7 @@ import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
 import { createNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
 import { validateBody } from "@/lib/server/validate";
-import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
-
-async function calculateUnitPrice(
-  sourceIngredientId: number,
-  yieldRate: number,
-  providedUnitPrice?: number | null
-): Promise<number | null> {
-  if (providedUnitPrice != null && !Number.isNaN(providedUnitPrice)) {
-    return providedUnitPrice;
-  }
-
-  if (!sourceIngredientId || !yieldRate) return null;
-
-  const ingredient = await prisma.ingredient.findUnique({
-    where: { id: sourceIngredientId },
-    select: { pricePerJin: true },
-  });
-
-  return calcNetUnitPrice({
-    pricePerJin: ingredient?.pricePerJin,
-    yieldRate,
-  });
-}
+import { calculateUnitPrice } from "@/lib/server/net-ingredient-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

@@ -9,6 +9,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { logger } from "@/lib/server/logger";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
+import { nextCode } from "@/lib/shared/code-gen";
 
 export async function GET(req: NextRequest) {
   try {
@@ -50,11 +51,6 @@ export async function GET(req: NextRequest) {
   }
 }
 
-function generateCode(prefix: string, lastCode: string | undefined) {
-  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
-  return `${prefix}-${String(num).padStart(4, "0")}`;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -87,7 +83,7 @@ export async function POST(req: NextRequest) {
       orderBy: { code: "desc" },
       select: { code: true },
     });
-    const code = generateCode(prefix, last?.code);
+    const code = nextCode(prefix, last?.code);
     // 用户未传 pricePerJin 时，按采购规格自动换算；换算不出则为 null（留待手动填写）
     const finalPricePerJin =
       pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "");

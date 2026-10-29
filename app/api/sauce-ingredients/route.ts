@@ -7,11 +7,7 @@ import {
   sauceIngredientQuerySchema,
 } from "@/lib/server/schemas/sauce-ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
-
-function generateSauceCode(lastCode: string | undefined) {
-  const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
-  return `SAU-${String(num).padStart(4, "0")}`;
-}
+import { nextCode } from "@/lib/shared/code-gen";
 
 export async function GET(req: NextRequest) {
   try {
@@ -61,7 +57,7 @@ export async function POST(req: NextRequest) {
     }
 
     const last = await prisma.sauceIngredient.findFirst({ orderBy: { id: "desc" } });
-    const code = generateSauceCode(last?.code);
+    const code = nextCode("SAU", last?.code);
 
     const row = await prisma.sauceIngredient.create({
       data: {

@@ -1,8 +1,5 @@
 import { prisma } from "./prisma";
-
-export function normalizeName(name: string): string {
-  return name.toLowerCase().replace(/\s+/g, "");
-}
+import { normalizeName } from "@/lib/shared/name-utils";
 
 export async function checkDuplicateName(
   name: string,
