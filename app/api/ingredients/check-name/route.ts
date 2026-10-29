@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { checkDuplicateName } from "@/lib/duplicate-check";
+import { checkDuplicateName } from "@/lib/server/duplicate-check";
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

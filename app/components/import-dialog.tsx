@@ -18,7 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { parseCSV, downloadCSV } from "@/app/lib/csv";
+import { parseCSV, downloadCSV } from "@/lib/client/csv";
 import { toast } from "sonner";
 
 export type ImportField = {

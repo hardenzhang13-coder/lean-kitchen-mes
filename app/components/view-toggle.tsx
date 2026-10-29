@@ -1,7 +1,7 @@
 "use client";
 
 import { LayoutGrid, List } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 type ViewMode = "card" | "list";
 

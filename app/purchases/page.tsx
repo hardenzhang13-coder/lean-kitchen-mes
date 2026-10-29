@@ -27,7 +27,7 @@ import { ImagePreviewModal } from "@/app/components/image-preview-modal";
 import { CategoryTag } from "@/app/components/category-tag";
 import { DataTable } from "@/app/components/data-table";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { StatusBadge } from "@/app/components/status-badge";
 
 interface ReceiptItem {

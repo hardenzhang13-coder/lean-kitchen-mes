@@ -10,7 +10,7 @@ import { PageHeader } from "@/app/components/page-header";
 import { StatusBadge } from "@/app/components/status-badge";
 import { EmptyState } from "@/app/components/empty-state";
 import { Pagination } from "@/app/components/pagination";
-import { DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 interface ScheduleItem {

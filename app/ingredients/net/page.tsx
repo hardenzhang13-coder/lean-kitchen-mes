@@ -23,7 +23,7 @@ import {
   NetIngredientEditDialog,
   NetIngredientEditItem,
 } from "@/app/components/net-ingredient-edit-dialog";
-import { usePagination } from "@/app/lib/use-pagination";
+import { usePagination } from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { toast } from "sonner";
 

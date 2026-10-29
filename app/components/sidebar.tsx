@@ -14,7 +14,7 @@ import {
   Sliders,
   User,
 } from "lucide-react";
-import { cn, getInitials } from "@/lib/utils";
+import { cn, getInitials } from "@/lib/shared/utils";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 

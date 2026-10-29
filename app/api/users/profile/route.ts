@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { getUserFromRequest } from "@/lib/api-auth";
-import { createSession, setSessionCookie } from "@/lib/session";
-import { updateProfileSchema } from "@/lib/schemas/auth";
-import { validateBody } from "@/lib/validate";
+import { prisma } from "@/lib/server/prisma";
+import { getUserFromRequest } from "@/lib/server/api-auth";
+import { createSession, setSessionCookie } from "@/lib/server/session";
+import { updateProfileSchema } from "@/lib/server/schemas/auth";
+import { validateBody } from "@/lib/server/validate";
 
 export async function PUT(req: NextRequest) {
   const user = getUserFromRequest(req);

@@ -15,7 +15,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { parseObject } from "@/app/lib/api";
+import { parseObject } from "@/lib/client/api";
 import {
   Table,
   TableBody,

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { recognizePurchaseReceipt } from "@/lib/ai";
-import { calculateStockInfo } from "@/lib/spec-parser";
-import { logError } from "@/lib/logger";
-import { computeImageHash } from "@/lib/utils";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
+import { prisma } from "@/lib/server/prisma";
+import { recognizePurchaseReceipt } from "@/lib/server/ai";
+import { calculateStockInfo } from "@/lib/shared/spec-parser";
+import { logError } from "@/lib/server/logger";
+import { computeImageHash } from "@/lib/shared/utils";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 
 function normalizeName(s: string): string {
   return s

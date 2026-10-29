@@ -1,5 +1,5 @@
-import { getCurrentUser } from "@/lib/session";
-import { success, unauthorized } from "@/lib/api-response";
+import { getCurrentUser } from "@/lib/server/session";
+import { success, unauthorized } from "@/lib/server/api-response";
 
 export async function GET() {
   const user = await getCurrentUser();

@@ -1,6 +1,6 @@
 import { PrismaMariaDb } from "@prisma/adapter-mariadb";
 import { PrismaClient } from "@prisma/client";
-import { checkRequiredEnvVars } from "@/lib/env-check-node";
+import { checkRequiredEnvVars } from "@/lib/server/env-check-node";
 
 // 在 Node 运行时启动阶段强制检测关键环境变量
 checkRequiredEnvVars();

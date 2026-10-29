@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 import { SelectDialog } from "@/app/components/select-dialog";
 import { Pagination } from "@/app/components/pagination";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type SelectTableColumn<T> = {
   key: string;

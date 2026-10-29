@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/api-auth";
-import { enrichOperatorNames } from "@/lib/user-resolve";
-import { created, badRequest, internalError, paginated } from "@/lib/api-response";
-import { createDishSchema, dishQuerySchema } from "@/lib/schemas/dish";
-import { validateBody, validateQuery } from "@/lib/validate";
-import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
+import { enrichOperatorNames } from "@/lib/server/user-resolve";
+import { created, badRequest, internalError, paginated } from "@/lib/server/api-response";
+import { createDishSchema, dishQuerySchema } from "@/lib/server/schemas/dish";
+import { validateBody, validateQuery } from "@/lib/server/validate";
+import { logger } from "@/lib/server/logger";
 
 export async function GET(req: NextRequest) {
   try {

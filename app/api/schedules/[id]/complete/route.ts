@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { success } from "@/lib/api-response";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { success } from "@/lib/server/api-response";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

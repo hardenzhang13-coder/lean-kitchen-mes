@@ -15,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { parseObject } from "@/app/lib/api";
+import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
 interface Dish {

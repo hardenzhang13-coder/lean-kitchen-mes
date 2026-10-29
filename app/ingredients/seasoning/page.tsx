@@ -25,7 +25,7 @@ import { SkeletonTable } from "@/app/components/skeleton-table";
 import { CategoryTag } from "@/app/components/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredient-form-dialog";
 import { Pagination } from "@/app/components/pagination";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Ingredient = {

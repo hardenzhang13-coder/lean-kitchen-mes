@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { getUserFromRequest, logOperation } from "@/lib/api-auth";
-import { paginated, internalError } from "@/lib/api-response";
-import { paginationQuerySchema } from "@/lib/schemas/common";
-import { createUserSchema } from "@/lib/schemas/auth";
-import { validateBody, validateQuery } from "@/lib/validate";
-import { isAdmin } from "@/lib/roles";
+import { prisma } from "@/lib/server/prisma";
+import { getUserFromRequest, logOperation } from "@/lib/server/api-auth";
+import { paginated, internalError } from "@/lib/server/api-response";
+import { paginationQuerySchema } from "@/lib/server/schemas/common";
+import { createUserSchema } from "@/lib/server/schemas/auth";
+import { validateBody, validateQuery } from "@/lib/server/validate";
+import { isAdmin } from "@/lib/server/roles";
 
 const publicFields = {
   id: true,

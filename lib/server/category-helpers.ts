@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/server/prisma";
 
 /**
  * 返回所有属于“调味品”体系的二级分类编码。

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { normalizeName } from "@/lib/duplicate-check";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { normalizeName } from "@/lib/server/duplicate-check";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 
 const REQUIRED_FIELDS = ["name", "l2Code", "purchaseUnit", "stockUnit"];
 

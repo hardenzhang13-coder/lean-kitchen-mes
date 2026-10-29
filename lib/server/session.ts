@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { SESSION_SECRET } from "@/lib/env-check";
+import { SESSION_SECRET } from "@/lib/server/env-check";
 
 export interface SessionPayload {
   userId: number;

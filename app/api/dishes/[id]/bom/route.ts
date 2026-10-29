@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
-import { dishBomSchema } from "@/lib/schemas/dish-bom";
-import { validateBody } from "@/lib/validate";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { dishBomSchema } from "@/lib/server/schemas/dish-bom";
+import { validateBody } from "@/lib/server/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

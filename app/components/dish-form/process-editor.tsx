@@ -18,7 +18,7 @@ import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, STAGE_COLORS, TOOL_OPTIONS } from "./types";
 import { ProcessStepForm } from "./process-step-form";
 import { ProcessStepCard } from "./process-step-card";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
 
 interface ProcessEditorProps {

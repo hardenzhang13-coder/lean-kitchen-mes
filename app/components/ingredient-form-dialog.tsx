@@ -26,8 +26,8 @@ import {
 } from "@/app/components/ingredient-form-fields";
 import { EmptyState } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
-import { parseList } from "@/app/lib/api";
-import { getDefaultSpec, calcPricePerJin } from "@/lib/spec-parser";
+import { parseList } from "@/lib/client/api";
+import { getDefaultSpec, calcPricePerJin } from "@/lib/shared/spec-parser";
 import { toast } from "sonner";
 
 export type CreatedIngredient = {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 interface FormFieldProps {
   id?: string;

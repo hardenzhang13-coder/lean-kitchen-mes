@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { Geist_Mono, DM_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import { LayoutWrapper } from "./components/layout-wrapper";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser } from "@/lib/server/session";
 import "./globals.css";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 const dmSans = DM_Sans({subsets:['latin'],variable:'--font-sans'});
 

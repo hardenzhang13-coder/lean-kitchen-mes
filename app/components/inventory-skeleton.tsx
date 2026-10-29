@@ -1,7 +1,7 @@
 "use client";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 interface InventorySkeletonProps {
   className?: string;

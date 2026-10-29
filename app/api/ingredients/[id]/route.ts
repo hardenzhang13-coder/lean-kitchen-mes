@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { success } from "@/lib/api-response";
-import { checkDuplicateName } from "@/lib/duplicate-check";
-import { updateIngredientSchema } from "@/lib/schemas/ingredient";
-import { validateBody } from "@/lib/validate";
-import { calcPricePerJin } from "@/lib/spec-parser";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { success } from "@/lib/server/api-response";
+import { checkDuplicateName } from "@/lib/server/duplicate-check";
+import { updateIngredientSchema } from "@/lib/server/schemas/ingredient";
+import { validateBody } from "@/lib/server/validate";
+import { calcPricePerJin } from "@/lib/shared/spec-parser";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { dishProcessSchema } from "@/lib/schemas/dish-process";
-import { validateBody } from "@/lib/validate";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { dishProcessSchema } from "@/lib/server/schemas/dish-process";
+import { validateBody } from "@/lib/server/validate";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

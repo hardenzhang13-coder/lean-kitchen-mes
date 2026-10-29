@@ -21,7 +21,7 @@ import { SkeletonTable } from "@/app/components/skeleton-table";
 import { StatusBadge } from "@/app/components/status-badge";
 import { CategoryTag } from "@/app/components/category-tag";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
-import { DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { DishSheetDetail } from "@/app/components/dish-sheet-detail";
 import { DishDetail } from "@/app/components/dish-form/types";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";

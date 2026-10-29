@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { CategoryTag } from "@/app/components/category-tag";
 import { BomItem, BomType, calcCost, formatCost } from "./types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 interface BomItemRowProps {
   item: BomItem;

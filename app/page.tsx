@@ -10,7 +10,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge } from "@/app/components/status-badge";
 import { EmptyState } from "@/app/components/empty-state";
-import { parseList } from "@/app/lib/api";
+import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 
 interface ActiveSchedule {

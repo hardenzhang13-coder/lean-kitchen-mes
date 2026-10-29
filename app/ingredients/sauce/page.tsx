@@ -19,7 +19,7 @@ import { DataTable } from "@/app/components/data-table";
 import { FormField, FormSection } from "@/app/components/form-field";
 import { TileGroup } from "@/app/components/tile-group";
 import { Badge } from "@/components/ui/badge";
-import { usePagination } from "@/app/lib/use-pagination";
+import { usePagination } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Sauce = {

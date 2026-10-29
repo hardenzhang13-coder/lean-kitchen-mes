@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import { success } from "@/lib/api-response";
+import { prisma } from "@/lib/server/prisma";
+import { success } from "@/lib/server/api-response";
 
 export async function GET() {
   const rows = await prisma.schedule.findMany({

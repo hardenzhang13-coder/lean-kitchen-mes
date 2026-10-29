@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Carrot, Package, Cherry, FlaskConical, Wine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { prisma } from "@/lib/prisma";
-import { getMinorL2Codes, getSeasoningL2Codes } from "@/lib/category-helpers";
+import { prisma } from "@/lib/server/prisma";
+import { getMinorL2Codes, getSeasoningL2Codes } from "@/lib/server/category-helpers";
 
 const ingredientItems = [
   {

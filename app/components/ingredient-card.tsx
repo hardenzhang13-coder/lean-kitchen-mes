@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { StatusBadge, inventoryStatusToVariant } from "@/app/components/status-badge";
-import { formatRelativeTime, formatNumber, cn } from "@/lib/utils";
+import { formatRelativeTime, formatNumber, cn } from "@/lib/shared/utils";
 
 export interface InventoryItemWithDetail {
   id: number;

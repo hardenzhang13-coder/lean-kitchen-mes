@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { parseList } from "@/app/lib/api";
+import { parseList } from "@/lib/client/api";
 import { SelectTableMode } from "@/app/components/select-table-mode";
 
 type Supplier = {

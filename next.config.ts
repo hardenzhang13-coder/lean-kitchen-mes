@@ -1,5 +1,5 @@
 import type { NextConfig } from "next";
-import { checkRequiredEnvVars } from "@/lib/env-check-node";
+import { checkRequiredEnvVars } from "@/lib/server/env-check-node";
 
 // 构建阶段强制检测关键环境变量
 checkRequiredEnvVars();

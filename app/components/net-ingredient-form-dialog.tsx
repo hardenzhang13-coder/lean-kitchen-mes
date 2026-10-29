@@ -26,7 +26,7 @@ import {
 } from "@/app/components/net-ingredient-form-fields";
 import { EmptyState } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
-import { parseList } from "@/app/lib/api";
+import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 
 export type NetIngredientItem = {

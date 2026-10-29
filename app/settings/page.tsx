@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getCurrentUser } from "@/lib/session";
-import { isAdmin } from "@/lib/roles";
+import { getCurrentUser } from "@/lib/server/session";
+import { isAdmin } from "@/lib/server/roles";
 
 const settingsItems = [
   {

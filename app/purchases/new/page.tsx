@@ -47,12 +47,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { cn, computeImageHash } from "@/lib/utils";
+import { cn, computeImageHash } from "@/lib/shared/utils";
 import {
   calculateStockInfo,
   getDefaultSpec,
   isHighConfidenceSpec,
-} from "@/lib/spec-parser";
+} from "@/lib/shared/spec-parser";
 
 interface FormItem {
   id: string;

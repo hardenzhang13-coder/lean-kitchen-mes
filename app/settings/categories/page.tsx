@@ -24,7 +24,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/page-header";
 import { SkeletonTable } from "@/app/components/skeleton-table";
 import { Pagination } from "@/app/components/pagination";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Category = {

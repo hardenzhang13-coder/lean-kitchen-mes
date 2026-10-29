@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 const tagVarMap: Record<string, { fg: string; bg: string }> = {
   // 食材分类

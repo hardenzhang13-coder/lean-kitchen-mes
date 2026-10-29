@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { paginated, internalError } from "@/lib/api-response";
-import { paginationQuerySchema } from "@/lib/schemas/common";
-import { validateQuery } from "@/lib/validate";
+import { prisma } from "@/lib/server/prisma";
+import { paginated, internalError } from "@/lib/server/api-response";
+import { paginationQuerySchema } from "@/lib/server/schemas/common";
+import { validateQuery } from "@/lib/server/validate";
 
 export async function GET(req: NextRequest) {
   try {

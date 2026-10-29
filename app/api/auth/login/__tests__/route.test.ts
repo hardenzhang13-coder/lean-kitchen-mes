@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { createSession, setSessionCookie } from "@/lib/session";
+import { prisma } from "@/lib/server/prisma";
+import { createSession, setSessionCookie } from "@/lib/server/session";
 import { POST } from "../route";
 
-jest.mock("@/lib/prisma", () => ({
+jest.mock("@/lib/server/prisma", () => ({
   prisma: {
     user: {
       findUnique: jest.fn(),
@@ -16,7 +16,7 @@ jest.mock("bcryptjs", () => ({
   compare: jest.fn(),
 }));
 
-jest.mock("@/lib/session", () => ({
+jest.mock("@/lib/server/session", () => ({
   createSession: jest.fn(),
   setSessionCookie: jest.fn(),
 }));

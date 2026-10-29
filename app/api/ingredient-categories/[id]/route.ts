@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { success } from "@/lib/api-response";
-import { updateIngredientCategorySchema } from "@/lib/schemas/ingredient-category";
-import { validateBody } from "@/lib/validate";
-import { getErrorMessage } from "@/lib/error-utils";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { success } from "@/lib/server/api-response";
+import { updateIngredientCategorySchema } from "@/lib/server/schemas/ingredient-category";
+import { validateBody } from "@/lib/server/validate";
+import { getErrorMessage } from "@/lib/shared/error-utils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

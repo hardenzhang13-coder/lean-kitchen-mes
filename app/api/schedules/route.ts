@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/api-auth";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
-import { enrichOperatorNames } from "@/lib/user-resolve";
-import { created, paginated, internalError } from "@/lib/api-response";
-import { createScheduleSchema, scheduleQuerySchema } from "@/lib/schemas/schedule";
-import { validateBody, validateQuery } from "@/lib/validate";
-import { logger } from "@/lib/logger";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
+import { enrichOperatorNames } from "@/lib/server/user-resolve";
+import { created, paginated, internalError } from "@/lib/server/api-response";
+import { createScheduleSchema, scheduleQuerySchema } from "@/lib/server/schemas/schedule";
+import { validateBody, validateQuery } from "@/lib/server/validate";
+import { logger } from "@/lib/server/logger";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 
 export async function GET(req: NextRequest) {
   try {

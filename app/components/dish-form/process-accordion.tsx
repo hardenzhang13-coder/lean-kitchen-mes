@@ -5,7 +5,7 @@ import { ChevronDown } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_COLORS } from "./types";
 import { ProcessStepCard } from "./process-step-card";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 interface ProcessAccordionProps {
   processes: ProcessStep[];

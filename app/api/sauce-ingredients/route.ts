@@ -1,12 +1,12 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { created, paginated, badRequest, internalError } from "@/lib/api-response";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import {
   createSauceIngredientSchema,
   sauceIngredientQuerySchema,
-} from "@/lib/schemas/sauce-ingredient";
-import { validateBody, validateQuery } from "@/lib/validate";
+} from "@/lib/server/schemas/sauce-ingredient";
+import { validateBody, validateQuery } from "@/lib/server/validate";
 
 function generateSauceCode(lastCode: string | undefined) {
   const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;

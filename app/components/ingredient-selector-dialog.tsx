@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { DataTable } from "@/app/components/data-table";
 import { EmptyState } from "@/app/components/empty-state";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type CategoryL1 = {
   code: string;

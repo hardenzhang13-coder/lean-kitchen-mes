@@ -1,10 +1,10 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { success, badRequest, notFound, internalError } from "@/lib/api-response";
-import { createNetIngredientSchema } from "@/lib/schemas/net-ingredient";
-import { validateBody } from "@/lib/validate";
-import { calcNetUnitPrice } from "@/lib/spec-parser";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
+import { createNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
+import { validateBody } from "@/lib/server/validate";
+import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
 
 async function calculateUnitPrice(
   sourceIngredientId: number,

@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { success, badRequest, notFound, internalError } from "@/lib/api-response";
-import { createSauceIngredientSchema } from "@/lib/schemas/sauce-ingredient";
-import { validateBody } from "@/lib/validate";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
+import { createSauceIngredientSchema } from "@/lib/server/schemas/sauce-ingredient";
+import { validateBody } from "@/lib/server/validate";
 
 const SAUCE_TYPES = ["自制", "外购"];
 

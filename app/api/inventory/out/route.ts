@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getUserFromRequest } from "@/lib/api-auth";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { getUserFromRequest } from "@/lib/server/api-auth";
 
 export async function POST(req: NextRequest) {
   const body = await req.json();

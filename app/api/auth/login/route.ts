@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
-import { createSession, setSessionCookie } from "@/lib/session";
-import { success, unauthorized, internalError } from "@/lib/api-response";
-import { loginSchema } from "@/lib/schemas/auth";
-import { validateBody } from "@/lib/validate";
-import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/server/prisma";
+import { createSession, setSessionCookie } from "@/lib/server/session";
+import { success, unauthorized, internalError } from "@/lib/server/api-response";
+import { loginSchema } from "@/lib/server/schemas/auth";
+import { validateBody } from "@/lib/server/validate";
+import { logger } from "@/lib/server/logger";
 
 export async function POST(req: NextRequest) {
   try {

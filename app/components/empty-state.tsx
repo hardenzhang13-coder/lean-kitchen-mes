@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 interface EmptyStateAction {
   label: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type StatusVariant = "success" | "warning" | "danger" | "info" | "neutral";
 

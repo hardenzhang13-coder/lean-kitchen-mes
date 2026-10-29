@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SelectDialog } from "@/app/components/select-dialog";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type SelectTileOption = {
   value: string;

@@ -1,5 +1,5 @@
-import { success } from "@/lib/api-response";
-import { clearSessionCookie } from "@/lib/session";
+import { success } from "@/lib/server/api-response";
+import { clearSessionCookie } from "@/lib/server/session";
 
 export async function POST() {
   await clearSessionCookie();

@@ -6,7 +6,7 @@ import {
   setSessionCookie,
   clearSessionCookie,
   getCurrentUser,
-} from "../session";
+} from "../../server/session";
 
 jest.mock("next/headers", () => ({
   cookies: jest.fn(),

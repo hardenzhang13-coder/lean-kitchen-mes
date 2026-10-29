@@ -45,8 +45,8 @@ import {
   formatRelativeTime,
   formatNumber,
   groupBy,
-} from "@/lib/utils";
-import { useDebounce } from "@/lib/hooks";
+} from "@/lib/shared/utils";
+import { useDebounce } from "@/lib/client/hooks";
 import { toast } from "sonner";
 import { LucideIcon } from "lucide-react";
 

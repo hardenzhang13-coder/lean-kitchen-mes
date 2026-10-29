@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { created, paginated, internalError } from "@/lib/api-response";
-import { createIngredientSchema, ingredientQuerySchema } from "@/lib/schemas/ingredient";
-import { validateBody, validateQuery } from "@/lib/validate";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
-import { logger } from "@/lib/logger";
-import { checkDuplicateName } from "@/lib/duplicate-check";
-import { calcPricePerJin } from "@/lib/spec-parser";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { created, paginated, internalError } from "@/lib/server/api-response";
+import { createIngredientSchema, ingredientQuerySchema } from "@/lib/server/schemas/ingredient";
+import { validateBody, validateQuery } from "@/lib/server/validate";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { logger } from "@/lib/server/logger";
+import { checkDuplicateName } from "@/lib/server/duplicate-check";
+import { calcPricePerJin } from "@/lib/shared/spec-parser";
 
 export async function GET(req: NextRequest) {
   try {

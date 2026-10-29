@@ -11,7 +11,7 @@ import {
 import { EmptyState, EmptyStateProps } from "@/app/components/empty-state";
 import { LoadingState } from "@/app/components/loading-state";
 import { Pagination } from "@/app/components/pagination";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/shared/utils";
 
 export type ColumnDef<T> = {
   header: string;

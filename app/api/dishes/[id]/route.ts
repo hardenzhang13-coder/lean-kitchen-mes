@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/api-auth";
-import { resolveUsernameToName } from "@/lib/user-resolve";
-import { success, badRequest, notFound } from "@/lib/api-response";
-import { updateDishSchema } from "@/lib/schemas/dish";
-import { validateBody } from "@/lib/validate";
-import { getSeasoningL2Codes } from "@/lib/category-helpers";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
+import { resolveUsernameToName } from "@/lib/server/user-resolve";
+import { success, badRequest, notFound } from "@/lib/server/api-response";
+import { updateDishSchema } from "@/lib/server/schemas/dish";
+import { validateBody } from "@/lib/server/validate";
+import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

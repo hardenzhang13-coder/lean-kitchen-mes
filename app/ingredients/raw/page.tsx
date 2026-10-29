@@ -27,7 +27,7 @@ import { NetIngredientFormDialog } from "@/app/components/net-ingredient-form-di
 import { ImportDialog, ImportField } from "@/app/components/import-dialog";
 import { SelectTileMode } from "@/app/components/select-tile-mode";
 import { DataTable } from "@/app/components/data-table";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/app/lib/use-pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Ingredient = {

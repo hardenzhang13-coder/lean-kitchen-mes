@@ -1,14 +1,14 @@
 import { NextRequest } from "next/server";
-import { prisma } from "@/lib/prisma";
-import { logOperation } from "@/lib/api-auth";
-import { getMinorL2Codes } from "@/lib/category-helpers";
-import { created, paginated, badRequest, internalError } from "@/lib/api-response";
+import { prisma } from "@/lib/server/prisma";
+import { logOperation } from "@/lib/server/api-auth";
+import { getMinorL2Codes } from "@/lib/server/category-helpers";
+import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import {
   createNetIngredientSchema,
   netIngredientQuerySchema,
-} from "@/lib/schemas/net-ingredient";
-import { validateBody, validateQuery } from "@/lib/validate";
-import { calcNetUnitPrice } from "@/lib/spec-parser";
+} from "@/lib/server/schemas/net-ingredient";
+import { validateBody, validateQuery } from "@/lib/server/validate";
+import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
 
 function generateNetCode(lastCode: string | undefined) {
   const num = lastCode ? parseInt(lastCode.split("-")[1] || "0") + 1 : 1;
