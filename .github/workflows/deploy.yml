@@ -1,0 +1,43 @@
+name: deploy
+
+# push 到 main 即自动部署到阿里云（与 docs/aliyun-deploy.md 手动流程等价：
+# git pull --ff-only && docker compose up -d --build，迁移由 compose 的 migrate 服务自动执行）
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: SSH 到阿里云执行部署
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.ALIYUN_HOST }}
+          port: ${{ secrets.ALIYUN_PORT || 22 }}
+          username: ${{ secrets.ALIYUN_USER }}
+          key: ${{ secrets.ALIYUN_SSH_KEY }}
+          # 2C4G 服务器全量构建约 5-10 分钟，给足超时
+          command_timeout: 20m
+          script: |
+            cd /opt/lean-kms-v3
+            git pull --ff-only
+            docker compose up -d --build
+
+      - name: 健康检查
+        run: |
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://${{ secrets.ALIYUN_HOST }}/login" || true)
+            if [ "$code" = "200" ]; then
+              echo "部署完成，服务正常（HTTP 200）"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "健康检查未通过，请 SSH 到服务器查看 docker compose logs web" >&2
+          exit 1
