@@ -1,4 +1,4 @@
-import { formatWeight, toWeightValue } from "../schedule-utils";
+import { formatWeight, toWeightValue } from "../weight-format";
 
 describe("formatWeight", () => {
   it("shows jin when weight is at least 500g", () => {

@@ -1,22 +1,10 @@
-import { Prisma, PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 
-/** 克 → 斤/g 展示：≥500g 显示斤，<500g 显示 g */
-export function formatWeight(g: number): string {
-  if (g >= 500) {
-    return `${(g / 500).toFixed(2)}斤`;
-  }
-  return `${Math.round(g)}g`;
-}
+// 注意：本文件仅使用 Prisma 作为「类型标注」，未实例化 PrismaClient。
+// 服务端业务算法，仅可被服务端 API 路由 import（不可进客户端 bundle）。
+// 共享纯展示函数 formatWeight/toWeightValue 见 @/lib/shared/weight-format。
 
-/** 纯数值：≥500g 返回斤数，否则返回克数 */
-export function toWeightValue(g: number): { value: number; unit: string } {
-  if (g >= 500) {
-    return { value: Number((g / 500).toFixed(2)), unit: "斤" };
-  }
-  return { value: Math.round(g), unit: "g" };
-}
-
-interface ScheduleItemInput {
+export interface ScheduleItemInput {
   dishId: number;
   quantity: number;
 }

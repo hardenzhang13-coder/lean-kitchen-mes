@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/api-auth";
-import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
+import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
 import { enrichOperatorNames } from "@/lib/user-resolve";
 import { created, paginated, internalError } from "@/lib/api-response";
 import { createScheduleSchema, scheduleQuerySchema } from "@/lib/schemas/schedule";

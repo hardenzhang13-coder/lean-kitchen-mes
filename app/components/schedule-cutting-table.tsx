@@ -10,7 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatWeight } from "@/app/lib/schedule-utils";
+import { formatWeight } from "@/lib/shared/weight-format";
 
 interface CuttingOrder {
   id: number;

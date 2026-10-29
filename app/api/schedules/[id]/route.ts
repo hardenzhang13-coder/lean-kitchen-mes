@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logOperation } from "@/lib/api-auth";
 import { success } from "@/lib/api-response";
-import { buildCuttingOrders, buildPurchasePlans } from "@/app/lib/schedule-utils";
+import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
 import { updateScheduleSchema } from "@/lib/schemas/schedule";
 import { validateBody } from "@/lib/validate";
 import { getSeasoningL2Codes } from "@/lib/category-helpers";
