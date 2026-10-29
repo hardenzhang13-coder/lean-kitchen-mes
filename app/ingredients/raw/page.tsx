@@ -5,13 +5,11 @@ import {
   Plus,
   Pencil,
   Trash2,
-  Search,
   Upload,
   ArrowRightLeft,
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +25,7 @@ import { NetIngredientFormDialog } from "@/app/components/ingredients/net-ingred
 import { ImportDialog, ImportField } from "@/app/components/ui/import-dialog";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DataTable } from "@/app/components/ui/data-table";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
@@ -54,6 +53,8 @@ type Unit = {
   id: number;
   name: string;
   category: string;
+  gramsPerUnit?: number | string | null;
+  isActive?: boolean;
 };
 
 const importFields: ImportField[] = [
@@ -135,10 +136,6 @@ export default function RawIngredientsPage() {
     totalPages,
     totalItems,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, l1Filter, l2Filter, setCurrentPage]);
 
   const l2Map = useMemo(() => {
     const map: Record<
@@ -257,16 +254,21 @@ export default function RawIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
-              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Input
-                placeholder="搜索编号、名称或商品名称..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full"
-              />
-            </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索编号、名称或商品名称..."
+            onReset={() => {
+              setSearch("");
+              setL1Filter("");
+              setL2Filter("");
+              setCurrentPage(1);
+            }}
+            hasFilters={!!(l1Filter || l2Filter)}
+          >
             <div className="grid grid-cols-2 gap-3 w-[320px]">
               <SelectTileMode
                 options={categories.map((c) => ({
@@ -296,7 +298,7 @@ export default function RawIngredientsPage() {
                 searchable={false}
               />
             </div>
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent className="space-y-4">
           <DataTable<Ingredient>

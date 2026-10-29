@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Search, Pencil, Eye, Trash2 } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { CategoryTag } from "@/app/components/ui/category-tag";
@@ -261,19 +261,16 @@ export default function DishesPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
-              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
-              <Input
-                placeholder="搜索菜品名称或编号..."
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full"
-              />
-            </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            searchPlaceholder="搜索菜品名称或编号..."
+            onReset={clearFilters}
+            hasFilters={Boolean(hasFilters)}
+          >
             <SelectTileMode
               options={categoryOptions}
               value={filterCategory}
@@ -307,12 +304,7 @@ export default function DishesPage() {
               title="选择状态"
               className="w-[180px]"
             />
-            {hasFilters && (
-              <Button variant="ghost" size="sm" onClick={clearFilters}>
-                清除筛选
-              </Button>
-            )}
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent>
           {loading ? (

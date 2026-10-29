@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
@@ -142,10 +142,6 @@ export default function NetIngredientsPage() {
     totalItems,
   } = usePagination(filtered, 20);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, l1Filter, l2Filter, setCurrentPage]);
-
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
@@ -201,18 +197,29 @@ export default function NetIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索编号、名称或来源原料..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索编号、名称或来源原料..."
+            onReset={() => {
+              setSearch("");
+              setL1Filter("");
+              setL2Filter("");
+              setCurrentPage(1);
+            }}
+            hasFilters={!!(l1Filter || l2Filter)}
+          >
             <SelectTileMode
               options={categories.map((c) => ({ value: c.code, label: c.name }))}
               value={l1Filter}
-              onChange={setL1Filter}
+              onChange={(v) => {
+                setL1Filter(v);
+                setL2Filter("");
+                setCurrentPage(1);
+              }}
               placeholder="全部一级分类"
               title="选择一级分类"
               searchable={false}
@@ -228,27 +235,17 @@ export default function NetIngredientsPage() {
                   : categories.flatMap((c) => c.children.map((l2) => ({ value: l2.code, label: l2.name })))
               }
               value={l2Filter}
-              onChange={setL2Filter}
+              onChange={(v) => {
+                setL2Filter(v);
+                setCurrentPage(1);
+              }}
               placeholder="全部二级分类"
               title="选择二级分类"
               searchable={false}
               disabled={!l1Filter}
               className="w-[180px]"
             />
-            {(search || l1Filter || l2Filter) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                  setL1Filter("");
-                  setL2Filter("");
-                }}
-              >
-                清除筛选
-              </Button>
-            )}
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (

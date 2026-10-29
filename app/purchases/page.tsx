@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, FileText, Search, Eye, Trash2, Pencil } from "lucide-react";
+import { Plus, FileText, Eye, Trash2, Pencil } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Table,
@@ -23,6 +22,7 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { ImagePreviewModal } from "@/app/components/ui/image-preview-modal";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { DataTable } from "@/app/components/ui/data-table";
@@ -230,43 +230,33 @@ export default function PurchasesPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索摘要、供应商或操作人..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="搜索摘要、供应商或操作人..."
+            onReset={() => {
+              setStartDate("");
+              setEndDate("");
+              setSearch("");
+              setPage(1);
+            }}
+            hasFilters={!!(startDate || endDate)}
+          >
             <Label className="text-sm text-muted-foreground">创建时间</Label>
             <DatePicker
               value={startDate}
-              onChange={(v) => setStartDate(v)}
+              onChange={setStartDate}
               placeholder="开始日期"
               className="w-[180px]"
             />
             <span className="text-sm text-muted-foreground">至</span>
             <DatePicker
               value={endDate}
-              onChange={(v) => setEndDate(v)}
+              onChange={setEndDate}
               placeholder="结束日期"
               className="w-[180px]"
             />
-            {(startDate || endDate || search) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setStartDate("");
-                  setEndDate("");
-                  setSearch("");
-                  setPage(1);
-                }}
-              >
-                清除
-              </Button>
-            )}
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent className="space-y-4">
           <DataTable<Receipt>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +32,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { Pagination } from "@/app/components/ui/pagination";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 import { ROLE_OPTIONS } from "@/lib/server/roles";
@@ -107,10 +108,6 @@ export default function UsersPage() {
     start,
     end,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, setCurrentPage]);
 
   const openCreate = () => {
     setEditing(null);
@@ -229,15 +226,18 @@ export default function UsersPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索账号、姓名或角色..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索账号、姓名或角色..."
+            onReset={() => {
+              setSearch("");
+              setCurrentPage(1);
+            }}
+          />
         </CardHeader>
         <CardContent>
           {loading ? (

@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, Search, Eye } from "lucide-react";
+import { BookOpen, Eye } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { TabSwitcher } from "@/app/components/ui/tab-switcher";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -30,6 +29,7 @@ import {
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { Pagination } from "@/app/components/ui/pagination";
 import { toast } from "sonner";
 
@@ -151,17 +151,23 @@ export default function LedgerPage() {
       {/* 筛选区 */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索来源摘要或负责人..."
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              className="max-w-xs"
-            />
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            searchPlaceholder="搜索来源摘要或负责人..."
+            onReset={() => {
+              setSearch("");
+              setStartDate("");
+              setEndDate("");
+              setTypeFilter("");
+              setStatusFilter("");
+              setPage(1);
+            }}
+            hasFilters={!!(startDate || endDate || typeFilter || statusFilter)}
+          >
             <DatePicker
               value={startDate}
               onChange={(v) => {
@@ -199,23 +205,7 @@ export default function LedgerPage() {
                 <SelectItem value="已结算">已结算</SelectItem>
               </SelectContent>
             </Select>
-            {(search || startDate || endDate || typeFilter || statusFilter) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                  setStartDate("");
-                  setEndDate("");
-                  setTypeFilter("");
-                  setStatusFilter("");
-                  setPage(1);
-                }}
-              >
-                清除
-              </Button>
-            )}
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent>
           {loading ? (

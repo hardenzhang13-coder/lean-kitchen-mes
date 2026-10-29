@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Receipt, Search, FileText, Eye } from "lucide-react";
+import { Plus, Receipt, Eye } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
@@ -15,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { toast } from "sonner";
 
@@ -81,20 +81,12 @@ export default function ReimbursementsPage() {
       {/* 筛选区 */}
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索报销主题..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-xs"
-            />
-            {search && (
-              <Button variant="ghost" size="sm" onClick={() => setSearch("")}>
-                清除
-              </Button>
-            )}
-          </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={setSearch}
+            searchPlaceholder="搜索报销主题..."
+            onReset={() => setSearch("")}
+          />
         </CardHeader>
         <CardContent>
           {loading ? (

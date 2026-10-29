@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -15,6 +14,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
@@ -113,10 +113,6 @@ export default function MinorIngredientsPage() {
     totalItems,
   } = usePagination(filtered, 20);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, l2Filter, setCurrentPage]);
-
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
@@ -172,14 +168,20 @@ export default function MinorIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索编号、名称..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索编号、名称..."
+            onReset={() => {
+              setSearch("");
+              setL2Filter("");
+              setCurrentPage(1);
+            }}
+            hasFilters={!!l2Filter}
+          >
             <SelectTileMode
               options={
                 (categories.find((c) => c.code === "MIN")?.children || []).map((c) => ({
@@ -188,25 +190,16 @@ export default function MinorIngredientsPage() {
                 }))
               }
               value={l2Filter}
-              onChange={setL2Filter}
+              onChange={(v) => {
+                setL2Filter(v);
+                setCurrentPage(1);
+              }}
               placeholder="全部二级分类"
               title="选择二级分类"
               searchable={false}
               className="w-[180px]"
             />
-            {(search || l2Filter) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearch("");
-                  setL2Filter("");
-                }}
-              >
-                清除筛选
-              </Button>
-            )}
-          </div>
+          </ListToolbar>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (

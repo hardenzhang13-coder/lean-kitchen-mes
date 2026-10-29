@@ -1,9 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +24,7 @@ import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { Pagination } from "@/app/components/ui/pagination";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
@@ -52,6 +52,8 @@ type Unit = {
   id: number;
   name: string;
   category: string;
+  gramsPerUnit?: number | string | null;
+  isActive?: boolean;
 };
 
 function findSeasoningL2Code(categories: CategoryL1[]) {
@@ -103,10 +105,6 @@ export default function SeasoningIngredientsPage() {
     end,
     totalItems,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, setCurrentPage]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -194,15 +192,18 @@ export default function SeasoningIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-2">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索编号、名称或商品名称..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索编号、名称或商品名称..."
+            onReset={() => {
+              setSearch("");
+              setCurrentPage(1);
+            }}
+          />
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (

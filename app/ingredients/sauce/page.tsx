@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { TileGroup } from "@/app/components/ui/tile-group";
 import { Badge } from "@/components/ui/badge";
@@ -73,10 +74,6 @@ export default function SauceIngredientsPage() {
     totalPages,
     totalItems,
   } = usePagination(filtered, 20);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [search, setCurrentPage]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -202,15 +199,18 @@ export default function SauceIngredientsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <div className="flex items-center gap-3 flex-wrap">
-            <Search className="h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="搜索编号、名称或品牌..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="max-w-sm"
-            />
-          </div>
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索编号、名称或品牌..."
+            onReset={() => {
+              setSearch("");
+              setCurrentPage(1);
+            }}
+          />
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (

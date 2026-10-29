@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Search, CalendarDays, ChefHat, Clock } from "lucide-react";
+import { Plus, CalendarDays, ChefHat, Clock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -112,17 +112,21 @@ export default function SchedulesPage() {
       </div>
 
       {/* 筛选 */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <Search className="h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="搜索排程标题..."
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          className="max-w-xs"
-        />
+      <ListToolbar
+        searchValue={search}
+        onSearchChange={(v) => {
+          setSearch(v);
+          setPage(1);
+        }}
+        searchPlaceholder="搜索排程标题..."
+        onReset={() => {
+          setStartDate("");
+          setEndDate("");
+          setSearch("");
+          setPage(1);
+        }}
+        hasFilters={!!(startDate || endDate)}
+      >
         <DatePicker
           value={startDate}
           onChange={(v) => {
@@ -142,12 +146,7 @@ export default function SchedulesPage() {
           placeholder="结束日期"
           className="w-[180px]"
         />
-        {(startDate || endDate || search) && (
-          <Button variant="ghost" size="sm" onClick={() => { setStartDate(""); setEndDate(""); setSearch(""); setPage(1); }}>
-            清除
-          </Button>
-        )}
-      </div>
+      </ListToolbar>
 
       {/* 卡片列表 */}
       {loading ? (
