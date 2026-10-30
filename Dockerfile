@@ -3,11 +3,15 @@
 # ---- 依赖安装 ----
 FROM node:24-alpine AS deps
 WORKDIR /app
+# Prisma 引擎二进制走 npmmirror 镜像源（官方 binaries.prisma.sh 在大陆线路不稳定）
+ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 COPY package.json package-lock.json* ./
-RUN npm ci
+# 大陆服务器走 npmmirror，npm ci 从 ~15min 降到 ~2min
+RUN npm ci --registry=https://registry.npmmirror.com
 
 # ---- 构建 ----
 FROM node:24-alpine AS builder
+ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .

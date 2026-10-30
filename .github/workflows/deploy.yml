@@ -22,8 +22,8 @@ jobs:
           port: ${{ secrets.ALIYUN_PORT || 22 }}
           username: ${{ secrets.ALIYUN_USER }}
           key: ${{ secrets.ALIYUN_SSH_KEY }}
-          # 2C4G 服务器全量构建约 5-10 分钟，给足超时
-          command_timeout: 20m
+          # 2C4G 服务器全量构建约 5-10 分钟（含首次无缓存），给足超时
+          command_timeout: 40m
           script: |
             cd /opt/lean-kms-v3
             git pull --ff-only
