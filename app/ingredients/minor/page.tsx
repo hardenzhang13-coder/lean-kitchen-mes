@@ -33,6 +33,8 @@ type NetIngredient = {
   name: string;
   sourceIngredientId: number | null;
   spec: string | null;
+  packageSpec: number | null;
+  processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
   unit: string | null;
@@ -122,6 +124,8 @@ export default function MinorIngredientsPage() {
       id: row.id,
       name: row.name,
       spec: row.spec,
+      packageSpec: row.packageSpec ?? null,
+      processingFeePerJin: row.processingFeePerJin ?? null,
       yieldRate: row.yieldRate,
       unitPrice: row.unitPrice,
       sourceIngredientId: row.sourceIngredientId,

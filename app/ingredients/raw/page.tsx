@@ -346,9 +346,13 @@ export default function RawIngredientsPage() {
               {
                 header: "每斤单价",
                 cell: (row) =>
-                  row.pricePerJin != null
-                    ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
-                    : "—",
+                  row.pricePerJin != null ? (
+                    `¥${Number(row.pricePerJin).toFixed(2)}/斤`
+                  ) : (
+                    <span title="未填写，可在编辑中按规格换算或手动填写">
+                      —
+                    </span>
+                  ),
               },
               { header: "入库单位", cell: (row) => row.stockUnit || "—" },
             ]}
@@ -442,6 +446,8 @@ export default function RawIngredientsPage() {
           purchaseSpec: d.purchaseSpec,
           purchaseUnit: d.purchaseUnit,
           latestRefPrice: d.latestRefPrice,
+          // 转净料成本价自动换算的数据源，缺失会导致弹窗无法自动计算
+          pricePerJin: d.pricePerJin,
         }))}
         onSuccess={() => {
           setConvertDialogOpen(false);

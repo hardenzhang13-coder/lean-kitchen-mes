@@ -59,9 +59,9 @@ async function main() {
     { code: "POU-CHI", name: "鸡肉", parentCode: "POU", description: "" },
     { code: "POU-DUC", name: "鸭肉", parentCode: "POU", description: "" },
     { code: "POU-EGG", name: "蛋类", parentCode: "POU", description: "" },
-    { code: "AUC-FIS", name: "鱼类", parentCode: "AQU", description: "" },
-    { code: "AUC-SHR", name: "虾类", parentCode: "AQU", description: "" },
-    { code: "AUC-SHE", name: "贝类", parentCode: "AQU", description: "" },
+    { code: "AQU-FIS", name: "鱼类", parentCode: "AQU", description: "" },
+    { code: "AQU-SHR", name: "虾类", parentCode: "AQU", description: "" },
+    { code: "AQU-SHE", name: "贝类", parentCode: "AQU", description: "" },
     { code: "DRY-MUS", name: "菌菇干货", parentCode: "DRY", description: "" },
     { code: "DRY-SEA", name: "海味干货", parentCode: "DRY", description: "" },
     { code: "DRY-MIS", name: "杂项干货", parentCode: "DRY", description: "" },
@@ -83,11 +83,14 @@ async function main() {
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 
   // 4. 单位（重量类必须带 gramsPerUnit；upsert 保证老库回填系数与启用状态）
+  // 中英文别名均收录：规格文本里 g/kg 与 克/千克 同样常见，缺别名会导致换算中断
   const units = [
     { name: "斤", category: "weight", gramsPerUnit: 500 },
     { name: "公斤", category: "weight", gramsPerUnit: 1000 },
     { name: "千克", category: "weight", gramsPerUnit: 1000 },
+    { name: "kg", category: "weight", gramsPerUnit: 1000 },
     { name: "克", category: "weight", gramsPerUnit: 1 },
+    { name: "g", category: "weight", gramsPerUnit: 1 },
     { name: "两", category: "weight", gramsPerUnit: 50 },
     { name: "升", category: "volume", gramsPerUnit: null },
     { name: "毫升", category: "volume", gramsPerUnit: null },

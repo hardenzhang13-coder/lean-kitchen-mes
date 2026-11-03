@@ -79,7 +79,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             : calcPricePerJin(
                 latestRefPrice !== undefined ? latestRefPrice : existing.latestRefPrice,
                 purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec,
-                jinFactors
+                jinFactors,
+                purchaseUnit !== undefined ? purchaseUnit : existing.purchaseUnit
               ),
         season: season !== undefined ? season || "四季" : existing.season,
         storage: storage !== undefined ? storage || "常温" : existing.storage,

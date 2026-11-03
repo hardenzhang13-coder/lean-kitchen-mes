@@ -122,6 +122,8 @@ export default function RawIngredientDetailPage() {
       id: row.id,
       name: row.name,
       spec: row.spec,
+      packageSpec: row.packageSpec ?? null,
+      processingFeePerJin: row.processingFeePerJin ?? null,
       yieldRate: row.yieldRate,
       unitPrice: row.unitPrice,
       sourceIngredientId: row.sourceIngredientId,

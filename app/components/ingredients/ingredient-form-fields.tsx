@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
+import { buildJinFactors } from "@/lib/shared/unit-conversion";
 
 export type CategoryL1 = {
   code: string;
@@ -60,18 +62,25 @@ export function IngredientFormFields({
 
   const filteredCategories = useMemo(() => {
     if (mode === "auto") return categories;
+    // 调料体系按名称识别（与服务端 getSeasoningL2Codes 语义一致，不硬编码分类编码）
+    const isSeasoningChild = (name: string, parentName: string) =>
+      name === "调料" || name === "调味品" || parentName === "调味品";
     return categories
       .map((l1) => {
-        const isSeasoningL1 = l1.code === "SEA" || l1.name === "调味品";
-        if (mode === "ingredient" && isSeasoningL1) return null;
         if (mode === "ingredient") {
           const filteredChildren = l1.children.filter(
-            (c) => c.code !== "GRA-SEA"
+            (c) => !isSeasoningChild(c.name, l1.name)
           );
           if (filteredChildren.length === 0) return null;
           return { ...l1, children: filteredChildren };
         }
-        if (mode === "seasoning" && !isSeasoningL1) return null;
+        if (mode === "seasoning") {
+          const filteredChildren = l1.children.filter((c) =>
+            isSeasoningChild(c.name, l1.name)
+          );
+          if (filteredChildren.length === 0) return null;
+          return { ...l1, children: filteredChildren };
+        }
         return l1;
       })
       .filter((l1): l1 is CategoryL1 => l1 !== null);
@@ -102,6 +111,22 @@ export function IngredientFormFields({
     () => filteredCategories.map((c) => ({ value: c.code, label: c.name })),
     [filteredCategories]
   );
+
+  // 规格可换算性即时反馈：换算系数来自单位字典，字典为空时回退内置兜底值
+  const jinFactors = useMemo(() => {
+    const factors = buildJinFactors(units);
+    return Object.keys(factors).length > 0 ? factors : undefined;
+  }, [units]);
+  const jinPerUnit = useMemo(
+    () => calcJinPerPurchaseUnit(form.purchaseSpec, jinFactors),
+    [form.purchaseSpec, jinFactors]
+  );
+  // 按重直采：采购单位本身是重量单位时，参照单价可按字典系数直接换算为每斤单价
+  const weightJinPerUnit =
+    form.purchaseUnit && jinFactors?.[form.purchaseUnit] != null
+      ? jinFactors[form.purchaseUnit]
+      : null;
+  const convertible = jinPerUnit != null || weightJinPerUnit != null;
 
   return (
     <div className="space-y-4">
@@ -175,9 +200,20 @@ export function IngredientFormFields({
           <Input
             value={form.purchaseSpec}
             onChange={(e) => onChange("purchaseSpec", e.target.value)}
-            placeholder="如 1千克*10袋、散装称斤"
+            placeholder="如 1千克*10袋、5斤/袋、散装称斤"
             className="h-11 text-base px-4"
           />
+          <p
+            className={
+              convertible ? "text-xs text-muted-foreground" : "text-xs text-amber-600"
+            }
+          >
+            {jinPerUnit != null
+              ? `可自动换算：1${form.purchaseUnit || "个采购单位"} ≈ ${jinPerUnit} 斤`
+              : weightJinPerUnit != null
+                ? `按重直采：1${form.purchaseUnit} = ${weightJinPerUnit} 斤，按参照单价直接换算每斤单价`
+                : "当前规格无法换算为重量，每斤单价需手动填写"}
+          </p>
         </FormField>
         <FormField label="采购单位" required error={errors.purchaseUnit}>
           <SelectTileMode
@@ -219,11 +255,17 @@ export function IngredientFormFields({
             step="0.0001"
             value={form.pricePerJin}
             onChange={(e) => onChange("pricePerJin", e.target.value)}
-            placeholder="按采购规格自动计算，可手动修改"
+            placeholder={
+              convertible
+                ? "按采购规格自动计算，可手动修改"
+                : "规格无法换算，请手动填写"
+            }
             className="h-11 text-base px-4"
           />
           <p className="text-xs text-muted-foreground">
-            = 最新参照单价 ÷ 每采购单位斤数；规格含非重量单位时请手动填写
+            {convertible
+              ? "= 最新参照单价 ÷ 每采购单位斤数；手动修改后不再自动覆盖"
+              : "建议格式：5斤/袋、1千克*10袋（含重量单位才可自动换算），或采购单位直接用斤/公斤"}
           </p>
         </FormField>
       </FormSection>

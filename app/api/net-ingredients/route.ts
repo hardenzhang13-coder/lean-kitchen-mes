@@ -9,7 +9,7 @@ import {
 } from "@/lib/server/schemas/net-ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { nextCode } from "@/lib/shared/code-gen";
-import { calculateUnitPrice } from "@/lib/server/net-ingredient-utils";
+import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
 async function getL2CodesByL1(l1Code: string): Promise<string[]> {
   const rows = await prisma.ingredientCategoryL2.findMany({
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
     ]);
 
     const totalPages = Math.ceil(totalItems / pageSize);
-    return paginated(rows, { page, pageSize, totalItems, totalPages });
+    return paginated(rows.map(serializeNetIngredient), { page, pageSize, totalItems, totalPages });
   } catch {
     return internalError("获取净料失败");
   }
@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
       name,
       sourceIngredientId,
       spec,
+      packageSpec,
+      processingFeePerJin,
       yieldRate,
       unitPrice,
       l2Code,
@@ -119,6 +121,10 @@ export async function POST(req: NextRequest) {
       if (!sourceIngredientId) {
         return badRequest("非小料净料必须填写来源原料");
       }
+      // 净料封装规格（g）必填：出库价与标准规格价格的计算基础
+      if (!packageSpec) {
+        return badRequest("净料必须填写封装规格（g）");
+      }
       finalSourceIngredientId = Number(sourceIngredientId);
 
       const yieldRateNum = Number(yieldRate) || 0;
@@ -133,7 +139,7 @@ export async function POST(req: NextRequest) {
         autoCalculate || unitPrice == null ? null : Number(unitPrice)
       );
       finalUnitPrice = calculated ?? 0;
-      finalUnit = "500g";
+      finalUnit = "g";
     }
 
     const last = await prisma.netIngredient.findFirst({
@@ -147,7 +153,9 @@ export async function POST(req: NextRequest) {
         code,
         name: name.trim(),
         sourceIngredientId: finalSourceIngredientId,
-        spec: spec?.trim() || null,
+        spec: isMinor ? spec?.trim() || null : null,
+        packageSpec: isMinor ? null : packageSpec,
+        processingFeePerJin: isMinor ? null : processingFeePerJin ?? null,
         yieldRate: finalYieldRate,
         unitPrice: finalUnitPrice,
         unit: finalUnit,
@@ -163,7 +171,7 @@ export async function POST(req: NextRequest) {
       description: `创建净料: ${row.name || row.code}`,
     });
 
-    return created(row);
+    return created(serializeNetIngredient(row));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return badRequest(message || "创建净料失败");

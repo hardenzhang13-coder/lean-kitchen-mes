@@ -4,7 +4,7 @@ import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
 import { createNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
 import { validateBody } from "@/lib/server/validate";
-import { calculateUnitPrice } from "@/lib/server/net-ingredient-utils";
+import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       include: { sourceIngredient: { select: { id: true, name: true } } },
     });
     if (!row) return notFound("净料不存在或已删除");
-    return success(row);
+    return success(serializeNetIngredient(row));
   } catch {
     return internalError("获取净料失败");
   }
@@ -31,6 +31,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       name,
       sourceIngredientId,
       spec,
+      packageSpec,
+      processingFeePerJin,
       yieldRate,
       unitPrice,
       l2Code,
@@ -72,6 +74,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (!sourceIngredientId) {
         return badRequest("非小料净料必须填写来源原料");
       }
+      // 净料封装规格（g）必填：编辑存量数据时补填
+      const finalPackageSpec = packageSpec ?? existing.packageSpec;
+      if (!finalPackageSpec) {
+        return badRequest("净料必须填写封装规格（g）");
+      }
       finalSourceIngredientId = Number(sourceIngredientId);
 
       const yieldRateNum = Number(yieldRate) || 0;
@@ -86,7 +93,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         autoCalculate || unitPrice == null ? null : Number(unitPrice)
       );
       finalUnitPrice = calculated ?? 0;
-      finalUnit = "500g";
+      finalUnit = "g";
     }
 
     const row = await prisma.netIngredient.update({
@@ -94,7 +101,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: {
         name: name.trim(),
         sourceIngredientId: finalSourceIngredientId,
-        spec: spec?.trim() || null,
+        spec: isMinor ? spec?.trim() || null : null,
+        packageSpec: isMinor ? null : (packageSpec ?? existing.packageSpec),
+        processingFeePerJin: isMinor ? null : (processingFeePerJin ?? existing.processingFeePerJin),
         yieldRate: finalYieldRate,
         unitPrice: finalUnitPrice,
         unit: finalUnit,
@@ -110,7 +119,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       description: `更新净料: ${row.name || row.code}`,
     });
 
-    return success(row);
+    return success(serializeNetIngredient(row));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return badRequest(message || "更新净料失败");

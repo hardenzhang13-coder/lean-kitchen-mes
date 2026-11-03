@@ -953,3 +953,185 @@ POST /api/schedules/[id]/execute-purchase
 - **架构**：Docker Compose（db=mysql:8.4 + web=standalone + migrate + backup），代码在 `/opt/lean-kms-v3`（git clone），访问 http://101.37.64.216
 - **Docker**：docker.io 29.1.3（Ubuntu 源）；镜像加速器用 `docker.m.daocloud.io` + `hub.rat.dev`（1ms.run/nju/geekery 在该机器不可用）
 - **注意**：Docker Hub 官方源和 download.docker.com 在大陆被墙，必须用加速器
+
+---
+
+## 2026-10-30 — 设置模块分类字典盘查迭代（菜品类别 / 食材分类）
+
+### 盘查方式
+
+`scripts/audit-categories.mjs`（Prisma 直连只读审计）：菜品类别 19 条零引用、食材分类 10 L1 + 31 L2 结构完整；发现 1 处数据瑕疵 + 4 类代码问题。
+
+### 盘查发现
+
+1. **数据瑕疵**：`水产(AQU)` 下二级分类编号为 `AUC-FIS/AUC-SHR/AUC-SHE`（seed 源头写错），违反「L2 = L1前缀-后缀」约定，`CategoryTag` 按前缀查色板命中不了 → 水产标签灰色兜底
+2. 菜品类别删除无引用保护（有菜品时删除抛 FK 数据库错误）
+3. 食材分类改编号无保护：`Ingredient/NetIngredient.l2Code` 为字符串引用，改 L2 编号静默产生孤儿引用
+4. `IngredientCategoryL1` 无 description 字段，前端编辑弹窗说明输入被静默丢弃
+5. 两个分类字典均无启用/停用机制
+
+### 修复内容
+
+**Schema + 迁移**（`20261030021015_category_is_active_and_aqu_prefix`）：
+- `DishCategory` / `IngredientCategoryL1` / `IngredientCategoryL2` 新增 `isActive`（默认 true）；L1 新增 `description`
+- 迁移 SQL 内置 AUC→AQU 修正（字典表 + ingredients / net_ingredients / purchase_plans / purchase_receipt_items / cutting_orders 的 l2_code 快照同步更新）
+- `seed.ts` 源头改为 `AQU-FIS/AQU-SHR/AQU-SHE`
+
+**引用保护**（新 `lib/server/category-references.ts`，复刻 unit-references 模式）：
+- 菜品类别删除/改编号前查 `dish.count`；食材 L1（含全部子级汇总）/L2 删除/改编号前查 ingredient + netIngredient（`deletedAt: null`）
+- 被引用返回 400 + `{ references: byEntity }` 明细，前端弹窗引导「停用」
+
+**停用机制**（复刻单位字典模式）：
+- GET 默认只返启用分类；设置页传 `?includeInactive=1` 查全量
+- 业务端 tree 模式额外隐藏「无启用二级分类」的空壳一级分类（`children: { some: { isActive: true } }`）
+- 设置页两个分类页新增状态列 / 状态筛选 / 停用启用 toggle / 引用删除拦截弹窗（全套复刻 units 页）
+
+### 验证
+
+- `npx tsc --noEmit`、`npm run build`、`npm run lint`（0 errors）✅
+- 盘查脚本复跑：AQU children 已修正、零孤儿 ✅
+- E2E（3001 端口新构建，admin 会话）：菜品类别创建/重复编号 400/菜品引用后删除与改名均拦截且返回引用数/停用后业务端隐藏设置页可见/启用后恢复/无引用可删 ✅；食材分类 L1 说明保存/L1 有子级禁改编号/L2 被原料引用禁改编号与删除/停用后业务端 tree 隐藏/设置页全量可见 ✅
+
+### 已知取舍
+
+- 已引用被停用分类的存量菜品/食材，编辑页分类选择器显示为空（与单位字典一致）
+- 列表页按已选分类过滤（l1Code/l2Code 查询参数）不受停用影响，保证存量数据可查
+
+---
+
+## 2026-10-30（下午）— 原料清单迭代：采购规格计算链路与交互
+
+### 语义对齐（关键决策）
+
+与用户对齐后明确三条语义，后续所有换算逻辑以此为纲：
+1. **采购规格 = 换算描述符**：回答「1 个采购单位 = 多少库存单位」（如 `5斤/袋` = 每袋 5 斤）
+2. **库存按食材各自的入库单位记账**，不做全局统一（斤/袋/瓶/箱各自记）
+3. 路线选择**放宽计算侧**：统一宽语法解析，不做结构化录入改造
+
+### 盘查发现 → 修复
+
+1. **P0 双解析器语法不一致**：`calculateStockInfo` 只认含 `*` 格式，`calcJinPerPurchaseUnit` 支持 `*/空格/斜杠` 宽语法 → `5斤/袋` 每斤单价能算但入库数量静默兜底为 1（库存错）
+   → 新增 **`resolveStockInfo`**（lib/shared/spec-parser.ts）：宽语法 token 化 + 按目标入库单位换算 + `confidence: high/low` 标记；`purchaseUnit` 入参把「按重直采」（采购单位是重量单位）纳入统一处理（如按公斤采购入库斤 = qty×2）
+2. **P0 批量导入不算每斤单价** → import 路由接入 `getJinFactors + calcPricePerJin`，与单条创建对齐
+3. **P1 「斤」硬编码 5 处** → 全部由 resolveStockInfo 内部的重量单位判断接管，消除特判
+4. **P1 低置信入库无警示** → 采购录入页（含编辑态）：低置信行琥珀色高亮 + 入库数量输入框标色 + 提交前 toast 汇总提示；手动改入库数量后自动视为已核对
+5. **P1 表单价格交互** → 每斤单价手动编辑后锁定（`pricePerJinDirty`），规格/单价变化不再覆盖手填值；规格可换算性即时反馈（可换算显示 ≈N 斤 / 不可换算琥珀提示）
+6. **P2 前端调料判定硬编码 SEA/GRA-SEA** → 改名称匹配（调料/调味品），与弹窗 isSeasoning 一致
+
+### 关键实现
+
+- `tokenizeSpec`：宽语法 token 化（`[*×/\s]+` 分隔，提取「数字+单位」）；占位符（散称/散装称斤/单袋）不产出 token
+- 换算优先级：按重直采 → target 重量单位（全 token 乘积换算克数）→ target 计数单位（精确匹配/隐含 1:1，**隐含 1:1 需有依据**：规格含重量 token 或尾段裸单位匹配）→ 末 token 语义（兼容存量）→ 兜底 1 + low
+- 系数提供者：`buildGramFactors`/`getGramFactors`（克级）、`buildJinFactors`/`getJinFactors`（每斤级）双轨；resolveStockInfo 未注入字典时以内置兜底值推导克级系数
+- 识别 API（recognize）返回行新增 `stockConfidence` 字段；旧 `calculateStockInfo` 保留不动（向后兼容）
+
+### 验证
+
+- 单测 21/21 通过（旧 14 + 新增 resolveStockInfo/tokenizeSpec 7 例）
+- `tsc` / `build` / `lint` 0 errors
+- E2E（node 脚本 scripts/e2e-spec-calc.mjs，规避 Windows curl 中文乱码）：
+  - 创建原料 `5斤/袋` ref=18.5 → pricePerJin=3.7 ✓；手填 3.55 生效 ✓；批量导入 `5斤` 18.50 → 3.7 ✓
+  - 采购 3 袋（stockInQty=15）→ 库存 15 斤 ✓ → 台账 1 条 ✓ → 作废后库存回滚 ✓
+- 注意：Windows Git Bash curl 直接传中文 JSON 体会乱码入库（UTF-8 环境问题），E2E 改用 node fetch
+
+---
+
+## 2026-10-30（晚）— 测试反馈三连修
+
+### 1. 分类改名阻断修复（用户实测反馈）
+
+**根因**：用户新建一级分类时把编号/名称填反（`code=猪肉类, name=PIG`），想修正时被「有子级禁止改编号」规则挡住；且编号无格式校验，放行了中文编号。
+
+**修复**：
+- **编号格式校验**：`ingredient-category` / `dish-category` zod schema 增加正则 `/^[A-Za-z][A-Za-z0-9]*(-[A-Za-z0-9]+)*$/`，中文编号 400 拦截。存量脏数据不受影响（校验只拦新输入）
+- **L1 编号改名级联**：FK（L2.parentCode → L1.code）即时检查导致"先改父/先改子"都会悬空，改为事务内**新建新编号 → 子级批量改挂 → 删除旧行**三步（L1 id 变化，无外部按 id 引用）；引用拦截随级联安全性移除，删除保护不变
+- 前端提示区分 L1/L2 语义
+
+### 2. 商品名称（alias）字段评估结论
+
+**保留该字段**。定位为**采购侧的商品身份**（品牌商品名/供应商叫法）：
+- 核心用途：AI 采购识别模糊匹配（alias 与 name 同权重，≥0.9 命中）、采购单行「产品品牌名称/别名」贯通、调料场景必填
+- 次要用途：列表搜索（q 覆盖 alias）、展示列
+- 对厨房侧（BOM/切配/成本）无意义；重名查重只比 name 不含 alias——此边界设计正确
+- 评估结论：现状设计恰好正确，无需改动
+
+### 3. resolveStockInfo 隐含 1:1 规则补强
+
+**缺口**：`3斤/盒` 采购单位=箱 + 入库单位=盒 时，旧规则命中隐含 1:1 判 high——箱→盒数量关系规格未给出，错误高置信。
+**修复**：隐含 1:1 增加前提 `purchaseUnit === targetStockUnit`（买卖同单位、规格仅重量说明）；跨单位无依据 → 按 1:1 估算但 `confidence=low` + 前端琥珀提示。
+
+### 验证
+
+- 全量 66 测试通过；tsc / build / lint 0 errors
+- E2E：非法编号 400 ✓；L1 `猪肉类→PIG` 级联成功（子级 PIG-COL 改挂，猪血已移入）✓；猪血 `3斤/盒` ref=9 → pricePerJin=3 ✓
+
+---
+
+## 2026-10-30（夜）— 净料模块升级：封装规格 / 成本价-出库价双轨
+
+### 业务定义（用户对齐）
+
+净料清单 = **原料加工后按封装规格封装、算上加工成本后的出库价格体系**。
+
+| 决策 | 结论 |
+|------|------|
+| 双入口（原料清单「转净料」+ 净料清单「新增」） | 已是现状（同组件同 API），字段升级后天然统一 |
+| 封装规格（g） | **必填**；单位固定 g（替换原 "500g"） |
+| 菜品 BOM 成本口径 | **出库价**（含封装加工费） |
+| 小料 | 字段结构不动，仅修正成本公式分母 |
+
+### 价格体系（新）
+
+```
+净料成本价（元/斤）= 原料每斤单价 ÷ (出成率/100)      [既有逻辑，展示改名]
+净料出库价（元/斤）= 成本价 + 封装加工费              [新，纯计算不落库]
+标准规格价格（元/份）= 出库价 × 封装规格(g) ÷ 500     [新，纯计算不落库]
+```
+
+### 改动
+
+- **Schema + 迁移** `20261030084840_net_ingredient_package_spec`：`packageSpec`(g)、`processingFeePerJin`(元/斤) 两列；`unit` 默认 "g" + 存量 '500g'→'g' 迁移
+- **新纯函数** `lib/shared/net-price.ts`：`calcOutPricePerJin` / `calcStandardPackagePrice`（7 个单测）
+- **API**：净料 POST/PUT 封装规格必填校验（`净料必须填写封装规格（g）`）；GET 序列化注入 costPricePerJin/outPricePerJin/standardPackagePrice（`serializeNetIngredient`，`lib/server/net-ingredient-utils.ts`）
+- **BOM 成本公式修正（既有 bug）**：净料原 `unitPrice × amountG ÷ 1000` 与单价单位（元/500g）不匹配、成本算低一半 → 改为 `出库价 × amountG ÷ 500`；小料 `÷1000` → `÷10`（单价语义 元/10g）；调料/酱料不动
+- **前端**：净料表单（封装规格必填 + 加工费 + 出库价/标准规格价格只读实时计算）、右侧面板七列、净料清单页列；小料分支零改动
+- **迁移过程小插曲**：上午给已应用迁移追加数据修正 SQL 导致校验和不匹配，通过更新 `_prisma_migrations.checksum`（SHA-256 十六进制）修复，避免数据库重置保住测试数据
+
+### 验证
+
+- 全量 73 测试通过；tsc / build / lint 0 errors
+- E2E（猪血 pricePerJin=3、出成率 60%、封装 500g、加工费 0.5）：成本价 5 → 出库价 5.5 → 标准规格价格 5.5；缺封装规格 400；改加工费 0.8 → 5.8 实时联动；BOM 用量 250g 成本 2.9（旧公式仅 1.45）✓
+
+---
+
+---
+
+## 2026-10-30 — 设置模块·单位子模块夯实 + 一键/自动部署上线
+
+### 完成内容
+
+**单位子模块（设置模块迭代第 1 站）**：
+- `Unit` 表新增 `gramsPerUnit`（重量类换算克数）+ `isActive`；迁移 `20261029091002`；seed 改 upsert 回填老库
+- 换算唯一来源改为字典：`lib/shared/unit-conversion.ts`（buildJinFactors）+ `lib/server/unit-factors.ts`（getJinFactors），注入 spec-parser / weight-format 纯函数；硬编码降级为兜底
+- 引用保护：`lib/server/unit-references.ts` 扫描 8 张业务表，被引用单位删除/改名一律 400 并返回引用明细
+- GET /api/units 默认只返回启用中；新增 spec-parser 测试套件
+
+**ListToolbar 标准组件**：搜索框 + 筛选 + 重置按钮，推广到全部 15 个列表页；收编 4 处手写"清除"按钮
+
+**SelectValue 中文显示修复**：Radix SelectValue 在下拉未打开时回退渲染原始英文 value，SelectField 组件级修复 + 英文 value 的 Select 补显式 children
+
+**部署链路（本节重点）**：
+- `deploy.sh`（本地一键部署 + 健康检查）+ `.github/workflows/deploy.yml`（push main 自动部署，40min 超时）
+- GitHub Secrets：ALIYUN_HOST / ALIYUN_USER / ALIYUN_SSH_KEY；服务器已关闭密码登录（纯密钥，修复 cloud-init 覆盖）
+- Dockerfile：npm ci 与 Prisma 引擎走 npmmirror（官方 binaries.prisma.sh 在大陆线路间歇被重置）
+
+### 事故与修复（重要经验）
+
+- **事故**：10-29 深夜自动部署时，2C4G 服务器无 swap，现场构建（npm ci + next build）内存枯竭拖垮整机——网站 408、SSH 无响应，旧版本也无法访问。重启后 `restart: always` 自动恢复旧容器，数据无损
+- **修复**：加 4G swap（写入 fstab）；带 swap 重新构建 4 分钟顺利完成，新版本（含当天全部提交）上线
+- **教训**：小内存服务器绝不能无 swap；在生产机上现场构建必须留足内存余量
+
+### 待办（TODO）
+
+- [ ] **部署架构升级**：构建搬离生产服务器——GitHub Actions 构建 Docker 镜像 → 推阿里云容器镜像服务（ACR）→ 服务器仅 pull + 重启（秒级、零构建风险）。当前"服务器现场构建"已有 swap 兜底可安全使用，此项为体验优化
+- [ ] 设置模块迭代下一站：食材分类（L1/L2 编码体系 + 级联删除风险）

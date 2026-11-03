@@ -33,8 +33,12 @@ type NetIngredient = {
   name: string;
   sourceIngredientId: number | null;
   spec: string | null;
+  packageSpec: number | null;
+  processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  outPricePerJin: number | null;
+  standardPackagePrice: number | null;
   unit: string;
   l2Code: string;
   sourceIngredient?: { id: number; name: string } | null;
@@ -151,6 +155,8 @@ export default function NetIngredientsPage() {
       id: row.id,
       name: row.name,
       spec: row.spec,
+      packageSpec: row.packageSpec,
+      processingFeePerJin: row.processingFeePerJin,
       yieldRate: row.yieldRate,
       unitPrice: row.unitPrice,
       sourceIngredientId: row.sourceIngredientId,
@@ -279,7 +285,10 @@ export default function NetIngredientsPage() {
                   ),
                 },
                 { header: "名称", accessorKey: "name" },
-                { header: "规格", cell: (row) => row.spec || "—" },
+                {
+                  header: "封装规格",
+                  cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
+                },
                 {
                   header: "来源原料",
                   cell: (row) =>
@@ -291,10 +300,32 @@ export default function NetIngredientsPage() {
                     row.yieldRate != null ? `${row.yieldRate}%` : "—",
                 },
                 {
-                  header: "净料单价",
+                  header: "成本价（元/斤）",
                   cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
                 },
-                { header: "单位", accessorKey: "unit" },
+                {
+                  header: "封装加工费",
+                  cell: (row) =>
+                    row.processingFeePerJin != null
+                      ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
+                      : "—",
+                },
+                {
+                  header: "出库价（元/斤）",
+                  cell: (row) =>
+                    row.outPricePerJin != null ? (
+                      `¥${Number(row.outPricePerJin).toFixed(2)}`
+                    ) : (
+                      <span title="成本价 + 封装加工费">—</span>
+                    ),
+                },
+                {
+                  header: "标准规格价",
+                  cell: (row) =>
+                    row.standardPackagePrice != null
+                      ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
+                      : "—",
+                },
               ]}
               pagination={
                 totalItems > 0

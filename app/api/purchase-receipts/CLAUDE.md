@@ -81,8 +81,8 @@
 5. 对每条识别结果：
    - 按名称/别名相似度匹配 `Ingredient`
    - 相似度 `≥ 0.9` 视为匹配成功
-   - 根据规格调用 `lib/spec-parser.ts` 的 `calculateStockInfo()` 计算入库单位和数量
-   - 采购单位为"斤"时直接按 1:1 入库
+   - 入库单位与数量调用 `lib/shared/spec-parser.ts` 的 **`resolveStockInfo()`** 做统一宽语法换算（语义：采购规格 = 「1 采购单位 = N 库存单位」的换算描述符；按重直采/重量目标/计数目标分策略，返回 `confidence` 标记），AI 直接抽取的 `stockUnit`/`stockQty` 优先
+   - 返回行带 `stockConfidence`（high/low），前端对 low 行琥珀警示、提示人工核对入库数量
 6. 返回带 `matched`、`matchType`、`ingredientId` 的识别条目，以及供应商、总金额、重复警告
 
 ### 匹配规则

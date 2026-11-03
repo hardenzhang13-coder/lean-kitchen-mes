@@ -23,6 +23,10 @@ Ingredient（原料）
    └── NetIngredient（净料）
           │
           ├── yieldRate：出成率（如 0.65 表示 100g 原料出 65g 净料）
+          ├── packageSpec：封装规格（g），净料必填；单位固定 g
+          ├── processingFeePerJin：封装加工费（元/斤），空 = 0
+          ├── 价格体系：成本价(元/斤) = 原料每斤单价 ÷ 出成率；出库价 = 成本价 + 加工费；
+          │   标准规格价格(元/份) = 出库价 × 封装规格 ÷ 500（纯计算，见 lib/shared/net-price.ts）
           └── Dish（菜品）
                  ├── DishNetDetail（主料/辅料）
                  ├── DishMinorDetail（小料）
@@ -30,13 +34,22 @@ Ingredient（原料）
                  └── DishSauceDetail（酱料）
 ```
 
+### 食材分类字典
+
+| 模型 | 说明 |
+|------|------|
+| `IngredientCategoryL1` | 一级分类，`description` 可填；`isActive` 停用后业务端树形接口不再返回（无启用二级分类的一级分类也一并隐藏） |
+| `IngredientCategoryL2` | 二级分类，编号约定 `L1前缀-后缀`（如 `VEG-LEF`）；`parentCode` 外键关联 L1.code（级联删除）；`isActive` 同 L1 |
+
+- 业务表中的 `l2Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查，被引用时禁止并引导停用。
+- 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类。
+
 ### 菜品域
 
 | 模型 | 说明 |
 |------|------|
-| `DishCategory` | 菜品分类，编码唯一 |
-| `Dish` | 菜品主表，含 `status`（draft / pending / published）、自动计算的 `cost` |
-| `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support |
+| `DishCategory` | 菜品分类，编码唯一；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
+| `Dish` | 菜品主表，含 `status`（draft / pending / published）、自动计算的 `cost` || `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient` |
 | `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，关联 `Ingredient` |
 | `DishSauceDetail` | 酱料明细，关联 `SauceIngredient` |

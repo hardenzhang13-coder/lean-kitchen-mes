@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +40,8 @@ type L1 = {
   id: number;
   code: string;
   name: string;
+  description: string | null;
+  isActive: boolean;
   children: L2[];
 };
 
@@ -42,12 +51,35 @@ type L2 = {
   name: string;
   parentCode: string;
   description: string | null;
+  isActive: boolean;
 };
+
+/** 后端引用检查返回的引用明细 */
+type CategoryReferences = Record<string, number>;
+
+const statusFilters = [
+  { value: "all", label: "全部" },
+  { value: "active", label: "启用中" },
+  { value: "inactive", label: "已停用" },
+];
+
+function StatusBadge({ isActive }: { isActive: boolean }) {
+  return isActive ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
+      <CheckCircle2 className="h-3 w-3" /> 启用中
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+      <Ban className="h-3 w-3" /> 已停用
+    </span>
+  );
+}
 
 export default function ClassesPage() {
   const [data, setData] = useState<L1[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -56,12 +88,14 @@ export default function ClassesPage() {
   const [form, setForm] = useState({ code: "", name: "", parentCode: "", description: "" });
   const [submitting, setSubmitting] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: "l1" | "l2" } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: "l1" | "l2"; name: string } | null>(null);
+  const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/ingredient-categories");
+      // 设置页需要管理停用分类，拉取全量；业务端默认只返回启用中的
+      const res = await fetch("/api/ingredient-categories?includeInactive=1");
       const json = await res.json();
       setData(json.data?.items || json.data || []);
     } catch {
@@ -77,21 +111,31 @@ export default function ClassesPage() {
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return data;
     return data
       .map((l1) => {
+        const l1StatusOk =
+          statusFilter === "all" ||
+          (statusFilter === "active" ? l1.isActive : !l1.isActive);
+        const matchedChildren = l1.children.filter((c) => {
+          const cStatusOk =
+            statusFilter === "all" ||
+            (statusFilter === "active" ? c.isActive : !c.isActive);
+          if (!cStatusOk) return false;
+          if (!s) return true;
+          return c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s);
+        });
         const l1Match =
           l1.name.toLowerCase().includes(s) || l1.code.toLowerCase().includes(s);
-        const matchedChildren = l1.children.filter(
-          (c) =>
-            c.name.toLowerCase().includes(s) || c.code.toLowerCase().includes(s)
-        );
-        if (l1Match) return l1;
-        if (matchedChildren.length) return { ...l1, children: matchedChildren };
-        return null;
+        if (!l1StatusOk && matchedChildren.length === 0) return null;
+        if (s) {
+          if (l1Match && l1StatusOk) return l1;
+          if (matchedChildren.length) return { ...l1, children: matchedChildren };
+          return null;
+        }
+        return { ...l1, children: matchedChildren };
       })
       .filter(Boolean) as L1[];
-  }, [data, search]);
+  }, [data, search, statusFilter]);
 
   const {
     currentPage,
@@ -132,7 +176,7 @@ export default function ClassesPage() {
   const openEditL1 = (row: L1) => {
     setDialogType("l1");
     setEditing(row);
-    setForm({ code: row.code, name: row.name, parentCode: "", description: "" });
+    setForm({ code: row.code, name: row.name, parentCode: "", description: row.description || "" });
     setDialogOpen(true);
   };
 
@@ -159,43 +203,30 @@ export default function ClassesPage() {
     }
     setSubmitting(true);
     try {
-      if (editing) {
-        const res = await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: dialogType,
-            code: form.code,
-            name: form.name,
-            parentCode: dialogType === "l2" ? form.parentCode : undefined,
-            description: form.description || null,
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          toast.error(err.error || "更新失败");
-          return;
-        }
-        toast.success("更新成功");
-      } else {
-        const res = await fetch("/api/ingredient-categories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            type: dialogType,
-            code: form.code,
-            name: form.name,
-            parentCode: dialogType === "l2" ? form.parentCode : undefined,
-            description: form.description || null,
-          }),
-        });
-        if (!res.ok) {
-          const err = await res.json();
-          toast.error(err.error || "创建失败");
-          return;
-        }
-        toast.success("创建成功");
+      const payload = {
+        type: dialogType,
+        code: form.code,
+        name: form.name,
+        parentCode: dialogType === "l2" ? form.parentCode : undefined,
+        description: form.description || null,
+      };
+      const res = editing
+        ? await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/ingredient-categories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
       }
+      toast.success(editing ? "更新成功" : "创建成功");
       setDialogOpen(false);
       fetchData();
     } catch {
@@ -205,29 +236,58 @@ export default function ClassesPage() {
     }
   };
 
+  const toggleActive = async (row: L1 | L2, type: "l1" | "l2") => {
+    try {
+      const payload =
+        type === "l2"
+          ? { type, code: row.code, name: row.name, parentCode: (row as L2).parentCode, isActive: !row.isActive }
+          : { type, code: row.code, name: row.name, isActive: !row.isActive };
+      const res = await fetch(`/api/ingredient-categories/${row.id}?type=${type}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
+      }
+      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      fetchData();
+    } catch {
+      toast.error("操作失败");
+    }
+  };
+
+  const openDelete = (row: L1 | L2, type: "l1" | "l2") => {
+    setDeleteTarget({ id: row.id, type, name: row.name });
+    setDeleteError(null);
+  };
+
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
       const res = await fetch(`/api/ingredient-categories/${deleteTarget.id}?type=${deleteTarget.type}`, {
         method: "DELETE",
       });
+      const json = await res.json();
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.error || "删除失败");
+        // 被引用时展示后端返回的引用明细，引导用户改停用
+        setDeleteError({ message: json.error || "删除失败", references: json.references });
+        return;
       }
       toast.success("删除成功");
       setDeleteTarget(null);
       fetchData();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "删除失败";
-      toast.error(message);
+    } catch {
+      setDeleteError({ message: "删除失败，请稍后重试" });
     }
   };
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader showBack title="食材分类" description="管理食材一级和二级分类体系" />
+        <PageHeader showBack title="食材分类" description="管理食材一级和二级分类体系；被食材引用的分类不可删除/改编号，可停用使新单据不再可选" />
         <Button onClick={openCreateL1}>
           <Plus className="mr-2 h-4 w-4" />
           新增一级分类
@@ -245,13 +305,36 @@ export default function ClassesPage() {
             searchPlaceholder="搜索编号或名称..."
             onReset={() => {
               setSearch("");
+              setStatusFilter("all");
               setCurrentPage(1);
             }}
-          />
+            hasFilters={statusFilter !== "all"}
+          >
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                if (v) setStatusFilter(v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[130px] h-9">
+                <SelectValue>
+                  {statusFilters.find((s) => s.value === statusFilter)?.label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {statusFilters.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ListToolbar>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <SkeletonTable cols={5} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
@@ -262,13 +345,14 @@ export default function ClassesPage() {
                       <TableHead>编号</TableHead>
                       <TableHead>名称</TableHead>
                       <TableHead>说明</TableHead>
-                      <TableHead className="w-[180px] text-right">操作</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead className="w-[200px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pageL1Items.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           暂无数据
                         </TableCell>
                       </TableRow>
@@ -276,81 +360,21 @@ export default function ClassesPage() {
                       pageL1Items.map((l1, l1Idx) => {
                         const isExpanded = expanded.has(l1.id);
                         return (
-                          <>
-                            <TableRow
-                              key={`l1-${l1.id}`}
-                              className="bg-muted/30 transition-colors hover:bg-muted/50"
-                            >
-                              <TableCell className="text-muted-foreground">
-                                {(currentPage - 1) * DEFAULT_PAGE_SIZE + l1Idx + 1}
-                              </TableCell>
-                              <TableCell className="font-medium">
-                                <button
-                                  onClick={() => toggleExpand(l1.id)}
-                                  className="inline-flex items-center gap-1 mr-1"
-                                >
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4" />
-                                  )}
-                                </button>
-                                {l1.code}
-                              </TableCell>
-                              <TableCell className="font-semibold">{l1.name}</TableCell>
-                              <TableCell className="text-muted-foreground">—</TableCell>
-                              <TableCell className="text-right">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  title="添加二级分类"
-                                  onClick={() => openCreateL2(l1.code)}
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </Button>
-                                <Button variant="ghost" size="icon" aria-label="编辑一级分类" onClick={() => openEditL1(l1)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  aria-label="删除一级分类"
-                                  onClick={() => setDeleteTarget({ id: l1.id, type: "l1" })}
-                                >
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </TableCell>
-                            </TableRow>
-                            {isExpanded &&
-                              l1.children.map((l2, l2Idx) => (
-                                <TableRow
-                                  key={`l2-${l2.id}`}
-                                  className="transition-colors hover:bg-muted/30"
-                                >
-                                  <TableCell className="pl-10 text-muted-foreground text-sm">
-                                    {(currentPage - 1) * DEFAULT_PAGE_SIZE + l1Idx + 1}.{l2Idx + 1}
-                                  </TableCell>
-                                  <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
-                                  <TableCell className="pl-10">{l2.name}</TableCell>
-                                  <TableCell className="pl-10 text-muted-foreground">
-                                    {l2.description || "—"}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    <Button variant="ghost" size="icon" aria-label="编辑二级分类" onClick={() => openEditL2(l2)}>
-                                      <Pencil className="h-4 w-4" />
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      aria-label="删除二级分类"
-                                      onClick={() => setDeleteTarget({ id: l2.id, type: "l2" })}
-                                    >
-                                      <Trash2 className="h-4 w-4 text-destructive" />
-                                    </Button>
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                          </>
+                          <L1Rows
+                            key={l1.id}
+                            l1={l1}
+                            l1Idx={l1Idx}
+                            baseIndex={(currentPage - 1) * DEFAULT_PAGE_SIZE}
+                            isExpanded={isExpanded}
+                            onToggleExpand={() => toggleExpand(l1.id)}
+                            onCreateL2={() => openCreateL2(l1.code)}
+                            onEditL1={() => openEditL1(l1)}
+                            onDeleteL1={() => openDelete(l1, "l1")}
+                            onEditL2={openEditL2}
+                            onDeleteL2={(l2) => openDelete(l2, "l2")}
+                            onToggleL1={() => toggleActive(l1, "l1")}
+                            onToggleL2={(l2) => toggleActive(l2, "l2")}
+                          />
                         );
                       })
                     )}
@@ -403,6 +427,13 @@ export default function ClassesPage() {
                 placeholder={dialogType === "l1" ? "如 VEG" : "如 VEG-LEF"}
                 className="h-11 text-base px-4"
               />
+              {editing && (
+                <p className="text-xs text-muted-foreground">
+                  {dialogType === "l1"
+                    ? "修改编号将同步更新其下二级分类的归属"
+                    : "被食材引用后不可修改编号；如不再使用请停用"}
+                </p>
+              )}
             </div>
             <div className="grid gap-2.5">
               <Label htmlFor="name" className="text-base">名称</Label>
@@ -439,25 +470,185 @@ export default function ClassesPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[440px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
+            <DialogTitle className="text-lg">
+              {deleteError ? "无法删除" : "确认删除"}
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除这条{deleteTarget?.type === "l1" ? "一级" : "二级"}分类吗？
-            {deleteTarget?.type === "l1" && " 将同时删除其下的所有二级分类。"}
-          </p>
+          {deleteError ? (
+            <div className="grid gap-3">
+              <p className="text-muted-foreground text-base">{deleteError.message}</p>
+              {deleteError.references && Object.keys(deleteError.references).length > 0 && (
+                <ul className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground grid gap-1">
+                  {Object.entries(deleteError.references).map(([entity, count]) => (
+                    <li key={entity}>
+                      {entity}：{count} 条
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-sm text-muted-foreground">
+                建议改用「停用」：停用后新单据不再可选，历史数据不受影响。
+              </p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-base">
+              确定要删除这条{deleteTarget?.type === "l1" ? "一级" : "二级"}分类吗？
+              {deleteTarget?.type === "l1" && " 将同时删除其下的所有二级分类。"}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
-              取消
+              {deleteError ? "知道了" : "取消"}
             </Button>
-            <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
-              删除
-            </Button>
+            {!deleteError && (
+              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+                删除
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+/** 一级分类行 + 展开后的二级分类行 */
+function L1Rows({
+  l1,
+  l1Idx,
+  baseIndex,
+  isExpanded,
+  onToggleExpand,
+  onCreateL2,
+  onEditL1,
+  onDeleteL1,
+  onEditL2,
+  onDeleteL2,
+  onToggleL1,
+  onToggleL2,
+}: {
+  l1: L1;
+  l1Idx: number;
+  baseIndex: number;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  onCreateL2: () => void;
+  onEditL1: () => void;
+  onDeleteL1: () => void;
+  onEditL2: (l2: L2) => void;
+  onDeleteL2: (l2: L2) => void;
+  onToggleL1: () => void;
+  onToggleL2: (l2: L2) => void;
+}) {
+  return (
+    <>
+      <TableRow
+        className={`bg-muted/30 transition-colors hover:bg-muted/50 ${!l1.isActive ? "opacity-50" : ""}`}
+      >
+        <TableCell className="text-muted-foreground">
+          {baseIndex + l1Idx + 1}
+        </TableCell>
+        <TableCell className="font-medium">
+          <button
+            onClick={onToggleExpand}
+            className="inline-flex items-center gap-1 mr-1"
+          >
+            {isExpanded ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </button>
+          {l1.code}
+        </TableCell>
+        <TableCell className="font-semibold">{l1.name}</TableCell>
+        <TableCell className="text-muted-foreground">
+          {l1.description || "—"}
+        </TableCell>
+        <TableCell>
+          <StatusBadge isActive={l1.isActive} />
+        </TableCell>
+        <TableCell className="text-right">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={l1.isActive ? "停用一级分类" : "启用一级分类"}
+            onClick={onToggleL1}
+          >
+            {l1.isActive ? (
+              <Ban className="h-4 w-4 text-amber-500" />
+            ) : (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            title="添加二级分类"
+            onClick={onCreateL2}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="编辑一级分类" onClick={onEditL1}>
+            <Pencil className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="删除一级分类"
+            onClick={onDeleteL1}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </TableCell>
+      </TableRow>
+      {isExpanded &&
+        l1.children.map((l2, l2Idx) => (
+          <TableRow
+            key={l2.id}
+            className={`transition-colors hover:bg-muted/30 ${!l2.isActive || !l1.isActive ? "opacity-50" : ""}`}
+          >
+            <TableCell className="pl-10 text-muted-foreground text-sm">
+              {baseIndex + l1Idx + 1}.{l2Idx + 1}
+            </TableCell>
+            <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
+            <TableCell className="pl-10">{l2.name}</TableCell>
+            <TableCell className="pl-10 text-muted-foreground">
+              {l2.description || "—"}
+            </TableCell>
+            <TableCell className="pl-10">
+              <StatusBadge isActive={l2.isActive} />
+            </TableCell>
+            <TableCell className="text-right">
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={l2.isActive ? "停用二级分类" : "启用二级分类"}
+                onClick={() => onToggleL2(l2)}
+              >
+                {l2.isActive ? (
+                  <Ban className="h-4 w-4 text-amber-500" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                )}
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="编辑二级分类" onClick={() => onEditL2(l2)}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label="删除二级分类"
+                onClick={() => onDeleteL2(l2)}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </TableCell>
+          </TableRow>
+        ))}
+    </>
   );
 }

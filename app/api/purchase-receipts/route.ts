@@ -192,9 +192,9 @@ export async function POST(req: NextRequest) {
         if (item.ingredientId) {
           const ing = await tx.ingredient.findUnique({
             where: { id: item.ingredientId },
-            select: { purchaseSpec: true },
+            select: { purchaseSpec: true, purchaseUnit: true },
           });
-          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec, jinFactors);
+          const jinPrice = calcPricePerJin(item.unitPrice, ing?.purchaseSpec, jinFactors, ing?.purchaseUnit);
           await tx.ingredient.update({
             where: { id: item.ingredientId },
             data: {

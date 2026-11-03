@@ -11,6 +11,10 @@ import {
   CategoryL1 as SelectorCategoryL1,
   IngredientForSelector,
 } from "@/app/components/ingredients/ingredient-selector-dialog";
+import {
+  calcOutPricePerJin,
+  calcStandardPackagePrice,
+} from "@/lib/shared/net-price";
 
 export type CategoryL1 = SelectorCategoryL1;
 
@@ -21,8 +25,14 @@ export interface NetIngredientFormData {
   l1Code: string;
   l2Code: string;
   sourceIngredientId: string;
+  /** 小料：自由文本规格（如「切末」）；净料不使用 */
   spec: string;
+  /** 净料封装规格（g），净料必填 */
+  packageSpec: string;
+  /** 封装加工费（元/斤），留空 = 0；净料使用 */
+  processingFeePerJin: string;
   yieldRate: string;
+  /** 净料成本价（元/斤，原料每斤单价 ÷ 出成率）；小料为元/10g */
   unitPrice: string;
 }
 
@@ -81,6 +91,28 @@ export function NetIngredientFormFields({
 
   const sourceLocked =
     readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
+
+  // 价格体系实时计算：出库价 = 成本价 + 封装加工费；标准规格价格 = 出库价 × 封装规格 ÷ 500
+  const outPricePerJin = useMemo(
+    () =>
+      isMinor
+        ? null
+        : calcOutPricePerJin(
+            form.unitPrice !== "" ? Number(form.unitPrice) : null,
+            form.processingFeePerJin !== "" ? Number(form.processingFeePerJin) : null
+          ),
+    [isMinor, form.unitPrice, form.processingFeePerJin]
+  );
+  const standardPackagePrice = useMemo(
+    () =>
+      isMinor || outPricePerJin == null
+        ? null
+        : calcStandardPackagePrice(
+            outPricePerJin,
+            form.packageSpec !== "" ? Number(form.packageSpec) : null
+          ),
+    [isMinor, outPricePerJin, form.packageSpec]
+  );
 
   const handleSelectorConfirm = (value: {
     l1Code: string;
@@ -188,19 +220,39 @@ export function NetIngredientFormFields({
           <Input
             value={form.name}
             onChange={(e) => onChange("name", e.target.value)}
-            placeholder={isMinor ? "如 蒜末" : "如 去皮五花肉片"}
+            placeholder={isMinor ? "如 蒜末" : "如 平包菜•称重•500g"}
             className="h-11 text-base px-4"
           />
         </FormField>
 
-        <FormField label="规格" error={errors?.spec}>
-          <Input
-            value={form.spec}
-            onChange={(e) => onChange("spec", e.target.value)}
-            placeholder={isMinor ? "如 切末" : "如 0.2cm厚片"}
-            className="h-11 text-base px-4"
-          />
-        </FormField>
+        {isMinor ? (
+          <FormField label="规格" optionalHint={false} error={errors?.spec}>
+            <Input
+              value={form.spec}
+              onChange={(e) => onChange("spec", e.target.value)}
+              placeholder="如 切末"
+              className="h-11 text-base px-4"
+            />
+          </FormField>
+        ) : (
+          <FormField
+            label="封装规格（g）"
+            required
+            optionalHint={false}
+            error={errors?.packageSpec}
+            hint="标准封装单位的克数，如 500g/袋填 500"
+          >
+            <Input
+              type="number"
+              min={1}
+              step="1"
+              value={form.packageSpec}
+              onChange={(e) => onChange("packageSpec", e.target.value)}
+              placeholder="如 500"
+              className="h-11 text-base px-4"
+            />
+          </FormField>
+        )}
 
         {!isMinor && (
           <FormField label="出成率 (%)" required error={errors?.yieldRate}>
@@ -217,7 +269,17 @@ export function NetIngredientFormFields({
           </FormField>
         )}
 
-        <FormField label={isMinor ? "单价" : "净料单价"} required error={errors?.unitPrice}>
+        <FormField
+          label={isMinor ? "单价（元/10g）" : "净料成本价（元/斤）"}
+          required
+          optionalHint={false}
+          error={errors?.unitPrice}
+          hint={
+            isMinor
+              ? undefined
+              : "= 原料每斤单价 ÷（出成率% ÷ 100）。出成率 60 即 ÷0.6：每出 1 斤净料消耗更多原料，成本高于原料单价；手动修改后不再自动覆盖"
+          }
+        >
           <Input
             type="number"
             step="0.01"
@@ -228,11 +290,47 @@ export function NetIngredientFormFields({
           />
         </FormField>
 
-        <FormField label="单位">
-          <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
-            {isMinor ? "10g" : "500g"}
-          </div>
-        </FormField>
+        {!isMinor && (
+          <FormField
+            label="封装加工费（元/斤）"
+            optionalHint={false}
+            error={errors?.processingFeePerJin}
+            hint="封装环节每斤的加工成本，计入出库价；留空 = 0"
+          >
+            <Input
+              type="number"
+              min={0}
+              step="0.01"
+              value={form.processingFeePerJin}
+              onChange={(e) => onChange("processingFeePerJin", e.target.value)}
+              placeholder="留空 = 0"
+              className="h-11 text-base px-4"
+            />
+          </FormField>
+        )}
+
+        {!isMinor && (
+          <>
+            <FormField
+              label="净料出库价（元/斤）"
+              optionalHint={false}
+              hint="= 成本价 + 封装加工费"
+            >
+              <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
+                {outPricePerJin != null ? `¥${outPricePerJin.toFixed(2)}` : "—"}
+              </div>
+            </FormField>
+            <FormField
+              label="标准规格价（元/份）"
+              optionalHint={false}
+              hint="= 出库价 × 封装规格 ÷ 500，即每封装单位的出库价"
+            >
+              <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
+                {standardPackagePrice != null ? `¥${standardPackagePrice.toFixed(2)}` : "—"}
+              </div>
+            </FormField>
+          </>
+        )}
       </FormSection>
 
       {!isMinor && (

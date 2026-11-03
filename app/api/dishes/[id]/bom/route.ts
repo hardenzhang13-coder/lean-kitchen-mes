@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
       const [netIngs, minors, seasonings, sauces] = await Promise.all([
-        tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true } }),
+        tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true } }),
         tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true } }),
         tx.ingredient.findMany({
           where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
@@ -47,19 +47,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         tx.sauceIngredient.findMany({ where: { id: { in: sauceIds } }, select: { id: true, unitPrice: true } }),
       ]);
 
-      const netPriceMap = new Map(netIngs.map((i) => [i.id, Number(i.unitPrice)]));
+      // 净料按出库价（成本价 + 封装加工费，元/斤）计成本；小料单价语义为元/10g
+      const netPriceMap = new Map(
+        netIngs.map((i) => [i.id, Number(i.unitPrice) + Number(i.processingFeePerJin ?? 0)])
+      );
       const minorPriceMap = new Map(minors.map((i) => [i.id, Number(i.unitPrice)]));
       const seasoningPriceMap = new Map(seasonings.map((i) => [i.id, Number(i.latestRefPrice ?? 0)]));
       const saucePriceMap = new Map(sauces.map((i) => [i.id, Number(i.unitPrice)]));
 
-      // 计算 cost = 单价 × amountG / 1000
+      // 净料成本 = 出库价(元/斤) × 用量g ÷ 500；小料 = 单价(元/10g) × 用量g ÷ 10
       const calcNetCost = (netIngId: number, amountG: number) => {
         const price = netPriceMap.get(netIngId);
-        return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
+        return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
       const calcMinorCost = (netIngId: number, amountG: number) => {
         const price = minorPriceMap.get(netIngId);
-        return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
+        return price != null ? Number((price * amountG / 10).toFixed(4)) : null;
       };
       const calcSeasoningCost = (sourceId: number, amountG: number) => {
         const price = seasoningPriceMap.get(sourceId);

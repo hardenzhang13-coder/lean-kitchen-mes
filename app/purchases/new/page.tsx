@@ -48,11 +48,8 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { cn, computeImageHash } from "@/lib/shared/utils";
-import {
-  calculateStockInfo,
-  getDefaultSpec,
-  isHighConfidenceSpec,
-} from "@/lib/shared/spec-parser";
+import { getDefaultSpec, resolveStockInfo } from "@/lib/shared/spec-parser";
+import { buildGramFactors } from "@/lib/shared/unit-conversion";
 
 interface FormItem {
   id: string;
@@ -67,6 +64,8 @@ interface FormItem {
   amount: number;
   stockUnit: string;
   stockInQty: number;
+  /** 入库数量换算置信度：low 时行内警示，提示人工核对 */
+  stockConfidence: "high" | "low";
   l2Code: string | null;
   l2Name: string | null;
   category: string;
@@ -111,6 +110,8 @@ interface RecognizedItem {
   unit?: string;
   stockUnit?: string;
   stockQty?: number;
+  stockInQty?: number;
+  stockConfidence?: "high" | "low";
   unitPrice?: number;
   amount?: number;
   categoryName?: string;
@@ -223,7 +224,8 @@ export default function NewPurchasePage() {
     () => units.map((u) => ({ value: u.name, label: u.name })),
     [units]
   );
-  const unitNames = useMemo(() => units.map((u) => u.name), [units]);
+  // 克级换算表：统一入库换算（resolveStockInfo）的系数来源
+  const gramFactors = useMemo(() => buildGramFactors(units), [units]);
 
   useEffect(() => {
     if (!editId) return;
@@ -264,6 +266,8 @@ export default function NewPurchasePage() {
             amount: Number(item.amount),
             stockUnit: item.stockUnit,
             stockInQty: item.stockInQty,
+            // 已入库的历史单据默认 high；编辑规格/数量时 patchItem 会重新计算
+            stockConfidence: "high" as const,
             l2Code: item.l2Code,
             l2Name: item.l2Name || "",
             category: getCategoryNames(categories, item.l2Code).l1Name,
@@ -367,12 +371,21 @@ export default function NewPurchasePage() {
           ? getDefaultSpec(stockUnit)
           : rawSpec || getDefaultSpec(stockUnit);
 
-      const isJin = purchaseUnit === "斤";
-      const stockInfo = isJin
-        ? { stockUnit: "斤", stockInQty: item.qty ?? 1 }
-        : isHighConfidenceSpec(spec, unitNames)
-          ? calculateStockInfo({ spec, qty: item.qty ?? 1, unitNames })
-          : { stockInQty: 1 };
+      // AI 直接抽取的入库信息优先；否则按规格做统一宽语法换算
+      const stockInfo =
+        item.stockUnit && item.stockInQty != null
+          ? {
+              stockUnit: item.stockUnit,
+              stockInQty: item.stockInQty,
+              confidence: "high" as const,
+            }
+          : resolveStockInfo({
+              spec,
+              qty: item.qty ?? 1,
+              purchaseUnit,
+              targetStockUnit: stockUnit,
+              gramFactors,
+            });
 
       let l2Code = item.l2Code || null;
       let l2Name = item.l2Name || item.categoryName || "";
@@ -410,6 +423,7 @@ export default function NewPurchasePage() {
         amount: item.amount ?? (item.qty ?? 1) * (item.unitPrice ?? 0),
         stockUnit: stockInfo.stockUnit || stockUnit,
         stockInQty: stockInfo.stockInQty ?? 1,
+        stockConfidence: stockInfo.confidence,
         l2Code,
         l2Name,
         category,
@@ -472,13 +486,17 @@ export default function NewPurchasePage() {
 
   const recalcStock = (it: FormItem): Partial<FormItem> => {
     const spec = ensureSpec(it);
-    if (!isHighConfidenceSpec(spec, unitNames)) {
-      return { stockUnit: it.stockUnit, stockInQty: 1 };
-    }
-    const info = calculateStockInfo({ spec, qty: it.qty, unitNames });
+    const info = resolveStockInfo({
+      spec,
+      qty: it.qty,
+      purchaseUnit: it.purchaseUnit,
+      targetStockUnit: it.stockUnit,
+      gramFactors,
+    });
     return {
       stockUnit: info.stockUnit || it.stockUnit,
       stockInQty: info.stockInQty ?? 1,
+      stockConfidence: info.confidence,
     };
   };
 
@@ -501,11 +519,12 @@ export default function NewPurchasePage() {
       Object.assign(updated, stock);
     }
     if (field === "stockUnit") {
-      const info = calculateStockInfo({
+      const info = resolveStockInfo({
         spec: ensureSpec(updated),
         qty: updated.qty,
+        purchaseUnit: updated.purchaseUnit,
         targetStockUnit: updated.stockUnit,
-        unitNames,
+        gramFactors,
       });
       if (info.stockInQty != null) {
         updated.stockInQty = info.stockInQty;
@@ -513,6 +532,11 @@ export default function NewPurchasePage() {
       if (info.stockUnit) {
         updated.stockUnit = info.stockUnit;
       }
+      updated.stockConfidence = info.confidence;
+    }
+    if (field === "stockInQty") {
+      // 用户手动确认入库数量后视为已核对
+      updated.stockConfidence = "high";
     }
     if (Number(updated.qty) > 0) {
       updated.unitPrice = round2(
@@ -554,22 +578,13 @@ export default function NewPurchasePage() {
         const stockUnit = data.stockUnit || it.stockUnit;
         const spec = data.purchaseSpec || it.spec;
 
-        let stockInfo: { stockUnit?: string; stockInQty?: number };
-        if (purchaseUnit === "斤") {
-          stockInfo = { stockUnit: "斤", stockInQty: it.qty };
-        } else {
-          const specToUse = spec || getDefaultSpec(stockUnit);
-          if (isHighConfidenceSpec(specToUse, unitNames)) {
-            stockInfo = calculateStockInfo({
-              spec: specToUse,
-              qty: it.qty,
-              targetStockUnit: stockUnit,
-              unitNames,
-            });
-          } else {
-            stockInfo = { stockUnit, stockInQty: 1 };
-          }
-        }
+        const stockInfo = resolveStockInfo({
+          spec: spec || getDefaultSpec(stockUnit),
+          qty: it.qty,
+          purchaseUnit,
+          targetStockUnit: stockUnit,
+          gramFactors,
+        });
 
         return {
           ...it,
@@ -583,6 +598,7 @@ export default function NewPurchasePage() {
           priceUnit: purchaseUnit,
           stockUnit: stockInfo.stockUnit || stockUnit,
           stockInQty: stockInfo.stockInQty ?? 1,
+          stockConfidence: stockInfo.confidence,
           category: l1Name,
           matched: true,
           storage: it.storage || "常温",
@@ -595,30 +611,24 @@ export default function NewPurchasePage() {
   const calculateStockForItem = (
     it: FormItem,
     specOverride?: string
-  ): { stockUnit: string; stockInQty: number } => {
+  ): { stockUnit: string; stockInQty: number; stockConfidence: "high" | "low" } => {
     const purchaseUnit = it.purchaseUnit;
     const stockUnit = it.stockUnit;
     const spec = specOverride || it.spec;
 
-    if (purchaseUnit === "斤") {
-      return { stockUnit: "斤", stockInQty: it.qty };
-    }
-
     const specToUse = spec || getDefaultSpec(stockUnit);
-    if (isHighConfidenceSpec(specToUse, unitNames)) {
-      const info = calculateStockInfo({
-        spec: specToUse,
-        qty: it.qty,
-        targetStockUnit: stockUnit,
-        unitNames,
-      });
-      return {
-        stockUnit: info.stockUnit || stockUnit,
-        stockInQty: info.stockInQty ?? 1,
-      };
-    }
-
-    return { stockUnit, stockInQty: 1 };
+    const info = resolveStockInfo({
+      spec: specToUse,
+      qty: it.qty,
+      purchaseUnit,
+      targetStockUnit: stockUnit,
+      gramFactors,
+    });
+    return {
+      stockUnit: info.stockUnit || stockUnit,
+      stockInQty: info.stockInQty ?? 1,
+      stockConfidence: info.confidence,
+    };
   };
 
   const openEditDialog = async (item: FormItem) => {
@@ -648,6 +658,7 @@ export default function NewPurchasePage() {
         const stock = calculateStockForItem(merged);
         merged.stockUnit = stock.stockUnit;
         merged.stockInQty = stock.stockInQty;
+        merged.stockConfidence = stock.stockConfidence;
         setEditForm(merged);
         setEditDialogOpen(true);
         return;
@@ -741,6 +752,17 @@ export default function NewPurchasePage() {
         toast.error(`第 ${i + 1} 行：${error}`);
         return;
       }
+    }
+
+    // 入库数量低置信的行汇总提示（不阻止提交，入库数量列可手动核对修改）
+    const lowConfidenceCount = items.filter(
+      (it) => it.stockConfidence === "low"
+    ).length;
+    if (lowConfidenceCount > 0) {
+      toast.warning(
+        `有 ${lowConfidenceCount} 行入库数量为估算值（规格无法自动换算），请核对后再确认`,
+        { duration: 6000 }
+      );
     }
 
     const payload = {
@@ -1038,7 +1060,17 @@ export default function NewPurchasePage() {
                     return (
                       <TableRow
                         key={item.id}
-                        className={cn(!item.matched && "bg-[var(--danger-muted)]/50")}
+                        className={cn(
+                          !item.matched && "bg-[var(--danger-muted)]/50",
+                          item.stockConfidence === "low" &&
+                            item.matched &&
+                            "bg-amber-50/60 hover:bg-amber-50"
+                        )}
+                        title={
+                          item.stockConfidence === "low"
+                            ? "规格无法自动换算，入库数量为估算值，请核对"
+                            : undefined
+                        }
                       >
                         <TableCell className="py-2">
                           <div className="flex items-center gap-1">
@@ -1163,7 +1195,11 @@ export default function NewPurchasePage() {
                             onChange={(e) =>
                               updateItem(item.id, "stockInQty", e.target.value)
                             }
-                            className="h-9 w-full min-w-0"
+                            className={cn(
+                              "h-9 w-full min-w-0",
+                              item.stockConfidence === "low" &&
+                                "border-amber-400 focus-visible:ring-amber-300"
+                            )}
                           />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm py-2 min-w-[110px]">
@@ -1296,8 +1332,17 @@ export default function NewPurchasePage() {
                       )
                     }
                     placeholder="默认与数量相同"
-                    className="h-11 text-base px-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    className={cn(
+                      "h-11 text-base px-4 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
+                      editForm.stockConfidence === "low" &&
+                        "border-amber-400 focus-visible:ring-amber-300"
+                    )}
                   />
+                  {editForm.stockConfidence === "low" && (
+                    <p className="text-sm text-amber-600">
+                      规格无法自动换算，入库数量为估算值，请核对
+                    </p>
+                  )}
                 </FormField>
               </FormSection>
             </div>

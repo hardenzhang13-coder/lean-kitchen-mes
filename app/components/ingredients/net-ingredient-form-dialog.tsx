@@ -34,8 +34,12 @@ export type NetIngredientItem = {
   code: string;
   name: string;
   spec: string | null;
+  packageSpec: number | null;
+  processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  outPricePerJin: number | null;
+  standardPackagePrice: number | null;
   unit: string;
   sourceIngredientId: number | null;
   l2Code: string;
@@ -58,6 +62,8 @@ const emptyForm: NetIngredientFormData = {
   l2Code: "",
   sourceIngredientId: "",
   spec: "",
+  packageSpec: "500",
+  processingFeePerJin: "",
   yieldRate: "",
   unitPrice: "",
 };
@@ -117,6 +123,9 @@ export function NetIngredientFormDialog({
           ? String(initialData.sourceIngredientId)
           : "",
         spec: initialData.spec || "",
+        packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
+        processingFeePerJin:
+          initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
         yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
         unitPrice: String(initialData.unitPrice),
       });
@@ -167,7 +176,7 @@ export function NetIngredientFormDialog({
     const pricePerJin = raw?.pricePerJin != null ? Number(raw.pricePerJin) : null;
     if (pricePerJin == null || pricePerJin <= 0) return;
 
-    // 净料单价 = 每斤单价 ÷ (出成率 / 100)，单位固定 500g
+    // 净料成本价（元/斤）= 原料每斤单价 ÷ (出成率 / 100)
     const calculated = Number((pricePerJin / (yieldRate / 100)).toFixed(2));
     setForm((prev) =>
       prev.unitPrice !== String(calculated)
@@ -237,6 +246,14 @@ export function NetIngredientFormDialog({
       if (!form.yieldRate || yieldRate <= 0 || yieldRate > 100) {
         next.yieldRate = "出成率必须在 1-100 之间";
       }
+      // 封装规格（g）必填
+      const pkg = Number(form.packageSpec);
+      if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
+        next.packageSpec = "请填写有效的封装规格（g）";
+      }
+      if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
+        next.processingFeePerJin = "封装加工费不能为负数";
+      }
     }
 
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
@@ -277,6 +294,10 @@ export function NetIngredientFormDialog({
       if (!isMinor) {
         payload.sourceIngredientId = Number(form.sourceIngredientId);
         payload.yieldRate = Number(form.yieldRate);
+        payload.packageSpec = Number(form.packageSpec);
+        payload.processingFeePerJin = form.processingFeePerJin
+          ? Number(form.processingFeePerJin)
+          : null;
       } else {
         payload.unit = "10g";
       }
@@ -337,6 +358,9 @@ export function NetIngredientFormDialog({
       l2Code: row.l2Code || "",
       sourceIngredientId: row.sourceIngredientId ? String(row.sourceIngredientId) : "",
       spec: row.spec || "",
+      packageSpec: row.packageSpec != null ? String(row.packageSpec) : "",
+      processingFeePerJin:
+        row.processingFeePerJin != null ? String(row.processingFeePerJin) : "",
       yieldRate: row.yieldRate != null ? String(row.yieldRate) : "",
       unitPrice: String(row.unitPrice),
     });
@@ -412,10 +436,12 @@ export function NetIngredientFormDialog({
                       <TableRow>
                         <TableHead className="whitespace-nowrap">编号</TableHead>
                         <TableHead className="whitespace-nowrap">名称</TableHead>
-                        <TableHead className="whitespace-nowrap">规格</TableHead>
+                        <TableHead className="whitespace-nowrap">封装规格</TableHead>
                         <TableHead className="whitespace-nowrap">出成率</TableHead>
-                        <TableHead className="whitespace-nowrap">净料单价</TableHead>
-                        <TableHead className="whitespace-nowrap">单位</TableHead>
+                        <TableHead className="whitespace-nowrap">成本价</TableHead>
+                        <TableHead className="whitespace-nowrap">加工费</TableHead>
+                        <TableHead className="whitespace-nowrap">出库价</TableHead>
+                        <TableHead className="whitespace-nowrap">标准规格价</TableHead>
                         <TableHead className="whitespace-nowrap text-right">操作</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -429,16 +455,28 @@ export function NetIngredientFormDialog({
                             {row.name}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {row.spec || "—"}
+                            {row.packageSpec != null ? `${row.packageSpec}g` : "—"}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {row.yieldRate != null ? `${row.yieldRate}%` : "—"}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            ¥{Number(row.unitPrice).toFixed(2)}
+                            ¥{Number(row.unitPrice).toFixed(2)}/斤
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
-                            {row.unit}
+                            {row.processingFeePerJin != null
+                              ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap font-medium">
+                            {row.outPricePerJin != null
+                              ? `¥${Number(row.outPricePerJin).toFixed(2)}/斤`
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {row.standardPackagePrice != null
+                              ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
+                              : "—"}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button

@@ -22,6 +22,8 @@ export type NetIngredientEditItem = {
   id: number;
   name: string;
   spec: string | null;
+  packageSpec: number | null;
+  processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
   sourceIngredientId: number | null;
@@ -55,6 +57,8 @@ export function NetIngredientEditDialog({
     l2Code: "",
     sourceIngredientId: "",
     spec: "",
+    packageSpec: "",
+    processingFeePerJin: "",
     yieldRate: "",
     unitPrice: "",
   });
@@ -83,6 +87,9 @@ export function NetIngredientEditDialog({
         ? String(initialData.sourceIngredientId)
         : "",
       spec: initialData.spec || "",
+      packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
+      processingFeePerJin:
+        initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
       yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
       unitPrice: String(initialData.unitPrice),
     });
@@ -115,6 +122,14 @@ export function NetIngredientEditDialog({
       if (!form.yieldRate || yieldRate <= 0 || yieldRate > 100) {
         next.yieldRate = "出成率必须在 1-100 之间";
       }
+      // 封装规格（g）必填
+      const pkg = Number(form.packageSpec);
+      if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
+        next.packageSpec = "请填写有效的封装规格（g）";
+      }
+      if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
+        next.processingFeePerJin = "封装加工费不能为负数";
+      }
     }
 
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
@@ -139,6 +154,10 @@ export function NetIngredientEditDialog({
       if (!isMinor) {
         payload.sourceIngredientId = Number(form.sourceIngredientId);
         payload.yieldRate = Number(form.yieldRate);
+        payload.packageSpec = Number(form.packageSpec);
+        payload.processingFeePerJin = form.processingFeePerJin
+          ? Number(form.processingFeePerJin)
+          : null;
       } else {
         payload.unit = "10g";
       }

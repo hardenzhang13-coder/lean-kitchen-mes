@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { recognizePurchaseReceipt } from "@/lib/server/ai";
-import { calculateStockInfo } from "@/lib/shared/spec-parser";
+import { resolveStockInfo } from "@/lib/shared/spec-parser";
+import { buildGramFactors } from "@/lib/shared/unit-conversion";
 import { logError } from "@/lib/server/logger";
 import { computeImageHash } from "@/lib/shared/utils";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
@@ -47,12 +48,13 @@ export async function POST(req: NextRequest) {
       prisma.ingredientCategoryL2.findMany({
         select: { code: true, name: true, parentCode: true },
       }),
-      prisma.unit.findMany({ select: { name: true } }),
+      prisma.unit.findMany({ select: { name: true, gramsPerUnit: true } }),
       getSeasoningL2Codes(),
     ]);
 
     const seasoningL2Set = new Set(seasoningL2Codes);
-    const unitNames = units.map((u) => u.name);
+    // 克级换算表：统一入库换算（resolveStockInfo）的系数来源
+    const gramFactors = buildGramFactors(units);
     const l2NameMap = new Map(l2Categories.map((c) => [c.code, c.name]));
 
     // 供应商自动识别/创建
@@ -87,12 +89,17 @@ export async function POST(req: NextRequest) {
       const { match: ingMatch, score } = findBestIngredientMatch(displayItemName, ingredients);
       if (ingMatch && score >= 0.9) {
         const isSeasoning = seasoningL2Set.has(ingMatch.l2Code);
-        const isJin = purchaseUnit === "斤";
-        const stockInfo = isJin
-          ? { stockUnit: "斤", stockInQty: qty }
-          : item.stockUnit && item.stockQty != null
-            ? { stockUnit: item.stockUnit, stockInQty: item.stockQty }
-            : calculateStockInfo({ spec: spec || "", qty, unitNames });
+        // AI 直接抽取的入库信息优先；否则按食材库规格做统一宽语法换算
+        const stockInfo =
+          item.stockUnit && item.stockQty != null
+            ? { stockUnit: item.stockUnit, stockInQty: item.stockQty, confidence: "high" as const }
+            : resolveStockInfo({
+                spec: ingMatch.purchaseSpec || spec || "",
+                qty,
+                purchaseUnit,
+                targetStockUnit: ingMatch.stockUnit || undefined,
+                gramFactors,
+              });
 
         return {
           name: productName,
@@ -105,6 +112,7 @@ export async function POST(req: NextRequest) {
           amount: item.amount ?? qty * (item.unitPrice ?? 0),
           stockUnit: stockInfo.stockUnit || ingMatch.stockUnit || purchaseUnit,
           stockInQty: stockInfo.stockInQty ?? 1,
+          stockConfidence: stockInfo.confidence,
           storage: ingMatch.storage,
           categoryName: item.categoryName,
           matched: true,
@@ -118,12 +126,10 @@ export async function POST(req: NextRequest) {
       }
 
       // 未匹配
-      const isJin = purchaseUnit === "斤";
-      const stockInfo = isJin
-        ? { stockUnit: "斤", stockInQty: qty }
-        : item.stockUnit && item.stockQty != null
-          ? { stockUnit: item.stockUnit, stockInQty: item.stockQty }
-          : calculateStockInfo({ spec: spec || "", qty, unitNames });
+      const stockInfo =
+        item.stockUnit && item.stockQty != null
+          ? { stockUnit: item.stockUnit, stockInQty: item.stockQty, confidence: "high" as const }
+          : resolveStockInfo({ spec: spec || "", qty, purchaseUnit, gramFactors });
       return {
         name: productName,
         brand: displayBrand || "",
@@ -134,6 +140,7 @@ export async function POST(req: NextRequest) {
         amount: item.amount ?? qty * (item.unitPrice ?? 0),
         stockUnit: stockInfo.stockUnit || purchaseUnit,
         stockInQty: stockInfo.stockInQty ?? 1,
+        stockConfidence: stockInfo.confidence,
         storage: "常温",
         categoryName: item.categoryName,
         matched: false,

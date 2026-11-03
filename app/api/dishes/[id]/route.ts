@@ -6,6 +6,7 @@ import { success, badRequest, notFound } from "@/lib/server/api-response";
 import { updateDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,7 +16,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       category: { select: { id: true, code: true, name: true } },
       netDetails: {
         include: {
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
+          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, packageSpec: true, unit: true } },
         },
       },
       minorDetails: {
@@ -45,6 +46,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const enriched = {
     ...row,
+    // 主料/辅料统一附出库价（成本价 + 封装加工费），前端展示口径一致
+    netDetails: row.netDetails.map((d) => ({
+      ...d,
+      netIngredient: d.netIngredient
+        ? serializeNetIngredient(d.netIngredient)
+        : d.netIngredient,
+    })),
     seasoningDetails: row.seasoningDetails.map((d) => ({
       ...d,
       name: seasonings.find((s) => s.id === d.sourceId)?.name,

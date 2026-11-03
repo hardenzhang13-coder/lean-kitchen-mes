@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -33,22 +40,35 @@ type Category = {
   code: string;
   name: string;
   description: string | null;
+  isActive: boolean;
 };
+
+/** 后端引用检查返回的引用明细 */
+type CategoryReferences = Record<string, number>;
+
+const statusFilters = [
+  { value: "all", label: "全部" },
+  { value: "active", label: "启用中" },
+  { value: "inactive", label: "已停用" },
+];
 
 export default function CategoriesPage() {
   const [data, setData] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [form, setForm] = useState({ code: "", name: "", description: "" });
   const [submitting, setSubmitting] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
+  const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/dish-categories?page=1&pageSize=100");
+      // 设置页需要管理停用类别，拉取全量；业务端默认只返回启用中的
+      const res = await fetch("/api/dish-categories?page=1&pageSize=100&includeInactive=1");
       const json = await res.json();
       setData(json.data || []);
     } catch {
@@ -64,13 +84,16 @@ export default function CategoriesPage() {
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
-    if (!s) return data;
-    return data.filter(
-      (d) =>
+    return data.filter((d) => {
+      if (statusFilter === "active" && !d.isActive) return false;
+      if (statusFilter === "inactive" && d.isActive) return false;
+      if (!s) return true;
+      return (
         d.name.toLowerCase().includes(s) ||
         d.code.toLowerCase().includes(s)
-    );
-  }, [data, search]);
+      );
+    });
+  }, [data, search, statusFilter]);
 
   const {
     currentPage,
@@ -105,29 +128,28 @@ export default function CategoriesPage() {
     }
     setSubmitting(true);
     try {
-      if (editing) {
-        await fetch(`/api/dish-categories/${editing.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: form.code,
-            name: form.name,
-            description: form.description || null,
-          }),
-        });
-        toast.success("更新成功");
-      } else {
-        await fetch("/api/dish-categories", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            code: form.code,
-            name: form.name,
-            description: form.description || null,
-          }),
-        });
-        toast.success("创建成功");
+      const payload = {
+        code: form.code,
+        name: form.name,
+        description: form.description || null,
+      };
+      const res = editing
+        ? await fetch(`/api/dish-categories/${editing.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          })
+        : await fetch("/api/dish-categories", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
       }
+      toast.success(editing ? "更新成功" : "创建成功");
       setDialogOpen(false);
       fetchData();
     } catch {
@@ -137,21 +159,52 @@ export default function CategoriesPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const toggleActive = async (row: Category) => {
     try {
-      await fetch(`/api/dish-categories/${id}`, { method: "DELETE" });
-      toast.success("删除成功");
-      setDeleteId(null);
+      const res = await fetch(`/api/dish-categories/${row.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !row.isActive }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
+      }
+      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
       fetchData();
     } catch {
-      toast.error("删除失败");
+      toast.error("操作失败");
+    }
+  };
+
+  const openDelete = (row: Category) => {
+    setDeleteTarget(row);
+    setDeleteError(null);
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const res = await fetch(`/api/dish-categories/${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        // 被引用时展示后端返回的引用明细，引导用户改停用
+        setDeleteError({ message: json.error || "删除失败", references: json.references });
+        return;
+      }
+      toast.success("删除成功");
+      setDeleteTarget(null);
+      fetchData();
+    } catch {
+      setDeleteError({ message: "删除失败，请稍后重试" });
     }
   };
 
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
-        <PageHeader showBack title="菜品类别" description="管理菜品分类字典" />
+        <PageHeader showBack title="菜品类别" description="管理菜品分类字典；被菜品引用的类别不可删除/改编号，可停用使新单据不再可选" />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
           新增
@@ -169,13 +222,36 @@ export default function CategoriesPage() {
             searchPlaceholder="搜索编号或名称..."
             onReset={() => {
               setSearch("");
+              setStatusFilter("all");
               setCurrentPage(1);
             }}
-          />
+            hasFilters={statusFilter !== "all"}
+          >
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                if (v) setStatusFilter(v);
+                setCurrentPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[130px] h-9">
+                <SelectValue>
+                  {statusFilters.find((s) => s.value === statusFilter)?.label}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {statusFilters.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </ListToolbar>
         </CardHeader>
         <CardContent>
           {loading ? (
-            <SkeletonTable cols={5} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
@@ -186,19 +262,20 @@ export default function CategoriesPage() {
                       <TableHead>编号</TableHead>
                       <TableHead>名称</TableHead>
                       <TableHead>说明</TableHead>
-                      <TableHead className="w-[120px] text-right">操作</TableHead>
+                      <TableHead>状态</TableHead>
+                      <TableHead className="w-[160px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {pageItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
                           暂无数据
                         </TableCell>
                       </TableRow>
                     ) : (
                       pageItems.map((row, idx) => (
-                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                        <TableRow key={row.id} className={`transition-colors hover:bg-muted/40 ${!row.isActive ? "opacity-50" : ""}`}>
                           <TableCell className="text-muted-foreground">
                             {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
                           </TableCell>
@@ -207,7 +284,25 @@ export default function CategoriesPage() {
                           <TableCell className="text-muted-foreground">
                             {row.description || "—"}
                           </TableCell>
+                          <TableCell>
+                            {row.isActive ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
+                                <CheckCircle2 className="h-3 w-3" /> 启用中
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
+                                <Ban className="h-3 w-3" /> 已停用
+                              </span>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" aria-label={row.isActive ? "停用菜品类别" : "启用菜品类别"} onClick={() => toggleActive(row)}>
+                              {row.isActive ? (
+                                <Ban className="h-4 w-4 text-amber-500" />
+                              ) : (
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                              )}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="icon"
@@ -220,7 +315,7 @@ export default function CategoriesPage() {
                               variant="ghost"
                               size="icon"
                               aria-label="删除菜品类别"
-                              onClick={() => setDeleteId(row.id)}
+                              onClick={() => openDelete(row)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
@@ -260,6 +355,11 @@ export default function CategoriesPage() {
                 placeholder="如 PORK"
                 className="h-11 text-base px-4"
               />
+              {editing && (
+                <p className="text-xs text-muted-foreground">
+                  被菜品引用后不可修改编号；如不再使用请停用
+                </p>
+              )}
             </div>
             <div className="grid gap-2.5">
               <Label htmlFor="name" className="text-base">名称</Label>
@@ -297,19 +397,43 @@ export default function CategoriesPage() {
       </Dialog>
 
       {/* Delete Confirm */}
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[440px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
+            <DialogTitle className="text-lg">
+              {deleteError ? "无法删除" : "确认删除"}
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">确定要删除这条记录吗？此操作不可撤销。</p>
+          {deleteError ? (
+            <div className="grid gap-3">
+              <p className="text-muted-foreground text-base">{deleteError.message}</p>
+              {deleteError.references && Object.keys(deleteError.references).length > 0 && (
+                <ul className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground grid gap-1">
+                  {Object.entries(deleteError.references).map(([entity, count]) => (
+                    <li key={entity}>
+                      {entity}：{count} 条
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <p className="text-sm text-muted-foreground">
+                建议改用「停用」：停用后新单据不再可选，历史数据不受影响。
+              </p>
+            </div>
+          ) : (
+            <p className="text-muted-foreground text-base">
+              确定要删除菜品类别「{deleteTarget?.name}」吗？此操作不可撤销。
+            </p>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
-              取消
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+              {deleteError ? "知道了" : "取消"}
             </Button>
-            <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)} className="h-11 px-6">
-              删除
-            </Button>
+            {!deleteError && (
+              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+                删除
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

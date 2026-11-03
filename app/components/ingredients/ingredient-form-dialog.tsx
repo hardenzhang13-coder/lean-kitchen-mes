@@ -96,6 +96,8 @@ export function IngredientFormDialog({
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [l2Open, setL2Open] = useState(false);
+  /** 每斤单价被用户手动编辑过后，规格/单价变化不再自动覆盖 */
+  const [pricePerJinDirty, setPricePerJinDirty] = useState(false);
 
   const [rightList, setRightList] = useState<ListItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
@@ -134,11 +136,12 @@ export function IngredientFormDialog({
     });
     setErrors({});
     setL2Open(false);
+    setPricePerJinDirty(false);
   }, [open, initialData, findParentL1]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // 采购规格或最新参照单价变化时，自动计算每斤单价（无法换算则保留用户手动值）
-  // 换算系数来自单位字典（buildJinFactors），字典缺字段时由内置兜底值接管
+  // 用户手动编辑过每斤单价后（pricePerJinDirty）不再自动覆盖
   // 换算系数来自单位字典（buildJinFactors）；字典为空（未加载/全停用）时回退内置兜底值
   const jinFactors = useMemo(() => {
     const factors = buildJinFactors(units);
@@ -146,17 +149,18 @@ export function IngredientFormDialog({
   }, [units]);
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!open) return;
+    if (!open || pricePerJinDirty) return;
     const jin = calcPricePerJin(
       form.latestRefPrice ? Number(form.latestRefPrice) : null,
       form.purchaseSpec,
-      jinFactors
+      jinFactors,
+      form.purchaseUnit
     );
     if (jin != null && String(jin) !== form.pricePerJin) {
       setForm((prev) => ({ ...prev, pricePerJin: String(jin) }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, form.purchaseSpec, form.latestRefPrice, jinFactors]);
+  }, [open, form.purchaseSpec, form.latestRefPrice, form.purchaseUnit, jinFactors, pricePerJinDirty]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -223,6 +227,7 @@ export function IngredientFormDialog({
 
   const handleChange = (field: keyof IngredientFormData, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
+    if (field === "pricePerJin") setPricePerJinDirty(true);
     if (errors[field]) {
       setErrors((prev) => ({ ...prev, [field]: "" }));
     }

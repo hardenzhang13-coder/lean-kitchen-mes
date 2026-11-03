@@ -36,3 +36,19 @@ export function buildJinFactors(
   }
   return factors;
 }
+
+/**
+ * 由单位字典构建「单位名 → 1 单位合多少克」换算表（克级原值）。
+ * 供 resolveStockInfo 等需要跨重量单位换算的纯函数注入。
+ */
+export function buildGramFactors(
+  units: Array<{ name: string; gramsPerUnit?: unknown }>
+): Record<string, number> {
+  const factors: Record<string, number> = {};
+  for (const u of units) {
+    const grams = Number(u.gramsPerUnit);
+    if (!u.name || !Number.isFinite(grams) || grams <= 0) continue;
+    factors[u.name] = grams;
+  }
+  return factors;
+}

@@ -11,16 +11,19 @@ model DishCategory {
   code        String  @unique
   name        String
   description String?
+  isActive    Boolean @default(true) @map("is_active")
   dishes      Dish[]
 
   @@map("dish_categories")
 }
 
 model IngredientCategoryL1 {
-  id       Int                    @id @default(autoincrement())
-  code     String                 @unique
-  name     String
-  children IngredientCategoryL2[]
+  id          Int                    @id @default(autoincrement())
+  code        String                 @unique
+  name        String
+  description String?
+  isActive    Boolean                @default(true) @map("is_active")
+  children    IngredientCategoryL2[]
 
   @@map("ingredient_categories_l1")
 }
@@ -31,6 +34,7 @@ model IngredientCategoryL2 {
   name        String
   parentCode  String               @map("parent_code")
   description String?
+  isActive    Boolean              @default(true) @map("is_active")
   parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code], onDelete: Cascade)
 
   @@map("ingredient_categories_l2")
@@ -87,8 +91,14 @@ model NetIngredient {
   sourceIngredientId Int?              @map("source_ingredient_id")
   spec               String?
   yieldRate          Decimal?          @map("yield_rate") @db.Decimal(5, 2)
+  // 净料封装规格（g），净料必填；小料为 null。自由文本 spec 仅小料使用
+  packageSpec        Int?              @map("package_spec")
+  // 封装加工费（元/斤），空 = 0；仅净料使用
+  processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
+  // 成本价：净料 = 元/斤（原料每斤单价 ÷ 出成率）；小料 = 元/10g
   unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
-  unit               String            @default("500g") @map("unit")
+  // 净料固定 g；小料 10g
+  unit               String            @default("g") @map("unit")
   l2Code             String            @map("l2_code")
   storage            String            @default("冷藏") @map("storage")
   createdAt          DateTime          @default(now()) @map("created_at")

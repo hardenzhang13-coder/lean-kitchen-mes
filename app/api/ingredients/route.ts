@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     // 换算系数来自单位字典（克/斤换算随字典维护，见 lib/server/unit-factors.ts）
     const jinFactors = await getJinFactors();
     const finalPricePerJin =
-      pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "", jinFactors);
+      pricePerJin ?? calcPricePerJin(latestRefPrice ?? null, purchaseSpec ?? "", jinFactors, purchaseUnit);
 
     const row = await prisma.ingredient.create({
       data: {

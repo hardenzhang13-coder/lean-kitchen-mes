@@ -2,8 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { getJinFactors } from "@/lib/server/unit-factors";
 import { normalizeName } from "@/lib/shared/name-utils";
 import { buildCode, parseCodeSuffix } from "@/lib/shared/code-gen";
+import { calcPricePerJin } from "@/lib/shared/spec-parser";
 
 const REQUIRED_FIELDS = ["name", "l2Code", "purchaseUnit", "stockUnit"];
 
@@ -71,6 +73,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    // 与单条创建对齐：按采购规格自动换算每斤单价（换算不出为 null，留待手动填写）
+    const jinFactors = await getJinFactors();
     await prisma.$transaction(async (tx) => {
       const last = await tx.ingredient.findFirst({
         orderBy: { code: "desc" },
@@ -81,6 +85,9 @@ export async function POST(req: NextRequest) {
       const data = rows.map((row) => {
         lastNum++;
         const prefix = seasoningL2Codes.includes(row.l2Code!) ? "SEA" : "ING";
+        const latestRefPrice = row.latestRefPrice?.trim()
+          ? Number(row.latestRefPrice.trim())
+          : null;
         return {
           code: buildCode(prefix, lastNum),
           name: row.name!.trim(),
@@ -89,9 +96,8 @@ export async function POST(req: NextRequest) {
           purchaseSpec: row.purchaseSpec?.trim() || null,
           purchaseUnit: row.purchaseUnit!.trim(),
           stockUnit: row.stockUnit!.trim(),
-          latestRefPrice: row.latestRefPrice?.trim()
-            ? Number(row.latestRefPrice.trim())
-            : null,
+          latestRefPrice,
+          pricePerJin: calcPricePerJin(latestRefPrice, row.purchaseSpec ?? "", jinFactors, row.purchaseUnit),
           season: "四季",
           storage: "常温",
         };
