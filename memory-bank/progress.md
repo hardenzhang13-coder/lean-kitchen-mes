@@ -1104,6 +1104,27 @@ POST /api/schedules/[id]/execute-purchase
 
 ---
 
+## 2026-11-03 — 字典基线对齐机制（字典即代码）上线
+
+### 背景
+
+首轮自动部署后发现生产库种子数据过老（缺水产 AQU 分类、g/kg 单位），且生产 MySQL 不对外暴露端口，无法本地直推。
+
+### 机制
+
+- `scripts/export-dictionary-sql.mjs`：读取本地字典表生成**幂等对齐 SQL**（INSERT ... ON DUPLICATE KEY UPDATE，只增改不删，不碰用户与业务数据）
+- `scripts/dictionary-baseline.sql`：当前字典基线，随仓库版本化；字典调整后重跑生成器并提交
+- **部署链路自动对齐**：GitHub Actions SSH 脚本与 deploy.sh 在 `compose up` 后执行
+  `docker compose exec -T db sh -c 'mysql ...' < scripts/dictionary-baseline.sql`，
+  每次部署自动保证各环境字典一致（本地为基准）
+- seed.ts 补录 PIG/PIG-COL，新环境初始化与基线一致
+
+### 验证
+
+- 部署 `b6fbc42` 后生产库验证：水产（AQU)+鱼类/虾类/贝类 ✓、猪肉类（PIG)+冷鲜 ✓、g/kg 单位补齐（20 个）✓
+
+---
+
 ---
 
 ## 2026-10-30 — 设置模块·单位子模块夯实 + 一键/自动部署上线
