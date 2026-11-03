@@ -26,7 +26,7 @@ fi
 echo "==> 部署到 ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
   "${DEPLOY_USER}@${DEPLOY_HOST}" \
-  "cd '${DEPLOY_PATH}' && git pull --ff-only && docker compose up -d --build"
+  "cd '${DEPLOY_PATH}' && git pull --ff-only && docker compose up -d --build && docker compose exec -T db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" lean_kms' < scripts/dictionary-baseline.sql"
 
 echo "==> 健康检查 http://${DEPLOY_HOST}/login"
 for _ in $(seq 1 30); do

@@ -43,6 +43,7 @@ async function main() {
     { code: "GRA", name: "米面粮油" },
     { code: "SEA", name: "调味品" },
     { code: "MIN", name: "小料" },
+    { code: "PIG", name: "猪肉类" },
   ];
   await prisma.ingredientCategoryL1.createMany({ data: l1Categories, skipDuplicates: true });
 
@@ -79,6 +80,7 @@ async function main() {
     { code: "MIN-PEP", name: "椒香类", parentCode: "MIN", description: "" },
     { code: "MIN-HER", name: "香料类", parentCode: "MIN", description: "" },
     { code: "MIN-OTH", name: "其他小料", parentCode: "MIN", description: "" },
+    { code: "PIG-COL", name: "冷鲜", parentCode: "PIG", description: "" },
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 

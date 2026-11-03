@@ -1,7 +1,8 @@
 name: deploy
 
 # push 到 main 即自动部署到阿里云（与 docs/aliyun-deploy.md 手动流程等价：
-# git pull --ff-only && docker compose up -d --build，迁移由 compose 的 migrate 服务自动执行）
+# git pull --ff-only && docker compose up -d --build，迁移由 compose 的 migrate 服务自动执行；
+# 随后灌入 scripts/dictionary-baseline.sql 做字典基线对齐，保证各环境分类/单位字典一致）
 
 on:
   push:
@@ -28,6 +29,8 @@ jobs:
             cd /opt/lean-kms-v3
             git pull --ff-only
             docker compose up -d --build
+            # 字典基线对齐（幂等 upsert，只增改不删）：保证各环境分类/单位字典一致
+            docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms' < scripts/dictionary-baseline.sql
 
       - name: 健康检查
         run: |
