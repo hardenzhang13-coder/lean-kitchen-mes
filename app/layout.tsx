@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist_Mono, DM_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { LayoutWrapper } from "@/app/components/ui/layout-wrapper";
 import { getCurrentUser } from "@/lib/server/session";
 import "./globals.css";
@@ -31,9 +32,11 @@ export default async function RootLayout({
       className={cn("h-full", "antialiased", geistMono.variable, "font-sans", dmSans.variable)}
     >
       <body className="min-h-full flex bg-background">
-        <LayoutWrapper user={user}>
-          {children}
-        </LayoutWrapper>
+        <TooltipProvider>
+          <LayoutWrapper user={user}>
+            {children}
+          </LayoutWrapper>
+        </TooltipProvider>
         <Toaster />
       </body>
     </html>

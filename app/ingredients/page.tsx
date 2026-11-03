@@ -1,8 +1,17 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Carrot, Package, Cherry, FlaskConical, Wine } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { prisma } from "@/lib/server/prisma";
-import { getMinorL2Codes, getSeasoningL2Codes } from "@/lib/server/category-helpers";
+
+type IngredientSummaryCounts = {
+  raw: number;
+  net: number;
+  minor: number;
+  seasoning: number;
+  sauce: number;
+};
 
 const ingredientItems = [
   {
@@ -47,31 +56,45 @@ const ingredientItems = [
   },
 ] as const;
 
-async function getCounts() {
-  const [seasoningL2Codes, minorL2Codes] = await Promise.all([
-    getSeasoningL2Codes(),
-    getMinorL2Codes(),
-  ]);
-  const netCount =
-    minorL2Codes.length > 0
-      ? prisma.netIngredient.count({ where: { deletedAt: null, l2Code: { notIn: minorL2Codes } } })
-      : prisma.netIngredient.count({ where: { deletedAt: null } });
-  const minorCount =
-    minorL2Codes.length > 0
-      ? prisma.netIngredient.count({ where: { deletedAt: null, l2Code: { in: minorL2Codes } } })
-      : Promise.resolve(0);
-  const [raw, net, minor, seasoning, sauce] = await Promise.all([
-    prisma.ingredient.count({ where: { deletedAt: null, l2Code: { notIn: seasoningL2Codes } } }),
-    netCount,
-    minorCount,
-    prisma.ingredient.count({ where: { deletedAt: null, l2Code: { in: seasoningL2Codes } } }),
-    prisma.sauceIngredient.count(),
-  ]);
-  return { raw, net, minor, seasoning, sauce };
-}
+const emptyCounts: IngredientSummaryCounts = {
+  raw: 0,
+  net: 0,
+  minor: 0,
+  seasoning: 0,
+  sauce: 0,
+};
 
-export default async function IngredientsPage() {
-  const counts = await getCounts();
+export default function IngredientsPage() {
+  const [counts, setCounts] = useState<IngredientSummaryCounts>(emptyCounts);
+
+  const fetchCounts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/ingredients/summary");
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json?.data) setCounts(json.data);
+    } catch {
+      // 静默失败：保留当前展示的数字
+    }
+  }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    fetchCounts();
+  }, [fetchCounts]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  // 从其他页面录入数据后返回本页（含浏览器后退 bfcache 恢复）时自动刷新统计数
+  useEffect(() => {
+    const handleFocus = () => fetchCounts();
+    const handlePageShow = () => fetchCounts();
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [fetchCounts]);
 
   return (
     <div className="flex flex-col gap-6 p-8">

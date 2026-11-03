@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const [rows, totalItems] = await Promise.all([
       prisma.netIngredient.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip,
         take: pageSize,
         include: { sourceIngredient: { select: { id: true, name: true } } },

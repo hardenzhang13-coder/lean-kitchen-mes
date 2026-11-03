@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -76,6 +76,8 @@ export default function NetIngredientsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editing, setEditing] = useState<NetIngredientEditItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [viewing, setViewing] = useState<NetIngredientEditItem | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -144,25 +146,34 @@ export default function NetIngredientsPage() {
     pageItems,
     totalPages,
     totalItems,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, 20);
 
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
 
+  const buildEditItem = (row: NetIngredient): NetIngredientEditItem => ({
+    id: row.id,
+    name: row.name,
+    spec: row.spec,
+    packageSpec: row.packageSpec,
+    processingFeePerJin: row.processingFeePerJin,
+    yieldRate: row.yieldRate,
+    unitPrice: row.unitPrice,
+    sourceIngredientId: row.sourceIngredientId,
+    l2Code: row.l2Code,
+  });
+
   const openEdit = (row: NetIngredient) => {
-    setEditing({
-      id: row.id,
-      name: row.name,
-      spec: row.spec,
-      packageSpec: row.packageSpec,
-      processingFeePerJin: row.processingFeePerJin,
-      yieldRate: row.yieldRate,
-      unitPrice: row.unitPrice,
-      sourceIngredientId: row.sourceIngredientId,
-      l2Code: row.l2Code,
-    });
+    setEditing(buildEditItem(row));
     setEditDialogOpen(true);
+  };
+
+  const openView = (row: NetIngredient) => {
+    setViewing(buildEditItem(row));
+    setViewDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -265,7 +276,7 @@ export default function NetIngredientsPage() {
                   header: "序号",
                   cell: (_, rowIdx) => (
                     <span className="text-muted-foreground">
-                      {(currentPage - 1) * 20 + rowIdx + 1}
+                      {(currentPage - 1) * pageSize + rowIdx + 1}
                     </span>
                   ),
                 },
@@ -333,14 +344,23 @@ export default function NetIngredientsPage() {
                       currentPage,
                       totalPages,
                       totalItems,
-                      pageSize: 20,
+                      pageSize,
                       onPageChange: setCurrentPage,
+                      onPageSizeChange: setPageSize,
                     }
                   : undefined
               }
               emptyState={{ title: "暂无数据" }}
               rowActions={(row) => (
                 <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="查看净料"
+                    onClick={() => openView(row)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -383,6 +403,15 @@ export default function NetIngredientsPage() {
         categories={categories}
         rawIngredients={rawIngredients}
         onSuccess={fetchData}
+      />
+
+      <NetIngredientEditDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        view
+        initialData={viewing}
+        categories={categories}
+        rawIngredients={rawIngredients}
       />
 
       <Dialog

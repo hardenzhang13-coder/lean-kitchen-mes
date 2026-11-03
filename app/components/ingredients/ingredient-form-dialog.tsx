@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, PackageOpen } from "lucide-react";
+import { Loader2, Maximize2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
 } from "@/app/components/ingredients/ingredient-form-fields";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { LoadingState } from "@/app/components/ui/loading-state";
+import { TablePreviewDialog } from "@/app/components/ui/table-preview-dialog";
 import { parseList } from "@/lib/client/api";
 import { getDefaultSpec, calcPricePerJin } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
@@ -101,6 +102,7 @@ export function IngredientFormDialog({
 
   const [rightList, setRightList] = useState<ListItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const findParentL1 = useCallback(
@@ -117,13 +119,15 @@ export function IngredientFormDialog({
   useEffect(() => {
     if (!open) return;
     const parentL1 = findParentL1(initialData?.l2Code);
+    // 新增原料：采购与入库给最常用的默认值（散称 / 斤 / 斤），减少重复填写；调料表单除外
+    const isCreate = !initialData?.id && mode !== "seasoning";
     setForm({
       name: initialData?.name || "",
       l1Code: parentL1?.code || "",
       l2Code: initialData?.l2Code || "",
       alias: initialData?.alias || "",
-      purchaseSpec: initialData?.purchaseSpec || "",
-      purchaseUnit: initialData?.purchaseUnit || "",
+      purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
+      purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
       latestRefPrice:
         initialData?.latestRefPrice != null
           ? String(initialData.latestRefPrice)
@@ -132,12 +136,12 @@ export function IngredientFormDialog({
         initialData?.pricePerJin != null
           ? String(initialData.pricePerJin)
           : "",
-      stockUnit: initialData?.stockUnit || "",
+      stockUnit: initialData?.stockUnit || (isCreate ? "斤" : ""),
     });
     setErrors({});
     setL2Open(false);
     setPricePerJinDirty(false);
-  }, [open, initialData, findParentL1]);
+  }, [open, initialData, findParentL1, mode]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   // 采购规格或最新参照单价变化时，自动计算每斤单价（无法换算则保留用户手动值）
@@ -322,10 +326,18 @@ export function IngredientFormDialog({
           </div>
 
           <div className="lg:w-[520px] flex flex-col min-h-0 rounded-lg border bg-card">
-            <div className="px-4 py-3 border-b">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
               <h4 className="text-sm font-semibold text-muted-foreground">
                 该分类下已添加的食材
               </h4>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="完整预览"
+                onClick={() => setPreviewOpen(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
             </div>
             <div className="flex-1 overflow-auto">
               {loadingList ? (
@@ -341,7 +353,6 @@ export function IngredientFormDialog({
                   <TableHeader className="sticky top-0 bg-background z-10">
                     <TableRow>
                       <TableHead className="whitespace-nowrap">名称</TableHead>
-                      <TableHead className="whitespace-nowrap">商品名称</TableHead>
                       <TableHead className="whitespace-nowrap">采购规格</TableHead>
                       <TableHead className="whitespace-nowrap">采购单位</TableHead>
                       <TableHead className="whitespace-nowrap">入库单位</TableHead>
@@ -354,9 +365,6 @@ export function IngredientFormDialog({
                       <TableRow key={row.id}>
                         <TableCell className="font-medium text-sm whitespace-nowrap">
                           {row.name}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {row.alias || "—"}
                         </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {row.purchaseSpec || "—"}
@@ -406,6 +414,37 @@ export function IngredientFormDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <TablePreviewDialog<ListItem>
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title="该分类下已添加的食材"
+        description={rightList.length > 0 ? `共 ${rightList.length} 条` : undefined}
+        emptyTitle="该分类下尚未添加食材"
+        columns={[
+          { header: "名称", accessorKey: "name" },
+          { header: "采购规格", accessorKey: "purchaseSpec" },
+          { header: "采购单位", accessorKey: "purchaseUnit" },
+          { header: "入库单位", accessorKey: "stockUnit" },
+          {
+            header: "最新参照单价",
+            className: "text-right",
+            cell: (row) =>
+              row.latestRefPrice != null
+                ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                : "—",
+          },
+          {
+            header: "每斤单价",
+            className: "text-right",
+            cell: (row) =>
+              row.pricePerJin != null
+                ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
+                : "—",
+          },
+        ]}
+        data={rightList}
+      />
     </Dialog>
   );
 }

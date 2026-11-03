@@ -47,6 +47,8 @@ export interface NetIngredientFormFieldsProps {
     l2Code?: boolean;
     sourceIngredientId?: boolean;
   };
+  /** 查看模式：所有输入控件只读，仅用于展示 */
+  viewMode?: boolean;
   errors?: Record<string, string>;
 }
 
@@ -57,6 +59,7 @@ export function NetIngredientFormFields({
   rawIngredients,
   mode = "net",
   readOnly,
+  viewMode = false,
   errors,
 }: NetIngredientFormFieldsProps) {
   const [l2Open, setL2Open] = useState(false);
@@ -199,17 +202,23 @@ export function NetIngredientFormFields({
             </FormField>
 
             <FormField label="二级分类" required error={errors?.l2Code}>
-              <SelectTileMode
-                options={l2Options}
-                value={form.l2Code}
-                onChange={(v) => onChange("l2Code", v)}
-                placeholder="请选择"
-                title="选择二级分类"
-                searchable={false}
-                required
-                open={l2Open}
-                onOpenChange={setL2Open}
-              />
+              {viewMode ? (
+                <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
+                  {selectedL2?.label || "—"}
+                </div>
+              ) : (
+                <SelectTileMode
+                  options={l2Options}
+                  value={form.l2Code}
+                  onChange={(v) => onChange("l2Code", v)}
+                  placeholder="请选择"
+                  title="选择二级分类"
+                  searchable={false}
+                  required
+                  open={l2Open}
+                  onOpenChange={setL2Open}
+                />
+              )}
             </FormField>
           </div>
         </FormSection>
@@ -222,6 +231,7 @@ export function NetIngredientFormFields({
             onChange={(e) => onChange("name", e.target.value)}
             placeholder={isMinor ? "如 蒜末" : "如 平包菜•称重•500g"}
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
 
@@ -232,6 +242,7 @@ export function NetIngredientFormFields({
               onChange={(e) => onChange("spec", e.target.value)}
               placeholder="如 切末"
               className="h-11 text-base px-4"
+              disabled={viewMode}
             />
           </FormField>
         ) : (
@@ -250,6 +261,7 @@ export function NetIngredientFormFields({
               onChange={(e) => onChange("packageSpec", e.target.value)}
               placeholder="如 500"
               className="h-11 text-base px-4"
+              disabled={viewMode}
             />
           </FormField>
         )}
@@ -265,6 +277,7 @@ export function NetIngredientFormFields({
               onChange={(e) => onChange("yieldRate", e.target.value)}
               placeholder="如 85"
               className="h-11 text-base px-4"
+              disabled={viewMode}
             />
           </FormField>
         )}
@@ -287,6 +300,7 @@ export function NetIngredientFormFields({
             onChange={(e) => onChange("unitPrice", e.target.value)}
             placeholder="如 2.50"
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
 
@@ -305,6 +319,7 @@ export function NetIngredientFormFields({
               onChange={(e) => onChange("processingFeePerJin", e.target.value)}
               placeholder="留空 = 0"
               className="h-11 text-base px-4"
+              disabled={viewMode}
             />
           </FormField>
         )}

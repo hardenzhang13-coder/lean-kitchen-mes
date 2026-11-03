@@ -135,6 +135,8 @@ export default function RawIngredientsPage() {
     pageItems,
     totalPages,
     totalItems,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const l2Map = useMemo(() => {
@@ -309,7 +311,7 @@ export default function RawIngredientsPage() {
                 header: "序号",
                 cell: (_, rowIdx) => (
                   <span className="text-muted-foreground"
-                  >{(currentPage - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}</span>
+                  >{(currentPage - 1) * pageSize + rowIdx + 1}</span>
                 ),
               },
               { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
@@ -362,8 +364,9 @@ export default function RawIngredientsPage() {
                     currentPage,
                     totalPages,
                     totalItems,
-                    pageSize: DEFAULT_PAGE_SIZE,
+                    pageSize,
                     onPageChange: setCurrentPage,
+                    onPageSizeChange: setPageSize,
                   }
                 : undefined
             }

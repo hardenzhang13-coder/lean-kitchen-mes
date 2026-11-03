@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, PackageOpen, Pencil } from "lucide-react";
+import { Loader2, Maximize2, PackageOpen, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -26,6 +26,7 @@ import {
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { LoadingState } from "@/app/components/ui/loading-state";
+import { TablePreviewDialog } from "@/app/components/ui/table-preview-dialog";
 import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 
@@ -83,6 +84,7 @@ export function NetIngredientFormDialog({
   const [submitting, setSubmitting] = useState(false);
   const [rightList, setRightList] = useState<NetIngredientItem[]>([]);
   const [loadingList, setLoadingList] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const unitPriceManuallySet = useRef(false);
 
   const isMinor = mode === "minor";
@@ -416,10 +418,18 @@ export function NetIngredientFormDialog({
 
           {!isMinor && (
             <div className="lg:w-[680px] flex flex-col min-h-0 rounded-lg border bg-card">
-              <div className="px-4 py-3 border-b">
+              <div className="px-4 py-3 border-b flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   已创建的净料规格
                 </h4>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  title="完整预览"
+                  onClick={() => setPreviewOpen(true)}
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </Button>
               </div>
               <div className="flex-1 overflow-auto">
                 {loadingList ? (
@@ -520,6 +530,52 @@ export function NetIngredientFormDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <TablePreviewDialog<NetIngredientItem>
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        title="已创建的净料规格"
+        description={rightList.length > 0 ? `共 ${rightList.length} 条` : undefined}
+        emptyTitle="该原料尚未创建净料规格"
+        columns={[
+          { header: "编号", accessorKey: "code" },
+          { header: "名称", accessorKey: "name" },
+          {
+            header: "封装规格",
+            cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
+          },
+          {
+            header: "出成率",
+            cell: (row) => (row.yieldRate != null ? `${row.yieldRate}%` : "—"),
+          },
+          {
+            header: "成本价",
+            cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}/斤`,
+          },
+          {
+            header: "加工费",
+            cell: (row) =>
+              row.processingFeePerJin != null
+                ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
+                : "—",
+          },
+          {
+            header: "出库价",
+            cell: (row) =>
+              row.outPricePerJin != null
+                ? `¥${Number(row.outPricePerJin).toFixed(2)}/斤`
+                : "—",
+          },
+          {
+            header: "标准规格价",
+            cell: (row) =>
+              row.standardPackagePrice != null
+                ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
+                : "—",
+          },
+        ]}
+        data={rightList}
+      />
     </Dialog>
   );
 }

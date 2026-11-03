@@ -30,6 +30,9 @@ interface DataTableProps<T> {
     totalItems: number;
     pageSize: number;
     onPageChange: (page: number) => void;
+    /** 传入后底部分页栏显示「每页显示数」选择器 */
+    onPageSizeChange?: (size: number) => void;
+    pageSizeOptions?: readonly number[];
   };
   filters?: React.ReactNode;
   emptyState?: EmptyStateProps;
@@ -141,6 +144,9 @@ export function DataTable<T extends object>({
           start={start}
           end={end}
           onPageChange={pagination.onPageChange}
+          pageSize={pagination.pageSize}
+          onPageSizeChange={pagination.onPageSizeChange}
+          pageSizeOptions={pagination.pageSizeOptions}
         />
       )}
     </div>

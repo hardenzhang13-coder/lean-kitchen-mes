@@ -196,24 +196,25 @@ export function IngredientFormFields({
       </FormSection>
 
       <FormSection title="采购与入库" cols={2}>
-        <FormField label="采购规格" required error={errors.purchaseSpec}>
+        <FormField
+          label="采购规格"
+          required
+          optionalHint={false}
+          error={errors.purchaseSpec}
+          hint={
+            jinPerUnit != null
+              ? `可自动换算：1${form.purchaseUnit || "个采购单位"} ≈ ${jinPerUnit} 斤`
+              : weightJinPerUnit != null
+                ? `按重直采：1${form.purchaseUnit} = ${weightJinPerUnit} 斤，按参照单价直接换算每斤单价`
+                : "当前规格无法换算为重量，每斤单价需手动填写"
+          }
+        >
           <Input
             value={form.purchaseSpec}
             onChange={(e) => onChange("purchaseSpec", e.target.value)}
             placeholder="如 1千克*10袋、5斤/袋、散装称斤"
             className="h-11 text-base px-4"
           />
-          <p
-            className={
-              convertible ? "text-xs text-muted-foreground" : "text-xs text-amber-600"
-            }
-          >
-            {jinPerUnit != null
-              ? `可自动换算：1${form.purchaseUnit || "个采购单位"} ≈ ${jinPerUnit} 斤`
-              : weightJinPerUnit != null
-                ? `按重直采：1${form.purchaseUnit} = ${weightJinPerUnit} 斤，按参照单价直接换算每斤单价`
-                : "当前规格无法换算为重量，每斤单价需手动填写"}
-          </p>
         </FormField>
         <FormField label="采购单位" required error={errors.purchaseUnit}>
           <SelectTileMode
@@ -239,7 +240,11 @@ export function IngredientFormFields({
             required
           />
         </FormField>
-        <FormField label="最新参照单价" error={errors.latestRefPrice}>
+        <FormField
+          label="最新参照单价"
+          optionalHint={false}
+          error={errors.latestRefPrice}
+        >
           <Input
             type="number"
             step="0.01"
@@ -249,7 +254,16 @@ export function IngredientFormFields({
             className="h-11 text-base px-4"
           />
         </FormField>
-        <FormField label="每斤单价（元/斤）" error={errors.pricePerJin}>
+        <FormField
+          label="每斤单价（元/斤）"
+          optionalHint={false}
+          error={errors.pricePerJin}
+          hint={
+            convertible
+              ? "= 最新参照单价 ÷ 每采购单位斤数；手动修改后不再自动覆盖"
+              : "建议格式：5斤/袋、1千克*10袋（含重量单位才可自动换算），或采购单位直接用斤/公斤"
+          }
+        >
           <Input
             type="number"
             step="0.0001"
@@ -262,11 +276,6 @@ export function IngredientFormFields({
             }
             className="h-11 text-base px-4"
           />
-          <p className="text-xs text-muted-foreground">
-            {convertible
-              ? "= 最新参照单价 ÷ 每采购单位斤数；手动修改后不再自动覆盖"
-              : "建议格式：5斤/袋、1千克*10袋（含重量单位才可自动换算），或采购单位直接用斤/公斤"}
-          </p>
         </FormField>
       </FormSection>
     </div>

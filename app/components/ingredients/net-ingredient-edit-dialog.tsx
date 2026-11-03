@@ -34,6 +34,8 @@ interface NetIngredientEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode?: "net" | "minor";
+  /** 查看模式：字段全部只读，仅提供关闭按钮 */
+  view?: boolean;
   initialData: NetIngredientEditItem | null;
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
@@ -44,6 +46,7 @@ export function NetIngredientEditDialog({
   open,
   onOpenChange,
   mode = "net",
+  view = false,
   initialData,
   categories,
   rawIngredients,
@@ -188,7 +191,9 @@ export function NetIngredientEditDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-lg">{isMinor ? "编辑小料" : "编辑净料"}</DialogTitle>
+          <DialogTitle className="text-lg">
+            {view ? `查看${isMinor ? "小料" : "净料"}` : isMinor ? "编辑小料" : "编辑净料"}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-4 px-6 overflow-y-auto flex-1">
@@ -198,31 +203,50 @@ export function NetIngredientEditDialog({
             categories={categories}
             rawIngredients={rawIngredients}
             mode={isMinor ? "minor" : "net"}
-            readOnly={isMinor ? undefined : { l1Code: true, l2Code: true, sourceIngredientId: true }}
+            readOnly={
+              view
+                ? { l1Code: true, l2Code: true, sourceIngredientId: true }
+                : isMinor
+                  ? undefined
+                  : { l1Code: true, l2Code: true, sourceIngredientId: true }
+            }
+            viewMode={view}
             errors={errors}
           />
         </div>
 
         <DialogFooter className="px-6 pt-0 pb-6">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
-          >
-            取消
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="h-11 px-6"
-          >
-            <span aria-live="polite" className="inline-flex items-center">
-              {submitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              保存
-            </span>
-          </Button>
+          {view ? (
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-11 px-6"
+            >
+              关闭
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-11 px-6"
+              >
+                取消
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="h-11 px-6"
+              >
+                <span aria-live="polite" className="inline-flex items-center">
+                  {submitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  保存
+                </span>
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

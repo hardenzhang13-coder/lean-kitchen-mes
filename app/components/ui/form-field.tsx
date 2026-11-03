@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Info } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { cn } from "@/lib/shared/utils";
 
 interface FormFieldProps {
@@ -13,7 +14,7 @@ interface FormFieldProps {
   error?: string;
   /** 非必填字段是否显示「(可选)」提示；默认 true。必填字段已有 * 标记时可设 false */
   optionalHint?: boolean;
-  /** 字段说明：以 ⓘ 图标悬浮展示（原生 title），不占表单空间 */
+  /** 字段说明：以 ⓘ 图标悬浮展示（shadcn Tooltip），不占表单空间 */
   hint?: string;
   children: React.ReactNode;
   className?: string;
@@ -44,13 +45,16 @@ export function FormField({
           <span className="text-muted-foreground text-sm font-normal">(可选)</span>
         )}
         {hint && (
-          <span
-            className="inline-flex cursor-help shrink-0"
-            aria-label={hint}
-            title={hint}
-          >
-            <Info className="h-3.5 w-3.5 text-muted-foreground/70" />
-          </span>
+          <Tooltip>
+            <TooltipTrigger
+              type="button"
+              aria-label={hint}
+              className="inline-flex cursor-pointer shrink-0 items-center border-0 bg-transparent p-0"
+            >
+              <Info className="h-3.5 w-3.5 text-muted-foreground/70" />
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs">{hint}</TooltipContent>
+          </Tooltip>
         )}
       </Label>
       {React.isValidElement(children) && id
