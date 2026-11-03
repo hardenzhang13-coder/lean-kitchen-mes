@@ -159,6 +159,11 @@
 
 ### 2.3 `minor_ingredients` — 小料表
 
+> **已废弃（2026-11-03）**：小料不再独立建表，统一存储于 `net_ingredients`（l2Code 归属 MIN 一级分类的子分类），
+> 与净料完全同口径——由原料转化（sourceIngredientId + yieldRate + packageSpec + processingFeePerJin），
+> 成本价 = 原料每斤单价 ÷ 出成率（元/斤），单位 g。存量「直接录入」小料已通过迁移 `20261103123018_clear_legacy_minors`
+> 连同菜品 BOM 引用一并清空。以下字段说明仅作历史存档。
+
 用量极小、起增香/去腥/提味作用的食材。备货制管理。编号从 SML-0001 起。
 
 | 字段 | 类型 | 说明 |
@@ -167,8 +172,8 @@
 | code | varchar(20) UNIQUE | 编号 SML-0001 |
 | name | varchar(100) | 名称，如 蒜末、姜片 |
 | 规格形态描述 | varchar(100) | 如 切末、切片、整粒 |
-| 小料单价 | decimal(10,2) | |
-| 计量单位 | varchar(20) | 默认 10g |
+| 小料单价 | decimal(10,2) | 旧口径 元/10g，已废弃 |
+| 计量单位 | varchar(20) | 旧口径默认 10g，新数据统一 g |
 | 产地/品牌 | varchar(100) | |
 | 储存方式 | varchar(10) | 冷藏、常温、冷冻 |
 

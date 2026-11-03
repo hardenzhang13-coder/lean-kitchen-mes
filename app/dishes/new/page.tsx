@@ -15,7 +15,7 @@ export default function NewDishPage() {
       try {
         const [cRes, catRes] = await Promise.all([
           fetch("/api/dish-categories"),
-          fetch("/api/ingredient-categories"),
+          fetch("/api/ingredient-categories?page=1&pageSize=100"),
         ]);
 
         const checkJson = async (res: Response, label: string) => {

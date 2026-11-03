@@ -21,7 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
       minorDetails: {
         include: {
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
+          // 与主料/辅料同口径：附封装规格与加工费，供 serializeNetIngredient 计算价格体系
+          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, packageSpec: true, unit: true } },
         },
       },
       seasoningDetails: true,
@@ -41,13 +42,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const seasonings = await prisma.ingredient.findMany({
     where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
-    select: { id: true, name: true, alias: true, latestRefPrice: true, purchaseUnit: true },
+    select: { id: true, name: true, alias: true, latestRefPrice: true, pricePerJin: true, purchaseUnit: true },
   });
 
   const enriched = {
     ...row,
-    // 主料/辅料统一附出库价（成本价 + 封装加工费），前端展示口径一致
+    // 主料/辅料/小料统一附价格体系（净料单价/成本价/标准规格价），前端展示口径一致
     netDetails: row.netDetails.map((d) => ({
+      ...d,
+      netIngredient: d.netIngredient
+        ? serializeNetIngredient(d.netIngredient)
+        : d.netIngredient,
+    })),
+    minorDetails: row.minorDetails.map((d) => ({
       ...d,
       netIngredient: d.netIngredient
         ? serializeNetIngredient(d.netIngredient)
@@ -57,6 +64,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       ...d,
       name: seasonings.find((s) => s.id === d.sourceId)?.name,
       unitPrice: seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
+      // 每斤单价（元/斤）：调料 BOM 成本口径
+      pricePerJin: seasonings.find((s) => s.id === d.sourceId)?.pricePerJin,
       unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
     })),
     operatorName: await resolveUsernameToName(row.operator),

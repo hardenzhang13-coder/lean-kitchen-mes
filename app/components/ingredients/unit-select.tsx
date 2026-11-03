@@ -34,7 +34,7 @@ export function UnitSelect({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/units")
+    fetch("/api/units?page=1&pageSize=100")
       .then((res) => res.json())
       .then((res) => {
         setUnits(res.data?.items || res.data || []);

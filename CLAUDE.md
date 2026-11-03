@@ -57,8 +57,8 @@ prisma/               # 数据库 Schema + 种子脚本
 ```
 
 - **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）
-- **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）
-- **菜品（Dish）**：由净料（主料/辅料）、小料（MinorIngredients）、调料（SeasoningIngredients）、酱料（SauceIngredients）及 `DishProcess` 工序组成
+- **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料与净料同表同口径**（l2Code 归属 MIN 一级分类），同样由原料转化而来：成本价 = 原料每斤单价 ÷ 出成率，含封装规格与封装加工费，计价单位元/斤
+- **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料（SeasoningIngredients）、酱料（SauceIngredients）及 `DishProcess` 工序组成
 
 **排程（排程）** 是业务核心：
 1. 用户创建 `Schedule`，选择菜品及份数

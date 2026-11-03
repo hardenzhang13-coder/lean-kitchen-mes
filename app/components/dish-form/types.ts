@@ -9,6 +9,8 @@ export interface BomItem {
   amountG: string;
   unitPrice: number;
   unit: string;
+  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
+  costPrice?: number | null;
   cost?: number | null;
   l1Code?: string;
   l2Code?: string;
@@ -43,8 +45,14 @@ export interface IngredientOption {
   code: string;
   name: string;
   productName?: string | null;
+  /** 规格：净料/小料 = 封装规格（如 500g）；调料 = 采购规格；酱料 = 规格 */
   spec?: string | null;
   unitPrice: number | null;
+  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
+  costPrice?: number | null;
+  /** 净料/小料封装规格（g） */
+  packageSpec?: number | null;
+  /** 价格口径单位：净料/小料/调料为「斤」 */
   unit: string | null;
   l1Code?: string;
   l2Code?: string;
@@ -69,13 +77,7 @@ export const BOM_TYPE_LABELS: Record<BomType, string> = {
   sauce: "酱料",
 };
 
-export const BOM_TYPE_REQUIRED: Record<BomType, boolean> = {
-  main: true,
-  support: true,
-  minor: true,
-  seasoning: true,
-  sauce: false,
-};
+// 发布必填规则以 validatePublish 为准：主料/辅料/调料必填，小料/酱料可选
 
 export const VALID_STAGES: ProcessStage[] = ["初加工", "预处理", "上灶加工", "出锅成品"];
 
@@ -144,7 +146,7 @@ export interface DishDetail {
     amountG: number | string;
     spec?: string | null;
     cost?: number | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; unit: string | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null } | null;
   }>;
   minorDetails?: Array<{
     netIngId: number;
@@ -154,7 +156,7 @@ export interface DishDetail {
     name?: string;
     unitPrice?: number | null;
     unit?: string | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; unit: string | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null } | null;
   }>;
   seasoningDetails?: Array<{
     sourceId: number;
@@ -163,6 +165,8 @@ export interface DishDetail {
     cost?: number | null;
     name?: string;
     unitPrice?: number | null;
+    /** 每斤单价（元/斤）：调料 BOM 成本口径 */
+    pricePerJin?: number | null;
     unit?: string | null;
   }>;
   sauceDetails?: Array<{
@@ -201,6 +205,9 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const name = ing?.name ?? "";
     const unitPrice = ing?.unitPrice ?? 0;
     const unit = ing?.unit ?? "g";
+    // 成本价（元/斤，含封装加工费）为 BOM 成本口径
+    const costPrice = ing?.outPricePerJin ?? null;
+    const type: BomType = d.role === "support" ? "support" : "main";
     const item: BomItem = {
       id: `net-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
@@ -209,7 +216,8 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       amountG: String(d.amountG),
       unitPrice,
       unit,
-      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
+      costPrice,
+      cost: d.cost != null ? Number(d.cost) : calcCost(type, costPrice, d.amountG),
     };
     if (d.role === "support") bom.support.push(item);
     else bom.main.push(item);
@@ -220,6 +228,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const name = ing?.name ?? d.name ?? "";
     const unitPrice = ing?.unitPrice ?? d.unitPrice ?? 0;
     const unit = ing?.unit ?? d.unit ?? "g";
+    const costPrice = ing?.outPricePerJin ?? null;
     bom.minor.push({
       id: `minor-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
@@ -228,7 +237,8 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       amountG: String(d.amountG),
       unitPrice,
       unit,
-      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
+      costPrice,
+      cost: d.cost != null ? Number(d.cost) : calcCost("minor", costPrice, d.amountG),
     });
   });
 
@@ -236,6 +246,8 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const name = d.name ?? "";
     const unitPrice = d.unitPrice ?? 0;
     const unit = d.unit ?? "g";
+    // 调料成本价 = 每斤单价（元/斤）
+    const costPrice = d.pricePerJin ?? null;
     bom.seasoning.push({
       id: `sea-${d.sourceId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.sourceId,
@@ -244,7 +256,8 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       amountG: String(d.amountG),
       unitPrice,
       unit,
-      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
+      costPrice,
+      cost: d.cost != null ? Number(d.cost) : calcCost("seasoning", costPrice, d.amountG),
     });
   });
 
@@ -261,7 +274,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       amountG: String(d.amountG),
       unitPrice,
       unit,
-      cost: d.cost != null ? Number(d.cost) : calcCost(unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : calcCost("sauce", unitPrice, d.amountG),
     });
   });
 
@@ -337,10 +350,17 @@ export function formatCost(value: number | null | undefined): string {
   return `¥${Number(value).toFixed(2)}`;
 }
 
-export function calcCost(unitPrice: number, amountG: string | number): number | null {
+export function calcCost(
+  type: BomType,
+  pricePerJin: number | null | undefined,
+  amountG: string | number
+): number | null {
   const amount = typeof amountG === "string" ? parseFloat(amountG) : amountG;
   if (Number.isNaN(amount) || amount <= 0) return null;
-  return Number((unitPrice * amount / 1000).toFixed(4));
+  if (pricePerJin == null) return null;
+  // 净料/小料/调料均为元/斤口径（1 斤 = 500g）；酱料维持元/kg 旧口径（酱料模块暂不调整）
+  const gramsPerPriceUnit = type === "sauce" ? 1000 : 500;
+  return Number(((pricePerJin * amount) / gramsPerPriceUnit).toFixed(4));
 }
 
 export function totalBomCost(bom: Record<BomType, BomItem[]>): number {
@@ -362,14 +382,21 @@ export function normalizeNetIngredients(items: unknown[]): IngredientOption[] {
       const sourceIngredient = record.sourceIngredient as Record<string, unknown> | undefined;
       const id = Number(record.id);
       if (Number.isNaN(id)) return null;
+      const packageSpec = record.packageSpec != null ? Number(record.packageSpec) : null;
+      const outPrice = record.outPricePerJin != null ? Number(record.outPricePerJin) : null;
       return {
         id,
         code: String(record.code || ""),
         name: String(record.name || ""),
         productName: String(sourceIngredient?.name || ""),
-        spec: String(record.spec || ""),
+        // 规格展示用封装规格（原自由文本 spec 字段已废弃）
+        spec: packageSpec != null ? `${packageSpec}g` : "",
         unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
-        unit: String(record.unit || "g"),
+        // 成本价（元/斤，含封装加工费）
+        costPrice: outPrice,
+        packageSpec,
+        // 价格口径单位（BOM 用量仍按 g 录入）
+        unit: "斤",
         l2Code: String(record.l2Code || ""),
       } as IngredientOption;
     })
@@ -391,7 +418,9 @@ export function normalizeIngredients(items: unknown[]): IngredientOption[] {
         productName: String(record.alias || ""),
         spec: String(record.purchaseSpec || ""),
         unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
-        unit: String(record.purchaseUnit || "g"),
+        // 调料成本价 = 每斤单价（元/斤）
+        costPrice: record.pricePerJin != null ? Number(record.pricePerJin) : null,
+        unit: "斤",
         l2Code: String(record.l2Code || ""),
       } as IngredientOption;
     })

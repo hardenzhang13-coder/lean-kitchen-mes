@@ -30,7 +30,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const {
       name,
       sourceIngredientId,
-      spec,
       packageSpec,
       processingFeePerJin,
       yieldRate,
@@ -58,42 +57,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const isMinor = l2Row.parentCode === "MIN";
 
-    let finalSourceIngredientId: number | null = null;
-    let finalYieldRate: number | null = null;
-    let finalUnitPrice: number;
-    let finalUnit: string;
+    // 净料/小料统一口径（同 POST）：来源原料 + 出成率 + 封装规格必填，成本价元/斤
+    if (!sourceIngredientId) {
+      return badRequest("必须选择来源原料");
+    }
+    // 封装规格（g）必填：编辑存量数据时补填
+    const finalPackageSpec = packageSpec ?? existing.packageSpec;
+    if (!finalPackageSpec) {
+      return badRequest("必须填写封装规格（g）");
+    }
+    const finalSourceIngredientId = Number(sourceIngredientId);
 
-    if (isMinor) {
-      if (sourceIngredientId) {
-        finalSourceIngredientId = Number(sourceIngredientId);
-      }
-      finalYieldRate = yieldRate ? Number(yieldRate) : null;
-      finalUnitPrice = unitPrice != null && !Number.isNaN(Number(unitPrice)) ? Number(unitPrice) : 0;
-      finalUnit = "10g";
-    } else {
-      if (!sourceIngredientId) {
-        return badRequest("非小料净料必须填写来源原料");
-      }
-      // 净料封装规格（g）必填：编辑存量数据时补填
-      const finalPackageSpec = packageSpec ?? existing.packageSpec;
-      if (!finalPackageSpec) {
-        return badRequest("净料必须填写封装规格（g）");
-      }
-      finalSourceIngredientId = Number(sourceIngredientId);
+    const yieldRateNum = Number(yieldRate ?? existing.yieldRate);
+    if (!yieldRateNum || yieldRateNum <= 0 || yieldRateNum > 500) {
+      return badRequest("出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）");
+    }
 
-      const yieldRateNum = Number(yieldRate) || 0;
-      if (yieldRateNum <= 0 || yieldRateNum > 100) {
-        return badRequest("出成率必须在 1-100 之间");
-      }
-      finalYieldRate = yieldRateNum;
-
-      const calculated = await calculateUnitPrice(
-        finalSourceIngredientId,
-        yieldRateNum,
-        autoCalculate || unitPrice == null ? null : Number(unitPrice)
-      );
-      finalUnitPrice = calculated ?? 0;
-      finalUnit = "g";
+    const calculated = await calculateUnitPrice(
+      finalSourceIngredientId,
+      yieldRateNum,
+      autoCalculate || unitPrice == null ? null : Number(unitPrice)
+    );
+    if (calculated == null) {
+      return badRequest("来源原料缺少每斤单价，请先在原料中填写价格，或手动填写净料单价");
     }
 
     const row = await prisma.netIngredient.update({
@@ -101,12 +87,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       data: {
         name: name.trim(),
         sourceIngredientId: finalSourceIngredientId,
-        spec: isMinor ? spec?.trim() || null : null,
-        packageSpec: isMinor ? null : (packageSpec ?? existing.packageSpec),
-        processingFeePerJin: isMinor ? null : (processingFeePerJin ?? existing.processingFeePerJin),
-        yieldRate: finalYieldRate,
-        unitPrice: finalUnitPrice,
-        unit: finalUnit,
+        packageSpec: finalPackageSpec,
+        processingFeePerJin: processingFeePerJin ?? existing.processingFeePerJin ?? null,
+        yieldRate: yieldRateNum,
+        unitPrice: calculated,
+        unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",
       },
@@ -116,7 +101,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       action: "UPDATE",
       entity: "NetIngredient",
       entityId: row.id,
-      description: `更新净料: ${row.name || row.code}`,
+      description: `更新${isMinor ? "小料" : "净料"}: ${row.name || row.code}`,
     });
 
     return success(serializeNetIngredient(row));

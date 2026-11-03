@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -10,21 +10,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { DataTable } from "@/app/components/ui/data-table";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
-import { Pagination } from "@/app/components/ui/pagination";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
@@ -36,9 +29,10 @@ type Ingredient = {
   l2Code: string;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
+  stockUnit: string | null;
+  unitsPerPurchase: number | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
-  stockUnit: string | null;
 };
 
 type CategoryL1 = {
@@ -56,18 +50,10 @@ type Unit = {
   isActive?: boolean;
 };
 
-function findSeasoningL2Code(categories: CategoryL1[]) {
-  for (const l1 of categories) {
-    if (l1.name === "调味品") {
-      const l2 = l1.children.find((c) => c.name === "调料");
-      if (l2) return l2.code;
-    }
-  }
-  for (const l1 of categories) {
-    const l2 = l1.children.find((c) => c.name === "调料");
-    if (l2) return l2.code;
-  }
-  return undefined;
+// 新建调料默认分类：SEA（调味品）下第一个二级分类（分类接口默认只返回启用中的）
+function findDefaultSeasoningL2Code(categories: CategoryL1[]) {
+  const sea = categories.find((l1) => l1.code === "SEA");
+  return sea?.children[0]?.code;
 }
 
 export default function SeasoningIngredientsPage() {
@@ -76,42 +62,47 @@ export default function SeasoningIngredientsPage() {
   const [units, setUnits] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [l2Filter, setL2Filter] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Ingredient | null>(null);
+  const [viewing, setViewing] = useState<Ingredient | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const seasoningL2Code = useMemo(
-    () => findSeasoningL2Code(categories),
+    () => findDefaultSeasoningL2Code(categories),
     [categories]
   );
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return data;
-    const s = search.trim().toLowerCase();
-    return data.filter(
-      (d) =>
+    return data.filter((d) => {
+      if (l2Filter && d.l2Code !== l2Filter) return false;
+      if (!search.trim()) return true;
+      const s = search.trim().toLowerCase();
+      return (
         d.name.toLowerCase().includes(s) ||
         d.code.toLowerCase().includes(s) ||
         (d.alias && d.alias.toLowerCase().includes(s))
-    );
-  }, [data, search]);
+      );
+    });
+  }, [data, search, l2Filter]);
 
   const {
     currentPage,
     setCurrentPage,
     pageItems,
     totalPages,
-    start,
-    end,
     totalItems,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const fetchData = async () => {
     setLoading(true);
     try {
       const [catRes, unitRes, ingRes] = await Promise.all([
-        fetch("/api/ingredient-categories"),
-        fetch("/api/units"),
+        fetch("/api/ingredient-categories?page=1&pageSize=100"),
+        fetch("/api/units?page=1&pageSize=100"),
         fetch("/api/ingredients?page=1&pageSize=100"),
       ]);
       const cats = await catRes.json();
@@ -119,8 +110,8 @@ export default function SeasoningIngredientsPage() {
       setCategories(categoryList);
       const seasoningL2Codes = new Set<string>(
         categoryList
+          .filter((l1: CategoryL1) => l1.code === "SEA")
           .flatMap((l1: CategoryL1) => l1.children)
-          .filter((l2: CategoryL1["children"][number]) => l2.parentCode === "SEA" || l2.code === "GRA-SEA")
           .map((l2: CategoryL1["children"][number]) => l2.code)
       );
       const allIngredients = await ingRes.json();
@@ -150,6 +141,17 @@ export default function SeasoningIngredientsPage() {
     setEditing(row);
     setDialogOpen(true);
   };
+
+  const openView = (row: Ingredient) => {
+    setViewing(row);
+    setViewDialogOpen(true);
+  };
+
+  // 调料二级分类选项 = SEA（调味品）下的启用子分类
+  const seasoningL2Options = useMemo(() => {
+    const sea = categories.find((l1) => l1.code === "SEA");
+    return (sea?.children || []).map((c) => ({ value: c.code, label: c.name }));
+  }, [categories]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -201,105 +203,123 @@ export default function SeasoningIngredientsPage() {
             searchPlaceholder="搜索编号、名称或商品名称..."
             onReset={() => {
               setSearch("");
+              setL2Filter("");
               setCurrentPage(1);
             }}
-          />
+            hasFilters={!!l2Filter}
+          >
+            <SelectTileMode
+              options={seasoningL2Options}
+              value={l2Filter}
+              onChange={(v) => {
+                setL2Filter(v);
+                setCurrentPage(1);
+              }}
+              placeholder="全部二级分类"
+              title="选择二级分类"
+              searchable={false}
+              className="w-[180px]"
+            />
+          </ListToolbar>
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={10} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={11} rows={DEFAULT_PAGE_SIZE} />
           ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[50px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>食材名称</TableHead>
-                      <TableHead>商品名称</TableHead>
-                      <TableHead>二级分类</TableHead>
-                      <TableHead>采购规格</TableHead>
-                      <TableHead>采购单位</TableHead>
-                      <TableHead>最新参照单价</TableHead>
-                      <TableHead>入库单位</TableHead>
-                      <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={10}
-                          className="text-center text-muted-foreground"
-                        >
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => {
-                        const l2Info = l2Map[row.l2Code];
-                        const l2Name = l2Info?.name || row.l2Code;
-                        return (
-                          <TableRow
-                            key={row.id}
-                            className="transition-colors hover:bg-muted/40"
-                          >
-                            <TableCell className="text-muted-foreground">
-                              {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                            </TableCell>
-                            <TableCell className="font-medium">
-                              {row.code}
-                            </TableCell>
-                            <TableCell>{row.name}</TableCell>
-                            <TableCell>{row.alias || "—"}</TableCell>
-                            <TableCell>
-                              <CategoryTag l2Code={row.l2Code} name={l2Name} />
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {row.purchaseSpec || "—"}
-                            </TableCell>
-                            <TableCell>{row.purchaseUnit || "—"}</TableCell>
-                            <TableCell>
-                              {row.latestRefPrice != null
-                                ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                                : "—"}
-                            </TableCell>
-                            <TableCell>{row.stockUnit || "—"}</TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="编辑调料"
-                                onClick={() => openEdit(row)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                aria-label="删除调料"
-                                onClick={() => setDeleteId(row.id)}
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
+            <DataTable<Ingredient>
+              data={pageItems}
+              loading={loading}
+              columns={[
+                {
+                  header: "序号",
+                  cell: (_, rowIdx) => (
+                    <span className="text-muted-foreground">
+                      {(currentPage - 1) * pageSize + rowIdx + 1}
+                    </span>
+                  ),
+                },
+                {
+                  header: "编号",
+                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                },
+                { header: "食材名称", accessorKey: "name" },
+                { header: "商品名称", cell: (row) => row.alias || "—" },
+                {
+                  header: "二级分类",
+                  cell: (row) => {
+                    const l2Info = l2Map[row.l2Code];
+                    return (
+                      <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
+                    );
+                  },
+                },
+                {
+                  header: "采购规格",
+                  cell: (row) => row.purchaseSpec || "—",
+                },
+                { header: "采购单位", cell: (row) => row.purchaseUnit || "—" },
+                {
+                  header: "最新参照单价",
+                  cell: (row) =>
+                    row.latestRefPrice != null
+                      ? `¥${Number(row.latestRefPrice).toFixed(2)}`
+                      : "—",
+                },
+                { header: "入库单位", cell: (row) => row.stockUnit || "—" },
+                {
+                  header: "入库数量",
+                  cell: (row) => <span className="font-medium">{row.unitsPerPurchase ?? 1}</span>,
+                },
+                {
+                  header: "每斤单价",
+                  cell: (row) =>
+                    row.pricePerJin != null
+                      ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
+                      : "—",
+                },
+              ]}
+              pagination={
+                totalItems > 0
+                  ? {
+                      currentPage,
+                      totalPages,
+                      totalItems,
+                      pageSize,
+                      onPageChange: setCurrentPage,
+                      onPageSizeChange: setPageSize,
+                    }
+                  : undefined
+              }
+              emptyState={{ title: "暂无数据" }}
+              rowActions={(row) => (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="查看调料"
+                    onClick={() => openView(row)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="编辑调料"
+                    onClick={() => openEdit(row)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="删除调料"
+                    onClick={() => setDeleteId(row.id)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </>
+              )}
+            />
           )}
         </CardContent>
       </Card>
@@ -318,6 +338,7 @@ export default function SeasoningIngredientsPage() {
                 purchaseSpec: editing.purchaseSpec,
                 purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
+                unitsPerPurchase: editing.unitsPerPurchase ?? null,
                 latestRefPrice: editing.latestRefPrice ?? null,
                 pricePerJin: editing.pricePerJin ?? null,
               }
@@ -332,6 +353,33 @@ export default function SeasoningIngredientsPage() {
           setDialogOpen(false);
           fetchData();
         }}
+      />
+
+      <IngredientFormDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        initialData={
+          viewing
+            ? {
+                id: viewing.id,
+                code: viewing.code,
+                name: viewing.name,
+                l2Code: viewing.l2Code,
+                alias: viewing.alias,
+                purchaseSpec: viewing.purchaseSpec,
+                purchaseUnit: viewing.purchaseUnit || undefined,
+                stockUnit: viewing.stockUnit || undefined,
+                unitsPerPurchase: viewing.unitsPerPurchase ?? null,
+                latestRefPrice: viewing.latestRefPrice ?? null,
+                pricePerJin: viewing.pricePerJin ?? null,
+              }
+            : undefined
+        }
+        categories={categories}
+        units={units}
+        mode="seasoning"
+        view
+        onSuccess={() => {}}
       />
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

@@ -40,6 +40,7 @@ type Ingredient = {
   latestRefPrice: number | null;
   pricePerJin: number | null;
   stockUnit: string | null;
+  unitsPerPurchase: number | null;
 };
 
 type CategoryL1 = {
@@ -64,6 +65,7 @@ const importFields: ImportField[] = [
   { key: "purchaseSpec", label: "采购规格", sample: "散称" },
   { key: "purchaseUnit", label: "采购单位", required: true, sample: "斤" },
   { key: "stockUnit", label: "入库单位", required: true, sample: "斤" },
+  { key: "unitsPerPurchase", label: "入库数量", sample: "10" },
   { key: "latestRefPrice", label: "最新参照单价", sample: "18.50" },
 ];
 
@@ -86,7 +88,7 @@ export default function RawIngredientsPage() {
     setLoading(true);
     try {
       const [ingRes, catRes, unitRes] = await Promise.all([
-        fetch("/api/ingredients?page=1&pageSize=100"),
+        fetch("/api/ingredients?kind=raw&page=1&pageSize=100"),
         fetch("/api/ingredient-categories?page=1&pageSize=100"),
         fetch("/api/units?page=1&pageSize=100"),
       ]);
@@ -220,6 +222,9 @@ export default function RawIngredientsPage() {
           purchaseSpec: r.purchaseSpec?.trim() || undefined,
           purchaseUnit: r.purchaseUnit.trim(),
           stockUnit: r.stockUnit.trim(),
+          unitsPerPurchase: r.unitsPerPurchase?.trim()
+            ? Number(r.unitsPerPurchase.trim())
+            : undefined,
           latestRefPrice: r.latestRefPrice?.trim()
             ? Number(r.latestRefPrice.trim())
             : undefined,
@@ -273,10 +278,13 @@ export default function RawIngredientsPage() {
           >
             <div className="grid grid-cols-2 gap-3 w-[320px]">
               <SelectTileMode
-                options={categories.map((c) => ({
-                  value: c.code,
-                  label: c.name,
-                }))}
+                options={categories
+                  // 原料清单的分类边界：排除 SEA（调料）与 MIN（小料转化品分类）
+                  .filter((c) => c.code !== "MIN" && c.code !== "SEA")
+                  .map((c) => ({
+                    value: c.code,
+                    label: c.name,
+                  }))}
                 value={l1Filter}
                 onChange={(v) => {
                   setL1Filter(v);
@@ -420,6 +428,7 @@ export default function RawIngredientsPage() {
                 purchaseSpec: editing.purchaseSpec,
                 purchaseUnit: editing.purchaseUnit || undefined,
                 stockUnit: editing.stockUnit || undefined,
+                unitsPerPurchase: editing.unitsPerPurchase ?? null,
                 latestRefPrice: editing.latestRefPrice ?? null,
                 pricePerJin: editing.pricePerJin ?? null,
               }
@@ -449,7 +458,7 @@ export default function RawIngredientsPage() {
           purchaseSpec: d.purchaseSpec,
           purchaseUnit: d.purchaseUnit,
           latestRefPrice: d.latestRefPrice,
-          // 转净料成本价自动换算的数据源，缺失会导致弹窗无法自动计算
+          // 转净料单价自动换算的数据源，缺失会导致弹窗无法自动计算
           pricePerJin: d.pricePerJin,
         }))}
         onSuccess={() => {

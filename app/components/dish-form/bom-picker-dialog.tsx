@@ -94,6 +94,12 @@ export function BomPickerDialog({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 二级分类随一级分类级联：只展示当前选中一级分类下的子分类
+  const cascadedL2 = useMemo(
+    () => l1Categories.find((c) => c.code === selectedL1)?.children ?? [],
+    [l1Categories, selectedL1]
+  );
+
   const loadItems = useCallback(
     async (params: { l1Code?: string; l2Code?: string; q?: string; signal?: AbortSignal }) => {
       setLoading(true);
@@ -125,7 +131,8 @@ export function BomPickerDialog({
     if (debouncedSearch.trim()) {
       loadItems({ q: debouncedSearch.trim(), signal: controller.signal });
     } else if (hasCategories) {
-      const l2 = selectedL2 || l2Categories[0]?.code;
+      // 未选二级分类时回退到当前一级分类（级联后）的第一个子分类
+      const l2 = selectedL2 || cascadedL2[0]?.code || l2Categories[0]?.code;
       const l1 = selectedL1 || l1Categories[0]?.code;
       loadItems({ l1Code: l1, l2Code: l2, signal: controller.signal });
     } else {
@@ -133,7 +140,7 @@ export function BomPickerDialog({
     }
 
     return () => controller.abort();
-  }, [open, debouncedSearch, selectedL1, selectedL2, hasCategories, l1Categories, l2Categories, loadItems]);
+  }, [open, debouncedSearch, selectedL1, selectedL2, hasCategories, l1Categories, cascadedL2, l2Categories, loadItems]);
 
   const handleL1Click = (code: string) => {
     if (selectedL1 === code) return;
@@ -166,7 +173,11 @@ export function BomPickerDialog({
   };
 
   const l1Options = l1Categories.map((c) => ({ value: c.code, label: c.name }));
-  const l2Options = l2Categories.map((c) => ({ value: c.code, label: c.name }));
+  // 级联：二级分类面板只显示当前一级分类的子分类（未选中时回退全量）
+  const l2Options = (cascadedL2.length > 0 ? cascadedL2 : l2Categories).map((c) => ({
+    value: c.code,
+    label: c.name,
+  }));
   const isSearchMode = debouncedSearch.trim().length > 0;
   const isSeasoningOrSauce = type === "seasoning" || type === "sauce";
 
@@ -198,8 +209,11 @@ export function BomPickerDialog({
       {
         header: "成本价",
         className: "text-right",
-        cell: (row: IngredientOption) =>
-          row.unitPrice != null ? `¥${Number(row.unitPrice).toFixed(2)}` : "—",
+        cell: (row: IngredientOption) => {
+          // 净料/小料 = 成本价（含封装加工费，元/斤）；调料 = 每斤单价；酱料维持原单价口径
+          const price = type === "sauce" ? row.unitPrice : (row.costPrice ?? null);
+          return price != null ? `¥${Number(price).toFixed(2)}/斤` : "—";
+        },
       },
       {
         header: "单位",

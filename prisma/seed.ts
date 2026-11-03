@@ -73,8 +73,9 @@ async function main() {
     { code: "GRA-RIC", name: "米", parentCode: "GRA", description: "" },
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
-    { code: "GRA-SEA", name: "调味品", parentCode: "GRA", description: "" },
-    { code: "SEA-SEA", name: "调料", parentCode: "SEA", description: "" },
+    // SEA-SEA「调料」已停用（保留编码兼容，服务端识别仍覆盖）；调料按物理形态分为固体/液体
+    { code: "SEA-SOL", name: "固体类", parentCode: "SEA", description: "" },
+    { code: "SEA-LIQ", name: "液体类", parentCode: "SEA", description: "" },
     { code: "MIN-GAR", name: "姜蒜类", parentCode: "MIN", description: "" },
     { code: "MIN-ONI", name: "葱香类", parentCode: "MIN", description: "" },
     { code: "MIN-PEP", name: "椒香类", parentCode: "MIN", description: "" },
@@ -83,6 +84,11 @@ async function main() {
     { code: "PIG-COL", name: "冷鲜", parentCode: "PIG", description: "" },
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
+  // SEA-SEA「调料」停用：保留编码兼容（服务端识别仍覆盖），业务端分类选择器不再显示
+  await prisma.ingredientCategoryL2.updateMany({
+    where: { code: "SEA-SEA" },
+    data: { isActive: false },
+  });
 
   // 4. 单位（重量类必须带 gramsPerUnit；upsert 保证老库回填系数与启用状态）
   // 中英文别名均收录：规格文本里 g/kg 与 克/千克 同样常见，缺别名会导致换算中断

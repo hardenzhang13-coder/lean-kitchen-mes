@@ -29,6 +29,8 @@ export interface IngredientFormData {
   purchaseSpec: string;
   purchaseUnit: string;
   stockUnit: string;
+  /** 入库数量：每 1 个采购单位对应的入库单位数（散称 = 1） */
+  unitsPerPurchase: string;
   latestRefPrice: string;
   pricePerJin: string;
 }
@@ -42,6 +44,8 @@ export interface IngredientFormFieldsProps {
   mode: "ingredient" | "seasoning" | "auto";
   l2Open: boolean;
   onL2OpenChange: (open: boolean) => void;
+  /** 查看模式：所有输入控件只读，仅用于展示 */
+  viewMode?: boolean;
 }
 
 export function IngredientFormFields({
@@ -53,6 +57,7 @@ export function IngredientFormFields({
   mode,
   l2Open,
   onL2OpenChange,
+  viewMode = false,
 }: IngredientFormFieldsProps) {
   const [l1Open, setL1Open] = useState(false);
   const unitOptions = useMemo(
@@ -61,29 +66,18 @@ export function IngredientFormFields({
   );
 
   const filteredCategories = useMemo(() => {
-    if (mode === "auto") return categories;
-    // 调料体系按名称识别（与服务端 getSeasoningL2Codes 语义一致，不硬编码分类编码）
-    const isSeasoningChild = (name: string, parentName: string) =>
-      name === "调料" || name === "调味品" || parentName === "调味品";
-    return categories
-      .map((l1) => {
-        if (mode === "ingredient") {
-          const filteredChildren = l1.children.filter(
-            (c) => !isSeasoningChild(c.name, l1.name)
-          );
-          if (filteredChildren.length === 0) return null;
-          return { ...l1, children: filteredChildren };
-        }
-        if (mode === "seasoning") {
-          const filteredChildren = l1.children.filter((c) =>
-            isSeasoningChild(c.name, l1.name)
-          );
-          if (filteredChildren.length === 0) return null;
-          return { ...l1, children: filteredChildren };
-        }
-        return l1;
-      })
-      .filter((l1): l1 is CategoryL1 => l1 !== null);
+    // MIN（小料）分类不用于原料/调料建档：小料是转化品，其采购原料归在蔬菜-香辛料等业务分类
+    if (mode === "auto") {
+      return categories.filter((l1) => l1.code !== "MIN");
+    }
+    if (mode === "seasoning") {
+      // 调料体系 = SEA（调味品）一级分类（编码识别，不受分类改名影响）
+      return categories.filter((l1) => l1.code === "SEA");
+    }
+    // mode === "ingredient"：排除 SEA（调料）与 MIN（小料）
+    return categories.filter(
+      (l1) => l1.code !== "SEA" && l1.code !== "MIN"
+    ) as CategoryL1[];
   }, [categories, mode]);
 
   const l2Options = useMemo(() => {
@@ -102,9 +96,7 @@ export function IngredientFormFields({
   })();
 
   const isSeasoning =
-    mode === "seasoning" ||
-    (mode === "auto" &&
-      (selectedL2?.name === "调料" || selectedL2?.parentName === "调味品"));
+    mode === "seasoning" || (mode === "auto" && selectedL2?.parentCode === "SEA");
   const aliasLabel = "商品名称";
 
   const l1Options = useMemo(
@@ -137,45 +129,53 @@ export function IngredientFormFields({
           className="col-span-2"
           error={errors.l2Code}
         >
-          <div className="grid grid-cols-2 gap-3">
-            {!isSeasoning && (
+          {viewMode ? (
+            <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
+              {selectedL2
+                ? `${selectedL2.parentName} / ${selectedL2.name}`
+                : "—"}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {!isSeasoning && (
+                <SelectTileMode
+                  options={l1Options}
+                  value={form.l1Code}
+                  onChange={(v) => {
+                    onChange("l1Code", v);
+                    onChange("l2Code", "");
+                    setL1Open(false);
+                    onL2OpenChange(true);
+                  }}
+                  placeholder="请选择"
+                  title="选择一级分类"
+                  searchable={false}
+                  required
+                  open={l1Open}
+                  onOpenChange={setL1Open}
+                  cascade={{
+                    enabled: true,
+                    onLevelSelected: () => onL2OpenChange(true),
+                  }}
+                />
+              )}
               <SelectTileMode
-                options={l1Options}
-                value={form.l1Code}
+                options={l2Options}
+                value={form.l2Code}
                 onChange={(v) => {
-                  onChange("l1Code", v);
-                  onChange("l2Code", "");
-                  setL1Open(false);
-                  onL2OpenChange(true);
+                  onChange("l2Code", v);
+                  onL2OpenChange(false);
                 }}
                 placeholder="请选择"
-                title="选择一级分类"
+                title="选择二级分类"
+                open={l2Open}
+                onOpenChange={onL2OpenChange}
+                disabled={!form.l1Code && !isSeasoning}
                 searchable={false}
                 required
-                open={l1Open}
-                onOpenChange={setL1Open}
-                cascade={{
-                  enabled: true,
-                  onLevelSelected: () => onL2OpenChange(true),
-                }}
               />
-            )}
-            <SelectTileMode
-              options={l2Options}
-              value={form.l2Code}
-              onChange={(v) => {
-                onChange("l2Code", v);
-                onL2OpenChange(false);
-              }}
-              placeholder="请选择"
-              title="选择二级分类"
-              open={l2Open}
-              onOpenChange={onL2OpenChange}
-              disabled={!form.l1Code && !isSeasoning}
-              searchable={false}
-              required
-            />
-          </div>
+            </div>
+          )}
         </FormField>
         <FormField label="食材名称" required error={errors.name}>
           <Input
@@ -183,6 +183,7 @@ export function IngredientFormFields({
             onChange={(e) => onChange("name", e.target.value)}
             placeholder="如 带皮五花肉"
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
         <FormField label={aliasLabel} required={isSeasoning} error={errors.alias}>
@@ -191,6 +192,7 @@ export function IngredientFormFields({
             onChange={(e) => onChange("alias", e.target.value)}
             placeholder={isSeasoning ? "如 海天金标生抽" : "如 五花肉"}
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
       </FormSection>
@@ -214,32 +216,66 @@ export function IngredientFormFields({
             onChange={(e) => onChange("purchaseSpec", e.target.value)}
             placeholder="如 1千克*10袋、5斤/袋、散装称斤"
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
         <FormField label="采购单位" required error={errors.purchaseUnit}>
-          <SelectTileMode
-            options={unitOptions}
-            value={form.purchaseUnit}
-            onChange={(v) => onChange("purchaseUnit", v)}
-            placeholder="选择采购单位"
-            title="选择采购单位"
-            searchable={false}
-            cols={3}
-            required
-          />
+          {viewMode ? (
+            <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
+              {form.purchaseUnit || "—"}
+            </div>
+          ) : (
+            <SelectTileMode
+              options={unitOptions}
+              value={form.purchaseUnit}
+              onChange={(v) => onChange("purchaseUnit", v)}
+              placeholder="选择采购单位"
+              title="选择采购单位"
+              searchable={false}
+              cols={3}
+              required
+            />
+          )}
         </FormField>
         <FormField label="入库单位" required error={errors.stockUnit}>
-          <SelectTileMode
-            options={unitOptions}
-            value={form.stockUnit}
-            onChange={(v) => onChange("stockUnit", v)}
-            placeholder="选择入库单位"
-            title="选择入库单位"
-            searchable={false}
-            cols={3}
-            required
+          {viewMode ? (
+            <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
+              {form.stockUnit || "—"}
+            </div>
+          ) : (
+            <SelectTileMode
+              options={unitOptions}
+              value={form.stockUnit}
+              onChange={(v) => onChange("stockUnit", v)}
+              placeholder="选择入库单位"
+              title="选择入库单位"
+              searchable={false}
+              cols={3}
+              required
+            />
+          )}
+        </FormField>
+        {/* 入库数量仅调料使用：标准化采购按箱/件入库需知道每采购单位的入库数量；原料散称恒为 1 */}
+        {mode !== "ingredient" && (
+        <FormField
+          label="入库数量"
+          required
+          optionalHint={false}
+          error={errors.unitsPerPurchase}
+          hint="每 1 个采购单位对应的入库数量，如 200g/袋*10袋 填 10；散称填 1"
+        >
+          <Input
+            type="number"
+            min={1}
+            step="1"
+            value={form.unitsPerPurchase}
+            onChange={(e) => onChange("unitsPerPurchase", e.target.value)}
+            placeholder="如 10"
+            className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
+        )}
         <FormField
           label="最新参照单价"
           optionalHint={false}
@@ -252,6 +288,7 @@ export function IngredientFormFields({
             onChange={(e) => onChange("latestRefPrice", e.target.value)}
             placeholder="可选"
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
         <FormField
@@ -275,6 +312,7 @@ export function IngredientFormFields({
                 : "规格无法换算，请手动填写"
             }
             className="h-11 text-base px-4"
+            disabled={viewMode}
           />
         </FormField>
       </FormSection>

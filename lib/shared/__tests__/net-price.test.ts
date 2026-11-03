@@ -29,7 +29,7 @@ describe("calcOutPricePerJin", () => {
 
 describe("calcStandardPackagePrice", () => {
   it("computes per-package price from out price and package spec", () => {
-    // 500g = 1 斤 → 等于出库价
+    // 500g = 1 斤 → 等于成本价
     expect(calcStandardPackagePrice(5.5, 500)).toBe(5.5);
     // 250g = 半斤
     expect(calcStandardPackagePrice(5.5, 250)).toBe(2.75);

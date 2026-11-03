@@ -104,7 +104,7 @@
 本目录是 `app/lib/schedule-utils.ts` 的核心调用方：
 
 - `buildCuttingOrders(tx, scheduleId, items)` — 按菜品份数汇总净料/小料需求
-- `buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes)` — 汇总原料/小料/调料/酱料需求并扣除库存
+- `buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes)` — 汇总原料（含小料按出成率折算）/调料/酱料需求并扣除库存。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行
 
 ## 注意事项
 

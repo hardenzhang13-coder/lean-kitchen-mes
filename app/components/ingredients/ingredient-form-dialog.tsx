@@ -50,6 +50,7 @@ type ListItem = {
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   stockUnit?: string | null;
+  unitsPerPurchase?: number | string | null;
   latestRefPrice?: number | string | null;
   pricePerJin?: number | string | null;
 };
@@ -66,12 +67,15 @@ interface IngredientFormDialogProps {
     purchaseSpec?: string | null;
     purchaseUnit?: string | null;
     stockUnit?: string | null;
+    unitsPerPurchase?: number | null;
     latestRefPrice?: number | null;
     pricePerJin?: number | null;
   };
   categories: CategoryL1[];
   units: Unit[];
   mode?: "ingredient" | "seasoning" | "auto";
+  /** 查看模式：字段全部只读，仅提供关闭按钮 */
+  view?: boolean;
   onSuccess: (data: CreatedIngredient) => void;
 }
 
@@ -82,6 +86,7 @@ export function IngredientFormDialog({
   categories,
   units,
   mode = "auto",
+  view = false,
   onSuccess,
 }: IngredientFormDialogProps) {
   const [form, setForm] = useState<IngredientFormData>({
@@ -91,6 +96,7 @@ export function IngredientFormDialog({
     alias: "",
     purchaseSpec: "",
     purchaseUnit: "",
+    unitsPerPurchase: "1",
     latestRefPrice: "",
     pricePerJin: "",
     stockUnit: "",
@@ -128,6 +134,8 @@ export function IngredientFormDialog({
       alias: initialData?.alias || "",
       purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
       purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
+      unitsPerPurchase:
+        initialData?.unitsPerPurchase != null ? String(initialData.unitsPerPurchase) : "1",
       latestRefPrice:
         initialData?.latestRefPrice != null
           ? String(initialData.latestRefPrice)
@@ -197,15 +205,14 @@ export function IngredientFormDialog({
     if (!form.l2Code) return undefined;
     for (const l1 of categories) {
       const l2 = l1.children.find((c) => c.code === form.l2Code);
-      if (l2) return { ...l2, parentName: l1.name };
+      if (l2) return { ...l2, parentName: l1.name, parentCode: l1.code };
     }
     return undefined;
   })();
 
+  // 调料体系按编码识别（SEA 一级分类），不受分类改名影响
   const isSeasoning =
-    mode === "seasoning" ||
-    (mode === "auto" &&
-      (selectedL2?.name === "调料" || selectedL2?.parentName === "调味品"));
+    mode === "seasoning" || (mode === "auto" && selectedL2?.parentCode === "SEA");
 
   const validate = () => {
     const next: Record<string, string> = {};
@@ -216,6 +223,10 @@ export function IngredientFormDialog({
     if (!form.purchaseSpec.trim()) next.purchaseSpec = "采购规格不能为空";
     if (!form.purchaseUnit.trim()) next.purchaseUnit = "请选择采购单位";
     if (!form.stockUnit.trim()) next.stockUnit = "请选择入库单位";
+    const units = Number(form.unitsPerPurchase);
+    if (!form.unitsPerPurchase || !Number.isInteger(units) || units < 1) {
+      next.unitsPerPurchase = "请填写有效的入库数量（正整数）";
+    }
     if (form.latestRefPrice && Number(form.latestRefPrice) < 0)
       next.latestRefPrice = "最新参照单价不能为负数";
     if (form.pricePerJin && Number(form.pricePerJin) < 0)
@@ -262,6 +273,7 @@ export function IngredientFormDialog({
         purchaseSpec: spec,
         purchaseUnit: form.purchaseUnit,
         stockUnit: form.stockUnit,
+        unitsPerPurchase: Number(form.unitsPerPurchase) || 1,
         ...(price != null && { latestRefPrice: price }),
         ...(jinPrice != null && { pricePerJin: jinPrice }),
       };
@@ -307,7 +319,11 @@ export function IngredientFormDialog({
       <DialogContent className="sm:max-w-[1200px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
-            {initialData?.id ? "编辑食材" : "新增食材"}
+            {view
+              ? `查看${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
+              : initialData?.id
+                ? `编辑${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
+                : `新增${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`}
           </DialogTitle>
         </DialogHeader>
 
@@ -322,9 +338,11 @@ export function IngredientFormDialog({
               mode={mode}
               l2Open={l2Open}
               onL2OpenChange={setL2Open}
+              viewMode={view}
             />
           </div>
 
+          {!view && (
           <div className="lg:w-[520px] flex flex-col min-h-0 rounded-lg border bg-card">
             <div className="px-4 py-3 border-b flex items-center justify-between">
               <h4 className="text-sm font-semibold text-muted-foreground">
@@ -356,6 +374,7 @@ export function IngredientFormDialog({
                       <TableHead className="whitespace-nowrap">采购规格</TableHead>
                       <TableHead className="whitespace-nowrap">采购单位</TableHead>
                       <TableHead className="whitespace-nowrap">入库单位</TableHead>
+                      <TableHead className="whitespace-nowrap">入库数量</TableHead>
                       <TableHead className="whitespace-nowrap text-right">最新参照单价</TableHead>
                       <TableHead className="whitespace-nowrap text-right">每斤单价</TableHead>
                     </TableRow>
@@ -375,6 +394,9 @@ export function IngredientFormDialog({
                         <TableCell className="text-sm whitespace-nowrap">
                           {row.stockUnit || "—"}
                         </TableCell>
+                        <TableCell className="text-sm whitespace-nowrap">
+                          {row.unitsPerPurchase ?? 1}
+                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap text-right">
                           {row.latestRefPrice != null
                             ? `¥${Number(row.latestRefPrice).toFixed(2)}`
@@ -392,26 +414,39 @@ export function IngredientFormDialog({
               )}
             </div>
           </div>
+          )}
         </div>
 
         <DialogFooter className="px-6 pt-0 pb-6">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
-          >
-            取消
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={submitting}
-            className="h-11 px-6"
-          >
-            <span aria-live="polite" className="inline-flex items-center">
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              保存
-            </span>
-          </Button>
+          {view ? (
+            <Button
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="h-11 px-6"
+            >
+              关闭
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                className="h-11 px-6"
+              >
+                取消
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="h-11 px-6"
+              >
+                <span aria-live="polite" className="inline-flex items-center">
+                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  保存
+                </span>
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
 
@@ -426,6 +461,10 @@ export function IngredientFormDialog({
           { header: "采购规格", accessorKey: "purchaseSpec" },
           { header: "采购单位", accessorKey: "purchaseUnit" },
           { header: "入库单位", accessorKey: "stockUnit" },
+          {
+            header: "入库数量",
+            cell: (row) => row.unitsPerPurchase ?? 1,
+          },
           {
             header: "最新参照单价",
             className: "text-right",

@@ -18,10 +18,16 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(ingredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { l2Code, q, page, pageSize } = validation.data;
+    const { l2Code, kind, q, page, pageSize } = validation.data;
     const where: Prisma.IngredientWhereInput = { deletedAt: null };
     if (l2Code) {
       where.l2Code = l2Code;
+    }
+    // 模块边界过滤：原料清单不得混入调料（SEA 体系），反之亦然
+    if (kind) {
+      const seasoningL2Codes = await getSeasoningL2Codes();
+      where.l2Code =
+        kind === "raw" ? { notIn: seasoningL2Codes } : { in: seasoningL2Codes };
     }
     if (q?.trim()) {
       const term = q.trim();
@@ -64,6 +70,7 @@ export async function POST(req: NextRequest) {
       l2Code,
       purchaseUnit,
       stockUnit,
+      unitsPerPurchase,
       purchaseSpec,
       latestRefPrice,
       pricePerJin,
@@ -99,6 +106,7 @@ export async function POST(req: NextRequest) {
         l2Code,
         purchaseUnit: purchaseUnit ?? null,
         stockUnit: stockUnit ?? null,
+        unitsPerPurchase: unitsPerPurchase ?? 1,
         purchaseSpec: purchaseSpec ?? null,
         latestRefPrice: latestRefPrice ?? null,
         pricePerJin: finalPricePerJin,

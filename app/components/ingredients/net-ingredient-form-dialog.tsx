@@ -34,7 +34,6 @@ export type NetIngredientItem = {
   id: number;
   code: string;
   name: string;
-  spec: string | null;
   packageSpec: number | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
@@ -62,9 +61,9 @@ const emptyForm: NetIngredientFormData = {
   l1Code: "",
   l2Code: "",
   sourceIngredientId: "",
-  spec: "",
   packageSpec: "500",
-  processingFeePerJin: "",
+  // 封装加工费默认 0.35 元/斤（最常见档位，可改）
+  processingFeePerJin: "0.35",
   yieldRate: "",
   unitPrice: "",
 };
@@ -124,7 +123,6 @@ export function NetIngredientFormDialog({
         sourceIngredientId: initialData.sourceIngredientId
           ? String(initialData.sourceIngredientId)
           : "",
-        spec: initialData.spec || "",
         packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
         processingFeePerJin:
           initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
@@ -147,7 +145,9 @@ export function NetIngredientFormDialog({
     }
 
     if (isMinor) {
-      setForm({ ...emptyForm, l1Code: "MIN" });
+      const minorL1 = categories.find((c) => c.code === "MIN");
+      const firstL2 = minorL1?.children[0];
+      setForm({ ...emptyForm, l1Code: "MIN", l2Code: firstL2?.code || "" });
       return;
     }
 
@@ -162,15 +162,15 @@ export function NetIngredientFormDialog({
   }, [open, initialData, isConvert, isMinor, propSourceId, findParentL1, getRawIngredient, categories]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Auto-calculate unit price (net mode only)
+  // 自动计算净料单价（净料/小料同口径）：来源原料每斤单价 ÷ (出成率 / 100)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!open || isMinor) return;
+    if (!open) return;
     if (unitPriceManuallySet.current) return;
 
     const sourceId = Number(form.sourceIngredientId);
     const yieldRate = Number(form.yieldRate);
-    if (!sourceId || !yieldRate || yieldRate <= 0 || yieldRate > 100) {
+    if (!sourceId || !yieldRate || yieldRate <= 0 || yieldRate > 500) {
       return;
     }
 
@@ -178,7 +178,7 @@ export function NetIngredientFormDialog({
     const pricePerJin = raw?.pricePerJin != null ? Number(raw.pricePerJin) : null;
     if (pricePerJin == null || pricePerJin <= 0) return;
 
-    // 净料成本价（元/斤）= 原料每斤单价 ÷ (出成率 / 100)
+    // 净料单价（元/斤）= 原料每斤单价 ÷ (出成率 / 100)
     const calculated = Number((pricePerJin / (yieldRate / 100)).toFixed(2));
     setForm((prev) =>
       prev.unitPrice !== String(calculated)
@@ -188,10 +188,10 @@ export function NetIngredientFormDialog({
   }, [open, isMinor, form.sourceIngredientId, form.yieldRate, getRawIngredient]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Load right-side list (net/convert mode only)
+  // Load right-side list (按来源原料聚合已建规格，净料/小料同)
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (!open || isMinor) return;
+    if (!open) return;
     const sourceId = Number(form.sourceIngredientId);
     if (!sourceId) {
       setRightList([]);
@@ -241,21 +241,19 @@ export function NetIngredientFormDialog({
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = `${isMinor ? "小料" : "净料"}名称不能为空`;
     if (!form.l2Code) next.l2Code = "请选择二级分类";
+    if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
 
-    if (!isMinor) {
-      if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
-      const yieldRate = Number(form.yieldRate);
-      if (!form.yieldRate || yieldRate <= 0 || yieldRate > 100) {
-        next.yieldRate = "出成率必须在 1-100 之间";
-      }
-      // 封装规格（g）必填
-      const pkg = Number(form.packageSpec);
-      if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
-        next.packageSpec = "请填写有效的封装规格（g）";
-      }
-      if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
-        next.processingFeePerJin = "封装加工费不能为负数";
-      }
+    const yieldRate = Number(form.yieldRate);
+    if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
+      next.yieldRate = "出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）";
+    }
+    // 封装规格（g）必填
+    const pkg = Number(form.packageSpec);
+    if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
+      next.packageSpec = "请填写有效的封装规格（g）";
+    }
+    if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
+      next.processingFeePerJin = "封装加工费不能为负数";
     }
 
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
@@ -268,7 +266,9 @@ export function NetIngredientFormDialog({
   const resetForCreate = () => {
     unitPriceManuallySet.current = false;
     if (isMinor) {
-      setForm({ ...emptyForm, l1Code: "MIN" });
+      const minorL1 = categories.find((c) => c.code === "MIN");
+      const firstL2 = minorL1?.children[0];
+      setForm({ ...emptyForm, l1Code: "MIN", l2Code: firstL2?.code || "" });
     } else {
       const firstL1 = categories[0];
       const firstL2 = firstL1?.children[0];
@@ -288,21 +288,16 @@ export function NetIngredientFormDialog({
     try {
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
-        spec: form.spec.trim() || null,
         unitPrice: Number(form.unitPrice),
         l2Code: form.l2Code,
-      };
-
-      if (!isMinor) {
-        payload.sourceIngredientId = Number(form.sourceIngredientId);
-        payload.yieldRate = Number(form.yieldRate);
-        payload.packageSpec = Number(form.packageSpec);
-        payload.processingFeePerJin = form.processingFeePerJin
+        sourceIngredientId: Number(form.sourceIngredientId),
+        yieldRate: Number(form.yieldRate),
+        packageSpec: Number(form.packageSpec),
+        processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
-          : null;
-      } else {
-        payload.unit = "10g";
-      }
+          : null,
+        autoCalculate: false,
+      };
 
       const url = initialData?.id
         ? `/api/net-ingredients/${initialData.id}`
@@ -323,7 +318,8 @@ export function NetIngredientFormDialog({
 
       toast.success(initialData?.id ? "更新成功" : "创建成功");
 
-      if (initialData?.id || isMinor || isConvert) {
+      // 小料与编辑/转净料场景保存后关闭弹窗；新增净料保持打开以便连续录入同来源规格
+      if (initialData?.id || isConvert || isMinor) {
         onOpenChange(false);
         onSuccess?.();
       } else {
@@ -359,7 +355,6 @@ export function NetIngredientFormDialog({
       l1Code: isMinor ? "MIN" : parentL1?.code || "",
       l2Code: row.l2Code || "",
       sourceIngredientId: row.sourceIngredientId ? String(row.sourceIngredientId) : "",
-      spec: row.spec || "",
       packageSpec: row.packageSpec != null ? String(row.packageSpec) : "",
       processingFeePerJin:
         row.processingFeePerJin != null ? String(row.processingFeePerJin) : "",
@@ -378,25 +373,13 @@ export function NetIngredientFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className={
-          isMinor
-            ? "sm:max-w-[640px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
-            : "sm:max-w-[1200px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
-        }
-      >
+      <DialogContent className="sm:max-w-[1200px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">{dialogTitle}</DialogTitle>
         </DialogHeader>
 
-        <div
-          className={
-            isMinor
-              ? "space-y-4 py-4 px-6 overflow-y-auto flex-1"
-              : "flex flex-col lg:flex-row gap-6 py-4 px-6 overflow-y-auto flex-1 min-h-0"
-          }
-        >
-          <div className={isMinor ? "" : "flex-1 space-y-4 min-w-0"}>
+        <div className="flex flex-col lg:flex-row gap-6 py-4 px-6 overflow-y-auto flex-1 min-h-0">
+          <div className="flex-1 space-y-4 min-w-0">
             <NetIngredientFormFields
               form={form}
               onChange={handleChange}
@@ -416,31 +399,30 @@ export function NetIngredientFormDialog({
             />
           </div>
 
-          {!isMinor && (
-            <div className="lg:w-[680px] flex flex-col min-h-0 rounded-lg border bg-card">
-              <div className="px-4 py-3 border-b flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-muted-foreground">
-                  已创建的净料规格
-                </h4>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title="完整预览"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </Button>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {loadingList ? (
-                  <LoadingState type="table" rows={5} cols={7} />
-                ) : rightList.length === 0 ? (
-                  <EmptyState
-                    icon={PackageOpen}
-                    title="暂无净料"
-                    description="该原料尚未创建净料规格"
-                  />
-                ) : (
+          <div className="lg:w-[680px] flex flex-col min-h-0 rounded-lg border bg-card">
+            <div className="px-4 py-3 border-b flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-muted-foreground">
+                {isMinor ? "已创建的小料规格" : "已创建的净料规格"}
+              </h4>
+              <Button
+                variant="ghost"
+                size="icon"
+                title="完整预览"
+                onClick={() => setPreviewOpen(true)}
+              >
+                <Maximize2 className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex-1 overflow-auto">
+              {loadingList ? (
+                <LoadingState type="table" rows={5} cols={7} />
+              ) : rightList.length === 0 ? (
+                <EmptyState
+                  icon={PackageOpen}
+                  title={isMinor ? "暂无小料" : "暂无净料"}
+                  description="该原料尚未创建规格"
+                />
+              ) : (
                   <Table>
                     <TableHeader className="sticky top-0 bg-background z-10">
                       <TableRow>
@@ -448,9 +430,9 @@ export function NetIngredientFormDialog({
                         <TableHead className="whitespace-nowrap">名称</TableHead>
                         <TableHead className="whitespace-nowrap">封装规格</TableHead>
                         <TableHead className="whitespace-nowrap">出成率</TableHead>
-                        <TableHead className="whitespace-nowrap">成本价</TableHead>
+                        <TableHead className="whitespace-nowrap">净料单价</TableHead>
                         <TableHead className="whitespace-nowrap">加工费</TableHead>
-                        <TableHead className="whitespace-nowrap">出库价</TableHead>
+                        <TableHead className="whitespace-nowrap">成本价</TableHead>
                         <TableHead className="whitespace-nowrap">标准规格价</TableHead>
                         <TableHead className="whitespace-nowrap text-right">操作</TableHead>
                       </TableRow>
@@ -505,7 +487,6 @@ export function NetIngredientFormDialog({
                 )}
               </div>
             </div>
-          )}
         </div>
 
         <DialogFooter className="px-6 pt-0 pb-6">
@@ -534,9 +515,9 @@ export function NetIngredientFormDialog({
       <TablePreviewDialog<NetIngredientItem>
         open={previewOpen}
         onOpenChange={setPreviewOpen}
-        title="已创建的净料规格"
+        title={isMinor ? "已创建的小料规格" : "已创建的净料规格"}
         description={rightList.length > 0 ? `共 ${rightList.length} 条` : undefined}
-        emptyTitle="该原料尚未创建净料规格"
+        emptyTitle="该原料尚未创建规格"
         columns={[
           { header: "编号", accessorKey: "code" },
           { header: "名称", accessorKey: "name" },
@@ -549,7 +530,7 @@ export function NetIngredientFormDialog({
             cell: (row) => (row.yieldRate != null ? `${row.yieldRate}%` : "—"),
           },
           {
-            header: "成本价",
+            header: "净料单价",
             cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}/斤`,
           },
           {
@@ -560,7 +541,7 @@ export function NetIngredientFormDialog({
                 : "—",
           },
           {
-            header: "出库价",
+            header: "成本价",
             cell: (row) =>
               row.outPricePerJin != null
                 ? `¥${Number(row.outPricePerJin).toFixed(2)}/斤`

@@ -29,7 +29,7 @@ export default function DishDetailPage() {
         const [dishRes, cRes, catRes] = await Promise.all([
           fetch(`/api/dishes/${dishId}`, { signal: controller.signal }),
           fetch("/api/dish-categories", { signal: controller.signal }),
-          fetch("/api/ingredient-categories", { signal: controller.signal }),
+          fetch("/api/ingredient-categories?page=1&pageSize=100", { signal: controller.signal }),
         ]);
 
         const checkJson = async (res: Response, label: string) => {

@@ -87,6 +87,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
 
   const statusLabel = dish.status === "published" ? "已发布" : "草稿";
 
+  // 成本以服务端存储值为准（保存 BOM 时已按食材模块口径重算），前端不再重算
   const bomRows: BomTableRow[] = [
     ...(dish.netDetails?.filter((d) => d.role === "main").map((d, idx) => ({
       id: `main-${idx}`,
@@ -95,7 +96,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: d.spec ?? null,
       productName: null,
       amountG: d.amountG ?? null,
-      cost: calcLineCost(d.netIngredient?.unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
     ...(dish.netDetails?.filter((d) => d.role === "support").map((d, idx) => ({
       id: `support-${idx}`,
@@ -104,16 +105,16 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: d.spec ?? null,
       productName: null,
       amountG: d.amountG ?? null,
-      cost: calcLineCost(d.netIngredient?.unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
     ...(dish.minorDetails?.map((d, idx) => ({
       id: `minor-${idx}`,
       type: "minor" as BomType,
-      name: d.name || "—",
+      name: d.name || d.netIngredient?.name || "—",
       spec: d.brand ?? null,
       productName: null,
       amountG: d.amountG ?? null,
-      cost: calcLineCost(d.unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
     ...(dish.seasoningDetails?.map((d, idx) => ({
       id: `seasoning-${idx}`,
@@ -122,7 +123,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      cost: calcLineCost(d.unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
     ...(dish.sauceDetails?.map((d, idx) => ({
       id: `sauce-${idx}`,
@@ -131,7 +132,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      cost: calcLineCost(d.sauce?.unitPrice, d.amountG),
+      cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
   ];
 
@@ -335,11 +336,4 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       </Dialog>
     </SheetContent>
   );
-}
-
-function calcLineCost(unitPrice: number | null | undefined, amountG: string | number | null | undefined) {
-  if (unitPrice == null || amountG == null) return null;
-  const amount = typeof amountG === "string" ? Number(amountG) : amountG;
-  if (Number.isNaN(amount)) return null;
-  return Number((unitPrice * amount / 1000).toFixed(4));
 }

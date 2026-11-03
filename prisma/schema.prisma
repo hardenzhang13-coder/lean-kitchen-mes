@@ -71,6 +71,8 @@ model Ingredient {
   purchaseSpec   String?               @map("purchase_spec")
   purchaseUnit   String?               @map("purchase_unit")
   stockUnit      String?               @map("stock_unit")
+  // 入库数量：每 1 个采购单位对应的入库单位数（如 200g/袋*10袋 填 10；散称 = 1）
+  unitsPerPurchase Int                 @default(1) @map("units_per_purchase")
   latestRefPrice Decimal?              @map("latest_ref_price") @db.Decimal(10, 2)
   pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
   season         String                @default("四季") @map("season")
@@ -89,15 +91,17 @@ model NetIngredient {
   code               String            @unique
   name               String
   sourceIngredientId Int?              @map("source_ingredient_id")
+  // 历史遗留字段：早期小料的自由文本规格（如「切末」），新数据不再写入，保留兼容
   spec               String?
+  // 出成率（%）：净料/小料必填（原料转化口径）
   yieldRate          Decimal?          @map("yield_rate") @db.Decimal(5, 2)
-  // 净料封装规格（g），净料必填；小料为 null。自由文本 spec 仅小料使用
+  // 封装规格（g），净料/小料必填
   packageSpec        Int?              @map("package_spec")
-  // 封装加工费（元/斤），空 = 0；仅净料使用
+  // 封装加工费（元/斤），空 = 0；净料/小料使用
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
-  // 成本价：净料 = 元/斤（原料每斤单价 ÷ 出成率）；小料 = 元/10g
+  // 成本价：净料/小料统一为 元/斤（原料每斤单价 ÷ 出成率）
   unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
-  // 净料固定 g；小料 10g
+  // 计量单位：统一 g（历史小料曾用 10g，已废弃）
   unit               String            @default("g") @map("unit")
   l2Code             String            @map("l2_code")
   storage            String            @default("冷藏") @map("storage")
@@ -257,7 +261,7 @@ model ScheduleItem {
 model PurchasePlan {
   id                Int      @id @default(autoincrement())
   scheduleId        Int      @map("schedule_id")
-  sourceType        String   @map("source_type") // ingredient / minor / seasoning / sauce
+  sourceType        String   @map("source_type") // ingredient / seasoning / sauce（小料已按出成率并入 ingredient）
   sourceId          Int      @map("source_id")
   itemName          String   @map("item_name")
   l2Code            String?  @map("l2_code")

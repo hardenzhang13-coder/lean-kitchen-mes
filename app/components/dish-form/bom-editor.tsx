@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BomType, BomItem, BOM_TYPE_LABELS, totalBomCost, formatCost, IngredientOption } from "./types";
+import { BomType, BomItem, BOM_TYPE_LABELS, totalBomCost, formatCost, calcCost, IngredientOption } from "./types";
 import { BomItemRow } from "./bom-item-row";
 import { BomPickerDialog } from "./bom-picker-dialog";
 
@@ -86,6 +86,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
             if (!pickerType) return;
             const newItems = items.map(({ option, amountG }) => {
               const amount = Number(amountG) || 100;
+              // 净料/小料/调料按成本价（元/斤）估算；酱料维持 unitPrice 旧口径
+              const costBase = pickerType === "sauce" ? option.unitPrice : (option.costPrice ?? null);
               return {
                 id: `${pickerType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                 sourceId: option.id,
@@ -95,9 +97,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 amountG: String(amount),
                 unitPrice: option.unitPrice ?? 0,
                 unit: option.unit || "g",
-                cost: option.unitPrice != null
-                  ? Number((option.unitPrice * amount / 1000).toFixed(4))
-                  : null,
+                costPrice: option.costPrice ?? null,
+                cost: calcCost(pickerType, costBase, amount),
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -23,7 +23,7 @@ import {
   NetIngredientEditDialog,
   NetIngredientEditItem,
 } from "@/app/components/ingredients/net-ingredient-edit-dialog";
-import { usePagination } from "@/lib/client/use-pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 
@@ -32,11 +32,12 @@ type NetIngredient = {
   code: string;
   name: string;
   sourceIngredientId: number | null;
-  spec: string | null;
   packageSpec: number | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  outPricePerJin: number | null;
+  standardPackagePrice: number | null;
   unit: string | null;
   l2Code: string;
   sourceIngredient?: { id: number; name: string } | null;
@@ -48,8 +49,21 @@ type CategoryL1 = {
   children: { code: string; name: string }[];
 };
 
+type RawIngredientOption = {
+  id: number;
+  code: string;
+  name: string;
+  alias?: string | null;
+  l2Code?: string;
+  purchaseSpec?: string | null;
+  purchaseUnit?: string | null;
+  latestRefPrice?: number | null;
+  pricePerJin?: number | null;
+};
+
 export default function MinorIngredientsPage() {
   const [data, setData] = useState<NetIngredient[]>([]);
+  const [rawIngredients, setRawIngredients] = useState<RawIngredientOption[]>([]);
   const [categories, setCategories] = useState<CategoryL1[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -58,6 +72,8 @@ export default function MinorIngredientsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editing, setEditing] = useState<NetIngredientEditItem | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [viewing, setViewing] = useState<NetIngredientEditItem | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -65,14 +81,17 @@ export default function MinorIngredientsPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [res, catRes] = await Promise.all([
+      const [res, catRes, rawRes] = await Promise.all([
         fetch("/api/net-ingredients?l1Code=MIN"),
         fetch("/api/ingredient-categories?page=1&pageSize=100"),
+        fetch("/api/ingredients?kind=raw&page=1&pageSize=100"),
       ]);
       const json = await res.json();
       setData(json.data || []);
       const catJson = await catRes.json();
       setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
+      const rawJson = await rawRes.json();
+      setRawIngredients(rawJson.data || []);
     } catch {
       toast.error("获取数据失败");
     } finally {
@@ -113,25 +132,33 @@ export default function MinorIngredientsPage() {
     pageItems,
     totalPages,
     totalItems,
-  } = usePagination(filtered, 20);
+    pageSize,
+    setPageSize,
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
 
+  const buildEditItem = (row: NetIngredient): NetIngredientEditItem => ({
+    id: row.id,
+    name: row.name,
+    packageSpec: row.packageSpec ?? null,
+    processingFeePerJin: row.processingFeePerJin ?? null,
+    yieldRate: row.yieldRate,
+    unitPrice: row.unitPrice,
+    sourceIngredientId: row.sourceIngredientId,
+    l2Code: row.l2Code,
+  });
+
   const openEdit = (row: NetIngredient) => {
-    setEditing({
-      id: row.id,
-      name: row.name,
-      spec: row.spec,
-      packageSpec: row.packageSpec ?? null,
-      processingFeePerJin: row.processingFeePerJin ?? null,
-      yieldRate: row.yieldRate,
-      unitPrice: row.unitPrice,
-      sourceIngredientId: row.sourceIngredientId,
-      l2Code: row.l2Code,
-    });
+    setEditing(buildEditItem(row));
     setEditDialogOpen(true);
+  };
+
+  const openView = (row: NetIngredient) => {
+    setViewing(buildEditItem(row));
+    setViewDialogOpen(true);
   };
 
   const handleDelete = async () => {
@@ -162,7 +189,7 @@ export default function MinorIngredientsPage() {
         <PageHeader
           showBack
           title="小料清单"
-          description="用量极小的增香/去腥/提味食材"
+          description="原料初加工转化的增香/去腥/提味食材，与净料同口径"
         />
         <Button onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" />
@@ -207,7 +234,7 @@ export default function MinorIngredientsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={8} rows={20} />
+            <SkeletonTable cols={11} rows={20} />
           ) : (
             <DataTable<NetIngredient>
               data={pageItems}
@@ -217,7 +244,7 @@ export default function MinorIngredientsPage() {
                   header: "序号",
                   cell: (_, rowIdx) => (
                     <span className="text-muted-foreground">
-                      {(currentPage - 1) * 20 + rowIdx + 1}
+                      {(currentPage - 1) * pageSize + rowIdx + 1}
                     </span>
                   ),
                 },
@@ -237,14 +264,46 @@ export default function MinorIngredientsPage() {
                   ),
                 },
                 { header: "名称", accessorKey: "name" },
-                { header: "规格", cell: (row) => row.spec || "—" },
                 {
-                  header: "单价",
+                  header: "封装规格",
+                  cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
+                },
+                {
+                  header: "来源原料",
+                  cell: (row) =>
+                    row.sourceIngredient?.name || row.sourceIngredientId || "—",
+                },
+                {
+                  header: "出成率",
+                  cell: (row) =>
+                    row.yieldRate != null ? `${row.yieldRate}%` : "—",
+                },
+                {
+                  header: "净料单价（元/斤）",
                   cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
                 },
                 {
-                  header: "单位",
-                  cell: (row) => row.unit || "10g",
+                  header: "封装加工费",
+                  cell: (row) =>
+                    row.processingFeePerJin != null
+                      ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
+                      : "—",
+                },
+                {
+                  header: "成本价（元/斤）",
+                  cell: (row) =>
+                    row.outPricePerJin != null ? (
+                      `¥${Number(row.outPricePerJin).toFixed(2)}`
+                    ) : (
+                      <span title="净料单价 + 封装加工费">—</span>
+                    ),
+                },
+                {
+                  header: "标准规格价",
+                  cell: (row) =>
+                    row.standardPackagePrice != null
+                      ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
+                      : "—",
                 },
               ]}
               pagination={
@@ -253,14 +312,23 @@ export default function MinorIngredientsPage() {
                       currentPage,
                       totalPages,
                       totalItems,
-                      pageSize: 20,
+                      pageSize,
                       onPageChange: setCurrentPage,
+                      onPageSizeChange: setPageSize,
                     }
                   : undefined
               }
               emptyState={{ title: "暂无数据" }}
               rowActions={(row) => (
                 <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="查看小料"
+                    onClick={() => openView(row)}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -289,7 +357,7 @@ export default function MinorIngredientsPage() {
         onOpenChange={setCreateDialogOpen}
         mode="minor"
         categories={categories}
-        rawIngredients={[]}
+        rawIngredients={rawIngredients}
         onSuccess={() => {
           setCreateDialogOpen(false);
           fetchData();
@@ -302,8 +370,18 @@ export default function MinorIngredientsPage() {
         mode="minor"
         initialData={editing}
         categories={categories}
-        rawIngredients={[]}
+        rawIngredients={rawIngredients}
         onSuccess={fetchData}
+      />
+
+      <NetIngredientEditDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        mode="minor"
+        view
+        initialData={viewing}
+        categories={categories}
+        rawIngredients={rawIngredients}
       />
 
       <Dialog

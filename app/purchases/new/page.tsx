@@ -283,11 +283,11 @@ export default function NewPurchasePage() {
   }, [editId]);
 
   useEffect(() => {
-    fetch("/api/ingredient-categories")
+    fetch("/api/ingredient-categories?page=1&pageSize=100")
       .then((r) => r.json())
       .then((res) => setCategories(res.data?.items || res.data || []))
       .catch(() => {});
-    fetch("/api/units")
+    fetch("/api/units?page=1&pageSize=100")
       .then((r) => r.json())
       .then((res) => setUnits(res.data?.items || res.data || []))
       .catch(() => {});

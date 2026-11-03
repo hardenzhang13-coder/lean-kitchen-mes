@@ -1,16 +1,17 @@
 import { z } from "zod";
 
+// 净料/小料统一口径：均由原料转化而来（来源原料 + 出成率 + 封装规格），价格体系元/斤
 export const createNetIngredientSchema = z.object({
   name: z.string().min(1).max(100),
-  sourceIngredientId: z.number().int().positive().nullish(),
-  // 自由文本规格：仅小料使用；净料改用 packageSpec
-  spec: z.string().max(200).nullish(),
-  // 净料封装规格（g），净料必填（服务端按 l2Code 归属判定，见路由）
-  packageSpec: z.number().int().min(1).max(1000000).nullish(),
-  // 封装加工费（元/斤），空 = 0；仅净料使用
+  // 来源原料：净料/小料必填
+  sourceIngredientId: z.number().int().positive(),
+  // 净料/小料封装规格（g），必填：标准规格价格的计算基础
+  packageSpec: z.number().int().min(1).max(1000000),
+  // 封装加工费（元/斤），空 = 0
   processingFeePerJin: z.number().min(0).max(10000).nullish(),
-  yieldRate: z.number().min(1).max(100).nullish(),
-  // 成本价：净料 = 元/斤；小料 = 元/10g
+  // 出成率（%）：必填。可超过 100——上浆/挂糊类食材出成率会大于 100（如 120 = 出 1.2 斤成品）
+  yieldRate: z.number().min(0.01).max(500),
+  // 净料单价（元/斤）：缺省时服务端按 原料每斤单价 ÷ 出成率 自动计算
   unitPrice: z.number().nonnegative().nullish(),
   l2Code: z.string().min(1).max(20),
   autoCalculate: z.boolean().default(true),

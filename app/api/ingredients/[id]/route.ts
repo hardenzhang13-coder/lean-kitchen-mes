@@ -41,6 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       l2Code,
       purchaseUnit,
       stockUnit,
+      unitsPerPurchase,
       purchaseSpec,
       latestRefPrice,
       pricePerJin,
@@ -71,6 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         l2Code: l2Code ?? existing.l2Code,
         purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
         stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
+        unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
         purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
         latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
         pricePerJin:

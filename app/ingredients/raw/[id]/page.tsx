@@ -71,7 +71,7 @@ export default function RawIngredientDetailPage() {
     try {
       const [ingRes, catRes, rawRes] = await Promise.all([
         fetch(`/api/ingredients/${id}?includeNetIngredients=true`),
-        fetch("/api/ingredient-categories"),
+        fetch("/api/ingredient-categories?page=1&pageSize=100"),
         fetch("/api/ingredients"),
       ]);
 
@@ -121,7 +121,6 @@ export default function RawIngredientDetailPage() {
     setEditing({
       id: row.id,
       name: row.name,
-      spec: row.spec,
       packageSpec: row.packageSpec ?? null,
       processingFeePerJin: row.processingFeePerJin ?? null,
       yieldRate: row.yieldRate,
@@ -224,7 +223,7 @@ export default function RawIngredientDetailPage() {
               columns={[
                 { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
                 { header: "名称", accessorKey: "name" },
-                { header: "规格", cell: (row) => row.spec || "—" },
+                { header: "封装规格", cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—") },
                 { header: "出成率", cell: (row) => `${row.yieldRate}%` },
                 {
                   header: "净料单价",

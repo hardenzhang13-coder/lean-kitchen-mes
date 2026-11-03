@@ -197,12 +197,32 @@ export async function buildPurchasePlans(
     },
   });
 
-  // 2. 获取小料 BOM
+  // 2. 获取小料 BOM（小料与净料同口径：由原料转化，采购时按出成率折算进原料毛需求）
   const minorDetails = await prisma.dishMinorDetail.findMany({
     where: { dishId: { in: dishIds } },
     include: {
       netIngredient: {
-        select: { id: true, code: true, name: true, unit: true, unitPrice: true, l2Code: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          unit: true,
+          unitPrice: true,
+          l2Code: true,
+          yieldRate: true,
+          sourceIngredientId: true,
+          sourceIngredient: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              stockUnit: true,
+              purchaseUnit: true,
+              purchaseSpec: true,
+              l2Code: true,
+            },
+          },
+        },
       },
     },
   });
@@ -227,9 +247,12 @@ export async function buildPurchasePlans(
     select: { id: true, code: true, name: true, unit: true, unitPrice: true },
   });
 
-  // 5. 查询当前库存（原料）
+  // 5. 查询当前库存（原料）：净料与小料的来源原料并集
   const sourceIngIds = [
-    ...new Set(netDetails.map((d) => d.netIngredient.sourceIngredientId).filter((id): id is number => id != null)),
+    ...new Set([
+      ...netDetails.map((d) => d.netIngredient.sourceIngredientId),
+      ...minorDetails.map((d) => d.netIngredient.sourceIngredientId),
+    ].filter((id): id is number => id != null)),
   ];
   const inventories = await prisma.inventory.findMany({
     where: { ingredientId: { in: sourceIngIds } },
@@ -252,14 +275,12 @@ export async function buildPurchasePlans(
     }
   >();
 
-  for (const detail of netDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
-    const src = detail.netIngredient.sourceIngredient;
-    if (!src) continue;
-
-    const netNeed = Number(detail.amountG) * item.quantity; // 净料总需求(g)
-    const yieldRate = Number(detail.netIngredient.yieldRate);
+  // 净料/小料净需求(g) 按出成率折算为原料毛需求(g)，按来源原料聚合
+  const addSourceGrossNeed = (
+    src: { id: number; name: string; l2Code: string; purchaseUnit: string | null; stockUnit: string | null; purchaseSpec: string | null },
+    netNeed: number,
+    yieldRate: number
+  ) => {
     const grossNeed = yieldRate > 0 ? netNeed / yieldRate : netNeed; // 原料需求(g)
 
     const existing = ingredientMap.get(src.id);
@@ -277,45 +298,27 @@ export async function buildPurchasePlans(
         priceUnit: src.purchaseUnit || src.stockUnit || "斤",
       });
     }
+  };
+
+  for (const detail of netDetails) {
+    const item = items.find((i) => i.dishId === detail.dishId);
+    if (!item) continue;
+    const src = detail.netIngredient.sourceIngredient;
+    if (!src) continue;
+
+    const netNeed = Number(detail.amountG) * item.quantity; // 净料总需求(g)
+    addSourceGrossNeed(src, netNeed, Number(detail.netIngredient.yieldRate));
   }
 
-  // 7. 汇总小料
-  const minorMap = new Map<
-    number,
-    {
-      sourceType: string;
-      sourceId: number;
-      itemName: string;
-      l2Code: string | null;
-      grossNeed: number;
-      unit: string;
-      purchaseSpec: string | null;
-      priceUnit: string | null;
-    }
-  >();
-
+  // 7. 小料同口径并入原料毛需求（不再作为独立采购品）
   for (const detail of minorDetails) {
     const item = items.find((i) => i.dishId === detail.dishId);
     if (!item) continue;
-    const minor = detail.netIngredient;
-    if (!minor) continue;
-    const need = Number(detail.amountG) * item.quantity;
+    const src = detail.netIngredient.sourceIngredient;
+    if (!src) continue;
 
-    const existing = minorMap.get(minor.id);
-    if (existing) {
-      existing.grossNeed += need;
-    } else {
-      minorMap.set(minor.id, {
-        sourceType: "minor",
-        sourceId: minor.id,
-        itemName: minor.name,
-        l2Code: minor.l2Code,
-        grossNeed: need,
-        unit: minor.unit,
-        purchaseSpec: null,
-        priceUnit: minor.unit,
-      });
-    }
+    const minorNeed = Number(detail.amountG) * item.quantity; // 小料总需求(g)
+    addSourceGrossNeed(src, minorNeed, Number(detail.netIngredient.yieldRate));
   }
 
   // 8. 汇总调料
@@ -399,7 +402,6 @@ export async function buildPurchasePlans(
   // 10. 合并并计算库存扣除
   const allPlans = [
     ...ingredientMap.values(),
-    ...minorMap.values(),
     ...seasoningMap.values(),
     ...sauceMap.values(),
   ];

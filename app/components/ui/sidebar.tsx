@@ -11,10 +11,10 @@ import {
   Carrot,
   Settings,
   LogOut,
-  Sliders,
   User,
 } from "lucide-react";
 import { cn, getInitials } from "@/lib/shared/utils";
+import { Logo } from "@/app/components/ui/logo";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 
@@ -35,8 +35,8 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-full w-20 flex-col items-center border-r border-border bg-card py-4">
       <div className="mb-6 flex flex-col items-center gap-1">
-        <div className="flex h-10 w-10 items-center justify-center rounded-md bg-primary text-primary-foreground transition-all hover:brightness-105">
-          <Sliders className="h-6 w-6" />
+        <div className="flex h-10 w-10 items-center justify-center transition-all hover:brightness-105">
+          <Logo className="h-10 w-10" />
         </div>
         <span className="text-[10px] font-medium text-muted-foreground tracking-tight">精益厨房</span>
       </div>

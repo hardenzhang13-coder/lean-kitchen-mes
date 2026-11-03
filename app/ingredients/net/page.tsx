@@ -23,7 +23,7 @@ import {
   NetIngredientEditDialog,
   NetIngredientEditItem,
 } from "@/app/components/ingredients/net-ingredient-edit-dialog";
-import { usePagination } from "@/lib/client/use-pagination";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 
@@ -87,7 +87,7 @@ export default function NetIngredientsPage() {
     try {
       const [netRes, rawRes, catRes] = await Promise.all([
         fetch("/api/net-ingredients?excludeMinor=true&page=1&pageSize=100"),
-        fetch("/api/ingredients?page=1&pageSize=100"),
+        fetch("/api/ingredients?kind=raw&page=1&pageSize=100"),
         fetch("/api/ingredient-categories?page=1&pageSize=100"),
       ]);
       const netJson = await netRes.json();
@@ -148,7 +148,7 @@ export default function NetIngredientsPage() {
     totalItems,
     pageSize,
     setPageSize,
-  } = usePagination(filtered, 20);
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
     setCreateDialogOpen(true);
@@ -157,7 +157,6 @@ export default function NetIngredientsPage() {
   const buildEditItem = (row: NetIngredient): NetIngredientEditItem => ({
     id: row.id,
     name: row.name,
-    spec: row.spec,
     packageSpec: row.packageSpec,
     processingFeePerJin: row.processingFeePerJin,
     yieldRate: row.yieldRate,
@@ -311,7 +310,7 @@ export default function NetIngredientsPage() {
                     row.yieldRate != null ? `${row.yieldRate}%` : "—",
                 },
                 {
-                  header: "成本价（元/斤）",
+                  header: "净料单价（元/斤）",
                   cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
                 },
                 {
@@ -322,12 +321,12 @@ export default function NetIngredientsPage() {
                       : "—",
                 },
                 {
-                  header: "出库价（元/斤）",
+                  header: "成本价（元/斤）",
                   cell: (row) =>
                     row.outPricePerJin != null ? (
                       `¥${Number(row.outPricePerJin).toFixed(2)}`
                     ) : (
-                      <span title="成本价 + 封装加工费">—</span>
+                      <span title="净料单价 + 封装加工费">—</span>
                     ),
                 },
                 {

@@ -1104,11 +1104,55 @@ POST /api/schedules/[id]/execute-purchase
 
 ---
 
+## 2026-11-03（晚）— 调料清单模块迭代：分类体系归位 + 列表交互对齐
+
+### 背景与决策
+
+业务定位明确：原料 = 非标准化食材（需加工转化为净料/小料）；调料 = 标准化食材（直接采购直接使用）。用户确认：
+1. 调料分类在食材分类体系中管理：SEA（调味品）下按物理形态预置 **SEA-SOL 固体类、SEA-LIQ 液体类**；原 SEA-SEA「调料」**停用**（编码保留，服务端识别仍覆盖）
+2. 历史遗留 **GRA-SEA（米面粮油-调味品）直接删除**（无数据引用，迁移 SQL 带引用保护，本地/生产一致）
+
+### 完成内容
+
+- **识别逻辑编码化**：客户端 `isSeasoningChild` 名称识别（「调料/调味品」改名即失效）全面改为编码识别（SEA 一级分类），涉及 ingredient-form-fields/dialog、seasoning 页、getSeasoningL2Codes/getNonSeasoningL2Codes（去 GRA-SEA 特判）
+- **字典三处同步**：seed.ts（新增两个分类 + SEA-SEA 停用 upsert、移除 GRA-SEA）→ 迁移 `20261103141514_delete_gra_sea_category`（引用保护删除 GRA-SEA）→ 重生成 dictionary-baseline.sql（部署自动对齐）
+- **调料列表页对齐**：手写 Table → DataTable；新增二级分类筛选（SEA 启用子分类）；操作列加「查看」只读弹窗（IngredientFormDialog 新增 view 模式 + IngredientFormFields viewMode）；弹窗标题按模块区分（新增原料/新增调料/新增食材）
+- 原料表单分类选择排除 SEA（此前只按名称排除，SEA 改名会漏）
+
+### 验证
+
+- 强制检查全过（tsc/lint/build/73 tests/迁移零差异）
+- API 实测：SEA-LIQ 创建调料 → 编码 SEA-0001 → summary 计入 seasoning（非 raw）→ 删除正常
+- 分类接口实测：SEA 子分类仅返回 固体类/液体类（停用的「调料」不出现）
+
+---
+
+## 2026-11-03（下午）— 小料模块整体升级：从「直接录入」改为「原料转化」模式
+
+### 背景与决策
+
+小料原为直接录入（自由文本规格 + 手动元/10g 单价，无来源原料/出成率），与业务实际不符——小料（蒜末、葱花等）同样由原料初加工转化而来。经确认：
+1. **价格体系完全对齐净料**：成本价（元/斤）= 原料每斤单价 ÷ 出成率；封装规格 + 封装加工费 → 出库价 → 标准规格价；菜品 BOM 成本按出库价 × 用量g ÷ 500；单位统一 g，废弃 10g 计价
+2. **存量数据清空重建**：迁移 `20261103123018_clear_legacy_minors` 删除全部旧小料及其菜品 BOM 引用（dish_minor_details 无级联，先删子表）
+
+### 完成内容
+
+- **表单组件统一**（net-ingredient-form-fields/dialog/edit-dialog）：删除全部 isMinor 特殊分支；小料与净料字段完全一致（来源原料 + 出成率 + 封装规格 + 加工费 + 成本价自动/手动 + 出库价 + 标准规格价）；minor 仅剩差异点：一级分类固定 MIN、二级分类取 MIN 子树、来源选择不改写分类（净料的 l2Code 继承来源原料，小料不继承）
+- **API 统一**（POST/PUT /api/net-ingredients[/id]）：删 isMinor 分支；zod schema 收紧（sourceIngredientId/yieldRate/packageSpec 必填）；成本价必算（缺原料价时报错引导）
+- **菜品 BOM 成本**（dishes/[id]/bom）：小料改按出库价（含加工费）× g ÷ 500，与净料同口径
+- **排程采购计划**（buildPurchasePlans）：小料按出成率折算并入来源原料毛需求（与净料同一聚合路径），不再生成独立小料采购行；buildCuttingOrders 不变（切配单仍按小料净需求汇总）
+- **小料清单页**：传真实原料列表、列对齐净料（封装规格/来源/出成率/成本价/出库价/标准规格价）、加查看入口、分页条数选择器
+- **本地库迁移修复**：`_prisma_migrations` 两条校验和过期（库结构经 migrate diff 校验与迁移历史零差异），按文件 sha256 修正后恢复迁移能力
+
+### 验证
+
+- tsc / lint / build 通过；Jest 73 个测试全过；本地迁移后小料表清零验证
+
+---
+
 ## 2026-11-03 — 字典基线对齐机制（字典即代码）上线
 
-### 背景
-
-首轮自动部署后发现生产库种子数据过老（缺水产 AQU 分类、g/kg 单位），且生产 MySQL 不对外暴露端口，无法本地直推。
+### 背景生产库种子数据过老（缺水产 AQU 分类、g/kg 单位），且生产 MySQL 不对外暴露端口，无法本地直推。
 
 ### 机制
 

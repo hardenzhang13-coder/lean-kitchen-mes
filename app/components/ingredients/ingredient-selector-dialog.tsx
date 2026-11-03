@@ -71,25 +71,41 @@ export function IngredientSelectorDialog({
     setSearch("");
   }, [open, initialL1Code, initialL2Code, initialIngredientId]);
 
-  const l1Options = useMemo(
-    () => categories.map((c) => ({ value: c.code, label: c.name })),
+  // 来源必须为原料：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
+  const rawCategories = useMemo(
+    () => categories.filter((c) => c.code !== "MIN" && c.code !== "SEA"),
     [categories]
+  );
+
+  // 兜底过滤：无论传入的原料列表是否已按体系过滤，都排除 MIN/SEA 分类下的食材（含搜索场景）
+  const rawIngredients = useMemo(() => {
+    const excludedL2 = new Set(
+      categories
+        .filter((c) => c.code === "MIN" || c.code === "SEA")
+        .flatMap((c) => (c.children || []).map((l2) => l2.code))
+    );
+    return ingredients.filter((i) => !i.l2Code || !excludedL2.has(i.l2Code));
+  }, [ingredients, categories]);
+
+  const l1Options = useMemo(
+    () => rawCategories.map((c) => ({ value: c.code, label: c.name })),
+    [rawCategories]
   );
 
   const l2Options = useMemo(() => {
     if (selectedL1Code) {
-      const l1 = categories.find((c) => c.code === selectedL1Code);
+      const l1 = rawCategories.find((c) => c.code === selectedL1Code);
       return l1?.children || [];
     }
-    return categories.flatMap((c) => c.children);
-  }, [selectedL1Code, categories]);
+    return rawCategories.flatMap((c) => c.children);
+  }, [selectedL1Code, rawCategories]);
 
   const filteredIngredients = useMemo(() => {
-    let list = ingredients;
+    let list = rawIngredients;
     if (selectedL2Code) {
       list = list.filter((i) => i.l2Code === selectedL2Code);
     } else if (selectedL1Code) {
-      const l1 = categories.find((c) => c.code === selectedL1Code);
+      const l1 = rawCategories.find((c) => c.code === selectedL1Code);
       const l2Codes = new Set((l1?.children || []).map((c) => c.code));
       list = list.filter((i) => i.l2Code && l2Codes.has(i.l2Code));
     }
@@ -103,11 +119,11 @@ export function IngredientSelectorDialog({
       );
     }
     return list;
-  }, [ingredients, selectedL1Code, selectedL2Code, categories, search]);
+  }, [rawIngredients, selectedL1Code, selectedL2Code, rawCategories, search]);
 
   const selectedIngredient = useMemo(
-    () => ingredients.find((i) => String(i.id) === selectedIngredientId),
-    [ingredients, selectedIngredientId]
+    () => rawIngredients.find((i) => String(i.id) === selectedIngredientId),
+    [rawIngredients, selectedIngredientId]
   );
 
   const handleL1Click = (code: string) => {
@@ -130,11 +146,11 @@ export function IngredientSelectorDialog({
 
   const handleConfirm = () => {
     if (!selectedIngredientId) return;
-    const ingredient = ingredients.find((i) => String(i.id) === selectedIngredientId);
+    const ingredient = rawIngredients.find((i) => String(i.id) === selectedIngredientId);
     if (!ingredient) return;
     const l2Code = ingredient.l2Code || selectedL2Code || "";
     const l1Code = l2Code
-      ? categories.find((c) => c.children.some((l2) => l2.code === l2Code))?.code || selectedL1Code || ""
+      ? rawCategories.find((c) => c.children.some((l2) => l2.code === l2Code))?.code || selectedL1Code || ""
       : selectedL1Code || "";
     onConfirm({
       l1Code,

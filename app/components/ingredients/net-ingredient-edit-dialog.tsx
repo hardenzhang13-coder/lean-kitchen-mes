@@ -21,7 +21,6 @@ import { toast } from "sonner";
 export type NetIngredientEditItem = {
   id: number;
   name: string;
-  spec: string | null;
   packageSpec: number | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
@@ -59,7 +58,6 @@ export function NetIngredientEditDialog({
     l1Code: isMinor ? "MIN" : "",
     l2Code: "",
     sourceIngredientId: "",
-    spec: "",
     packageSpec: "",
     processingFeePerJin: "",
     yieldRate: "",
@@ -89,7 +87,6 @@ export function NetIngredientEditDialog({
       sourceIngredientId: initialData.sourceIngredientId
         ? String(initialData.sourceIngredientId)
         : "",
-      spec: initialData.spec || "",
       packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
       processingFeePerJin:
         initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
@@ -118,21 +115,19 @@ export function NetIngredientEditDialog({
     const next: Record<string, string> = {};
     if (!form.name.trim()) next.name = `${isMinor ? "小料" : "净料"}名称不能为空`;
     if (!form.l2Code) next.l2Code = "请选择二级分类";
+    if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
 
-    if (!isMinor) {
-      if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
-      const yieldRate = Number(form.yieldRate);
-      if (!form.yieldRate || yieldRate <= 0 || yieldRate > 100) {
-        next.yieldRate = "出成率必须在 1-100 之间";
-      }
-      // 封装规格（g）必填
-      const pkg = Number(form.packageSpec);
-      if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
-        next.packageSpec = "请填写有效的封装规格（g）";
-      }
-      if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
-        next.processingFeePerJin = "封装加工费不能为负数";
-      }
+    const yieldRate = Number(form.yieldRate);
+    if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
+      next.yieldRate = "出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）";
+    }
+    // 封装规格（g）必填
+    const pkg = Number(form.packageSpec);
+    if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
+      next.packageSpec = "请填写有效的封装规格（g）";
+    }
+    if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
+      next.processingFeePerJin = "封装加工费不能为负数";
     }
 
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
@@ -149,21 +144,16 @@ export function NetIngredientEditDialog({
     try {
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
-        spec: form.spec.trim() || null,
         unitPrice: Number(form.unitPrice),
         l2Code: form.l2Code,
-      };
-
-      if (!isMinor) {
-        payload.sourceIngredientId = Number(form.sourceIngredientId);
-        payload.yieldRate = Number(form.yieldRate);
-        payload.packageSpec = Number(form.packageSpec);
-        payload.processingFeePerJin = form.processingFeePerJin
+        sourceIngredientId: Number(form.sourceIngredientId),
+        yieldRate: Number(form.yieldRate),
+        packageSpec: Number(form.packageSpec),
+        processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
-          : null;
-      } else {
-        payload.unit = "10g";
-      }
+          : null,
+        autoCalculate: false,
+      };
 
       const res = await fetch(`/api/net-ingredients/${initialData.id}`, {
         method: "PUT",
