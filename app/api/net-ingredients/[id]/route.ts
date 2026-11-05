@@ -34,6 +34,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       processingFeePerJin,
       yieldRate,
       unitPrice,
+      grossMarginRate,
       l2Code,
       autoCalculate,
     } = validation.data;
@@ -91,6 +92,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         processingFeePerJin: processingFeePerJin ?? existing.processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
         unitPrice: calculated,
+        // undefined = 未传该字段（保持原值）；显式 null = 用户清空毛利率
+        grossMarginRate: grossMarginRate === undefined ? (existing.grossMarginRate ?? null) : grossMarginRate,
         unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",

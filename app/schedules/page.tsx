@@ -10,6 +10,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Pagination } from "@/app/components/ui/pagination";
+import { SelectField } from "@/app/components/ui/select-field";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
@@ -17,7 +18,7 @@ interface ScheduleItem {
   id: number;
   title: string;
   scheduleDate: string;
-  scope: string;
+  store: { id: number; name: string } | null;
   status: string;
   operator: string | null;
   operatorName?: string | null;
@@ -43,6 +44,8 @@ export default function SchedulesPage() {
   const [rows, setRows] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeStatus, setActiveStatus] = useState("进行中");
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
+  const [storeFilter, setStoreFilter] = useState("");
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -58,6 +61,7 @@ export default function SchedulesPage() {
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (search) params.set("q", search);
+      if (storeFilter && storeFilter !== "all") params.set("storeId", storeFilter);
       params.set("page", String(page));
       params.set("pageSize", String(DEFAULT_PAGE_SIZE));
       const res = await fetch(`/api/schedules?${params.toString()}`);
@@ -73,7 +77,20 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [activeStatus, startDate, endDate, page]);
+  }, [activeStatus, storeFilter, startDate, endDate, page]);
+
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        const res = await fetch("/api/stores?pageSize=100");
+        const data = await res.json();
+        setStores(data.data?.items || []);
+      } catch {
+        toast.error("获取门店失败");
+      }
+    };
+    fetchStores();
+  }, []);
 
   // 搜索防抖
   useEffect(() => {
@@ -122,11 +139,22 @@ export default function SchedulesPage() {
         onReset={() => {
           setStartDate("");
           setEndDate("");
+          setStoreFilter("");
           setSearch("");
           setPage(1);
         }}
-        hasFilters={!!(startDate || endDate)}
+        hasFilters={!!(startDate || endDate || storeFilter)}
       >
+        <SelectField
+          value={storeFilter}
+          onChange={(v) => {
+            setStoreFilter(v);
+            setPage(1);
+          }}
+          options={[{ value: "all", label: "全部门店" }, ...stores.map((st) => ({ value: String(st.id), label: st.name }))]}
+          placeholder="全部门店"
+          className="w-[160px]"
+        />
         <DatePicker
           value={startDate}
           onChange={(v) => {
@@ -188,7 +216,7 @@ export default function SchedulesPage() {
                   </span>
                   <span className="flex items-center gap-1">
                     <Clock className="h-3.5 w-3.5" />
-                    {row.scope}
+                    {row.store?.name ?? "—"}
                   </span>
                 </div>
               </div>

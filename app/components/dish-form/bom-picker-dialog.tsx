@@ -207,10 +207,10 @@ export function BomPickerDialog({
             },
           ]),
       {
-        header: "成本价",
+        header: "出库价",
         className: "text-right",
         cell: (row: IngredientOption) => {
-          // 净料/小料 = 成本价（含封装加工费，元/斤）；调料 = 每斤单价；酱料维持原单价口径
+          // 净料/小料 = 出库价（含加工费与毛利，元/斤）；调料 = 每斤单价；酱料维持原单价口径
           const price = type === "sauce" ? row.unitPrice : (row.costPrice ?? null);
           return price != null ? `¥${Number(price).toFixed(2)}/斤` : "—";
         },

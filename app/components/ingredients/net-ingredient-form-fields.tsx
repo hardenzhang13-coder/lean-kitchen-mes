@@ -12,6 +12,7 @@ import {
   IngredientForSelector,
 } from "@/app/components/ingredients/ingredient-selector-dialog";
 import {
+  calcCostPricePerJin,
   calcOutPricePerJin,
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
@@ -32,6 +33,8 @@ export interface NetIngredientFormData {
   yieldRate: string;
   /** 净料单价（元/斤，原料每斤单价 ÷ 出成率）；净料/小料同口径 */
   unitPrice: string;
+  /** 毛利率（%）：留空 = 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100) */
+  grossMarginRate: string;
 }
 
 export interface NetIngredientFormFieldsProps {
@@ -93,14 +96,22 @@ export function NetIngredientFormFields({
   // 净料编辑：分类与来源锁定（分类继承自来源原料）
   const sourceLocked = readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
 
-  // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；标准规格价格 = 成本价 × 封装规格 ÷ 500
-  const outPricePerJin = useMemo(
+  // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 封装规格 ÷ 500
+  const costPricePerJin = useMemo(
     () =>
-      calcOutPricePerJin(
+      calcCostPricePerJin(
         form.unitPrice !== "" ? Number(form.unitPrice) : null,
         form.processingFeePerJin !== "" ? Number(form.processingFeePerJin) : null
       ),
     [form.unitPrice, form.processingFeePerJin]
+  );
+  const outPricePerJin = useMemo(
+    () =>
+      calcOutPricePerJin(
+        costPricePerJin,
+        form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null
+      ),
+    [costPricePerJin, form.grossMarginRate]
   );
   const standardPackagePrice = useMemo(
     () =>
@@ -319,9 +330,37 @@ export function NetIngredientFormFields({
         </FormField>
 
         <FormField
+          label="毛利率（%）"
+          optionalHint={false}
+          error={errors?.grossMarginRate}
+          hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；留空 = 0"
+        >
+          <Input
+            type="number"
+            min={0}
+            max={95}
+            step="0.01"
+            value={form.grossMarginRate}
+            onChange={(e) => onChange("grossMarginRate", e.target.value)}
+            placeholder="留空 = 0"
+            className="h-11 text-base px-4"
+            disabled={viewMode}
+          />
+        </FormField>
+
+        <FormField
           label="成本价（元/斤）"
           optionalHint={false}
           hint="= 净料单价 + 封装加工费"
+        >
+          <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
+            {costPricePerJin != null ? `¥${costPricePerJin.toFixed(2)}` : "—"}
+          </div>
+        </FormField>
+        <FormField
+          label="出库价（元/斤）"
+          optionalHint={false}
+          hint="= 成本价 ÷ (1 - 毛利率/100)，真毛利率口径"
         >
           <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
             {outPricePerJin != null ? `¥${outPricePerJin.toFixed(2)}` : "—"}
@@ -330,7 +369,7 @@ export function NetIngredientFormFields({
         <FormField
           label="标准规格价（元/份）"
           optionalHint={false}
-          hint="= 成本价 × 封装规格 ÷ 500，即每封装单位的成本价"
+          hint="= 出库价 × 封装规格 ÷ 500，即每封装单位的出库价"
         >
           <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
             {standardPackagePrice != null ? `¥${standardPackagePrice.toFixed(2)}` : "—"}

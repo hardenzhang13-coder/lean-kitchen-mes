@@ -36,6 +36,7 @@ type NetIngredient = {
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  grossMarginRate: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
   unit: string | null;
@@ -147,6 +148,7 @@ export default function MinorIngredientsPage() {
     processingFeePerJin: row.processingFeePerJin ?? null,
     yieldRate: row.yieldRate,
     unitPrice: row.unitPrice,
+    grossMarginRate: row.grossMarginRate,
     sourceIngredientId: row.sourceIngredientId,
     l2Code: row.l2Code,
   });
@@ -290,12 +292,17 @@ export default function MinorIngredientsPage() {
                       : "—",
                 },
                 {
-                  header: "成本价（元/斤）",
+                  header: "毛利率",
+                  cell: (row) =>
+                    row.grossMarginRate != null ? `${row.grossMarginRate}%` : "—",
+                },
+                {
+                  header: "出库价（元/斤）",
                   cell: (row) =>
                     row.outPricePerJin != null ? (
                       `¥${Number(row.outPricePerJin).toFixed(2)}`
                     ) : (
-                      <span title="净料单价 + 封装加工费">—</span>
+                      <span title="成本价 ÷ (1 - 毛利率/100)">—</span>
                     ),
                 },
                 {

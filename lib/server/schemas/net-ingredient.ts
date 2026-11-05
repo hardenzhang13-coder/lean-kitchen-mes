@@ -9,6 +9,8 @@ export const createNetIngredientSchema = z.object({
   packageSpec: z.number().int().min(1).max(1000000),
   // 封装加工费（元/斤），空 = 0
   processingFeePerJin: z.number().min(0).max(10000).nullish(),
+  // 毛利率（%）：空 = 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100)，上限 95
+  grossMarginRate: z.number().min(0).max(95).nullish(),
   // 出成率（%）：必填。可超过 100——上浆/挂糊类食材出成率会大于 100（如 120 = 出 1.2 斤成品）
   yieldRate: z.number().min(0.01).max(500),
   // 净料单价（元/斤）：缺省时服务端按 原料每斤单价 ÷ 出成率 自动计算

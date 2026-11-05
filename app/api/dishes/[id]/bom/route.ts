@@ -4,6 +4,7 @@ import { logOperation } from "@/lib/server/api-auth";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { dishBomSchema } from "@/lib/server/schemas/dish-bom";
 import { validateBody } from "@/lib/server/validate";
+import { calcCostPricePerJin, calcOutPricePerJin } from "@/lib/shared/net-price";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,8 +39,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
       const [netIngs, minors, seasonings, sauces] = await Promise.all([
-        tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true } }),
-        tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true } }),
+        tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
+        tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
         tx.ingredient.findMany({
           where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
           // 调料为标准化采购（元/瓶、元/箱），BOM 成本按每斤单价（元/斤）口径折算
@@ -48,12 +49,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         tx.sauceIngredient.findMany({ where: { id: { in: sauceIds } }, select: { id: true, unitPrice: true } }),
       ]);
 
-      // 净料与小料同口径：均按成本价（净料单价 + 封装加工费，元/斤）计成本
+      // 净料与小料同口径：均按出库价计成本（成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)）
       const netPriceMap = new Map(
-        netIngs.map((i) => [i.id, Number(i.unitPrice) + Number(i.processingFeePerJin ?? 0)])
+        netIngs.map((i) => {
+          const cost = calcCostPricePerJin(i.unitPrice, i.processingFeePerJin);
+          return [i.id, calcOutPricePerJin(cost, i.grossMarginRate)] as const;
+        })
       );
       const minorPriceMap = new Map(
-        minors.map((i) => [i.id, Number(i.unitPrice) + Number(i.processingFeePerJin ?? 0)])
+        minors.map((i) => {
+          const cost = calcCostPricePerJin(i.unitPrice, i.processingFeePerJin);
+          return [i.id, calcOutPricePerJin(cost, i.grossMarginRate)] as const;
+        })
       );
       // 调料成本价 = 每斤单价（元/斤，由采购规格自动换算维护）；缺失时成本为 null
       const seasoningPriceMap = new Map(
@@ -61,7 +68,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
       const saucePriceMap = new Map(sauces.map((i) => [i.id, Number(i.unitPrice)]));
 
-      // 净料/小料成本 = 成本价(元/斤) × 用量g ÷ 500
+      // 净料/小料成本 = 出库价(元/斤) × 用量g ÷ 500
       const calcNetCost = (netIngId: number, amountG: number) => {
         const price = netPriceMap.get(netIngId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;

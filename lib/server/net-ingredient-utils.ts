@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/server/prisma";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
 import {
+  calcCostPricePerJin,
   calcOutPricePerJin,
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
@@ -39,24 +40,25 @@ export async function calculateUnitPrice(
 
 /**
  * 净料行序列化：附加价格体系的计算字段（不落库，实时计算）。
- * - costPricePerJin        净料单价（元/斤）= unitPrice（原料每斤单价 ÷ 出成率）
- * - outPricePerJin         成本价（元/斤）= 净料单价 + 封装加工费
- * - standardPackagePrice   标准规格价格（元/份）= 成本价 × 封装规格(g) ÷ 500
+ * - costPricePerJin        成本价（元/斤）= 净料单价 + 封装加工费
+ * - outPricePerJin         出库价（元/斤）= 成本价 ÷ (1 - 毛利率/100)，空毛利率 = 0
+ * - standardPackagePrice   标准规格价格（元/份）= 出库价 × 封装规格(g) ÷ 500
  */
 export function serializeNetIngredient<T extends {
   unitPrice: unknown;
   processingFeePerJin?: unknown;
+  grossMarginRate?: unknown;
   packageSpec?: unknown;
 }>(row: T): T & {
   costPricePerJin: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
 } {
-  const cost = Number(row.unitPrice);
-  const outPrice = calcOutPricePerJin(row.unitPrice, row.processingFeePerJin);
+  const costPrice = calcCostPricePerJin(row.unitPrice, row.processingFeePerJin);
+  const outPrice = calcOutPricePerJin(costPrice, row.grossMarginRate);
   return {
     ...row,
-    costPricePerJin: Number.isFinite(cost) ? cost : null,
+    costPricePerJin: costPrice,
     outPricePerJin: outPrice,
     standardPackagePrice: outPrice != null ? calcStandardPackagePrice(outPrice, row.packageSpec) : null,
   };

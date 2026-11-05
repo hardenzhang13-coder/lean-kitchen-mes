@@ -16,13 +16,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       category: { select: { id: true, code: true, name: true } },
       netDetails: {
         include: {
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, packageSpec: true, unit: true } },
+          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true, packageSpec: true, unit: true } },
         },
       },
       minorDetails: {
         include: {
           // 与主料/辅料同口径：附封装规格与加工费，供 serializeNetIngredient 计算价格体系
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, packageSpec: true, unit: true } },
+          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true, packageSpec: true, unit: true } },
         },
       },
       seasoningDetails: true,
@@ -81,7 +81,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const validation = validateBody(updateDishSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, intro, cuisine, technique, taste, portion, season, meatType, cost, status } =
+    const { name, intro, cuisine, technique, taste, portion, season, meatType, cost, price, status } =
       validation.data;
 
     const user = getUserFromRequest(req);
@@ -92,7 +92,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       select: { status: true },
     });
     if (existing?.status === "published") {
-      const rest = { name, intro, cuisine, technique, taste, portion, season, meatType, cost };
+      const rest = { name, intro, cuisine, technique, taste, portion, season, meatType, cost, price };
       const hasOtherChanges = Object.values(rest).some((v) => v !== undefined);
       if (hasOtherChanges || status !== "draft") {
         return badRequest("已发布菜品不可修改，请先下架");
@@ -109,6 +109,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (season !== undefined) updateData.season = season || "四季";
     if (meatType !== undefined) updateData.meatType = meatType || null;
     if (cost !== undefined) updateData.cost = cost != null ? cost : null;
+    if (price !== undefined) updateData.price = price != null ? price : null;
     if (status !== undefined) updateData.status = status;
 
     const row = await prisma.dish.update({

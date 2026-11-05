@@ -1,0 +1,378 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { Plus, Pencil, Trash2, Loader2, Store } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { Pagination } from "@/app/components/ui/pagination";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SelectField } from "@/app/components/ui/select-field";
+import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { toast } from "sonner";
+
+type Store = {
+  id: number;
+  code: string;
+  name: string;
+  manager: string | null;
+  phone: string | null;
+  address: string | null;
+  isSystem: boolean;
+  isActive: boolean;
+  _count?: { schedules: number };
+};
+
+export default function StoresPage() {
+  const [data, setData] = useState<Store[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Store | null>(null);
+  const [form, setForm] = useState({ name: "", manager: "", phone: "", address: "", isActive: "1" });
+  const [submitting, setSubmitting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Store | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stores?page=1&pageSize=100");
+      const json = await res.json();
+      setData(json.data || []);
+    } catch {
+      toast.error("获取门店失败");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    if (!s) return data;
+    return data.filter(
+      (d) =>
+        d.name.toLowerCase().includes(s) ||
+        d.code.toLowerCase().includes(s) ||
+        (d.manager && d.manager.toLowerCase().includes(s))
+    );
+  }, [data, search]);
+
+  const {
+    currentPage,
+    setCurrentPage,
+    pageItems,
+    totalPages,
+    totalItems,
+    start,
+    end,
+  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ name: "", manager: "", phone: "", address: "", isActive: "1" });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (row: Store) => {
+    setEditing(row);
+    setForm({
+      name: row.name,
+      manager: row.manager || "",
+      phone: row.phone || "",
+      address: row.address || "",
+      isActive: row.isActive ? "1" : "0",
+    });
+    setDialogOpen(true);
+  };
+  const handleSubmit = async () => {
+    if (!form.name.trim()) {
+      toast.error("门店名称不能为空");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payload = {
+        name: form.name,
+        manager: form.manager || null,
+        phone: form.phone || null,
+        address: form.address || null,
+      };
+      let res: Response;
+      if (editing) {
+        res = await fetch(`/api/stores/${editing.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, isActive: form.isActive === "1" }),
+        });
+      } else {
+        res = await fetch("/api/stores", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      }
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
+      }
+      toast.success(editing ? "更新成功" : "创建成功");
+      setDialogOpen(false);
+      fetchData();
+    } catch {
+      toast.error("操作失败");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/stores/${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "删除失败");
+        return;
+      }
+      toast.success("删除成功");
+      setDeleteTarget(null);
+      fetchData();
+    } catch {
+      toast.error("删除失败");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-6 p-8">
+      <div className="flex items-center justify-between">
+        <PageHeader showBack title="门店管理" description="管理门店信息，排程按门店组织生产" />
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          新增门店
+        </Button>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-3">
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(v) => {
+              setSearch(v);
+              setCurrentPage(1);
+            }}
+            searchPlaceholder="搜索名称、编号或负责人..."
+            onReset={() => {
+              setSearch("");
+              setCurrentPage(1);
+            }}
+          />
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <SkeletonTable cols={8} rows={DEFAULT_PAGE_SIZE} />
+          ) : (
+            <>
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[60px]">序号</TableHead>
+                      <TableHead>编号</TableHead>
+                      <TableHead>名称</TableHead>
+                      <TableHead>负责人</TableHead>
+                      <TableHead>电话</TableHead>
+                      <TableHead>地址</TableHead>
+                      <TableHead className="w-[100px]">状态</TableHead>
+                      <TableHead className="w-[120px] text-right">操作</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pageItems.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
+                          暂无数据
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pageItems.map((row, idx) => (
+                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                          <TableCell className="text-muted-foreground">
+                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{row.code}</TableCell>
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-1.5">
+                              <Store className="h-3.5 w-3.5 text-muted-foreground" />
+                              {row.name}
+                            </span>
+                          </TableCell>
+                          <TableCell>{row.manager || "—"}</TableCell>
+                          <TableCell>{row.phone || "—"}</TableCell>
+                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                            {row.address || "—"}
+                          </TableCell>
+                          <TableCell>
+                            {row.isActive ? (
+                              <Badge variant="secondary">启用中</Badge>
+                            ) : (
+                              <Badge variant="outline">已停用</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" aria-label="编辑门店" onClick={() => openEdit(row)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label="删除门店"
+                              disabled={row.isSystem}
+                              onClick={() => setDeleteTarget(row)}
+                            >
+                              <Trash2 className={`h-4 w-4 ${row.isSystem ? "text-muted-foreground/40" : "text-destructive"}`} />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                start={start}
+                end={end}
+                onPageChange={setCurrentPage}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+          <DialogHeader>
+            <DialogTitle className="text-lg">{editing ? "编辑门店" : "新增门店"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-5 py-5">
+            <div className="grid gap-2.5">
+              <Label htmlFor="name" className="text-base">门店名称</Label>
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="如：新金食堂"
+                className="h-11 text-base px-4"
+              />
+            </div>
+            <div className="grid gap-2.5">
+              <Label htmlFor="manager" className="text-base">负责人</Label>
+              <Input
+                id="manager"
+                value={form.manager}
+                onChange={(e) => setForm({ ...form, manager: e.target.value })}
+                placeholder="可选"
+                className="h-11 text-base px-4"
+              />
+            </div>
+            <div className="grid gap-2.5">
+              <Label htmlFor="phone" className="text-base">联系电话</Label>
+              <Input
+                id="phone"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="可选"
+                className="h-11 text-base px-4"
+              />
+            </div>
+            <div className="grid gap-2.5">
+              <Label htmlFor="address" className="text-base">地址</Label>
+              <Input
+                id="address"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+                placeholder="可选"
+                className="h-11 text-base px-4"
+              />
+            </div>
+            {editing && !editing.isSystem && (
+              <div className="grid gap-2.5">
+                <Label className="text-base">状态</Label>
+                <SelectField
+                  value={form.isActive}
+                  onChange={(v) => setForm({ ...form, isActive: v })}
+                  options={[
+                    { value: "1", label: "启用中" },
+                    { value: "0", label: "停用" },
+                  ]}
+                  className="h-11"
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
+              <span aria-live="polite" className="inline-flex items-center">
+                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                保存
+              </span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
+        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认删除</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确定要删除门店「{deleteTarget?.name}」吗？已被排程引用的门店无法删除。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="h-11 px-6">
+              {deleting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

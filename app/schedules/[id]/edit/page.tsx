@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { SelectField } from "@/app/components/ui/select-field";
 import {
   Select,
   SelectContent,
@@ -40,7 +41,8 @@ export default function EditSchedulePage() {
 
   const [title, setTitle] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
-  const [scope, setScope] = useState("全部食堂");
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
+  const [storeId, setStoreId] = useState("1");
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [selected, setSelected] = useState<SelectedDish[]>([]);
   const [search, setSearch] = useState("");
@@ -51,6 +53,7 @@ export default function EditSchedulePage() {
   useEffect(() => {
     fetchSchedule();
     fetchDishes();
+    fetchStores();
   }, [id]);
 
   const fetchSchedule = async () => {
@@ -69,7 +72,7 @@ export default function EditSchedulePage() {
       }
       setTitle(schedule.title);
       setScheduleDate(schedule.scheduleDate.split("T")[0]);
-      setScope(schedule.scope);
+      setStoreId(String(schedule.storeId ?? 1));
       setSelected(
         schedule.items.map((it: any) => ({
           dishId: it.dishId,
@@ -83,6 +86,17 @@ export default function EditSchedulePage() {
       toast.error("获取排程数据失败");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchStores = async () => {
+    try {
+      const res = await fetch("/api/stores");
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.data || [];
+      setStores(list);
+    } catch {
+      toast.error("获取门店失败");
     }
   };
 
@@ -157,7 +171,7 @@ export default function EditSchedulePage() {
         body: JSON.stringify({
           title: title.trim(),
           scheduleDate,
-          scope,
+          storeId: Number(storeId),
           items: selected.map((s) => ({ dishId: s.dishId, quantity: s.quantity })),
         }),
       });
@@ -205,7 +219,7 @@ export default function EditSchedulePage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-lg border p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg border p-4">
         <div className="space-y-2">
           <Label>排程标题 <span className="text-destructive">*</span></Label>
           <Input placeholder="如：周一午餐生产计划" value={title} onChange={(e) => setTitle(e.target.value)} />
@@ -219,17 +233,14 @@ export default function EditSchedulePage() {
           />
         </div>
         <div className="space-y-2">
-          <Label>使用范围</Label>
-          <Select value={scope} onValueChange={(v) => v && setScope(v)}>
-            <SelectTrigger className="w-full h-11">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="全部食堂">全部食堂</SelectItem>
-              <SelectItem value="珠宝食堂">珠宝食堂</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label>门店</Label>
+          <SelectField
+            value={storeId}
+            onChange={setStoreId}
+            options={stores.map((s) => ({ value: String(s.id), label: s.name }))}
+          />
         </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

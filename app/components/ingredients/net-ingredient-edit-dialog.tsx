@@ -25,6 +25,7 @@ export type NetIngredientEditItem = {
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  grossMarginRate: number | null;
   sourceIngredientId: number | null;
   l2Code: string;
 };
@@ -62,6 +63,7 @@ export function NetIngredientEditDialog({
     processingFeePerJin: "",
     yieldRate: "",
     unitPrice: "",
+    grossMarginRate: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,8 @@ export function NetIngredientEditDialog({
         initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
       yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
       unitPrice: String(initialData.unitPrice),
+      grossMarginRate:
+        initialData.grossMarginRate != null ? String(initialData.grossMarginRate) : "",
     });
     setErrors({});
   }, [open, initialData, findParentL1, isMinor]);
@@ -130,6 +134,15 @@ export function NetIngredientEditDialog({
       next.processingFeePerJin = "封装加工费不能为负数";
     }
 
+    if (
+      form.grossMarginRate !== "" &&
+      (Number.isNaN(Number(form.grossMarginRate)) ||
+        Number(form.grossMarginRate) < 0 ||
+        Number(form.grossMarginRate) >= 100)
+    ) {
+      next.grossMarginRate = "毛利率必须在 0-95 之间，留空 = 0";
+    }
+
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
       next.unitPrice = "请输入有效的单价";
     }
@@ -152,6 +165,7 @@ export function NetIngredientEditDialog({
         processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
           : null,
+        grossMarginRate: form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null,
         autoCalculate: false,
       };
 

@@ -121,6 +121,15 @@ async function main() {
     });
   }
 
+  // 5. 门店（工作台多门店切换；预置两家）
+  const stores = [
+    { code: "ST-0001", name: "新金食堂", isSystem: true },
+    { code: "ST-0002", name: "明天吃啥首店", isSystem: true },
+  ];
+  for (const s of stores) {
+    await prisma.store.upsert({ where: { name: s.name }, create: s, update: { code: s.code, isSystem: s.isSystem } });
+  }
+
   // 5. 用户
   const users = [
     { username: "zhang", password: "123456", name: "张浩", role: "业务运营" },

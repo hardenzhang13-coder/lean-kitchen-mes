@@ -71,6 +71,14 @@ for (const c of dishCats) {
 }
 lines.push("");
 
+// 5. 门店（唯一键 name；预置两家，只增改不删）
+const stores = await prisma.store.findMany({ orderBy: { id: "asc" } });
+lines.push("-- 门店");
+for (const s of stores) {
+  lines.push(`INSERT INTO stores (name) VALUES (${q(s.name)}) ON DUPLICATE KEY UPDATE name = VALUES(name);`);
+}
+lines.push("");
+
 const out = "scripts/dictionary-baseline.sql";
 writeFileSync(out, lines.join("\n"), "utf-8");
 console.log(`已生成 ${out}`);

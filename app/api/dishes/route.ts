@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createDishSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, status } =
+    const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price, status } =
       validation.data;
 
     const user = getUserFromRequest(req);
@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
                 portion,
                 season,
                 meatType: meatType ?? null,
+                price: price ?? null,
                 status,
                 operator,
               },

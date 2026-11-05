@@ -33,7 +33,7 @@ interface ScheduleData {
   id: number;
   title: string;
   scheduleDate: string;
-  scope: string;
+  store: { id: number; name: string } | null;
   status: string;
   operator: string | null;
   operatorName?: string | null;
@@ -236,9 +236,9 @@ export default function ScheduleDetailPage() {
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <MapPin className="h-4 w-4" />
-            使用范围
+            门店
           </div>
-          <div className="font-medium">{data.scope}</div>
+          <div className="font-medium">{data.store?.name ?? "—"}</div>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">

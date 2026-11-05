@@ -157,6 +157,19 @@ export function BasicInfoPanel({ data, onChange, categories, readOnly }: BasicIn
         />
       </FormField>
 
+      <FormField id="price" label="售价（元/份）" readOnly={readOnly}>
+        <Input
+          id="price"
+          type="number"
+          min="0"
+          step="0.01"
+          value={data.price}
+          onChange={(e) => update({ price: e.target.value })}
+          placeholder="如 15.00"
+          disabled={readOnly}
+          className="h-11 text-base px-4"
+        />
+      </FormField>
       <FormField id="portion" label="份量" required readOnly={readOnly}>
         <SelectTileMode
           options={portionOptions}

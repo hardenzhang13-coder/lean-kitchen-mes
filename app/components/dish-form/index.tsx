@@ -118,6 +118,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       portion: form.portion || "正餐份量",
       season: form.season || "四季",
       meatType: form.meatType || undefined,
+      price: form.price ? Number(form.price) : null,
       status,
     };
     const res = await fetch(`/api/dishes/${dishId}`, {
@@ -170,6 +171,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         portion: form.portion || "正餐份量",
         season: form.season || "四季",
         meatType: form.meatType || undefined,
+        price: form.price ? Number(form.price) : null,
         status: "draft",
       }),
     });
@@ -422,5 +424,6 @@ function defaultFormData(): DishFormData {
     portion: "正餐份量",
     season: "四季",
     meatType: "",
+    price: "",
   };
 }

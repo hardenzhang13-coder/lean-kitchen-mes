@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { SelectField } from "@/app/components/ui/select-field";
 import {
   Select,
   SelectContent,
@@ -45,7 +46,8 @@ export default function NewSchedulePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [scheduleDate, setScheduleDate] = useState(getTomorrow);
-  const [scope, setScope] = useState("全部食堂");
+  const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
+  const [storeId, setStoreId] = useState("1");
   const [dishes, setDishes] = useState<Dish[]>([]);
   const [selected, setSelected] = useState<SelectedDish[]>([]);
   const [search, setSearch] = useState("");
@@ -55,7 +57,19 @@ export default function NewSchedulePage() {
 
   useEffect(() => {
     fetchDishes();
+    fetchStores();
   }, []);
+
+  const fetchStores = async () => {
+    try {
+      const res = await fetch("/api/stores");
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : data.data || [];
+      setStores(list);
+    } catch {
+      toast.error("获取门店失败");
+    }
+  };
 
   const fetchDishes = async () => {
     setLoading(true);
@@ -138,7 +152,7 @@ export default function NewSchedulePage() {
         body: JSON.stringify({
           title: title.trim(),
           scheduleDate,
-          scope,
+          storeId: Number(storeId),
           items: selected.map((s) => ({ dishId: s.dishId, quantity: s.quantity })),
         }),
       });
@@ -180,7 +194,7 @@ export default function NewSchedulePage() {
       </div>
 
       {/* 基础信息 */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 rounded-lg border p-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 rounded-lg border p-4">
         <div className="space-y-2">
           <Label>排程标题 <span className="text-destructive">*</span></Label>
           <Input
@@ -198,17 +212,14 @@ export default function NewSchedulePage() {
           />
         </div>
         <div className="space-y-2">
-          <Label>使用范围</Label>
-          <Select value={scope} onValueChange={(v) => v && setScope(v)}>
-            <SelectTrigger className="w-full h-11">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="全部食堂">全部食堂</SelectItem>
-              <SelectItem value="珠宝食堂">珠宝食堂</SelectItem>
-            </SelectContent>
-          </Select>
+          <Label>门店</Label>
+          <SelectField
+            value={storeId}
+            onChange={setStoreId}
+            options={stores.map((s) => ({ value: String(s.id), label: s.name }))}
+          />
         </div>
+
       </div>
 
       {/* 菜品选择区 */}

@@ -99,7 +99,9 @@ model NetIngredient {
   packageSpec        Int?              @map("package_spec")
   // 封装加工费（元/斤），空 = 0；净料/小料使用
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
-  // 成本价：净料/小料统一为 元/斤（原料每斤单价 ÷ 出成率）
+  // 毛利率（%）：空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100)，真毛利率口径
+  grossMarginRate    Decimal?          @map("gross_margin_rate") @db.Decimal(5, 2)
+  // 净料单价：净料/小料统一为 元/斤（原料每斤单价 ÷ 出成率）
   unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
   // 计量单位：统一 g（历史小料曾用 10g，已废弃）
   unit               String            @default("g") @map("unit")
@@ -161,6 +163,7 @@ model Dish {
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
+  price            Decimal?              @db.Decimal(10, 2) // 售价（元/份）
   status           String                @default("draft") @map("status") // draft / pending / published
   operator         String?
   createdAt        DateTime              @default(now()) @map("created_at")
@@ -231,18 +234,38 @@ model DishProcess {
   @@map("dish_processes")
 }
 
+model Store {
+  id        Int        @id @default(autoincrement())
+  code      String     @unique
+  name      String     @unique
+  manager   String?
+  phone     String?
+  address   String?
+  // 系统内置门店（不可删除、不可停用）
+  isSystem  Boolean    @default(false) @map("is_system")
+  isActive  Boolean    @default(true) @map("is_active")
+  createdAt DateTime   @default(now()) @map("created_at")
+  updatedAt DateTime   @updatedAt @map("updated_at")
+  deletedAt DateTime?  @map("deleted_at")
+  schedules Schedule[]
+
+  @@index([deletedAt])
+  @@map("stores")
+}
+
 model Schedule {
   id            Int            @id @default(autoincrement())
   title         String
   scheduleDate  DateTime       @map("schedule_date") @db.Date
-  scope         String         @default("全部食堂")
   status        String         @default("待生效")
+  storeId       Int            @map("store_id")
   operator      String?
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @updatedAt @map("updated_at")
   cuttingOrders CuttingOrder[]
   purchasePlans PurchasePlan[]
   items         ScheduleItem[]
+  store         Store                 @relation(fields: [storeId], references: [id])
 
   @@map("schedules")
 }
@@ -252,6 +275,7 @@ model ScheduleItem {
   scheduleId Int      @map("schedule_id")
   dishId     Int      @map("dish_id")
   quantity   Int
+  actualSoldQty Decimal?  @db.Decimal(10, 2) @map("actual_sold_qty") // 实际售出份数（空 = 未回录）
   dish       Dish     @relation(fields: [dishId], references: [id])
   schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 

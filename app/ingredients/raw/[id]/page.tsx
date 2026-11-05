@@ -125,6 +125,7 @@ export default function RawIngredientDetailPage() {
       processingFeePerJin: row.processingFeePerJin ?? null,
       yieldRate: row.yieldRate,
       unitPrice: row.unitPrice,
+      grossMarginRate: row.grossMarginRate ?? null,
       sourceIngredientId: row.sourceIngredientId,
       l2Code: row.l2Code,
     });

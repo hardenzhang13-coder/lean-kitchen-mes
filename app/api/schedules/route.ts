@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(scheduleQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { status, startDate, endDate, q, page, pageSize } = validation.data;
+    const { status, startDate, endDate, q, storeId, page, pageSize } = validation.data;
 
     const where: Prisma.ScheduleWhereInput = {};
     if (status) where.status = status;
+    if (storeId) where.storeId = storeId;
     if (startDate || endDate) {
       where.createdAt = {};
       if (startDate) where.createdAt.gte = new Date(startDate);
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
               dish: { select: { id: true, name: true, code: true } },
             },
           },
+          store: { select: { id: true, name: true } },
           _count: {
             select: { items: true },
           },
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createScheduleSchema, body);
     if (!validation.success) return validation.response;
 
-    const { title, scheduleDate, scope, items } = validation.data;
+    const { title, scheduleDate, storeId, items } = validation.data;
 
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
@@ -83,7 +85,7 @@ export async function POST(req: NextRequest) {
         data: {
           title: title.trim(),
           scheduleDate: new Date(scheduleDate),
-          scope: scope || "全部食堂",
+          storeId: storeId ?? 1,
           status: "待生效",
           operator,
         },

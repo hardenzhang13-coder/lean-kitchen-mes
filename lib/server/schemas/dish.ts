@@ -13,6 +13,7 @@ export const createDishSchema = z.object({
   season: z.string().max(50).default("四季"),
   meatType: z.string().max(50).optional(),
   cost: z.number().nonnegative().optional(),
+  price: z.number().nonnegative().optional(),
   status: dishStatusSchema.default("draft"),
 });
 
@@ -26,6 +27,7 @@ export const updateDishSchema = z.object({
   season: z.string().max(50).optional(),
   meatType: z.string().max(50).optional(),
   cost: z.number().nonnegative().optional(),
+  price: z.number().nonnegative().optional(),
   status: dishStatusSchema.optional(),
 });
 

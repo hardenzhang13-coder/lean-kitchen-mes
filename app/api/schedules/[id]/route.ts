@@ -14,6 +14,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const schedule = await prisma.schedule.findUnique({
     where: { id: scheduleId },
     include: {
+      store: { select: { id: true, name: true } },
       items: {
         include: {
           dish: {
@@ -76,7 +77,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateScheduleSchema, body);
   if (!validation.success) return validation.response;
 
-  const { title, scheduleDate, scope, items } = validation.data;
+  const { title, scheduleDate, storeId, items } = validation.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -94,7 +95,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         data: {
           title: title?.trim(),
           scheduleDate: scheduleDate ? new Date(scheduleDate) : undefined,
-          scope: scope || undefined,
+          storeId: storeId ?? undefined,
         },
       });
 

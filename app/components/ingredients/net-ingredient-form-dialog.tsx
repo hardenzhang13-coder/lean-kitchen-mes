@@ -38,8 +38,10 @@ export type NetIngredientItem = {
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
+  costPricePerJin: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
+  grossMarginRate: number | null;
   unit: string;
   sourceIngredientId: number | null;
   l2Code: string;
@@ -66,6 +68,7 @@ const emptyForm: NetIngredientFormData = {
   processingFeePerJin: "0.35",
   yieldRate: "",
   unitPrice: "",
+  grossMarginRate: "",
 };
 
 export function NetIngredientFormDialog({
@@ -128,6 +131,8 @@ export function NetIngredientFormDialog({
           initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
         yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
         unitPrice: String(initialData.unitPrice),
+        grossMarginRate:
+          initialData.grossMarginRate != null ? String(initialData.grossMarginRate) : "",
       });
       return;
     }
@@ -256,6 +261,15 @@ export function NetIngredientFormDialog({
       next.processingFeePerJin = "封装加工费不能为负数";
     }
 
+    if (
+      form.grossMarginRate !== "" &&
+      (Number.isNaN(Number(form.grossMarginRate)) ||
+        Number(form.grossMarginRate) < 0 ||
+        Number(form.grossMarginRate) >= 100)
+    ) {
+      next.grossMarginRate = "毛利率必须在 0-95 之间，留空 = 0";
+    }
+
     if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
       next.unitPrice = "请输入有效的单价";
     }
@@ -296,6 +310,7 @@ export function NetIngredientFormDialog({
         processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
           : null,
+        grossMarginRate: form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null,
         autoCalculate: false,
       };
 
@@ -360,6 +375,7 @@ export function NetIngredientFormDialog({
         row.processingFeePerJin != null ? String(row.processingFeePerJin) : "",
       yieldRate: row.yieldRate != null ? String(row.yieldRate) : "",
       unitPrice: String(row.unitPrice),
+      grossMarginRate: row.grossMarginRate != null ? String(row.grossMarginRate) : "",
     });
   };
 
@@ -415,7 +431,7 @@ export function NetIngredientFormDialog({
             </div>
             <div className="flex-1 overflow-auto">
               {loadingList ? (
-                <LoadingState type="table" rows={5} cols={7} />
+                <LoadingState type="table" rows={5} cols={10} />
               ) : rightList.length === 0 ? (
                 <EmptyState
                   icon={PackageOpen}
@@ -432,7 +448,8 @@ export function NetIngredientFormDialog({
                         <TableHead className="whitespace-nowrap">出成率</TableHead>
                         <TableHead className="whitespace-nowrap">净料单价</TableHead>
                         <TableHead className="whitespace-nowrap">加工费</TableHead>
-                        <TableHead className="whitespace-nowrap">成本价</TableHead>
+                        <TableHead className="whitespace-nowrap">毛利率</TableHead>
+                        <TableHead className="whitespace-nowrap">出库价</TableHead>
                         <TableHead className="whitespace-nowrap">标准规格价</TableHead>
                         <TableHead className="whitespace-nowrap text-right">操作</TableHead>
                       </TableRow>
@@ -459,6 +476,9 @@ export function NetIngredientFormDialog({
                             {row.processingFeePerJin != null
                               ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
                               : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {row.grossMarginRate != null ? `${row.grossMarginRate}%` : "—"}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap font-medium">
                             {row.outPricePerJin != null
@@ -542,6 +562,18 @@ export function NetIngredientFormDialog({
           },
           {
             header: "成本价",
+            cell: (row) =>
+              row.costPricePerJin != null
+                ? `¥${Number(row.costPricePerJin).toFixed(2)}/斤`
+                : "—",
+          },
+          {
+            header: "毛利率",
+            cell: (row) =>
+              row.grossMarginRate != null ? `${row.grossMarginRate}%` : "—",
+          },
+          {
+            header: "出库价",
             cell: (row) =>
               row.outPricePerJin != null
                 ? `¥${Number(row.outPricePerJin).toFixed(2)}/斤`

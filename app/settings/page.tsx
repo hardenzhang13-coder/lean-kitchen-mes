@@ -1,10 +1,17 @@
 import Link from "next/link";
-import { Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
+import { Store, Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/server/session";
 import { isAdmin } from "@/lib/server/roles";
 
 const settingsItems = [
+  {
+    href: "/settings/stores",
+    label: "门店管理",
+    desc: "管理门店信息，排程按门店组织生产",
+    icon: Store,
+    color: "text-violet-500 dark:text-violet-400",
+  },
   {
     href: "/settings/categories",
     label: "菜品类别",

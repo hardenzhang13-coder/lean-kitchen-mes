@@ -13,6 +13,7 @@
 | | `ingredient_categories_l2` | 食材二级分类 | ✅ |
 | | `units` | 单位字典 | ✅ |
 | | `suppliers` | 供应商 | ✅ |
+| | `stores` | 门店 | ✅ |
 | **食材库** | `ingredients` | 原料表 | ✅ |
 | | `net_ingredients` | 净料表 | ✅ |
 | | `minor_ingredients` | 小料表 | ✅ |
@@ -117,6 +118,24 @@
 
 ---
 
+### 1.6 `stores` — 门店
+
+排程的组织单位：每份排程归属一个门店。编号从 ST-0001 起。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | serial PK | |
+| code | varchar(20) UNIQUE | 编号 ST-0001 |
+| name | varchar(50) UNIQUE | 门店名称 |
+| manager | varchar(50) | 负责人 |
+| phone | varchar(20) | 联系电话 |
+| address | varchar(200) | 地址 |
+| is_system | bool | 系统内置门店（不可删除/停用） |
+| is_active | bool | 启用状态，停用后不出现在排程下拉 |
+| created_at / updated_at / deleted_at | timestamp | 软删除 |
+
+---
+
 ## 二、食材库
 
 ### 2.1 `ingredients` — 原料表
@@ -150,10 +169,24 @@
 | source_ingredient_id | int | 关联原料 ID（由哪种原料加工而来） |
 | spec | varchar(100) | 规格描述，如 0.2cm厚片 |
 | yield_rate | decimal(5,2) | 出成率（%），如 85.00 |
-| 净料单价 | decimal(10,2) | |
-| 净料单位 | varchar(20) | 默认 500g |
-| 所属二级分类 | varchar(20) | 关联 l2.code |
-| 储存方式 | varchar(10) | 冷藏、常温、冷冻 |
+| unit_price | decimal(10,2) | 净料单价（元/斤）= 原料每斤单价 ÷ 出成率 |
+| processing_fee_per_jin | decimal(10,2) | 封装加工费（元/斤），空 = 0 |
+| gross_margin_rate | decimal(5,2) | 毛利率（%），空 = 0；真毛利率口径（2026-11-04 新增，迁移 20261104151627） |
+| package_spec | int | 封装规格（g），标准封装单位克数 |
+| unit | varchar(20) | 计量单位，统一 g |
+| l2_code | varchar(20) | 所属二级分类，关联 l2.code |
+| storage | varchar(10) | 储存方式：冷藏、常温、冷冻 |
+
+**价格体系**（计算字段不落库，唯一真源 lib/shared/net-price.ts，2026-11-04 会议定稿）：
+
+```
+成本价（元/斤）     = 净料单价 + 封装加工费
+出库价（元/斤）     = 成本价 ÷ (1 - 毛利率/100)      ← 菜品 BOM 成本口径
+标准规格价格（元/份）= 出库价 × 封装规格(g) ÷ 500
+```
+
+毛利率逐条维护，留空 = 0（历史数据无感知）；出库价/标准规格价由 API 序列化实时计算。
+原料、调料、酱料不参与本价格体系（调料按每斤单价、酱料按元/kg 原口径计菜品成本）。
 
 ---
 
@@ -161,7 +194,7 @@
 
 > **已废弃（2026-11-03）**：小料不再独立建表，统一存储于 `net_ingredients`（l2Code 归属 MIN 一级分类的子分类），
 > 与净料完全同口径——由原料转化（sourceIngredientId + yieldRate + packageSpec + processingFeePerJin），
-> 成本价 = 原料每斤单价 ÷ 出成率（元/斤），单位 g。存量「直接录入」小料已通过迁移 `20261103123018_clear_legacy_minors`
+> 价格体系同净料（成本价 → 出库价 → 标准规格价，含 grossMarginRate），单位 g。存量「直接录入」小料已通过迁移 `20261103123018_clear_legacy_minors`
 > 连同菜品 BOM 引用一并清空。以下字段说明仅作历史存档。
 
 用量极小、起增香/去腥/提味作用的食材。备货制管理。编号从 SML-0001 起。
@@ -319,7 +352,9 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | serial PK | |
+| title | varchar(200) | 排程标题 |
 | schedule_date | date | 排程日期 |
+| store_id | int FK | 关联门店（stores.id），原 scope 自由文本字段已废弃 |
 | status | varchar(20) | 进行中 / 已完成 |
 | operator | varchar(50) | 操作人 |
 | created_at | timestamp | |

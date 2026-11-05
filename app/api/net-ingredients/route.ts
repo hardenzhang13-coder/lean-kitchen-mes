@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       processingFeePerJin,
       yieldRate,
       unitPrice,
+      grossMarginRate,
       l2Code,
       autoCalculate,
     } = validation.data;
@@ -143,6 +144,7 @@ export async function POST(req: NextRequest) {
         processingFeePerJin: processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
         unitPrice: calculated,
+        grossMarginRate: grossMarginRate ?? null,
         unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",

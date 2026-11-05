@@ -10,14 +10,14 @@ export const scheduleItemSchema = z.object({
 export const createScheduleSchema = z.object({
   title: z.string().min(1).max(200),
   scheduleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  scope: z.string().max(100).default("全部食堂"),
+  storeId: z.number().int().positive().default(1),
   items: z.array(scheduleItemSchema).min(1),
 });
 
 export const updateScheduleSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   scheduleDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  scope: z.string().max(100).optional(),
+  storeId: z.number().int().positive().optional(),
   items: z.array(scheduleItemSchema).optional(),
 });
 
@@ -26,6 +26,7 @@ export const scheduleQuerySchema = z.object({
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   q: z.string().max(100).optional(),
+  storeId: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

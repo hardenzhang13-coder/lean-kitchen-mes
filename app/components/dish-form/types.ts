@@ -38,6 +38,7 @@ export interface DishFormData {
   portion: string;
   season: string;
   meatType: string;
+  price: string;
 }
 
 export interface IngredientOption {
@@ -138,6 +139,7 @@ export interface DishDetail {
   season?: string | null;
   meatType?: string | null;
   cost?: number | null;
+  price?: number | null;
   status: string;
   createdAt?: string | Date;
   netDetails?: Array<{
@@ -190,6 +192,7 @@ export function dishToFormData(dish: DishDetail): DishFormData {
     portion: dish.portion || "正餐份量",
     season: dish.season || "四季",
     meatType: dish.meatType || "",
+    price: dish.price != null ? String(dish.price) : "",
   };
 }
 
@@ -205,7 +208,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const name = ing?.name ?? "";
     const unitPrice = ing?.unitPrice ?? 0;
     const unit = ing?.unit ?? "g";
-    // 成本价（元/斤，含封装加工费）为 BOM 成本口径
+    // 出库价（元/斤，含加工费与毛利）为 BOM 成本口径
     const costPrice = ing?.outPricePerJin ?? null;
     const type: BomType = d.role === "support" ? "support" : "main";
     const item: BomItem = {
@@ -392,7 +395,7 @@ export function normalizeNetIngredients(items: unknown[]): IngredientOption[] {
         // 规格展示用封装规格（原自由文本 spec 字段已废弃）
         spec: packageSpec != null ? `${packageSpec}g` : "",
         unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
-        // 成本价（元/斤，含封装加工费）
+        // 出库价（元/斤，含加工费与毛利），BOM 成本口径
         costPrice: outPrice,
         packageSpec,
         // 价格口径单位（BOM 用量仍按 g 录入）
