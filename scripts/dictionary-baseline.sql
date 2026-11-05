@@ -98,5 +98,5 @@ INSERT INTO dish_categories (code, name, description, is_active) VALUES ('VEGETA
 INSERT INTO dish_categories (code, name, description, is_active) VALUES ('SOUP', '汤类', '', 1) ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), is_active = VALUES(is_active);
 
 -- 门店
-INSERT INTO stores (name) VALUES ('新金食堂') ON DUPLICATE KEY UPDATE name = VALUES(name);
-INSERT INTO stores (name) VALUES ('明天吃啥首店') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO stores (code, name, created_at, updated_at) VALUES ('ST-0001', '新金食堂', NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE code = VALUES(code), name = VALUES(name);
+INSERT INTO stores (code, name, created_at, updated_at) VALUES ('ST-0002', '明天吃啥首店', NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE code = VALUES(code), name = VALUES(name);

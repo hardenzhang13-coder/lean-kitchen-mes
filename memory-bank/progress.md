@@ -1320,3 +1320,10 @@ POST /api/schedules/[id]/execute-purchase
 - `6361741` 部署（deploy #11）：被 P3009 阻断，符合预期
 - 恢复脚本 `scripts/recover-store-migration.sh`（幂等）：诊断迁移状态 → 失败则 resolve --rolled-back → 按 information_schema 守卫清理部分应用的空列/空表 → migrate deploy 重跑修复版 → compose up（含 seed）→ 健康检查
 - 恢复后验证点：stores 含 新金食堂/明天吃啥首店（ST-0001/0002）、存量排程 store_id=1 正确关联、工作台/门店接口 200
+
+### 部署红叉根因定位与修复（当日续二）
+
+- **根因**：`scripts/dictionary-baseline.sql` 门店段为旧表结构（仅 name）写法，与最终 schema 脱节——`stores.code` NOT NULL 无默认值、`updated_at` NOT NULL 无默认值（Prisma @updatedAt 不落库默认）→ 导入时 ERROR 1364（line 101），位于 compose up **之后**，故站点正常但每次部署红叉、健康检查被跳过
+- 生产实证：11 个迁移全部 ok、seed 门店齐全（ST-0001/0002）、web 正常（HTTP 200）；生产 schedules 为 0 行，故工作台迁移的空表外键在生产未触发 1452
+- **修复**：基线 SQL 与生成器同步改为 `INSERT INTO stores (code, name, created_at, updated_at)`；服务器端已 sed 修复并重跑导入 exit 0
+- 遗留：本机 worktree 该文件被第三方进程锁死（同 .prisma/client 锁），仓库内容经 git update-index 直写 blob 提交；待锁释放后 `git checkout` 刷新工作区

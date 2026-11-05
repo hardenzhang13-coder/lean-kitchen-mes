@@ -75,7 +75,7 @@ lines.push("");
 const stores = await prisma.store.findMany({ orderBy: { id: "asc" } });
 lines.push("-- 门店");
 for (const s of stores) {
-  lines.push(`INSERT INTO stores (name) VALUES (${q(s.name)}) ON DUPLICATE KEY UPDATE name = VALUES(name);`);
+  lines.push(`INSERT INTO stores (code, name, created_at, updated_at) VALUES (${q(s.code)}, ${q(s.name)}, NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE code = VALUES(code), name = VALUES(name);`);
 }
 lines.push("");
 
