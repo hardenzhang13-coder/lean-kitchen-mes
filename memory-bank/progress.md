@@ -1313,3 +1313,10 @@ POST /api/schedules/[id]/execute-purchase
 
 1. **数据回填型迁移必须用带存量数据的 scratch 库走真实 `migrate deploy` 引擎验证**，空库验证有盲区
 2. 迁移 SQL 注释统一 `-- `（带空格）开头，禁止 `--` 后直接跟非 ASCII 字符
+
+### 部署执行与恢复（当日续）
+
+- `802f7e4` 部署（deploy #10）：生产 migrate 如预期在 20261105033151 外键步骤失败（1452），web 因 depends_on `service_completed_successfully` 未重建，**旧版本持续服务、无宕机**；失败迁移记录阻断后续 deploy（P3009）
+- `6361741` 部署（deploy #11）：被 P3009 阻断，符合预期
+- 恢复脚本 `scripts/recover-store-migration.sh`（幂等）：诊断迁移状态 → 失败则 resolve --rolled-back → 按 information_schema 守卫清理部分应用的空列/空表 → migrate deploy 重跑修复版 → compose up（含 seed）→ 健康检查
+- 恢复后验证点：stores 含 新金食堂/明天吃啥首店（ST-0001/0002）、存量排程 store_id=1 正确关联、工作台/门店接口 200
