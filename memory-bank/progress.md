@@ -1287,3 +1287,29 @@ POST /api/schedules/[id]/execute-purchase
 
 - [ ] 售卖回录功能（浩哥）
 - [ ] 统计模块（远期）：月度经营数据
+
+---
+
+## 2026-11-05（部署前风险拦截）— 存量数据迁移修复
+
+### 拦截点
+
+迁移 `20261105033151_workbench_store_sales_price` 在本地空表验证通过，但存在存量数据盲区：
+- `schedules.store_id INTEGER NOT NULL DEFAULT 1` 给存量排程回填 1，此时 `stores` 表刚创建为空
+- 随后 `ADD CONSTRAINT ... FOREIGN KEY` 时 **MySQL 会校验存量行** → 必然 ERROR 1452
+- 本地库 `schedules` 为空（total=0），本地通过不代表生产可通过
+
+### 验证方式（两次复现 + 修复后全量通过）
+
+- scratch 库复刻生产基线（8 个已应用迁移）+ 注入存量排程数据 → 经**真实 `prisma migrate deploy` 引擎**复现 1452
+- 修复后经真实引擎 + 全部迁移 + 终态校验（store id=1 / ST-0001 / 新金食堂，schedules.store_id=1 回填成功）✓
+
+### 修复内容
+
+- 迁移内加外键**之前**先 `INSERT INTO stores (id, name, created_at) VALUES (1, '新金食堂', ...)`；编号/系统标记由后续迁移 20261105040000 回填与 seed upsert 自然对齐
+- 坑点：MySQL `--` 注释后**必须跟空白字符**，`--（全角括号` 会 1064 语法错误（Prisma 按 `;` 分块发送，注释行随语句块下发）
+
+### 教训（两条红线）
+
+1. **数据回填型迁移必须用带存量数据的 scratch 库走真实 `migrate deploy` 引擎验证**，空库验证有盲区
+2. 迁移 SQL 注释统一 `-- `（带空格）开头，禁止 `--` 后直接跟非 ASCII 字符
