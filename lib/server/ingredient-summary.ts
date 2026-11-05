@@ -34,7 +34,7 @@ export async function getIngredientSummaryCounts(): Promise<IngredientSummaryCou
     netCount,
     minorCount,
     prisma.ingredient.count({ where: { deletedAt: null, l2Code: { in: seasoningL2Codes } } }),
-    prisma.sauceIngredient.count(),
+    prisma.sauceIngredient.count({ where: { deletedAt: null } }),
   ]);
   return { raw, net, minor, seasoning, sauce };
 }

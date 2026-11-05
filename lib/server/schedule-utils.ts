@@ -244,7 +244,7 @@ export async function buildPurchasePlans(
   const sauceIds = sauceDetails.map((d) => d.sauceId);
   const sauces = await prisma.sauceIngredient.findMany({
     where: { id: { in: sauceIds } },
-    select: { id: true, code: true, name: true, unit: true, unitPrice: true },
+    select: { id: true, code: true, name: true },
   });
 
   // 5. 查询当前库存（原料）：净料与小料的来源原料并集
@@ -392,9 +392,9 @@ export async function buildPurchasePlans(
         itemName: sauce.name,
         l2Code: null,
         grossNeed: need,
-        unit: sauce.unit,
+        unit: "斤",
         purchaseSpec: null,
-        priceUnit: sauce.unit,
+        priceUnit: "斤",
       });
     }
   }

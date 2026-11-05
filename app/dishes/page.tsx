@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil, Eye, Trash2 } from "lucide-react";
+import { Plus, Pencil, Eye, Trash2, CopyPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
@@ -23,7 +23,8 @@ import { CategoryTag } from "@/app/components/ui/category-tag";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
-import { DishDetail } from "@/app/components/dish-form/types";
+import { DishDetail, calcGrossMarginPercent } from "@/app/components/dish-form/types";
+import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
 
@@ -47,6 +48,11 @@ const techniqueOptions = [
 const statusOptions = [
   { value: "draft", label: "草稿" },
   { value: "published", label: "已发布" },
+];
+
+const portionOptions = [
+  { value: "单人份", label: "单人份" },
+  { value: "一锅10份", label: "一锅10份" },
 ];
 
 const formatDateTime = (dateStr: string | Date | null | undefined) => {
@@ -75,6 +81,20 @@ function MeatTypeBadge({ type }: { type?: string | null }) {
   );
 }
 
+/** 份量徽标：与类别/荤素同风格的柔和底色，色彩区分开 */
+function PortionBadge({ portion }: { portion?: string | null }) {
+  if (!portion) return <span className="text-muted-foreground">—</span>;
+  const classes: Record<string, string> = {
+    单人份: "bg-sky-100 text-sky-700 hover:bg-sky-100",
+    一锅10份: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+  };
+  return (
+    <Badge className={classes[portion] || "bg-violet-100 text-violet-700 hover:bg-violet-100"}>
+      {portion}
+    </Badge>
+  );
+}
+
 export default function DishesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,6 +116,9 @@ export default function DishesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [scaleTarget, setScaleTarget] = useState<DishDetail | null>(null);
+  const [scalePortion, setScalePortion] = useState("");
+  const [scaling, setScaling] = useState(false);
 
   const fetchDetail = useCallback(async (id: number) => {
     try {
@@ -249,6 +272,45 @@ export default function DishesPage() {
     }
   };
 
+  // 转化倍率由源/目标份量规格自动推导（如 单人份 → 一锅10份 = ×10）
+  const scaleFactorNum =
+    scaleTarget != null && scalePortion
+      ? portionScaleFactor(scaleTarget.portion, scalePortion)
+      : null;
+
+  const handleScaleUp = async (dish: DishDetail) => {
+    if (!scalePortion) {
+      toast.error("请选择目标份量");
+      return;
+    }
+    const factor = portionScaleFactor(dish.portion, scalePortion);
+    if (factor == null || factor <= 0) {
+      toast.error("无法从目标份量规格推导转化倍率");
+      return;
+    }
+    setScaling(true);
+    try {
+      const res = await fetch(`/api/dishes/${dish.id}/scale`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ portion: scalePortion }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "转化失败");
+        return;
+      }
+      const newDish = data.data || {};
+      toast.success(`已生成「${scalePortion}」菜品档案${newDish.code ? "：" + newDish.code : ""}`);
+      setScaleTarget(null);
+      refresh();
+    } catch {
+      toast.error("转化失败");
+    } finally {
+      setScaling(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
@@ -331,17 +393,13 @@ export default function DishesPage() {
                   cell: (row) => <span className="font-medium">{row.name}</span>,
                 },
                 {
+                  header: "份量",
+                  cell: (row) => <PortionBadge portion={row.portion} />,
+                },
+                {
                   header: "类别",
                   cell: (row) => (
                     <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
-                  ),
-                },
-                {
-                  header: "菜品描述",
-                  cell: (row) => (
-                    <span className="text-muted-foreground line-clamp-1">
-                      {row.intro || "—"}
-                    </span>
                   ),
                 },
                 {
@@ -356,6 +414,27 @@ export default function DishesPage() {
                       {row.cost != null ? `¥${Number(row.cost).toFixed(2)}` : "—"}
                     </span>
                   ),
+                },
+                {
+                  header: "售价",
+                  className: "text-right",
+                  cell: (row) => (
+                    <span className="font-medium">
+                      {row.price != null ? `¥${Number(row.price).toFixed(2)}` : "—"}
+                    </span>
+                  ),
+                },
+                {
+                  header: "毛利率",
+                  className: "text-right",
+                  cell: (row) => {
+                    const margin = calcGrossMarginPercent(row.cost, row.price);
+                    return (
+                      <span className={margin != null && margin < 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
+                        {margin != null ? `${margin}%` : "—"}
+                      </span>
+                    );
+                  },
                 },
                 {
                   header: "状态",
@@ -385,6 +464,20 @@ export default function DishesPage() {
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
+                  {row.portion === "单人份" && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="菜品转化"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setScaleTarget(row);
+                        setScalePortion("一锅10份");
+                      }}
+                    >
+                      <CopyPlus className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -466,6 +559,70 @@ export default function DishesPage() {
               className="h-11 px-6"
             >
               删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={scaleTarget !== null} onOpenChange={() => setScaleTarget(null)}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">菜品转化</DialogTitle>
+          </DialogHeader>
+          {scaleTarget && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground text-base">
+                将「{scaleTarget.name}」（{scaleTarget.portion}）转化生成新的份量规格档案（草稿），源档案不受影响。
+              </p>
+              <div className="space-y-1.5">
+                <span className="text-sm font-medium">目标份量</span>
+                <SelectTileMode
+                  options={portionOptions.filter((o) => o.value !== scaleTarget.portion)}
+                  value={scalePortion}
+                  onChange={setScalePortion}
+                  placeholder="请选择目标份量"
+                  title="选择目标份量"
+                  searchable={false}
+                />
+                <p className="text-xs text-muted-foreground">
+                  用量按份量规格自动换算{scaleFactorNum != null && scaleFactorNum > 0 ? `：全部明细 ×${scaleFactorNum}` : ""}
+                </p>
+              </div>
+              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">用料成本</span>
+                  <span className="font-medium">
+                    {scaleTarget.cost != null && scaleFactorNum != null && scaleFactorNum > 0
+                      ? `¥${Number(scaleTarget.cost).toFixed(2)} × ${scaleFactorNum} = ¥${(Number(scaleTarget.cost) * scaleFactorNum).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">售价</span>
+                  <span className="font-medium">
+                    {scaleTarget.price != null && scaleFactorNum != null && scaleFactorNum > 0
+                      ? `¥${Number(scaleTarget.price).toFixed(2)} × ${scaleFactorNum} = ¥${(Number(scaleTarget.price) * scaleFactorNum).toFixed(2)}`
+                      : "—"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setScaleTarget(null)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button
+              onClick={() => scaleTarget && handleScaleUp(scaleTarget)}
+              disabled={
+                scaling ||
+                !scalePortion ||
+                scaleFactorNum == null ||
+                scaleFactorNum <= 0
+              }
+              className="h-11 px-6"
+            >
+              {scaling ? "转化中..." : "确认转化"}
             </Button>
           </DialogFooter>
         </DialogContent>

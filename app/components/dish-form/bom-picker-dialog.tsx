@@ -31,6 +31,12 @@ interface BomPickerDialogProps {
     l2Code?: string;
     q?: string;
   }) => Promise<IngredientOption[]>;
+  /** 自定义标题（如酱料配方编辑器复用时） */
+  title?: string;
+  /** 隐藏左侧分类面板（纯搜索模式） */
+  hideCategories?: boolean;
+  /** 展示全部分类（默认按 type 过滤；酱料配方选净料/小料时跨全部分类） */
+  allCategories?: boolean;
 }
 
 const TYPE_TITLES: Record<BomType, string> = {
@@ -48,9 +54,12 @@ export function BomPickerDialog({
   onSelect,
   refs,
   onLoadItems,
+  title,
+  hideCategories = false,
+  allCategories = false,
 }: BomPickerDialogProps) {
   const { l1Categories, l2Categories, hasCategories } = useMemo(() => {
-    if (type === "sauce") {
+    if (hideCategories || type === "sauce") {
       return {
         l1Categories: [] as IngredientCategory[],
         l2Categories: [] as Array<{ code: string; name: string; parentCode: string }>,
@@ -68,18 +77,20 @@ export function BomPickerDialog({
     }
 
     const isMinor = type === "minor";
-    const l1List = isMinor
-      ? refs.ingredientCategories.filter((c) => c.code === "MIN")
-      : refs.ingredientCategories.filter(
-          (c) => c.code !== "SEA" && c.code !== "GRA-SEA" && c.code !== "MIN"
-        );
+    const l1List = allCategories
+      ? refs.ingredientCategories
+      : isMinor
+        ? refs.ingredientCategories.filter((c) => c.code === "MIN")
+        : refs.ingredientCategories.filter(
+            (c) => c.code !== "SEA" && c.code !== "GRA-SEA" && c.code !== "MIN"
+          );
 
     return {
       l1Categories: l1List,
       l2Categories: l1List.flatMap((c) => c.children ?? []),
       hasCategories: true,
     };
-  }, [type, refs.ingredientCategories]);
+  }, [type, refs.ingredientCategories, hideCategories, allCategories]);
 
   const initialL1 = hasCategories ? l1Categories[0]?.code ?? "" : "";
   const initialL2 = hasCategories ? l1Categories[0]?.children?.[0]?.code ?? "" : "";
@@ -282,7 +293,7 @@ export function BomPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[960px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-lg">{TYPE_TITLES[type]}</DialogTitle>
+          <DialogTitle className="text-lg">{title ?? TYPE_TITLES[type]}</DialogTitle>
         </DialogHeader>
 
         <div className="flex flex-col lg:flex-row gap-6 py-4 px-6 overflow-y-auto flex-1 min-h-0">

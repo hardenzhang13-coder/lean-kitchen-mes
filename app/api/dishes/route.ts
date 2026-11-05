@@ -50,6 +50,7 @@ export async function GET(req: NextRequest) {
           season: true,
           meatType: true,
           cost: true,
+          price: true,
           status: true,
           createdAt: true,
           operator: true,

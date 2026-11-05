@@ -176,7 +176,15 @@ export interface DishDetail {
     amountG: number | string;
     brand?: string | null;
     cost?: number | null;
-    sauce?: { id: number; code: string; name: string; unitPrice: number | null; unit: string | null } | null;
+    sauce?: {
+      id: number;
+      code: string;
+      name: string;
+      type: string;
+      costPricePerJin?: number | null;
+      /** 出库价（元/斤）：酱料 BOM 成本口径 */
+      outPricePerJin?: number | null;
+    } | null;
   }>;
   processes?: Array<ProcessStep>;
 }
@@ -189,7 +197,7 @@ export function dishToFormData(dish: DishDetail): DishFormData {
     cuisine: dish.cuisine || "",
     technique: dish.technique || "",
     taste: dish.taste || "",
-    portion: dish.portion || "正餐份量",
+    portion: dish.portion || "单人份",
     season: dish.season || "四季",
     meatType: dish.meatType || "",
     price: dish.price != null ? String(dish.price) : "",
@@ -267,17 +275,18 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
   dish.sauceDetails?.forEach((d) => {
     const ing = d.sauce;
     const name = ing?.name ?? "";
-    const unitPrice = ing?.unitPrice ?? 0;
-    const unit = ing?.unit ?? "g";
+    // 出库价（元/斤，含成本价与毛利）为 BOM 成本口径
+    const costPrice = ing?.outPricePerJin ?? null;
     bom.sauce.push({
       id: `sauce-${d.sauceId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.sauceId,
       name,
       productName: d.brand,
       amountG: String(d.amountG),
-      unitPrice,
-      unit,
-      cost: d.cost != null ? Number(d.cost) : calcCost("sauce", unitPrice, d.amountG),
+      unitPrice: 0,
+      unit: "斤",
+      costPrice,
+      cost: d.cost != null ? Number(d.cost) : calcCost("sauce", costPrice, d.amountG),
     });
   });
 
@@ -353,6 +362,25 @@ export function formatCost(value: number | null | undefined): string {
   return `¥${Number(value).toFixed(2)}`;
 }
 
+/** 菜品毛利率（%）= (售价 - 成本) ÷ 售价 × 100；售价缺失或不为正数时返回 null */
+export function calcGrossMarginPercent(
+  cost: number | null | undefined,
+  price: number | null | undefined
+): number | null {
+  const c = cost != null ? Number(cost) : null;
+  const pr = price != null ? Number(price) : null;
+  if (c == null || pr == null || pr <= 0) return null;
+  return Number((((pr - c) / pr) * 100).toFixed(1));
+}
+
+/** 由成本与毛利率反推售价：售价 = 成本 ÷ (1 - 毛利率/100)，毛利率需小于 100 */
+export function calcPriceByMargin(cost: number, marginPercent: number): number | null {
+  if (cost < 0 || marginPercent < 0 || marginPercent >= 100) return null;
+  const rate = 1 - marginPercent / 100;
+  if (rate <= 0) return null;
+  return Number((cost / rate).toFixed(2));
+}
+
 export function calcCost(
   type: BomType,
   pricePerJin: number | null | undefined,
@@ -361,8 +389,8 @@ export function calcCost(
   const amount = typeof amountG === "string" ? parseFloat(amountG) : amountG;
   if (Number.isNaN(amount) || amount <= 0) return null;
   if (pricePerJin == null) return null;
-  // 净料/小料/调料均为元/斤口径（1 斤 = 500g）；酱料维持元/kg 旧口径（酱料模块暂不调整）
-  const gramsPerPriceUnit = type === "sauce" ? 1000 : 500;
+  // 全部元/斤口径（1 斤 = 500g）：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
+  const gramsPerPriceUnit = 500;
   return Number(((pricePerJin * amount) / gramsPerPriceUnit).toFixed(4));
 }
 
@@ -443,9 +471,12 @@ export function normalizeSauces(items: unknown[]): IngredientOption[] {
         code: String(record.code || ""),
         name: String(record.name || ""),
         productName: String(record.brand || ""),
-        spec: String(record.spec || ""),
-        unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
-        unit: String(record.unit || "g"),
+        spec: String(record.purchaseSpec || ""),
+        // 零售参考价（元/采购单位），仅作展示
+        unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
+        // 成本价口径 = 出库价（元/斤，含毛利）
+        costPrice: record.outPricePerJin != null ? Number(record.outPricePerJin) : null,
+        unit: "斤",
       } as IngredientOption;
     })
     .filter((item): item is IngredientOption => item != null);

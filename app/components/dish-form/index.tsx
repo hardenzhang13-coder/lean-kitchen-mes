@@ -27,6 +27,7 @@ import {
   dishToBom,
   dishToProcesses,
   bomToPayload,
+  totalBomCost,
   validatePublish,
   validateDishDetailForPublish,
   normalizeNetIngredients,
@@ -59,6 +60,10 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     initialDish ? dishToProcesses(initialDish) : []
   );
   const [submitting, setSubmitting] = useState(false);
+
+  // 成本估算：优先取当前 BOM 明细合计，BOM 为空时回退到服务端已存成本
+  const bomCostEstimate = useMemo(() => totalBomCost(bom), [bom]);
+  const currentCost = bomCostEstimate > 0 ? bomCostEstimate : (initialDish?.cost ?? null);
 
   const objectOptions = useMemo(() => {
     const names = new Set<string>();
@@ -115,7 +120,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       cuisine: form.cuisine || undefined,
       technique: form.technique || undefined,
       taste: form.taste || undefined,
-      portion: form.portion || "正餐份量",
+      portion: form.portion || "单人份",
       season: form.season || "四季",
       meatType: form.meatType || undefined,
       price: form.price ? Number(form.price) : null,
@@ -168,7 +173,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         cuisine: form.cuisine || undefined,
         technique: form.technique || undefined,
         taste: form.taste || undefined,
-        portion: form.portion || "正餐份量",
+        portion: form.portion || "单人份",
         season: form.season || "四季",
         meatType: form.meatType || undefined,
         price: form.price ? Number(form.price) : null,
@@ -378,7 +383,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex-[40] min-w-[380px] max-w-[520px] overflow-y-auto p-6 border-r">
-          <BasicInfoPanel data={form} onChange={setForm} categories={refs.categories} readOnly={isReadOnly} />
+          <BasicInfoPanel data={form} onChange={setForm} categories={refs.categories} cost={currentCost} readOnly={isReadOnly} />
         </div>
         <div className="flex-[60] overflow-y-auto p-6 space-y-6 bg-muted/20">
           <BomEditor bom={bom} onChange={setBom} refs={refs} onLoadItems={handleLoadItems} readOnly={isReadOnly} />
@@ -421,7 +426,7 @@ function defaultFormData(): DishFormData {
     cuisine: "",
     technique: "",
     taste: "",
-    portion: "正餐份量",
+    portion: "单人份",
     season: "四季",
     meatType: "",
     price: "",

@@ -86,8 +86,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
             if (!pickerType) return;
             const newItems = items.map(({ option, amountG }) => {
               const amount = Number(amountG) || 100;
-              // 净料/小料按出库价、调料按每斤单价（元/斤）估算；酱料维持 unitPrice 旧口径
-              const costBase = pickerType === "sauce" ? option.unitPrice : (option.costPrice ?? null);
+              // 统一元/斤口径：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
+              const costBase = option.costPrice ?? null;
               return {
                 id: `${pickerType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                 sourceId: option.id,

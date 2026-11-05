@@ -1,15 +1,19 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { DishFormData } from "./types";
+import { DishFormData, calcPriceByMargin } from "./types";
 
 interface BasicInfoPanelProps {
   data: DishFormData;
   onChange: (data: DishFormData) => void;
   categories: Array<{ id: number; code: string; name: string }>;
+  /** 当前菜品成本（BOM 估算值），用于毛利率 ↔ 售价联动计算 */
+  cost?: number | null;
   readOnly?: boolean;
 }
 
@@ -65,12 +69,33 @@ const meatTypeOptions = [
 
 const seasonOptions = ["四季", "春", "夏", "秋", "冬"].map((s) => ({ value: s, label: s }));
 const portionOptions = [
-  { value: "单人份量", label: "单人份量" },
-  { value: "正餐份量", label: "正餐份量" },
+  { value: "单人份", label: "单人份" },
+  { value: "一锅10份", label: "一锅10份" },
 ];
 
-export function BasicInfoPanel({ data, onChange, categories, readOnly }: BasicInfoPanelProps) {
+export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: BasicInfoPanelProps) {
   const categoryOptions = categories.map((c) => ({ value: String(c.id), label: c.name }));
+
+  // 毛利率本地编辑态：null 表示跟随售价派生显示；编辑中保留原始输入，避免派生值归一化打断输入/清空
+  const [marginInput, setMarginInput] = useState<string | null>(null);
+  // 标记本次售价变化来自毛利率输入，避免 effect 重置编辑态
+  const marginFromInputRef = useRef(false);
+
+  useEffect(() => {
+    if (marginFromInputRef.current) {
+      marginFromInputRef.current = false;
+      return;
+    }
+    setMarginInput(null);
+  }, [data.price]);
+
+  const priceNum = data.price ? parseFloat(data.price) : null;
+  const marginDerived =
+    cost != null && priceNum != null && priceNum > 0
+      ? Number((((priceNum - cost) / priceNum) * 100).toFixed(1))
+      : null;
+  const marginValue =
+    marginInput !== null ? marginInput : marginDerived != null ? String(marginDerived) : "";
 
   const update = (patch: Partial<DishFormData>) => {
     onChange({ ...data, ...patch });
@@ -157,23 +182,10 @@ export function BasicInfoPanel({ data, onChange, categories, readOnly }: BasicIn
         />
       </FormField>
 
-      <FormField id="price" label="售价（元/份）" readOnly={readOnly}>
-        <Input
-          id="price"
-          type="number"
-          min="0"
-          step="0.01"
-          value={data.price}
-          onChange={(e) => update({ price: e.target.value })}
-          placeholder="如 15.00"
-          disabled={readOnly}
-          className="h-11 text-base px-4"
-        />
-      </FormField>
       <FormField id="portion" label="份量" required readOnly={readOnly}>
         <SelectTileMode
           options={portionOptions}
-          value={data.portion || "正餐份量"}
+          value={data.portion || "单人份"}
           onChange={(v) => update({ portion: v })}
           placeholder="请选择份量"
           title="选择份量"
@@ -191,6 +203,48 @@ export function BasicInfoPanel({ data, onChange, categories, readOnly }: BasicIn
           title="选择季节"
           searchable={false}
           disabled={readOnly}
+        />
+      </FormField>
+      <FormField id="price" label="售价（元/份）" optionalHint={false} readOnly={readOnly}>
+        <Input
+          id="price"
+          type="number"
+          min="0"
+          step="0.01"
+          value={data.price}
+          onChange={(e) => update({ price: e.target.value })}
+          placeholder="如 15.00"
+          disabled={readOnly}
+          className="h-11 text-base px-4"
+        />
+      </FormField>
+      <FormField id="grossMargin" label="毛利率（%）" optionalHint={false} readOnly={readOnly}>
+        <Input
+          id="grossMargin"
+          type="number"
+          min="0"
+          max="99.9"
+          step="0.1"
+          value={marginValue}
+          onChange={(e) => {
+            const raw = e.target.value;
+            setMarginInput(raw);
+            if (raw === "") {
+              marginFromInputRef.current = true;
+              update({ price: "" });
+              return;
+            }
+            const m = parseFloat(raw);
+            if (Number.isNaN(m) || cost == null) return;
+            const nextPrice = calcPriceByMargin(cost, m);
+            if (nextPrice != null) {
+              marginFromInputRef.current = true;
+              update({ price: String(nextPrice) });
+            }
+          }}
+          placeholder={cost != null ? "如 60" : "请先填写菜品用料"}
+          disabled={readOnly || cost == null}
+          className="h-11 text-base px-4"
         />
       </FormField>
     </FormSection>

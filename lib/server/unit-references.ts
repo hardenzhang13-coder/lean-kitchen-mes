@@ -26,11 +26,6 @@ const UNIT_REFERENCE_TARGETS: Array<{
     count: (name) => prisma.netIngredient.count({ where: { unit: name } }),
   },
   {
-    entity: "酱料",
-    fields: ["unit"],
-    count: (name) => prisma.sauceIngredient.count({ where: { unit: name } }),
-  },
-  {
     entity: "采购计划",
     fields: ["unit", "priceUnit"],
     count: (name) =>

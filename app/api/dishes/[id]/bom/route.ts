@@ -5,6 +5,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { dishBomSchema } from "@/lib/server/schemas/dish-bom";
 import { validateBody } from "@/lib/server/validate";
 import { calcCostPricePerJin, calcOutPricePerJin } from "@/lib/shared/net-price";
+import { computeCostPricePerJin, resolveRecipeLines } from "@/lib/server/sauce-utils";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -38,7 +39,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const seasoningIds = (seasoningDetails || []).map((d) => d.sourceId);
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
-      const [netIngs, minors, seasonings, sauces] = await Promise.all([
+    // 酱料成本（事务外按当前价格体系计算）：外购=每斤单价；自制=配方推算 → 统一转出库价（元/斤）
+    const sauceRows = sauceIds.length > 0
+      ? await prisma.sauceIngredient.findMany({
+          where: { id: { in: sauceIds }, deletedAt: null },
+          select: {
+            id: true,
+            type: true,
+            pricePerJin: true,
+            grossMarginRate: true,
+            processingFeePerJin: true,
+            recipeDetails: { select: { lineType: true, refId: true, amountG: true } },
+          },
+        })
+      : [];
+
+      const [netIngs, minors, seasonings] = await Promise.all([
         tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
         tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
         tx.ingredient.findMany({
@@ -46,7 +62,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           // 调料为标准化采购（元/瓶、元/箱），BOM 成本按每斤单价（元/斤）口径折算
           select: { id: true, pricePerJin: true },
         }),
-        tx.sauceIngredient.findMany({ where: { id: { in: sauceIds } }, select: { id: true, unitPrice: true } }),
       ]);
 
       // 净料与小料同口径：均按出库价计成本（成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)）
@@ -66,7 +81,31 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const seasoningPriceMap = new Map(
         seasonings.map((i) => [i.id, i.pricePerJin != null ? Number(i.pricePerJin) : null])
       );
-      const saucePriceMap = new Map(sauces.map((i) => [i.id, Number(i.unitPrice)]));
+      // 酱料出库价（元/斤）：成本价 ÷ (1 - 毛利率/100)，空毛利率 = 成本价
+      const saucePriceMap = new Map(
+        await Promise.all(
+          sauceRows.map(async (i) => {
+            let cost: number | null;
+            if (i.type === "外购") {
+              cost = computeCostPricePerJin({ type: i.type, pricePerJin: i.pricePerJin });
+            } else {
+              const resolved = await resolveRecipeLines(
+                i.recipeDetails.map((l) => ({
+                  lineType: l.lineType as "net" | "seasoning",
+                  refId: l.refId,
+                  amountG: Number(l.amountG),
+                }))
+              );
+              cost = computeCostPricePerJin({
+                type: i.type,
+                processingFeePerJin: i.processingFeePerJin,
+                recipeLines: resolved.map((l) => ({ cost: l.cost, amountG: l.amountG })),
+              });
+            }
+            return [i.id, calcOutPricePerJin(cost, i.grossMarginRate)] as const;
+          })
+        )
+      );
 
       // 净料/小料成本 = 出库价(元/斤) × 用量g ÷ 500
       const calcNetCost = (netIngId: number, amountG: number) => {
@@ -82,9 +121,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const price = seasoningPriceMap.get(sourceId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
+      // 酱料成本 = 出库价(元/斤) × 用量g ÷ 500
       const calcSauceCost = (sauceId: number, amountG: number) => {
         const price = saucePriceMap.get(sauceId);
-        return price != null ? Number((price * amountG / 1000).toFixed(4)) : null;
+        return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
 
       if (netDetails && netDetails.length > 0) {

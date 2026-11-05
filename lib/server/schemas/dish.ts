@@ -9,7 +9,7 @@ export const createDishSchema = z.object({
   cuisine: z.string().max(50).optional(),
   technique: z.string().max(50).optional(),
   taste: z.string().max(50).optional(),
-  portion: z.string().max(50).default("正餐份量"),
+  portion: z.string().max(50).default("单人份"),
   season: z.string().max(50).default("四季"),
   meatType: z.string().max(50).optional(),
   cost: z.number().nonnegative().optional(),
@@ -39,4 +39,9 @@ export const dishQuerySchema = z.object({
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(10),
+});
+
+/** 菜品规格派生：由源菜品按倍率生成新份量规格档案 */
+export const scaleDishSchema = z.object({
+  portion: z.string().min(1).max(50),
 });

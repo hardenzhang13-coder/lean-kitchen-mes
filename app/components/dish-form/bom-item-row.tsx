@@ -20,7 +20,7 @@ const isSeasoningOrSauce = (type: BomType) => type === "seasoning" || type === "
 
 export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: BomItemRowProps) {
   const handleBlur = () => {
-    // 净料/小料按出库价、调料按每斤单价（元/斤）估算；酱料维持 unitPrice 旧口径
+    // 统一元/斤口径：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
     const costBase = type === "sauce" ? item.unitPrice : (item.costPrice ?? null);
     const cost = calcCost(type, costBase, item.amountG);
     onChange({ ...item, cost });

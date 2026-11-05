@@ -7,6 +7,11 @@ import { updateDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
+import {
+  computeCostPricePerJin,
+  resolveRecipeLines,
+  serializeSauce,
+} from "@/lib/server/sauce-utils";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -28,7 +33,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       seasoningDetails: true,
       sauceDetails: {
         include: {
-          sauce: { select: { id: true, code: true, name: true, unitPrice: true, unit: true } },
+              // 附价格体系字段，serializeSauce 注入成本价/出库价（元/斤）
+          sauce: {
+            select: {
+              id: true, code: true, name: true, type: true,
+              pricePerJin: true, grossMarginRate: true, processingFeePerJin: true,
+              recipeDetails: { select: { lineType: true, refId: true, amountG: true } },
+            },
+          },
         },
       },
       processes: { orderBy: [{ stage: "asc" }, { stepNo: "asc" }] },
@@ -68,6 +80,30 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       pricePerJin: seasonings.find((s) => s.id === d.sourceId)?.pricePerJin,
       unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
     })),
+    sauceDetails: await Promise.all(
+      row.sauceDetails.map(async (d) => {
+        const sauce = d.sauce;
+        if (!sauce) return { ...d, sauce };
+        let costPrice: number | null;
+        if (sauce.type === "外购") {
+          costPrice = computeCostPricePerJin({ type: sauce.type, pricePerJin: sauce.pricePerJin });
+        } else {
+          const resolved = await resolveRecipeLines(
+            sauce.recipeDetails.map((l) => ({
+              lineType: l.lineType as "net" | "seasoning",
+              refId: l.refId,
+              amountG: Number(l.amountG),
+            }))
+          );
+          costPrice = computeCostPricePerJin({
+            type: sauce.type,
+            processingFeePerJin: sauce.processingFeePerJin,
+            recipeLines: resolved.map((l) => ({ cost: l.cost, amountG: l.amountG })),
+          });
+        }
+        return { ...d, sauce: serializeSauce(sauce, costPrice) };
+      })
+    ),
     operatorName: await resolveUsernameToName(row.operator),
   };
 
@@ -105,7 +141,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (cuisine !== undefined) updateData.cuisine = cuisine || null;
     if (technique !== undefined) updateData.technique = technique || null;
     if (taste !== undefined) updateData.taste = taste || null;
-    if (portion !== undefined) updateData.portion = portion || "正餐份量";
+    if (portion !== undefined) updateData.portion = portion || "单人份";
     if (season !== undefined) updateData.season = season || "四季";
     if (meatType !== undefined) updateData.meatType = meatType || null;
     if (cost !== undefined) updateData.cost = cost != null ? cost : null;

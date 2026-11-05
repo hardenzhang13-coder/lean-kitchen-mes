@@ -10,7 +10,7 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { BomType, DishDetail, formatCost } from "@/app/components/dish-form/types";
+import { BomType, DishDetail, formatCost, calcGrossMarginPercent } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
 
 interface DishSheetDetailProps {
@@ -235,6 +235,15 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
             <InfoRow label="荤素" value={<MeatTypeBadge type={dish.meatType} />} />
             <InfoRow label="描述" value={dish.intro || "—"} />
             <InfoRow label="创建时间" value={formatDateTime(dish.createdAt)} />
+            <InfoRow label="售价" value={formatCost(dish.price)} />
+            <InfoRow
+              label="毛利率"
+              value={
+                calcGrossMarginPercent(computedCost, dish.price) != null
+                  ? `${calcGrossMarginPercent(computedCost, dish.price)}%`
+                  : "—"
+              }
+            />
             <InfoRow
               label="用料成本价"
               value={<span className="text-lg font-semibold">{formatCost(computedCost)}</span>}

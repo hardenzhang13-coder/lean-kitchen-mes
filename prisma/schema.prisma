@@ -121,21 +121,53 @@ model NetIngredient {
 }
 
 model SauceIngredient {
-  id               Int               @id @default(autoincrement())
-  code             String            @unique
-  name             String
-  brand            String
-  spec             String?
-  recipe           String?
-  type             String
-  unitPrice        Decimal           @map("unit_price") @db.Decimal(10, 2)
-  unit             String            @default("g") @map("unit")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  code      String   @unique
+  name      String
+  // 自制 / 外购
+  type      String
+  // 外购字段（同调料录入逻辑）：品牌、采购规格、采购单位、零售参考价（元/采购单位）
+  brand          String?
+  purchaseSpec   String?   @map("purchase_spec")
+  purchaseUnit   String?   @map("purchase_unit")
+  latestRefPrice Decimal?  @map("latest_ref_price") @db.Decimal(10, 2)
+  // 每斤单价（元/斤）：服务端按采购规格自动换算，换算不出可手填；外购酱料成本价口径
+  pricePerJin    Decimal?  @map("price_per_jin") @db.Decimal(10, 4)
+  // 毛利率（%）：空 = 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100)
+  grossMarginRate Decimal? @map("gross_margin_rate") @db.Decimal(5, 2)
+  // 加工费（元/斤）：自制酱料加工环节每斤成本，计入成本价；空 = 0
+  processingFeePerJin Decimal? @map("processing_fee_per_jin") @db.Decimal(10, 2)
+  // 封装规格（g）：标准封装单位克数；标准规格价（元/份）= 出库价 × 封装规格 ÷ 500，计算字段不落库
+  packageSpec    Int?     @map("package_spec")
+  storage        String   @default("常温") @map("storage")
+  // 备注（延伸用途，如「还可烹制虾仁、鱼类」）
+  remark         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  deletedAt      DateTime? @map("deleted_at")
+  recipeDetails  SauceRecipeDetail[]
   dishSauceDetails DishSauceDetail[]
 
   @@map("sauce_ingredients")
 }
+
+// 自制酱料配方明细：镜像菜品 BOM 行，是酱料的成本来源
+model SauceRecipeDetail {
+  id      Int      @id @default(autoincrement())
+  sauceId Int      @map("sauce_id")
+  // net（净料/小料，引用 net_ingredients）/ seasoning（调料，引用 ingredients 中 SEA 调味品子树）
+  lineType String  @map("line_type")
+  refId    Int     @map("ref_id")
+  amountG  Decimal @map("amount_g") @db.Decimal(10, 2)
+  // 行成本（元）：保存时按当时价格体系计算（净料/小料按出库价、调料按每斤单价）
+  cost     Decimal? @db.Decimal(10, 2)
+  sauce    SauceIngredient @relation(fields: [sauceId], references: [id], onDelete: Cascade)
+
+  @@unique([sauceId, lineType, refId])
+  @@index([refId])
+  @@map("sauce_recipe_details")
+}
+
 
 model DishMinorDetail {
   id            Int           @id @default(autoincrement())
@@ -159,7 +191,7 @@ model Dish {
   cuisine          String?
   technique        String?
   taste            String?
-  portion          String                @default("正餐份量")
+  portion          String                @default("单人份")
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
