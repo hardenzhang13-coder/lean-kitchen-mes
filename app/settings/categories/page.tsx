@@ -1,17 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/app/components/ui/select-field";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +57,10 @@ export default function CategoriesPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
+  const [reordering, setReordering] = useState(false);
+
+  // 排序仅在未搜索时可用（搜索会隐藏部分行，上下移动语义不明确）
+  const sortDisabled = !!search.trim() || reordering;
 
   const fetchData = async () => {
     setLoading(true);
@@ -104,6 +102,34 @@ export default function CategoriesPage() {
     start,
     end,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  const moveRow = async (idx: number, dir: -1 | 1) => {
+    const target = idx + dir;
+    if (target < 0 || target >= data.length) return;
+    const ids = data.map((d) => d.id);
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    setReordering(true);
+    try {
+      const res = await fetch("/api/dish-categories/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "调整顺序失败");
+        return;
+      }
+      const newData = [...data];
+      [newData[idx], newData[target]] = [newData[target], newData[idx]];
+      setData(newData);
+      toast.success("顺序已调整");
+    } catch {
+      toast.error("调整顺序失败");
+    } finally {
+      setReordering(false);
+    }
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -227,26 +253,15 @@ export default function CategoriesPage() {
             }}
             hasFilters={statusFilter !== "all"}
           >
-            <Select
+            <SelectField
               value={statusFilter}
-              onValueChange={(v) => {
-                if (v) setStatusFilter(v);
+              onChange={(v) => {
+                setStatusFilter(v);
                 setCurrentPage(1);
               }}
-            >
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue>
-                  {statusFilters.find((s) => s.value === statusFilter)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {statusFilters.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={statusFilters}
+              className="w-[160px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent>
@@ -263,7 +278,7 @@ export default function CategoriesPage() {
                       <TableHead>名称</TableHead>
                       <TableHead>说明</TableHead>
                       <TableHead>状态</TableHead>
-                      <TableHead className="w-[160px] text-right">操作</TableHead>
+                      <TableHead className="w-[200px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -296,6 +311,19 @@ export default function CategoriesPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
+                            {(() => {
+                              const dataIdx = data.findIndex((d) => d.id === row.id);
+                              return (
+                                <>
+                                  <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || dataIdx <= 0} onClick={() => moveRow(dataIdx, -1)}>
+                                    <ArrowUp className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || dataIdx >= data.length - 1 || dataIdx < 0} onClick={() => moveRow(dataIdx, 1)}>
+                                    <ArrowDown className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              );
+                            })()}
                             <Button variant="ghost" size="icon" aria-label={row.isActive ? "停用菜品类别" : "启用菜品类别"} onClick={() => toggleActive(row)}>
                               {row.isActive ? (
                                 <Ban className="h-4 w-4 text-amber-500" />

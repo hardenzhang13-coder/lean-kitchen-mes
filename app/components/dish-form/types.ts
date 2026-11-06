@@ -78,7 +78,7 @@ export const BOM_TYPE_LABELS: Record<BomType, string> = {
   sauce: "酱料",
 };
 
-// 发布必填规则以 validatePublish 为准：主料/辅料/调料必填，小料/酱料可选
+// 发布必填规则以 validatePublish 为准：主料/辅料必填；小料/调料/酱料可选（先跑业务，后续再收紧）
 
 export const VALID_STAGES: ProcessStage[] = ["初加工", "预处理", "上灶加工", "出锅成品"];
 
@@ -340,7 +340,6 @@ export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem
   if (!form.meatType) return "请选择荤素类型";
   if (bom.main.length === 0) return "主料不能为空";
   if (bom.support.length === 0) return "辅料不能为空";
-  if (bom.seasoning.length === 0) return "调料不能为空";
   return null;
 }
 
@@ -353,7 +352,6 @@ export function validateDishDetailForPublish(dish: DishDetail): string | null {
   if (!dish.meatType) return "请选择荤素类型";
   if (!dish.netDetails?.some((d) => d.role === "main")) return "主料不能为空";
   if (!dish.netDetails?.some((d) => d.role === "support")) return "辅料不能为空";
-  if (!dish.seasoningDetails?.length) return "调料不能为空";
   return null;
 }
 

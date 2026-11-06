@@ -7,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/shared/utils";
 
 interface SelectOption {
   value: string;
@@ -35,7 +36,8 @@ export function SelectField({
   const selectedLabel = options.find((o) => o.value === value)?.label;
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)} disabled={disabled}>
-      <SelectTrigger className={className}>
+      {/* 默认高度与搜索输入框（Input h-11）保持一致，可通过 className 覆盖 */}
+      <SelectTrigger className={cn("h-11", className)}>
         <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent>

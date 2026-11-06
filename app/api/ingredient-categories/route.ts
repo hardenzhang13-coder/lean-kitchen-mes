@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
       const [rows, totalItems] = await Promise.all([
         prisma.ingredientCategoryL1.findMany({
           where,
-          orderBy: { id: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           skip,
           take: pageSize,
         }),
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
       const [rows, totalItems] = await Promise.all([
         prisma.ingredientCategoryL2.findMany({
           where,
-          orderBy: { id: "asc" },
+          orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
           skip,
           take: pageSize,
           include: { parent: true },
@@ -59,12 +59,12 @@ export async function GET(req: NextRequest) {
     const [l1, totalItems] = await Promise.all([
       prisma.ingredientCategoryL1.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         skip,
         take: pageSize,
         include: {
           children: {
-            orderBy: { id: "asc" },
+            orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
             ...(includeInactive ? {} : { where: { isActive: true } }),
           },
         },

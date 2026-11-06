@@ -18,3 +18,8 @@ export const createIngredientCategorySchema = z.object({
 });
 
 export const updateIngredientCategorySchema = createIngredientCategorySchema.partial();
+/** 批量排序：l1 全局排序；l2 同一父级内排序 */
+export const reorderIngredientCategoriesSchema = z.object({
+  type: z.enum(["l1", "l2"]),
+  ids: z.array(z.number().int().positive()).min(1),
+});

@@ -1,17 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, Ban, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,6 +25,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { Pagination } from "@/app/components/ui/pagination";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SelectField } from "@/app/components/ui/select-field";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
@@ -90,6 +84,10 @@ export default function ClassesPage() {
 
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: "l1" | "l2"; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
+  const [reordering, setReordering] = useState(false);
+
+  // 排序仅在未搜索时可用（搜索会隐藏部分行，上下移动语义不明确）
+  const sortDisabled = !!search.trim() || reordering;
 
   const fetchData = async () => {
     setLoading(true);
@@ -259,6 +257,67 @@ export default function ClassesPage() {
     }
   };
 
+  const moveL1 = async (l1: L1, dir: -1 | 1) => {
+    const idx = data.findIndex((d) => d.code === l1.code);
+    const target = idx + dir;
+    if (idx < 0 || target < 0 || target >= data.length) return;
+    const ids = data.map((d) => d.id);
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    setReordering(true);
+    try {
+      const res = await fetch("/api/ingredient-categories/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "l1", ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "调整顺序失败");
+        return;
+      }
+      const newData = [...data];
+      [newData[idx], newData[target]] = [newData[target], newData[idx]];
+      setData(newData);
+      toast.success("顺序已调整");
+    } catch {
+      toast.error("调整顺序失败");
+    } finally {
+      setReordering(false);
+    }
+  };
+
+  const moveL2 = async (l2: L2, dir: -1 | 1) => {
+    const parent = data.find((d) => d.code === l2.parentCode);
+    if (!parent) return;
+    const children = parent.children;
+    const idx = children.findIndex((c) => c.id === l2.id);
+    const target = idx + dir;
+    if (idx < 0 || target < 0 || target >= children.length) return;
+    const ids = children.map((c) => c.id);
+    [ids[idx], ids[target]] = [ids[target], ids[idx]];
+    setReordering(true);
+    try {
+      const res = await fetch("/api/ingredient-categories/reorder", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "l2", ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "调整顺序失败");
+        return;
+      }
+      const newChildren = [...children];
+      [newChildren[idx], newChildren[target]] = [newChildren[target], newChildren[idx]];
+      setData(data.map((d) => (d.code === l2.parentCode ? { ...d, children: newChildren } : d)));
+      toast.success("顺序已调整");
+    } catch {
+      toast.error("调整顺序失败");
+    } finally {
+      setReordering(false);
+    }
+  };
+
   const openDelete = (row: L1 | L2, type: "l1" | "l2") => {
     setDeleteTarget({ id: row.id, type, name: row.name });
     setDeleteError(null);
@@ -310,26 +369,15 @@ export default function ClassesPage() {
             }}
             hasFilters={statusFilter !== "all"}
           >
-            <Select
+            <SelectField
               value={statusFilter}
-              onValueChange={(v) => {
-                if (v) setStatusFilter(v);
+              onChange={(v) => {
+                setStatusFilter(v);
                 setCurrentPage(1);
               }}
-            >
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue>
-                  {statusFilters.find((s) => s.value === statusFilter)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {statusFilters.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={statusFilters}
+              className="w-[160px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent>
@@ -346,7 +394,7 @@ export default function ClassesPage() {
                       <TableHead>名称</TableHead>
                       <TableHead>说明</TableHead>
                       <TableHead>状态</TableHead>
-                      <TableHead className="w-[200px] text-right">操作</TableHead>
+                      <TableHead className="w-[240px] text-right">操作</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -374,6 +422,11 @@ export default function ClassesPage() {
                             onDeleteL2={(l2) => openDelete(l2, "l2")}
                             onToggleL1={() => toggleActive(l1, "l1")}
                             onToggleL2={(l2) => toggleActive(l2, "l2")}
+                            canMoveL1Up={data.findIndex((d) => d.code === l1.code) > 0}
+                            canMoveL1Down={data.findIndex((d) => d.code === l1.code) < data.length - 1}
+                            onMoveL1={(dir) => moveL1(l1, dir)}
+                            onMoveL2={moveL2}
+                            sortDisabled={sortDisabled}
                           />
                         );
                       })
@@ -529,6 +582,11 @@ function L1Rows({
   onDeleteL2,
   onToggleL1,
   onToggleL2,
+  canMoveL1Up,
+  canMoveL1Down,
+  onMoveL1,
+  onMoveL2,
+  sortDisabled,
 }: {
   l1: L1;
   l1Idx: number;
@@ -542,6 +600,11 @@ function L1Rows({
   onDeleteL2: (l2: L2) => void;
   onToggleL1: () => void;
   onToggleL2: (l2: L2) => void;
+  canMoveL1Up: boolean;
+  canMoveL1Down: boolean;
+  onMoveL1: (dir: -1 | 1) => void;
+  onMoveL2: (l2: L2, dir: -1 | 1) => void;
+  sortDisabled: boolean;
 }) {
   return (
     <>
@@ -572,6 +635,12 @@ function L1Rows({
           <StatusBadge isActive={l1.isActive} />
         </TableCell>
         <TableCell className="text-right">
+          <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || !canMoveL1Up} onClick={() => onMoveL1(-1)}>
+            <ArrowUp className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || !canMoveL1Down} onClick={() => onMoveL1(1)}>
+            <ArrowDown className="h-4 w-4" />
+          </Button>
           <Button
             variant="ghost"
             size="icon"
@@ -623,6 +692,12 @@ function L1Rows({
               <StatusBadge isActive={l2.isActive} />
             </TableCell>
             <TableCell className="text-right">
+              <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || l2Idx === 0} onClick={() => onMoveL2(l2, -1)}>
+                <ArrowUp className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || l2Idx === l1.children.length - 1} onClick={() => onMoveL2(l2, 1)}>
+                <ArrowDown className="h-4 w-4" />
+              </Button>
               <Button
                 variant="ghost"
                 size="icon"

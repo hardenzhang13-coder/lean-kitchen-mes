@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SelectField } from "@/app/components/ui/select-field";
 import {
   Table,
   TableBody,
@@ -250,26 +251,15 @@ export default function UnitsPage() {
             }}
             hasFilters={statusFilter !== "all"}
           >
-            <Select
+            <SelectField
               value={statusFilter}
-              onValueChange={(v) => {
-                if (v) setStatusFilter(v);
+              onChange={(v) => {
+                setStatusFilter(v);
                 setCurrentPage(1);
               }}
-            >
-              <SelectTrigger className="w-[130px] h-9">
-                <SelectValue>
-                  {statusFilters.find((s) => s.value === statusFilter)?.label}
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {statusFilters.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={statusFilters}
+              className="w-[160px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent>

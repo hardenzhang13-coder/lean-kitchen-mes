@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { SelectField } from "@/app/components/ui/select-field";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { Pagination } from "@/app/components/ui/pagination";
@@ -187,24 +188,32 @@ export default function LedgerPage() {
               placeholder="结束日期"
               className="w-[180px]"
             />
-            <Select value={typeFilter} onValueChange={(v) => { v && setTypeFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[120px] h-10">
-                <SelectValue placeholder="全部类型" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="入库">入库</SelectItem>
-                <SelectItem value="出库">出库</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={statusFilter} onValueChange={(v) => { v && setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[120px] h-10">
-                <SelectValue placeholder="全部状态" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="待结算">待结算</SelectItem>
-                <SelectItem value="已结算">已结算</SelectItem>
-              </SelectContent>
-            </Select>
+            <SelectField
+              value={typeFilter}
+              onChange={(v) => {
+                setTypeFilter(v);
+                setPage(1);
+              }}
+              options={[
+                { value: "入库", label: "入库" },
+                { value: "出库", label: "出库" },
+              ]}
+              placeholder="全部类型"
+              className="w-[160px]"
+            />
+            <SelectField
+              value={statusFilter}
+              onChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+              options={[
+                { value: "待结算", label: "待结算" },
+                { value: "已结算", label: "已结算" },
+              ]}
+              placeholder="全部状态"
+              className="w-[160px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent>

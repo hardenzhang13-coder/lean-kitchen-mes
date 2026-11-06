@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const [rows, totalItems] = await Promise.all([
       prisma.dishCategory.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         skip,
         take: pageSize,
       }),

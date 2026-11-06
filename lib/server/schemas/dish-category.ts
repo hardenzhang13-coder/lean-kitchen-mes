@@ -15,3 +15,8 @@ export const createDishCategorySchema = z.object({
 });
 
 export const updateDishCategorySchema = createDishCategorySchema.partial();
+
+/** 批量排序：传入按新顺序排列的 id 数组 */
+export const reorderCategoriesSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1),
+});
