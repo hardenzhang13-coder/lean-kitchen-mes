@@ -82,6 +82,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       packageSpec,
       storage,
       remark,
+      defaultSupplierId,
       recipeLines,
     } = validation.data;
 
@@ -136,6 +137,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         ),
         packageSpec: pick(packageSpec ?? null, existing.packageSpec),
         storage: storage?.trim() || existing.storage,
+        defaultSupplierId: defaultSupplierId !== undefined ? (defaultSupplierId ?? null) : existing.defaultSupplierId,
         remark: remark === undefined ? existing.remark : remark?.trim() || null,
         // 配方与流程整体替换（菜品 BOM 同款模式）
         ...(resolvedLines

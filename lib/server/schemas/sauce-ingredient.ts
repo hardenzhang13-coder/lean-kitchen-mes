@@ -26,6 +26,8 @@ export const createSauceIngredientSchema = z.object({
   // 封装规格（g）：标准规格价 = 出库价 × 封装规格 ÷ 500；空 = 不启用
   packageSpec: z.number().int().min(1).max(1000000).nullish(),
   storage: z.string().max(10).nullish(),
+  // 默认供应商：采购计划按供应商拆单用，可空
+  defaultSupplierId: z.number().int().positive().nullish(),
   // 备注（延伸用途）
   remark: z.string().max(500).nullish(),
   recipeLines: z.array(recipeLineSchema).max(200).optional(),

@@ -70,6 +70,7 @@ interface IngredientFormDialogProps {
     unitsPerPurchase?: number | null;
     latestRefPrice?: number | null;
     pricePerJin?: number | null;
+    defaultSupplierId?: number | null;
   };
   categories: CategoryL1[];
   units: Unit[];
@@ -100,6 +101,7 @@ export function IngredientFormDialog({
     latestRefPrice: "",
     pricePerJin: "",
     stockUnit: "",
+    defaultSupplierId: "",
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [l2Open, setL2Open] = useState(false);
@@ -145,6 +147,8 @@ export function IngredientFormDialog({
           ? String(initialData.pricePerJin)
           : "",
       stockUnit: initialData?.stockUnit || (isCreate ? "斤" : ""),
+      defaultSupplierId:
+        initialData?.defaultSupplierId != null ? String(initialData.defaultSupplierId) : "",
     });
     setErrors({});
     setL2Open(false);
@@ -276,6 +280,7 @@ export function IngredientFormDialog({
         unitsPerPurchase: Number(form.unitsPerPurchase) || 1,
         ...(price != null && { latestRefPrice: price }),
         ...(jinPrice != null && { pricePerJin: jinPrice }),
+        defaultSupplierId: form.defaultSupplierId ? Number(form.defaultSupplierId) : null,
       };
 
       const res = await fetch(

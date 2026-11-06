@@ -86,6 +86,7 @@ export async function POST(req: NextRequest) {
       packageSpec,
       storage,
       remark,
+      defaultSupplierId,
       recipeLines,
     } = validation.data;
 
@@ -130,6 +131,7 @@ export async function POST(req: NextRequest) {
         processingFeePerJin: processingFeePerJin ?? null,
         packageSpec: packageSpec ?? null,
         storage: storage?.trim() || "常温",
+        defaultSupplierId: defaultSupplierId ?? null,
         remark: remark?.trim() || null,
         recipeDetails:
           type === "自制"

@@ -26,6 +26,9 @@ interface Dish {
   category: { name: string };
   cuisine: string | null;
   cost: number | null;
+  portion: string;
+  meatType: string | null;
+  price: number | null;
 }
 
 interface SelectedDish {
@@ -34,6 +37,9 @@ interface SelectedDish {
   code: string;
   categoryName: string;
   quantity: number;
+  portion: string;
+  meatType: string | null;
+  price: number | null;
 }
 
 function getTomorrow() {
@@ -111,6 +117,9 @@ export default function NewSchedulePage() {
           code: dish.code,
           categoryName: dish.category?.name || "",
           quantity: 1,
+          portion: dish.portion,
+          meatType: dish.meatType,
+          price: dish.price != null ? Number(dish.price) : null,
         },
       ];
     });
@@ -242,6 +251,10 @@ export default function NewSchedulePage() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium truncate">{s.name}</div>
                     <div className="text-xs text-muted-foreground">{s.code} · {s.categoryName}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      {s.portion} · {s.meatType || "—"}
+                      {s.price != null && <span className="ml-1">· 售价 ¥{Number(s.price).toFixed(2)}/份</span>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="icon" className="h-7 w-7" onClick={() => updateQuantity(s.dishId, -1)}>
@@ -258,7 +271,19 @@ export default function NewSchedulePage() {
                       <Plus className="h-3 w-3" />
                     </Button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() => toggleDish({ id: s.dishId, name: s.name, code: s.code, category: { name: s.categoryName }, cuisine: null, cost: null } as Dish)}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" onClick={() =>
+                      toggleDish({
+                        id: s.dishId,
+                        name: s.name,
+                        code: s.code,
+                        category: { name: s.categoryName },
+                        cuisine: null,
+                        cost: null,
+                        portion: s.portion,
+                        meatType: s.meatType,
+                        price: s.price,
+                      } as Dish)
+                    }>
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
@@ -329,6 +354,33 @@ export default function NewSchedulePage() {
                       <Badge variant="secondary" className="text-[10px]">
                         {dish.category?.name}
                       </Badge>
+                      <span
+                        className={
+                          "text-[10px] font-semibold rounded-md px-1.5 py-0.5 " +
+                          (dish.portion === "一锅10份"
+                            ? "bg-orange-100 text-orange-700"
+                            : "bg-sky-100 text-sky-700")
+                        }
+                      >
+                        {dish.portion}
+                      </span>
+                      {dish.meatType && (
+                        <span
+                          className={
+                            "text-[10px] font-semibold rounded-md px-1.5 py-0.5 " +
+                            (dish.meatType === "荤"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-green-100 text-green-700")
+                          }
+                        >
+                          {dish.meatType}
+                        </span>
+                      )}
+                      {dish.price != null && (
+                        <span className="text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-yellow-100 text-yellow-700">
+                          ¥{Number(dish.price).toFixed(2)}/份
+                        </span>
+                      )}
                       {selectedItem && (
                         <Badge className="text-[10px] bg-primary text-primary-foreground">
                           {selectedItem.quantity} 份

@@ -22,3 +22,15 @@ export function toWeightValue(
   }
   return { value: Math.round(g), unit: "g" };
 }
+
+/**
+ * 切配份数展示格式化：整份 + 零头。
+ * 例：1000g ÷ 700g/份 → "1 份 + 300 g"；800g → "零配 800 g"；1400g → "2 份"。
+ */
+export function formatPortions(requiredQtyG: number, packageSpecG: number): string {
+  const whole = Math.floor(requiredQtyG / packageSpecG);
+  const remainder = Math.round(requiredQtyG - whole * packageSpecG);
+  if (whole <= 0) return "零配 " + remainder + " g";
+  if (remainder === 0) return whole + " 份";
+  return whole + " 份 + " + remainder + " g";
+}

@@ -47,6 +47,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       pricePerJin,
       season,
       storage,
+      defaultSupplierId,
     } = validation.data;
 
     if (name !== undefined) {
@@ -75,6 +76,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
         purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
         latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
+        defaultSupplierId:
+          defaultSupplierId !== undefined ? (defaultSupplierId ?? null) : existing.defaultSupplierId,
         pricePerJin:
           pricePerJin !== undefined
             ? pricePerJin ?? null

@@ -11,6 +11,8 @@ export const createIngredientSchema = z.object({
   purchaseSpec: z.string().max(200).optional(),
   latestRefPrice: z.number().nonnegative().optional(),
   pricePerJin: z.number().nonnegative().optional(),
+  // 默认供应商：采购计划按供应商拆单用，可空
+  defaultSupplierId: z.number().int().positive().nullish(),
   season: z.string().max(50).default("四季"),
   storage: z.string().max(50).default("常温"),
 });

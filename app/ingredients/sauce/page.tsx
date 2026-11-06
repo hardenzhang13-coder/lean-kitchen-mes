@@ -19,6 +19,7 @@ import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
 import { TileGroup } from "@/app/components/ui/tile-group";
 import { BomPickerDialog } from "@/app/components/dish-form/bom-picker-dialog";
 import {
@@ -52,6 +53,7 @@ type Sauce = {
   packageSpec: number | null;
   storage: string;
   remark: string | null;
+  defaultSupplierId: number | null;
   costPricePerJin: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
@@ -100,6 +102,7 @@ const emptyForm = {
   purchaseUnit: "",
   latestRefPrice: "",
   pricePerJin: "",
+  defaultSupplierId: "",
   grossMarginRate: "",
   processingFeePerJin: "",
   packageSpec: "",
@@ -190,6 +193,7 @@ export default function SauceIngredientsPage() {
         latestRefPrice: detail.latestRefPrice != null ? String(detail.latestRefPrice) : "",
         pricePerJin: detail.pricePerJin != null ? String(detail.pricePerJin) : "",
         grossMarginRate: detail.grossMarginRate != null ? String(detail.grossMarginRate) : "",
+        defaultSupplierId: detail.defaultSupplierId != null ? String(detail.defaultSupplierId) : "",
         processingFeePerJin:
           detail.processingFeePerJin != null ? String(detail.processingFeePerJin) : "",
         packageSpec: detail.packageSpec != null ? String(detail.packageSpec) : "",
@@ -359,6 +363,7 @@ export default function SauceIngredientsPage() {
         type: form.type,
         storage: form.storage,
         remark: form.remark.trim() || null,
+        defaultSupplierId: form.defaultSupplierId ? Number(form.defaultSupplierId) : null,
         grossMarginRate: form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null,
         processingFeePerJin:
           form.type === "自制"
@@ -588,6 +593,19 @@ export default function SauceIngredientsPage() {
                   onChange={(e) => setForm({ ...form, packageSpec: e.target.value })}
                   placeholder="如 250"
                   className="h-11 text-base px-4"
+                />
+              </FormField>
+              <FormField
+                label="默认供应商"
+                className="col-span-2"
+                hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+              >
+                <SupplierSelect
+                  value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
+                  onChange={(v) =>
+                    setForm({ ...form, defaultSupplierId: v === "" ? "" : String(v) })
+                  }
+                  placeholder="不设置默认供应商"
                 />
               </FormField>
             </FormSection>

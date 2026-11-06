@@ -6,6 +6,7 @@ import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
+import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
 
 export type CategoryL1 = {
   code: string;
@@ -33,6 +34,8 @@ export interface IngredientFormData {
   unitsPerPurchase: string;
   latestRefPrice: string;
   pricePerJin: string;
+  /** 默认供应商 ID，空字符串 = 未设置 */
+  defaultSupplierId: string;
 }
 
 export interface IngredientFormFieldsProps {
@@ -195,6 +198,18 @@ export function IngredientFormFields({
             disabled={viewMode}
           />
         </FormField>
+        <FormField
+          label="默认供应商"
+          className="col-span-2"
+          hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+        >
+          <SupplierSelect
+            value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
+            onChange={(v) => onChange("defaultSupplierId", v === "" ? "" : String(v))}
+            placeholder="不设置默认供应商"
+            disabled={viewMode}
+          />
+        </FormField>
       </FormSection>
 
       <FormSection title="采购与入库" cols={2}>
@@ -312,6 +327,18 @@ export function IngredientFormFields({
                 : "规格无法换算，请手动填写"
             }
             className="h-11 text-base px-4"
+            disabled={viewMode}
+          />
+        </FormField>
+        <FormField
+          label="默认供应商"
+          className="col-span-2"
+          hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+        >
+          <SupplierSelect
+            value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
+            onChange={(v) => onChange("defaultSupplierId", v === "" ? "" : String(v))}
+            placeholder="不设置默认供应商"
             disabled={viewMode}
           />
         </FormField>

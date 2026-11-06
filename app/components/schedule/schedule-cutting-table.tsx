@@ -1,6 +1,6 @@
 "use client";
 
-import { Download } from "lucide-react";
+import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -13,134 +13,128 @@ import {
 import { formatWeight } from "@/lib/shared/weight-format";
 import { downloadCSV } from "@/lib/client/csv";
 
-interface CuttingOrder {
+export interface CuttingOrderRow {
   id: number;
   sourceType: string;
   sourceId: number;
+  sourceCode: string | null;
+  /** 封装规格（g，净料档案）：切配份数 = 切配量 ÷ 封装规格 */
+  packageSpec: number | null;
+  /** 切配份数展示（如「1 份 + 300 g」「零配 800 g」「2 份」） */
+  portionsText: string | null;
   itemName: string;
-  l1Code: string | null;
-  l2Code: string | null;
   l1Name: string;
   l2Name: string;
+  spec: string | null;
   requiredQty: number;
   unit: string;
-  actualQty: number | null;
+  portions: number | null;
+}
+
+/** 单头信息（打印 / 导出用） */
+export interface ScheduleDocMeta {
+  title: string;
+  scheduleDate: string;
+  storeName: string;
+  scheduleId: number;
 }
 
 interface ScheduleCuttingTableProps {
-  rows: CuttingOrder[];
-  editable?: boolean;
-  onChange?: (id: number, actualQty: number | null) => void;
+  rows: CuttingOrderRow[];
+  meta: ScheduleDocMeta;
 }
 
-export function ScheduleCuttingTable({ rows, editable, onChange }: ScheduleCuttingTableProps) {
-  // 按一级分类 → 二级分类分组，计算 rowspan
-  const l1Groups = new Map<string, CuttingOrder[]>();
-  for (const row of rows) {
-    const key = row.l1Code || "other";
-    if (!l1Groups.has(key)) l1Groups.set(key, []);
-    l1Groups.get(key)!.push(row);
+export function ScheduleCuttingTable({ rows, meta }: ScheduleCuttingTableProps) {
+  const l1Span = new Map<string, number>();
+  const l2Span = new Map<string, number>();
+  for (const r of rows) {
+    l1Span.set(r.l1Name, (l1Span.get(r.l1Name) ?? 0) + 1);
+    const key = r.l1Name + "|" + r.l2Name;
+    l2Span.set(key, (l2Span.get(key) ?? 0) + 1);
   }
 
-  const processed: Array<CuttingOrder & { l1Rowspan: number; l2Rowspan: number }> = [];
-  for (const [, l1Rows] of l1Groups) {
-    const l2Groups = new Map<string, CuttingOrder[]>();
-    for (const row of l1Rows) {
-      const key = row.l2Code || "other";
-      if (!l2Groups.has(key)) l2Groups.set(key, []);
-      l2Groups.get(key)!.push(row);
-    }
-
-    let l1First = true;
-    for (const [, l2Rows] of l2Groups) {
-      let l2First = true;
-      for (const row of l2Rows) {
-        processed.push({
-          ...row,
-          l1Rowspan: l1First ? l1Rows.length : 0,
-          l2Rowspan: l2First ? l2Rows.length : 0,
-        });
-        l1First = false;
-        l2First = false;
-      }
-    }
-  }
+  const dateText = new Date(meta.scheduleDate).toLocaleDateString("zh-CN");
 
   const handleDownload = () => {
-    const headers = ["一级分类", "二级分类", "编号", "名称", "切配量", "实际切配量", "计量单位"];
-    const data = processed.map((r) => [
+    const headerRows = [
+      ["切配工单"],
+      ["排程标题", meta.title],
+      ["门店", meta.storeName],
+      ["生产日期", dateText],
+      ["单号", "SCH-" + String(meta.scheduleId).padStart(4, "0")],
+      ["打印时间", new Date().toLocaleString("zh-CN")],
+      [],
+    ];
+    const headers = ["一级分类", "二级分类", "编号", "名称", "规格", "切配量", "切配份数"];
+    const data = rows.map((r) => [
       r.l1Name,
       r.l2Name,
-      r.sourceType === "net" ? `NET-${r.sourceId}` : `MIN-${r.sourceId}`,
+      r.sourceCode || "",
       r.itemName,
-      formatWeight(Number(r.requiredQty)),
-      r.actualQty != null ? formatWeight(Number(r.actualQty)) : "",
-      r.unit,
+      r.packageSpec != null ? r.packageSpec + "g" : "",
+      Number(r.requiredQty) + " g",
+      r.portionsText || "",
     ]);
-    downloadCSV("切配工单.csv", [headers, ...data]);
+    downloadCSV("切配工单.csv", [...headerRows, headers, ...data]);
+  };
+
+  const handlePrint = () => {
+    window.open("/schedules/" + meta.scheduleId + "/print?doc=cutting", "_blank");
   };
 
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm">切配工单明细</h4>
-        <Button variant="outline" size="sm" onClick={handleDownload}>
-          <Download className="mr-1 h-4 w-4" />
-          下载 CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={handleDownload}>
+            <Download className="mr-1 h-4 w-4" />
+            下载 CSV
+          </Button>
+          <Button variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="mr-1 h-4 w-4" />
+            打印切配单
+          </Button>
+        </div>
       </div>
       <div className="rounded-lg border overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[120px]">一级分类</TableHead>
-              <TableHead className="w-[120px]">二级分类</TableHead>
+              <TableHead className="w-[110px]">一级分类</TableHead>
+              <TableHead className="w-[110px]">二级分类</TableHead>
               <TableHead>编号</TableHead>
               <TableHead>名称</TableHead>
-              <TableHead>切配量</TableHead>
-              <TableHead>实际切配量</TableHead>
-              <TableHead>计量单位</TableHead>
+              <TableHead>规格</TableHead>
+              <TableHead className="text-right">切配量</TableHead>
+              <TableHead className="text-right" title="切配份数 = 切配量 ÷ 封装规格（净料档案）">切配份数</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {processed.map((row) => (
-              <TableRow key={row.id}>
-                {row.l1Rowspan > 0 && (
-                  <TableCell rowSpan={row.l1Rowspan} className="font-medium bg-muted/30">
-                    {row.l1Name}
-                  </TableCell>
-                )}
-                {row.l2Rowspan > 0 && (
-                  <TableCell rowSpan={row.l2Rowspan} className="text-muted-foreground bg-muted/20">
-                    {row.l2Name}
-                  </TableCell>
-                )}
-                <TableCell className="font-mono text-xs">
-                  {row.sourceType === "net" ? `NET-${row.sourceId}` : `MIN-${row.sourceId}`}
-                </TableCell>
-                <TableCell className="font-medium">{row.itemName}</TableCell>
-                <TableCell>{formatWeight(Number(row.requiredQty))}</TableCell>
-                <TableCell>
-                  {editable ? (
-                    <input
-                      type="number"
-                      step="0.01"
-                      defaultValue={row.actualQty ?? ""}
-                      className="w-24 h-8 rounded-md border border-input bg-background px-2 text-sm"
-                      onBlur={(e) => {
-                        const val = e.target.value ? Number(e.target.value) : null;
-                        onChange?.(row.id, val);
-                      }}
-                    />
-                  ) : (
-                    <span className="text-muted-foreground">
-                      {row.actualQty != null ? formatWeight(Number(row.actualQty)) : "—"}
-                    </span>
+            {rows.map((row, i) => {
+              const prev = rows[i - 1];
+              const showL1 = !prev || prev.l1Name !== row.l1Name;
+              const showL2 = !prev || prev.l1Name !== row.l1Name || prev.l2Name !== row.l2Name;
+              return (
+                <TableRow key={row.id}>
+                  {showL1 && (
+                    <TableCell rowSpan={l1Span.get(row.l1Name)} className="font-medium bg-muted/30">
+                      {row.l1Name}
+                    </TableCell>
                   )}
-                </TableCell>
-                <TableCell>{row.unit}</TableCell>
-              </TableRow>
-            ))}
+                  {showL2 && (
+                    <TableCell rowSpan={l2Span.get(row.l1Name + "|" + row.l2Name)} className="text-muted-foreground bg-muted/20">
+                      {row.l2Name}
+                    </TableCell>
+                  )}
+                  <TableCell className="font-mono text-xs">{row.sourceCode || "—"}</TableCell>
+                  <TableCell className="font-medium">{row.itemName}</TableCell>
+                  <TableCell>{row.packageSpec != null ? row.packageSpec + "g" : <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell className="text-right">{Number(row.requiredQty).toLocaleString("zh-CN")} g</TableCell>
+                  <TableCell className="text-right font-semibold text-primary">{row.portionsText || "—"}</TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

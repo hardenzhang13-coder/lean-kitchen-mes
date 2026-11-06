@@ -12,6 +12,8 @@ model DishCategory {
   name        String
   description String?
   isActive    Boolean @default(true) @map("is_active")
+  // 展示顺序：设置页可调整，越小越靠前
+  sortOrder   Int     @default(0) @map("sort_order")
   dishes      Dish[]
 
   @@map("dish_categories")
@@ -23,6 +25,8 @@ model IngredientCategoryL1 {
   name        String
   description String?
   isActive    Boolean                @default(true) @map("is_active")
+  // 展示顺序：设置页可调整，越小越靠前
+  sortOrder   Int                    @default(0) @map("sort_order")
   children    IngredientCategoryL2[]
 
   @@map("ingredient_categories_l1")
@@ -35,8 +39,11 @@ model IngredientCategoryL2 {
   parentCode  String               @map("parent_code")
   description String?
   isActive    Boolean              @default(true) @map("is_active")
+  // 展示顺序：设置页可调整（同父级内排序），越小越靠前
+  sortOrder   Int                  @default(0) @map("sort_order")
   parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code], onDelete: Cascade)
 
+  @@index([parentCode, sortOrder])
   @@map("ingredient_categories_l2")
 }
 
@@ -58,6 +65,9 @@ model Supplier {
   phone    String?
   remark   String?
   receipts PurchaseReceipt[]
+  ingredients     Ingredient[]
+  sauceIngredients SauceIngredient[]
+  purchasePlans   PurchasePlan[]
 
   @@map("suppliers")
 }
@@ -79,6 +89,8 @@ model Ingredient {
   storage        String                @default("常温") @map("storage")
   deletedAt      DateTime?             @map("deleted_at")
   inventory      Inventory?
+  defaultSupplierId Int?                @map("default_supplier_id")
+  defaultSupplier   Supplier?             @relation(fields: [defaultSupplierId], references: [id])
   ledger         InventoryLedger[]
   netIngredients NetIngredient[]
   receiptItems   PurchaseReceiptItem[]
@@ -146,6 +158,8 @@ model SauceIngredient {
   updatedAt      DateTime @updatedAt @map("updated_at")
   deletedAt      DateTime? @map("deleted_at")
   recipeDetails  SauceRecipeDetail[]
+  defaultSupplierId Int?            @map("default_supplier_id")
+  defaultSupplier   Supplier?       @relation(fields: [defaultSupplierId], references: [id])
   dishSauceDetails DishSauceDetail[]
 
   @@map("sauce_ingredients")
@@ -319,16 +333,21 @@ model PurchasePlan {
   scheduleId        Int      @map("schedule_id")
   sourceType        String   @map("source_type") // ingredient / seasoning / sauce（小料已按出成率并入 ingredient）
   sourceId          Int      @map("source_id")
+  sourceCode        String?  @map("source_code") // 食材/酱料档案编码（基础数据，非拼接）
   itemName          String   @map("item_name")
   l2Code            String?  @map("l2_code")
-  grossNeed         Decimal  @map("gross_need") @db.Decimal(10, 2)
-  stockDeducted     Decimal  @map("stock_deducted") @db.Decimal(10, 2)
-  suggestedPurchase Decimal  @map("suggested_purchase") @db.Decimal(10, 2)
+  grossNeed         Decimal  @map("gross_need") @db.Decimal(10, 2) // 毛料需求（克）：净需求 × 100 ÷ 出成率
+  stockDeducted     Decimal  @map("stock_deducted") @db.Decimal(10, 2) // 实际抵扣库存（斤），封顶毛料需求斤数
+  suggestedPurchase Decimal  @map("suggested_purchase") @db.Decimal(10, 2) // 建议采购量（采购单位个数；规格无法换算时为斤）
+  estimatedAmount   Decimal? @map("estimated_amount") @db.Decimal(10, 2) // 预估金额（元）= 需采购斤数 × 每斤单价
   unit              String
   purchaseSpec      String?  @map("purchase_spec")
   priceUnit         String?  @map("price_unit")
   actualPurchase    Decimal? @map("actual_purchase") @db.Decimal(10, 2)
   actualAmount      Decimal? @map("actual_amount") @db.Decimal(10, 2)
+  supplierId        Int?     @map("supplier_id")
+  supplierName      String?  @map("supplier_name")
+  supplier          Supplier? @relation(fields: [supplierId], references: [id])
   status            String   @default("pending")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
@@ -342,6 +361,8 @@ model CuttingOrder {
   scheduleId  Int      @map("schedule_id")
   sourceType  String   @map("source_type") // net / minor
   sourceId    Int      @map("source_id")
+  sourceCode  String?  @map("source_code") // 净料/小料档案编码（基础数据，非拼接）
+  packageSpec Int?     @map("package_spec") // 封装规格（g，净料档案）：切配份数 = 切配量 ÷ 封装规格
   itemName    String   @map("item_name")
   l1Code      String?  @map("l1_code")
   l2Code      String?  @map("l2_code")

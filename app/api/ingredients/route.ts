@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
       pricePerJin,
       season,
       storage,
+      defaultSupplierId,
     } = validation.data;
 
     const dupCheck = await checkDuplicateName(name);
@@ -110,6 +111,7 @@ export async function POST(req: NextRequest) {
         purchaseSpec: purchaseSpec ?? null,
         latestRefPrice: latestRefPrice ?? null,
         pricePerJin: finalPricePerJin,
+        defaultSupplierId: defaultSupplierId ?? null,
         season: season ?? "四季",
         storage: storage ?? "常温",
       },

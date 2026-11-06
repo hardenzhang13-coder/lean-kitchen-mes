@@ -6,11 +6,11 @@ import { isAdmin } from "@/lib/server/roles";
 
 const settingsItems = [
   {
-    href: "/settings/stores",
-    label: "门店管理",
-    desc: "管理门店信息，排程按门店组织生产",
-    icon: Store,
-    color: "text-violet-500 dark:text-violet-400",
+    href: "/settings/classes",
+    label: "食材分类",
+    desc: "管理食材一级和二级分类体系",
+    icon: FolderTree,
+    color: "text-emerald-500 dark:text-emerald-400",
   },
   {
     href: "/settings/categories",
@@ -20,18 +20,18 @@ const settingsItems = [
     color: "text-rose-500 dark:text-rose-400",
   },
   {
-    href: "/settings/classes",
-    label: "食材分类",
-    desc: "管理食材一级和二级分类体系",
-    icon: FolderTree,
-    color: "text-emerald-500 dark:text-emerald-400",
-  },
-  {
     href: "/settings/units",
     label: "单位",
     desc: "管理重量、体积、计数等单位",
     icon: Ruler,
     color: "text-blue-500 dark:text-blue-400",
+  },
+  {
+    href: "/settings/stores",
+    label: "门店管理",
+    desc: "管理门店信息，排程按门店组织生产",
+    icon: Store,
+    color: "text-violet-500 dark:text-violet-400",
   },
   {
     href: "/settings/suppliers",

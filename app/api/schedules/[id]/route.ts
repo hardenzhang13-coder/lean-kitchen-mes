@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success } from "@/lib/server/api-response";
 import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
+import { getScheduleDetail } from "@/lib/server/schedule-detail";
 import { updateScheduleSchema } from "@/lib/server/schemas/schedule";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
@@ -11,63 +12,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const scheduleId = Number(id);
 
-  const schedule = await prisma.schedule.findUnique({
-    where: { id: scheduleId },
-    include: {
-      store: { select: { id: true, name: true } },
-      items: {
-        include: {
-          dish: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              category: { select: { name: true } },
-              cost: true,
-            },
-          },
-        },
-      },
-      cuttingOrders: { orderBy: [{ l1Code: "asc" }, { l2Code: "asc" }, { itemName: "asc" }] },
-      purchasePlans: { orderBy: [{ l2Code: "asc" }, { itemName: "asc" }] },
-    },
-  });
-
-  if (!schedule) {
+  const detail = await getScheduleDetail(scheduleId);
+  if (!detail) {
     return NextResponse.json({ error: "排程不存在" }, { status: 404 });
   }
-
-  // 获取切配工单的分类名称
-  const l1Codes = [...new Set(schedule.cuttingOrders.map((c) => c.l1Code).filter((c): c is string => !!c))];
-  const l2Codes = [...new Set(schedule.cuttingOrders.map((c) => c.l2Code).filter((c): c is string => !!c))];
-  const [l1Cats, l2Cats] = await Promise.all([
-    prisma.ingredientCategoryL1.findMany({ where: { code: { in: l1Codes } }, select: { code: true, name: true } }),
-    prisma.ingredientCategoryL2.findMany({ where: { code: { in: l2Codes } }, select: { code: true, name: true } }),
-  ]);
-
-  // 获取采购计划的分类名称
-  const pL2Codes = [...new Set(schedule.purchasePlans.map((p) => p.l2Code).filter((c): c is string => !!c))];
-  const pL2Cats = await prisma.ingredientCategoryL2.findMany({
-    where: { code: { in: pL2Codes } },
-    select: { code: true, name: true },
-  });
-
-  const enriched = {
-    ...schedule,
-    cuttingOrders: schedule.cuttingOrders.map((c) => ({
-      ...c,
-      l1Name: l1Cats.find((cat) => cat.code === c.l1Code)?.name || c.l1Code || "其他",
-      l2Name: l2Cats.find((cat) => cat.code === c.l2Code)?.name || c.l2Code || "小料",
-    })),
-    purchasePlans: schedule.purchasePlans.map((p) => ({
-      ...p,
-      l2Name: pL2Cats.find((cat) => cat.code === p.l2Code)?.name || p.l2Code || "—",
-    })),
-    totalQuantity: schedule.items.reduce((s, it) => s + it.quantity, 0),
-    dishCount: schedule.items.length,
-  };
-
-  return success(enriched);
+  return success(detail);
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

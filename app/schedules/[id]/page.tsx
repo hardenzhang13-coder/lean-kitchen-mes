@@ -8,7 +8,6 @@ import {
   CheckCircle2,
   Trash2,
   Pencil,
-  AlertTriangle,
   ChefHat,
   CalendarDays,
   Clock,
@@ -16,17 +15,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { parseObject } from "@/lib/client/api";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { toast } from "sonner";
-import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
-import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
+import { ScheduleCuttingTable, type CuttingOrderRow, type ScheduleDocMeta } from "@/app/components/schedule/schedule-cutting-table";
+import { SchedulePurchaseTable, type PurchasePlanRow } from "@/app/components/schedule/schedule-purchase-table";
+import { ScheduleMenuTable } from "@/app/components/schedule/schedule-menu-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 
 interface ScheduleData {
@@ -46,12 +38,15 @@ interface ScheduleData {
       id: number;
       code: string;
       name: string;
-      category: { name: string };
+      portion: string;
+      meatType: string | null;
       cost: number | null;
+      price: number | null;
+      category: { name: string } | null;
     };
   }>;
-  cuttingOrders: Array<any>;
-  purchasePlans: Array<any>;
+  cuttingOrders: CuttingOrderRow[];
+  purchasePlans: PurchasePlanRow[];
   totalQuantity: number;
   dishCount: number;
 }
@@ -59,13 +54,6 @@ interface ScheduleData {
 function getWeekDay(dateStr: string) {
   const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
   return days[new Date(dateStr).getDay()];
-}
-
-function isAfter22h(dateStr: string) {
-  const d = new Date(dateStr);
-  const now = new Date();
-  d.setHours(22, 0, 0, 0);
-  return now > d;
 }
 
 export default function ScheduleDetailPage() {
@@ -76,6 +64,7 @@ export default function ScheduleDetailPage() {
   const [data, setData] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"menu" | "cutting" | "purchase">("menu");
 
   useEffect(() => {
     if (id) fetchData();
@@ -170,8 +159,13 @@ export default function ScheduleDetailPage() {
     );
   }
 
-  const showTimeoutWarning = data.status === "进行中" && isAfter22h(data.scheduleDate);
   const totalCost = data.items.reduce((s, it) => s + (Number(it.dish.cost) || 0) * it.quantity, 0);
+  const docMeta: ScheduleDocMeta = {
+    title: data.title,
+    scheduleDate: data.scheduleDate,
+    storeName: data.store?.name ?? "",
+    scheduleId: data.id,
+  };
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -183,8 +177,8 @@ export default function ScheduleDetailPage() {
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
-            <p className="text-sm text-muted-foreground">
-              排程 #{data.id} · 负责人：{data.operatorName || data.operator || "—"}
+            <p className="text-sm text-muted-foreground flex items-center gap-2">
+              排程 #{data.id} · 负责人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
             </p>
           </div>
         </div>
@@ -214,13 +208,6 @@ export default function ScheduleDetailPage() {
         </div>
       </div>
 
-      {showTimeoutWarning && (
-        <div className="flex items-center gap-2 rounded-lg bg-[var(--warning-muted)] border border-[var(--warning)]/20 p-3 text-[var(--warning)]">
-          <AlertTriangle className="h-5 w-5" />
-          <span className="text-sm">该排程已过了当日 22:00，建议点击「完成生产」结束排程</span>
-        </div>
-      )}
-
       {/* 基础信息块 */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-lg border p-4">
@@ -243,9 +230,12 @@ export default function ScheduleDetailPage() {
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
             <Clock className="h-4 w-4" />
-            排程状态
+            制单信息
           </div>
-          <StatusBadge status={data.status} />
+          <div className="font-medium">{data.operatorName || data.operator || "—"}</div>
+          <div className="text-sm text-muted-foreground">
+            {new Date(data.createdAt).toLocaleString("zh-CN")}
+          </div>
         </div>
         <div className="rounded-lg border p-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
@@ -257,54 +247,58 @@ export default function ScheduleDetailPage() {
         </div>
       </div>
 
-      {/* 菜单及数量 */}
-      <div className="space-y-3">
-        <h3 className="font-medium">菜单及数量</h3>
-        <div className="rounded-lg border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>序号</TableHead>
-                <TableHead>菜品名称</TableHead>
-                <TableHead>编码</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead>数量（份）</TableHead>
-                <TableHead>单价</TableHead>
-                <TableHead>小计</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.map((item, idx) => (
-                <TableRow key={item.id}>
-                  <TableCell>{idx + 1}</TableCell>
-                  <TableCell className="font-medium">{item.dish.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{item.dish.code}</TableCell>
-                  <TableCell>{item.dish.category?.name}</TableCell>
-                  <TableCell className="font-semibold">{item.quantity}</TableCell>
-                  <TableCell>¥{Number(item.dish.cost || 0).toFixed(2)}</TableCell>
-                  <TableCell>¥{(Number(item.dish.cost || 0) * item.quantity).toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-              <TableRow className="bg-muted/50">
-                <TableCell colSpan={4} className="text-right font-medium">合计</TableCell>
-                <TableCell className="font-bold">{data.totalQuantity}</TableCell>
-                <TableCell></TableCell>
-                <TableCell className="font-bold">¥{totalCost.toFixed(2)}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+      {/* 核心数据：Tab 切换 */}
+      <div>
+        <div className="flex items-center gap-1 border-b">
+          {([
+            ["menu", "排程菜单", data.items.length],
+            ["cutting", "切配工单明细", data.cuttingOrders.length],
+            ["purchase", "采购计划明细", data.purchasePlans.length],
+          ] as const).map(([key, label, count]) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={
+                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors " +
+                (activeTab === key
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:text-foreground")
+              }
+            >
+              {label}
+              <span
+                className={
+                  "ml-1.5 text-xs rounded-full px-1.5 py-0.5 " +
+                  (activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")
+                }
+              >
+                {count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="pt-4">
+          {activeTab === "menu" &&
+            (data.items.length > 0 ? (
+              <ScheduleMenuTable items={data.items} meta={docMeta} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">暂无菜单数据</p>
+            ))}
+          {activeTab === "cutting" &&
+            (data.cuttingOrders.length > 0 ? (
+              <ScheduleCuttingTable rows={data.cuttingOrders} meta={docMeta} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">暂无切配工单</p>
+            ))}
+          {activeTab === "purchase" &&
+            (data.purchasePlans.length > 0 ? (
+              <SchedulePurchaseTable rows={data.purchasePlans} meta={docMeta} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-8 text-center">暂无采购计划</p>
+            ))}
         </div>
       </div>
-
-      {/* 切配工单 */}
-      {data.cuttingOrders.length > 0 && (
-        <ScheduleCuttingTable rows={data.cuttingOrders} />
-      )}
-
-      {/* 采购计划 */}
-      {data.purchasePlans.length > 0 && (
-        <SchedulePurchaseTable rows={data.purchasePlans} />
-      )}
     </div>
   );
 }
