@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const seasonings = await prisma.ingredient.findMany({
     where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
-    select: { id: true, name: true, alias: true, latestRefPrice: true, pricePerJin: true, purchaseUnit: true },
+    select: { id: true, name: true, alias: true, latestRefPrice: true, pricePerJin: true, purchaseUnit: true, purchaseSpec: true },
   });
 
   const enriched = {
@@ -79,6 +79,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       // 每斤单价（元/斤）：调料 BOM 成本口径
       pricePerJin: seasonings.find((s) => s.id === d.sourceId)?.pricePerJin,
       unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
+      // 采购规格（与食材模块调料表一致，如 1.9L*6）
+      spec: seasonings.find((s) => s.id === d.sourceId)?.purchaseSpec,
     })),
     sauceDetails: await Promise.all(
       row.sauceDetails.map(async (d) => {

@@ -1,0 +1,967 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>每日销售回录 · 高保真原型 v001</title>
+<style>
+/* ===== 设计 Token —— 与项目 globals.css 语义变量一致 ===== */
+:root {
+  --font-sans: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+  --transition-fast: 0.15s;
+  --transition-normal: 0.2s;
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --popover: oklch(1 0 0);
+  --primary: oklch(0.553 0.195 38.402);
+  --primary-foreground: oklch(0.98 0.016 73.684);
+  --secondary: oklch(0.967 0.001 286.375);
+  --secondary-foreground: oklch(0.21 0.006 285.885);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+
+  --success: oklch(0.55 0.15 145);
+  --success-muted: oklch(0.95 0.03 145);
+  --warning: oklch(0.65 0.15 85);
+  --warning-muted: oklch(0.96 0.04 85);
+  --info: oklch(0.55 0.15 250);
+  --info-muted: oklch(0.95 0.03 250);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--font-sans);
+  background: var(--background);
+  color: var(--foreground);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+.tabnum { font-variant-numeric: tabular-nums; }
+
+/* ===== 应用框架：紧凑图标侧边栏（Router.md 约定 w-20） ===== */
+.app { display: flex; min-height: 100vh; }
+.sidebar {
+  position: fixed; left: 0; top: 0; height: 100vh; width: 80px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: center;
+  padding: 16px 0; gap: 8px; background: var(--card); z-index: 40;
+}
+.brand {
+  width: 44px; height: 44px; border-radius: var(--radius-lg);
+  background: var(--primary); color: var(--primary-foreground);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 16px;
+}
+.nav-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 64px; height: 64px; border-radius: var(--radius-lg); gap: 4px;
+  border: none; background: transparent; cursor: pointer;
+  color: oklch(0.556 0 0); font-size: 10px; font-family: var(--font-sans);
+  transition: var(--transition-normal) var(--ease-default);
+}
+.nav-btn .ico { font-size: 17px; line-height: 1; }
+.nav-btn:hover { color: var(--foreground); background: oklch(0.965 0 0); }
+.nav-btn.active { background: oklch(0.955 0.02 280); color: var(--primary); font-weight: 600; }
+.main { flex: 1; margin-left: 80px; }
+.page-wrapper { padding: 32px; max-width: 1200px; }
+
+/* ===== 顶部 ===== */
+.topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.topbar h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.topbar .sub { font-size: 14px; color: var(--muted-foreground); margin-top: 4px; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+.store-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--border); border-radius: var(--radius-md);
+  padding: 8px 14px; font-size: 13px; background: var(--card); cursor: default;
+}
+
+/* ===== 周历条 ===== */
+.week-strip { display: flex; align-items: stretch; gap: 8px; margin-bottom: 20px; }
+.week-nav {
+  border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--card);
+  width: 40px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; color: var(--muted-foreground); font-size: 16px;
+  transition: var(--transition-normal) var(--ease-default);
+}
+.week-nav:hover { color: var(--foreground); background: var(--muted); }
+.day-pill {
+  flex: 1; border: 1px solid var(--border); border-radius: var(--radius-md);
+  background: var(--card); padding: 8px 4px; cursor: pointer; text-align: center;
+  font-family: var(--font-sans); transition: var(--transition-normal) var(--ease-default);
+}
+.day-pill:hover { background: var(--muted); }
+.day-pill .dow { font-size: 11px; color: var(--muted-foreground); }
+.day-pill .daynum { font-size: 15px; font-weight: 600; margin-top: 2px; }
+.day-pill .today-flag { font-size: 10px; height: 14px; color: var(--primary); font-weight: 600; }
+.day-pill.selected { border-color: transparent; background: color-mix(in oklch, var(--primary) 10%, white); }
+.day-pill.selected .daynum, .day-pill.selected .dow { color: var(--primary); }
+
+/* ===== 卡片 ===== */
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); }
+.card-body { padding: 24px; }
+.card-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.card-title-row h2 { font-size: 18px; font-weight: 600; }
+.card-sub { font-size: 13px; color: var(--muted-foreground); margin-top: 4px; }
+.card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.chips { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.chip {
+  border-radius: 999px; background: var(--muted); padding: 5px 12px;
+  font-size: 12px; color: var(--muted-foreground); white-space: nowrap;
+}
+.chip b { color: var(--foreground); font-weight: 600; }
+.chip b.money { color: var(--success); }
+
+/* ===== 徽标 ===== */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: var(--radius-sm);
+}
+.badge-gray { background: var(--muted); color: var(--muted-foreground); }
+.badge-green { background: var(--success-muted); color: var(--success); }
+.badge-amber { background: var(--warning-muted); color: oklch(0.55 0.12 75); }
+.badge-red { background: oklch(0.95 0.03 25); color: var(--destructive); }
+.badge-blue { background: var(--info-muted); color: var(--info); }
+.badge-primary { background: color-mix(in oklch, var(--primary) 12%, white); color: var(--primary); }
+
+/* ===== 按钮 ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border-radius: var(--radius-md); font-size: 13px; font-weight: 500;
+  padding: 9px 16px; cursor: pointer; border: 1px solid transparent;
+  font-family: var(--font-sans);
+  transition: var(--transition-normal) var(--ease-default); white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: var(--primary-foreground); }
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; filter: none; }
+.btn-outline { background: var(--card); border-color: var(--border); color: var(--foreground); }
+.btn-outline:hover { background: var(--muted); }
+.btn-ghost { background: transparent; color: var(--muted-foreground); }
+.btn-ghost:hover { color: var(--foreground); background: var(--muted); }
+.btn-danger { background: var(--destructive); color: #fff; }
+.btn-sm { padding: 5px 12px; font-size: 12px; }
+.link-btn {
+  background: none; border: none; cursor: pointer; color: var(--primary);
+  font-size: 12px; font-family: var(--font-sans); padding: 2px 4px; border-radius: 4px;
+}
+.link-btn:hover { text-decoration: underline; }
+.link-btn:disabled { color: var(--muted-foreground); cursor: not-allowed; text-decoration: none; }
+
+/* ===== 表格 ===== */
+.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tbl th {
+  text-align: left; font-size: 12px; font-weight: 500; color: var(--muted-foreground);
+  padding: 10px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.tbl td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tbl tbody tr { transition: var(--transition-fast) var(--ease-default); }
+.tbl tbody tr:hover { background: color-mix(in oklch, var(--muted) 40%, white); }
+.tbl tbody tr:last-child td { border-bottom: none; }
+.tbl .r { text-align: right; }
+.tbl .c { text-align: center; }
+.dish-name { font-weight: 500; }
+.dish-spec { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; }
+.tr-warn { background: var(--warning-muted) !important; }
+
+/* ===== 售出进度条 ===== */
+.progress-wrap { display: flex; align-items: center; gap: 10px; min-width: 180px; }
+.progress-track {
+  flex: 1; height: 8px; border-radius: 999px; background: var(--muted); overflow: hidden; position: relative;
+}
+.progress-fill { height: 100%; border-radius: 999px; background: var(--primary); transition: width 0.4s var(--ease-default); }
+.progress-fill.full { background: var(--success); }
+.progress-fill.over { background: var(--destructive); }
+.progress-text { font-size: 12px; color: var(--muted-foreground); white-space: nowrap; }
+.progress-text b { color: var(--foreground); }
+
+/* ===== 空状态 ===== */
+.empty {
+  border: 1px dashed var(--border); border-radius: var(--radius-lg);
+  padding: 48px 24px; text-align: center; color: var(--muted-foreground);
+}
+.empty .ico { font-size: 32px; margin-bottom: 8px; }
+.empty .t { font-size: 14px; font-weight: 500; color: var(--foreground); margin-bottom: 4px; }
+/* ===== 弹窗 ===== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.45);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 48px 16px; z-index: 100; opacity: 0; pointer-events: none;
+  transition: opacity 0.2s var(--ease-default);
+}
+.modal-overlay.show { opacity: 1; pointer-events: auto; }
+.modal {
+  background: var(--popover); border-radius: var(--radius-lg); width: 100%;
+  max-width: 880px; max-height: calc(100vh - 96px); display: flex; flex-direction: column;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+  transform: translateY(8px); transition: transform 0.2s var(--ease-default);
+}
+.modal-overlay.show .modal { transform: translateY(0); }
+.modal-head {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 20px 24px 0;
+}
+.modal-head h3 { font-size: 17px; font-weight: 600; }
+.modal-head .meta { font-size: 12px; color: var(--muted-foreground); margin-top: 3px; }
+.modal-close {
+  border: none; background: none; cursor: pointer; font-size: 18px;
+  color: var(--muted-foreground); width: 32px; height: 32px; border-radius: var(--radius-md);
+}
+.modal-close:hover { background: var(--muted); color: var(--foreground); }
+
+/* Tab 切换 */
+.tab-bar {
+  display: flex; gap: 4px; background: var(--muted); padding: 4px;
+  border-radius: var(--radius-lg); margin: 16px 24px 0; width: fit-content;
+}
+.tab-btn {
+  padding: 6px 16px; border-radius: var(--radius-md); border: none; cursor: pointer;
+  font-size: 13px; font-weight: 500; background: transparent; color: var(--muted-foreground);
+  font-family: var(--font-sans); transition: var(--transition-normal) var(--ease-default);
+}
+.tab-btn.active { background: var(--card); color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+.modal-body { padding: 16px 24px; overflow-y: auto; flex: 1; }
+.modal-foot {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 14px 24px; border-top: 1px solid var(--border);
+}
+.modal-foot .summary { font-size: 12px; color: var(--muted-foreground); }
+.modal-foot .summary b { color: var(--foreground); }
+.modal-foot .actions { display: flex; gap: 8px; }
+
+/* ===== 录入输入框 ===== */
+.qty-input {
+  width: 84px; text-align: right; font-size: 14px; font-weight: 600;
+  padding: 7px 10px; border: 1px solid var(--input); border-radius: var(--radius-md);
+  font-family: var(--font-mono); color: var(--foreground); outline: none;
+  transition: var(--transition-fast) var(--ease-default);
+}
+.qty-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 15%, transparent); }
+.qty-input.invalid { border-color: var(--destructive); box-shadow: 0 0 0 3px oklch(0.95 0.03 25); }
+.row-err { font-size: 11px; color: var(--destructive); margin-top: 3px; }
+.cell-stack { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+
+/* ===== 导入区 ===== */
+.import-steps { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--muted-foreground); margin-bottom: 14px; flex-wrap: wrap; }
+.step-dot {
+  width: 20px; height: 20px; border-radius: 50%; background: var(--muted);
+  color: var(--muted-foreground); font-size: 11px; font-weight: 600;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.step-item { display: inline-flex; align-items: center; gap: 6px; }
+.step-arrow { color: var(--border); }
+.upload-zone {
+  border: 1.5px dashed var(--border); border-radius: var(--radius-lg);
+  padding: 20px; text-align: center; color: var(--muted-foreground);
+  cursor: pointer; transition: var(--transition-normal) var(--ease-default); margin-bottom: 12px;
+  background: var(--card);
+}
+.upload-zone:hover, .upload-zone.drag { border-color: var(--primary); background: color-mix(in oklch, var(--primary) 4%, white); }
+.upload-zone .ico { font-size: 22px; margin-bottom: 6px; }
+.paste-area {
+  width: 100%; min-height: 88px; border: 1px solid var(--input); border-radius: var(--radius-md);
+  padding: 10px 12px; font-family: var(--font-mono); font-size: 12px; resize: vertical;
+  outline: none; color: var(--foreground); background: var(--card);
+}
+.paste-area:focus { border-color: var(--primary); }
+.import-toolbar { display: flex; align-items: center; gap: 8px; margin: 12px 0; flex-wrap: wrap; }
+.match-select {
+  font-size: 12px; padding: 5px 8px; border: 1px solid var(--input);
+  border-radius: var(--radius-md); font-family: var(--font-sans); background: var(--card); max-width: 150px;
+}
+
+/* ===== Toast ===== */
+.toast-wrap { position: fixed; top: 20px; right: 20px; z-index: 200; display: flex; flex-direction: column; gap: 8px; }
+.toast {
+  background: var(--foreground); color: oklch(0.98 0 0); border-radius: var(--radius-md);
+  padding: 12px 16px; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  display: flex; align-items: center; gap: 8px; max-width: 360px;
+  animation: toast-in 0.25s var(--ease-default);
+}
+.toast.success .dot { background: var(--success); }
+.toast.error .dot { background: var(--destructive); }
+.toast .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+@keyframes toast-in { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
+.toast.out { opacity: 0; transform: translateX(16px); transition: all 0.25s var(--ease-default); }
+
+/* ===== 二次确认小弹窗 ===== */
+.confirm-box {
+  background: var(--popover); border-radius: var(--radius-lg); width: 380px;
+  padding: 24px; box-shadow: 0 20px 50px rgba(0,0,0,0.18);
+}
+.confirm-box h4 { font-size: 15px; font-weight: 600; margin-bottom: 8px; }
+.confirm-box p { font-size: 13px; color: var(--muted-foreground); margin-bottom: 20px; }
+.confirm-box .actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* ===== 原型设计说明 ===== */
+.proto-divider { border-top: 2px dashed var(--border); margin-top: 56px; padding-top: 24px; }
+.proto-note { font-size: 12px; color: var(--muted-foreground); text-align: center; margin-bottom: 24px; }
+.proto-section { margin-bottom: 20px; }
+.proto-section h4 { font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.proto-section ul { padding-left: 20px; font-size: 13px; color: oklch(0.35 0 0); }
+.proto-section li { margin-bottom: 6px; }
+.proto-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+.proto-table th, .proto-table td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+.proto-table th { background: var(--muted); font-weight: 600; }
+.proto-badge { font-size: 11px; padding: 1px 6px; border-radius: 4px; }
+.proto-badge.new { background: var(--success-muted); color: var(--success); }
+.proto-badge.edit { background: var(--info-muted); color: var(--info); }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- ===== 侧边栏（示意） ===== -->
+  <aside class="sidebar">
+    <div class="brand">🍳</div>
+    <button class="nav-btn active"><span class="ico">⊞</span>工作台</button>
+    <button class="nav-btn"><span class="ico">📋</span>排程</button>
+    <button class="nav-btn"><span class="ico">🛒</span>采购</button>
+    <button class="nav-btn"><span class="ico">📦</span>库存</button>
+    <button class="nav-btn"><span class="ico">🍽️</span>菜品</button>
+    <button class="nav-btn"><span class="ico">🥬</span>食材</button>
+    <button class="nav-btn"><span class="ico">📖</span>字典</button>
+  </aside>
+
+  <main class="main">
+    <div class="page-wrapper">
+      <!-- ===== 顶部 ===== -->
+      <div class="topbar">
+        <div>
+          <h1>工作台</h1>
+          <p class="sub" id="todayText">2026年11月7日 周六</p>
+        </div>
+        <div class="topbar-actions">
+          <button class="store-pill">🏪 华阳门店 ▾</button>
+        </div>
+      </div>
+
+      <!-- ===== 周历条 ===== -->
+      <div class="week-strip" id="weekStrip"></div>
+
+      <!-- ===== 当日复盘单（状态由 JS 渲染） ===== -->
+      <div id="dailyCard"></div>
+
+<!-- ===== 原型设计说明 ===== -->
+<div class="proto-divider">
+  <div class="proto-note">— 以下为原型设计说明，不在实际产品页面中显示 —</div>
+
+  <div class="proto-section">
+    <h4>🎯 本版目标</h4>
+    <ul>
+      <li>补全「排程 → 生产 → 销售回录」闭环：逐菜录入/CSV 导入实际售出份数，工作台自动切换复盘视图。</li>
+      <li>复用已有资产：<code>schedule_items.actual_sold_qty</code> 字段、/api/dashboard/daily 复盘计算、「待回录」占位，零迁移成本。</li>
+      <li>前置文档：<code>docs/销售数据回录-讨论.md</code> → <code>docs/v001-销售数据回录-方案.md</code></li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>📐 信息架构</h4>
+    <ul>
+      <li>工作台当日复盘单卡片：三种派生态（未回录 / 部分回录 / 已回录）由明细行聚合而成。</li>
+      <li>回录弹窗双 Tab：手动录入（逐菜输入 + 售罄快捷）/ 批量导入（模板 → 解析预览 → 确认）。</li>
+      <li>复盘视图：售出进度条 + 偏差 + 销售额，按售出率降序（滞销菜沉底标黄），超售标红。</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>⚡ 交互规则</h4>
+    <ul>
+      <li>部分回录可保存；售出列空 = 未录，允许随后继续。</li>
+      <li>售出 &gt; 计划不阻断，行内红 badge「超售 +N」；售出率 &lt; 60% 行标黄提示滞销。</li>
+      <li>导入预览五种行状态：匹配成功 / 将覆盖 / 重复自动合并 / 未匹配（下拉选菜或忽略）/ 售空跳过。</li>
+      <li>修改已回录需二次确认；底部实时汇总「已录 x/y 道 · 售出合计 · 预计售出率」。</li>
+      <li>校验：整数 0~9999，非法输入行内红框并阻断保存。</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>🎨 视觉规范</h4>
+    <ul>
+      <li>颜色：oklch 语义变量（--primary 橙棕 oklch(0.553 0.195 38.402) / --success 绿 / --destructive 红）</li>
+      <li>圆角：卡片 12px，按钮/输入 8px，badge 4px；字体：系统字体栈 + 等宽数字</li>
+    </ul>
+  </div>
+
+  <div class="proto-section">
+    <h4>📝 版本记录</h4>
+    <table class="proto-table">
+      <tr><th>版本</th><th>时间</th><th>类型</th><th>变更内容</th></tr>
+      <tr><td>v001</td><td>2026-11-07</td><td><span class="proto-badge new">新增</span></td><td>初稿：工作台三态复盘单 + 回录弹窗（手动/导入）+ 复盘视图</td></tr>
+    </table>
+  </div>
+</div>
+
+    </div><!-- /page-wrapper -->
+  </main>
+</div>
+
+<!-- ===== 回录弹窗 ===== -->
+<div class="modal-overlay" id="recordModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3>销售回录</h3>
+        <p class="meta">SCH-20261107-001 · 2026-11-07 周六 · 华阳门店 · 共 8 道菜</p>
+      </div>
+      <button class="modal-close" onclick="closeRecordModal()">✕</button>
+    </div>
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabManualBtn" onclick="switchTab('manual')">手动录入</button>
+      <button class="tab-btn" id="tabImportBtn" onclick="switchTab('import')">批量导入</button>
+    </div>
+    <div class="modal-body">
+      <div id="tabManual"></div>
+      <div id="tabImport" style="display:none"></div>
+    </div>
+    <div class="modal-foot">
+      <div class="summary" id="footSummary"></div>
+      <div class="actions">
+        <button class="btn btn-outline" onclick="closeRecordModal()">取消</button>
+        <button class="btn btn-primary" id="saveBtn" onclick="saveRecords()">保存回录</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 二次确认 ===== -->
+<div class="modal-overlay" id="confirmModal" style="z-index:150">
+  <div class="confirm-box">
+    <h4 id="confirmTitle">确认操作</h4>
+    <p id="confirmText"></p>
+    <div class="actions">
+      <button class="btn btn-outline" onclick="closeConfirm(false)">取消</button>
+      <button class="btn btn-danger" id="confirmOk" onclick="closeConfirm(true)">确认覆盖</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ===== Mock 数据 =====
+const SCHEDULE_CODE = 'SCH-20261107-001';
+const dishes = [
+  { id: 1, code: 'D-001', name: '宫保鸡丁', alias: '', spec: '350g/份 · 荤 · 川菜', plan: 50, price: 18, cost: 9.8 },
+  { id: 2, code: 'D-002', name: '鱼香肉丝', alias: '', spec: '300g/份 · 荤 · 川菜', plan: 45, price: 16, cost: 8.2 },
+  { id: 3, code: 'D-003', name: '麻婆豆腐', alias: '', spec: '400g/份 · 素 · 川菜', plan: 40, price: 12, cost: 4.1 },
+  { id: 4, code: 'D-004', name: '红烧肉', alias: '东坡肉', spec: '350g/份 · 荤 · 本帮', plan: 30, price: 28, cost: 15.6 },
+  { id: 5, code: 'D-005', name: '清蒸鲈鱼', alias: '', spec: '1条/份 · 荤 · 粤菜', plan: 25, price: 38, cost: 19.5 },
+  { id: 6, code: 'D-006', name: '干煸四季豆', alias: '', spec: '300g/份 · 素 · 川菜', plan: 35, price: 14, cost: 5.3 },
+  { id: 7, code: 'D-007', name: '番茄炒蛋', alias: '西红柿炒蛋', spec: '350g/份 · 素 · 家常', plan: 45, price: 10, cost: 3.6 },
+  { id: 8, code: 'D-008', name: '酸辣土豆丝', alias: '', spec: '300g/份 · 素 · 川菜', plan: 40, price: 9, cost: 2.4 },
+];
+// soldQty: null=未录; 其余为已录份数。meta 记录最后回录信息。
+const state = {
+  selectedDate: '2026-11-07',
+  items: dishes.map(d => ({ ...d, soldQty: null, recordedAt: null, recordedBy: null })),
+  hasSchedule: true,
+};
+
+const WEEK_DAYS = [
+  { date: '2026-11-02', dow: '周一', num: '11/02', has: false },
+  { date: '2026-11-03', dow: '周二', num: '11/03', has: false },
+  { date: '2026-11-04', dow: '周三', num: '11/04', has: false },
+  { date: '2026-11-05', dow: '周四', num: '11/05', has: false },
+  { date: '2026-11-06', dow: '周五', num: '11/06', has: false },
+  { date: '2026-11-07', dow: '周六', num: '11/07', has: true, today: true },
+  { date: '2026-11-08', dow: '周日', num: '11/08', has: false },
+];
+
+// ===== 工具 =====
+const $ = id => document.getElementById(id);
+const fmtMoney = n => n == null ? '—' : '¥' + Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtPct = r => r == null ? '—' : (r * 100).toFixed(1) + '%';
+function calcSummary(items) {
+  const planQty = items.reduce((s, i) => s + i.plan, 0);
+  const recorded = items.filter(i => i.soldQty != null);
+  const soldQty = recorded.reduce((s, i) => s + i.soldQty, 0);
+  const revenue = recorded.reduce((s, i) => s + i.soldQty * i.price, 0);
+  const costTotal = recorded.reduce((s, i) => s + i.soldQty * i.cost, 0);
+  const planRevenue = items.reduce((s, i) => s + i.plan * i.price, 0);
+  const planCost = items.reduce((s, i) => s + i.plan * i.cost, 0);
+  return {
+    planQty,
+    recordedCount: recorded.length,
+    totalCount: items.length,
+    allRecorded: recorded.length === items.length && items.length > 0,
+    soldQty, revenue,
+    sellThrough: planQty > 0 ? soldQty / planQty : null,
+    margin: revenue > 0 ? (revenue - costTotal) / revenue : null,
+    planRevenue,
+    planMargin: planRevenue > 0 ? (planRevenue - planCost) / planRevenue : null,
+    lastRecord: recorded.length ? recorded.map(i => i.recordedAt).sort().pop() : null,
+    lastBy: recorded.length ? recorded[recorded.length - 1].recordedBy : null,
+  };
+}
+function lastRecordInfo() {
+  const rec = state.items.filter(i => i.recordedAt);
+  if (!rec.length) return null;
+  const latest = rec.map(i => i.recordedAt).sort().pop();
+  const by = rec.find(i => i.recordedAt === latest)?.recordedBy ?? '张浩浩';
+  return { at: latest, by };
+}
+
+// ===== Toast =====
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = 'toast ' + type;
+  el.innerHTML = '<span class="dot"></span><span>' + msg + '</span>';
+  $('toastWrap').appendChild(el);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 260); }, 2800);
+}
+
+// ===== 二次确认 =====
+let confirmCb = null;
+function openConfirm(title, text, okLabel, cb) {
+  $('confirmTitle').textContent = title;
+  $('confirmText').textContent = text;
+  $('confirmOk').textContent = okLabel;
+  confirmCb = cb;
+  $('confirmModal').classList.add('show');
+}
+function closeConfirm(ok) {
+  $('confirmModal').classList.remove('show');
+  if (ok && confirmCb) confirmCb();
+  confirmCb = null;
+}
+
+// ===== 周历条 =====
+function renderWeek() {
+  $('weekStrip').innerHTML =
+    '<button class="week-nav">‹</button>' +
+    WEEK_DAYS.map(d => {
+      const sel = d.date === state.selectedDate;
+      const cls = 'day-pill' + (sel ? ' selected' : '');
+      const flag = d.today ? '<div class="today-flag">今天</div>' : '<div class="today-flag"></div>';
+      return '<button class="' + cls + '" onclick="selectDate(\'' + d.date + '\',' + d.has + ')">' +
+        '<div class="dow">' + d.dow + '</div><div class="daynum">' + d.num + '</div>' + flag + '</button>';
+    }).join('') +
+    '<button class="week-nav">›</button>';
+}
+function selectDate(date, has) {
+  state.selectedDate = date;
+  state.hasSchedule = has;
+  renderWeek();
+  renderDaily();
+}
+
+// ===== 当日复盘单（三态渲染） =====
+function renderDaily() {
+  const box = $('dailyCard');
+  if (!state.hasSchedule) {
+    box.innerHTML = '<div class="card"><div class="empty"><div class="ico">📅</div>' +
+      '<div class="t">当日无排程</div><div>选择其他日期，或去创建新排程</div>' +
+      '<div style="margin-top:14px"><button class="btn btn-primary btn-sm">去创建排程</button></div></div></div>';
+    return;
+  }
+  const s = calcSummary(state.items);
+  const info = lastRecordInfo();
+
+  // 头部 chips
+  let chips = '<span class="chip">计划 <b>' + s.planQty + '</b> 份</span>';
+  if (s.allRecorded) {
+    chips += '<span class="chip">售出 <b>' + s.soldQty + '</b> 份</span>' +
+      '<span class="chip">售出率 <b>' + fmtPct(s.sellThrough) + '</b></span>' +
+      '<span class="chip">营收 <b class="money">' + fmtMoney(s.revenue) + '</b></span>' +
+      '<span class="chip">实际毛利率 <b>' + fmtPct(s.margin) + '</b></span>';
+  } else if (s.recordedCount > 0) {
+    chips += '<span class="chip">已回录 <b>' + s.recordedCount + '/' + s.totalCount + '</b> 道</span>' +
+      '<span class="chip">计划销售额 <b>' + fmtMoney(s.planRevenue) + '</b></span>' +
+      '<span class="chip">预计毛利率 <b>' + fmtPct(s.planMargin) + '</b></span>';
+  } else {
+    chips += '<span class="chip">计划销售额 <b>' + fmtMoney(s.planRevenue) + '</b></span>' +
+      '<span class="chip">预计毛利率 <b>' + fmtPct(s.planMargin) + '</b></span>';
+  }
+
+  const headBtn = s.allRecorded
+    ? '<button class="btn btn-outline btn-sm" onclick="openRecordModal(\'edit\')">修改回录</button>'
+    : '<button class="btn btn-primary btn-sm" onclick="openRecordModal(\'new\')">' + (s.recordedCount > 0 ? '继续回录' : '回录售出') + '</button>';
+
+  const statusBadge = s.allRecorded
+    ? '<span class="badge badge-green">已回录</span>'
+    : s.recordedCount > 0 ? '<span class="badge badge-amber">部分回录</span>'
+    : '<span class="badge badge-gray">待回录</span>';
+
+  let bodyHtml;
+  if (!s.allRecorded && s.recordedCount === 0) {
+    // 未回录：计划视图
+    bodyHtml = '<p style="font-size:12px;color:var(--muted-foreground);margin-bottom:10px">排程已创建 · 当前展示计划数据，售出进度待回录后显示</p>' +
+      '<table class="tbl"><thead><tr>' +
+      '<th class="w-12">序号</th><th>菜品 / 规格</th><th class="r" style="width:90px">计划份数</th>' +
+      '<th class="r" style="width:80px">售价</th><th class="r" style="width:110px">计划销售额</th><th class="r" style="width:80px">售出</th>' +
+      '</tr></thead><tbody>' +
+      state.items.map((it, idx) => '<tr>' +
+        '<td style="color:var(--muted-foreground)">' + (idx + 1) + '</td>' +
+        '<td><div class="dish-name">' + it.name + '</div><div class="dish-spec">' + it.spec + '</div></td>' +
+        '<td class="r tabnum"><b>' + it.plan + '</b></td>' +
+        '<td class="r tabnum" style="color:var(--muted-foreground)">' + fmtMoney(it.price) + '</td>' +
+        '<td class="r tabnum">' + fmtMoney(it.plan * it.price) + '</td>' +
+        '<td class="r"><span style="font-size:12px;color:var(--muted-foreground)">待回录</span></td>' +
+        '</tr>').join('') +
+      '</tbody></table>';
+  } else {
+    // 部分回录 / 已回录：售出进度视图
+    const rows = s.allRecorded
+      ? [...state.items].sort((a, b) => (b.soldQty / b.plan) - (a.soldQty / a.plan))
+      : state.items;
+    const hint = s.allRecorded
+      ? (info ? '<p style="font-size:12px;color:var(--muted-foreground);margin-bottom:10px">最后回录 ' + info.at + ' · ' + info.by + '</p>' : '')
+      : '<p style="font-size:12px;color:oklch(0.55 0.12 75);margin-bottom:10px">已回录 ' + s.recordedCount + '/' + s.totalCount + ' 道 · 可随时继续补录</p>';
+    bodyHtml = hint + '<table class="tbl"><thead><tr>' +
+      '<th class="w-12">序号</th><th>菜品 / 规格</th><th style="width:30%">售出进度（售出 / 计划）</th>' +
+      '<th class="r" style="width:80px">偏差</th><th class="r" style="width:100px">销售额</th>' +
+      (s.allRecorded ? '' : '<th class="r" style="width:70px">售出</th>') +
+      '</tr></thead><tbody>' +
+      rows.map((it, idx) => {
+        const sold = it.soldQty;
+        const rate = sold != null ? sold / it.plan : null;
+        const pct = rate == null ? 0 : Math.min(rate * 100, 100);
+        const over = sold != null && sold > it.plan;
+        const low = s.allRecorded && rate != null && rate < 0.6;
+        const fillCls = sold == null ? '' : over ? 'over' : rate >= 1 ? 'full' : '';
+        const bar = sold != null
+          ? '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill ' + fillCls + '" style="width:' + pct + '%"></div></div>' +
+            '<span class="progress-text"><b>' + sold + '</b> / ' + it.plan + ' 份 · ' + fmtPct(rate) + '</span>' +
+            (over ? ' <span class="badge badge-red">超售 +' + (sold - it.plan) + '</span>' : '') + '</div>'
+          : '<span style="font-size:12px;color:var(--muted-foreground)">待回录</span>';
+        const diff = sold != null ? sold - it.plan : null;
+        const diffHtml = diff == null ? '<span style="color:var(--muted-foreground)">—</span>'
+          : diff > 0 ? '<span style="color:var(--destructive);font-weight:600">+' + diff + '</span>'
+          : diff < 0 ? '<span style="color:var(--muted-foreground)">' + diff + '</span>' : '<span>0</span>';
+        return '<tr' + (low ? ' class="tr-warn"' : '') + '>' +
+          '<td style="color:var(--muted-foreground)">' + (idx + 1) + '</td>' +
+          '<td><div class="dish-name">' + it.name + (low ? ' <span class="badge badge-amber">滞销</span>' : '') + '</div><div class="dish-spec">' + it.spec + '</div></td>' +
+          '<td>' + bar + '</td>' +
+          '<td class="r tabnum">' + diffHtml + '</td>' +
+          '<td class="r tabnum">' + (sold != null ? fmtMoney(sold * it.price) : '<span style="color:var(--muted-foreground)">—</span>') + '</td>' +
+          (s.allRecorded ? '' : '<td class="r tabnum">' + (sold != null ? '<b>' + sold + '</b>' : '<span style="font-size:12px;color:var(--muted-foreground)">待回录</span>') + '</td>') +
+          '</tr>';
+      }).join('') +
+      '</tbody></table>';
+    if (s.allRecorded) {
+      bodyHtml += '<p style="font-size:11px;color:var(--muted-foreground);margin-top:10px">* 表格按售出率降序排列：卖得好的在上，滞销菜沉底标黄</p>';
+    }
+  }
+
+  box.innerHTML = '<div class="card"><div class="card-body">' +
+    '<div class="card-head"><div>' +
+    '<div class="card-title-row"><h2>11月7日 排程</h2>' + statusBadge + '</div>' +
+    '<p class="card-sub">SCH-20261107-001 · 2026-11-07 周六 · 华阳门店</p>' +
+    '</div><div class="chips">' + chips + headBtn + '</div></div>' +
+    bodyHtml +
+    '</div></div>';
+}
+
+// ===== 回录弹窗：手动录入 =====
+let modalMode = 'new';
+function openRecordModal(mode) {
+  modalMode = mode;
+  switchTab('manual');
+  renderManualTab();
+  renderImportTab(true);
+  $('recordModal').classList.add('show');
+}
+function closeRecordModal() { $('recordModal').classList.remove('show'); }
+
+function switchTab(tab) {
+  $('tabManual').style.display = tab === 'manual' ? '' : 'none';
+  $('tabImport').style.display = tab === 'import' ? '' : 'none';
+  $('tabManualBtn').classList.toggle('active', tab === 'manual');
+  $('tabImportBtn').classList.toggle('active', tab === 'import');
+  $('saveBtn').textContent = tab === 'import' ? '确认导入' : '保存回录';
+  updateFootSummary(tab);
+}
+
+// 输入草稿（与 state 分离，保存时才写入）
+let draft = {};
+function renderManualTab() {
+  draft = {};
+  state.items.forEach(it => { draft[it.id] = it.soldQty == null ? '' : String(it.soldQty); });
+  $('tabManual').innerHTML =
+    '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+    '<button class="btn btn-outline btn-sm" onclick="fillAllSold()">全部售罄</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="clearAll()">清空</button>' +
+    '<span style="font-size:12px;color:var(--muted-foreground);align-self:center;margin-left:auto">售出 &gt; 计划记为超售，不阻断保存；留空 = 未录</span></div>' +
+    '<table class="tbl"><thead><tr>' +
+    '<th class="w-12">序号</th><th>菜品 / 规格</th><th class="r" style="width:70px">计划</th>' +
+    '<th class="r" style="width:70px">售价</th><th class="r" style="width:150px">售出份数</th><th style="width:70px">操作</th>' +
+    '</tr></thead><tbody id="manualTbody"></tbody></table>';
+  renderManualRows();
+}
+function renderManualRows() {
+  $('manualTbody').innerHTML = state.items.map((it, idx) => {
+    const v = draft[it.id];
+    const err = validateQty(v);
+    const num = v === '' ? null : Number(v);
+    const over = num != null && !err && num > it.plan;
+    return '<tr>' +
+      '<td style="color:var(--muted-foreground)">' + (idx + 1) + '</td>' +
+      '<td><div class="dish-name">' + it.name + '</div><div class="dish-spec">' + it.spec + '</div></td>' +
+      '<td class="r tabnum">' + it.plan + '</td>' +
+      '<td class="r tabnum" style="color:var(--muted-foreground)">' + fmtMoney(it.price) + '</td>' +
+      '<td class="r"><div class="cell-stack">' +
+      '<input class="qty-input' + (err ? ' invalid' : '') + '" type="text" inputmode="numeric" value="' + v + '"' +
+      ' oninput="onQtyInput(' + it.id + ', this.value)">' +
+      (err ? '<span class="row-err">' + err + '</span>' : over ? '<span class="badge badge-red" style="margin-top:2px">超售 +' + (num - it.plan) + '</span>' : '') +
+      '</div></td>' +
+      '<td><button class="link-btn" onclick="fillSold(' + it.id + ')">售罄</button></td>' +
+      '</tr>';
+  }).join('');
+  updateFootSummary('manual');
+}
+function validateQty(v) {
+  if (v === '') return null;
+  if (!/^\d+$/.test(v)) return '请输入整数';
+  const n = Number(v);
+  if (n < 0) return '不能为负';
+  if (n > 9999) return '超出范围(0~9999)';
+  return null;
+}
+function onQtyInput(id, v) {
+  draft[id] = v;
+  // 局部重渲染该行状态（简化：整表重渲染，输入不丢焦点因 value 受控）
+  renderManualRowsPreserveFocus(id);
+}
+let focusId = null;
+function renderManualRowsPreserveFocus(id) {
+  focusId = id;
+  renderManualRows();
+  const inputs = document.querySelectorAll('#manualTbody .qty-input');
+  const idx = state.items.findIndex(i => i.id === id);
+  if (idx >= 0 && inputs[idx]) { inputs[idx].focus(); const l = inputs[idx].value.length; inputs[idx].setSelectionRange(l, l); }
+}
+function fillSold(id) {
+  const it = state.items.find(i => i.id === id);
+  draft[id] = String(it.plan);
+  renderManualRows();
+}
+function fillAllSold() {
+  state.items.forEach(it => { if (draft[it.id] === '') draft[it.id] = String(it.plan); });
+  renderManualRows();
+}
+function clearAll() {
+  state.items.forEach(it => { draft[it.id] = ''; });
+  renderManualRows();
+}
+function updateFootSummary(tab) {
+  const el = $('footSummary');
+  if (tab === 'import') {
+    el.innerHTML = importRows.length
+      ? '有效 <b>' + importRows.filter(r => r.status === 'ok' || r.status === 'overwrite' || r.status === 'merged').length + '</b> 行' +
+        ' · 未匹配 <b>' + importRows.filter(r => r.status === 'unmatched').length + '</b> 行' +
+        ' · 跳过 <b>' + importRows.filter(r => r.status === 'skip').length + '</b> 行'
+      : '上传 CSV 或粘贴文本后解析预览';
+    return;
+  }
+  const entries = Object.values(draft).filter(v => v !== '');
+  const errs = Object.values(draft).some(v => validateQty(v));
+  const total = entries.reduce((s, v) => s + Number(v), 0);
+  const planTotal = state.items.reduce((s, i) => s + i.plan, 0);
+  el.innerHTML = '已录 <b>' + entries.length + '</b>/' + state.items.length + ' 道' +
+    ' · 售出合计 <b>' + total + '</b> 份' +
+    ' · 预计售出率 <b>' + (planTotal ? (total / planTotal * 100).toFixed(1) : '0.0') + '%</b>' +
+    (errs ? ' <span style="color:var(--destructive)">· 存在非法输入</span>' : '');
+  $('saveBtn').disabled = errs;
+}
+
+// ===== 回录弹窗：批量导入 =====
+let importRows = [];
+let importParsed = false;
+const SAMPLE_CSV = '编号,菜品名称,售出份数\nD-001,宫保鸡丁,48\n,鱼香肉丝,45\nD-003,麻婆豆腐,40\nD-004,红烧肉,22\nD-004,红烧肉,3\nD-009,不存在的菜,5\nD-006,干煸四季豆,\n,番茄炒蛋,38';
+function renderImportTab(reset) {
+  if (reset) { importRows = []; importParsed = false; }
+  $('tabImport').innerHTML =
+    '<div class="import-steps">' +
+    '<span class="step-item"><span class="step-dot">1</span>下载模板</span><span class="step-arrow">→</span>' +
+    '<span class="step-item"><span class="step-dot">2</span>上传 / 粘贴 CSV</span><span class="step-arrow">→</span>' +
+    '<span class="step-item"><span class="step-dot">3</span>解析预览，确认导入</span></div>' +
+    '<div style="display:flex;gap:8px;margin-bottom:12px">' +
+    '<button class="btn btn-outline btn-sm" onclick="downloadTemplate()">⬇ 下载 CSV 模板</button>' +
+    '<button class="btn btn-ghost btn-sm" onclick="loadSample()">填入示例数据</button></div>' +
+    '<div class="upload-zone" onclick="loadSample()" id="uploadZone">' +
+    '<div class="ico">📄</div><div style="font-size:13px;font-weight:500;color:var(--foreground)">点击选择 CSV 文件（演示：点击填入示例数据）</div>' +
+    '<div style="font-size:12px;margin-top:2px">支持 UTF-8 编码，表头：编号, 菜品名称, 售出份数</div></div>' +
+    '<textarea class="paste-area" id="csvText" placeholder="或直接粘贴 CSV 文本…"></textarea>' +
+    '<div class="import-toolbar">' +
+    '<button class="btn btn-primary btn-sm" onclick="parseCsv()">解析预览</button>' +
+    (importParsed ? '<span style="font-size:12px;color:var(--muted-foreground)">解析完成，请核对匹配结果后确认导入</span>' : '') +
+    '</div>' +
+    '<div id="previewWrap">' + (importParsed ? renderPreviewTable() : '') + '</div>';
+}
+function downloadTemplate() {
+  const header = '编号,菜品名称,售出份数\n';
+  const body = state.items.map(it => it.code + ',' + it.name + ',').join('\n');
+  const blob = new Blob(['﻿' + header + body], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = '销售回录模板_' + SCHEDULE_CODE + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('模板已下载（含本排程 8 道菜品）');
+}
+function loadSample() { $('csvText').value = SAMPLE_CSV; toast('示例 CSV 已填入，点击「解析预览」', 'success'); }
+function findDish(code, name) {
+  if (code) { const hit = state.items.find(i => i.code === code); if (hit) return hit; }
+  if (name) {
+    return state.items.find(i => i.name === name) || state.items.find(i => i.alias && i.alias === name) || null;
+  }
+  return null;
+}
+function parseCsv() {
+  const text = $('csvText').value.trim();
+  if (!text) { toast('请先上传或粘贴 CSV 内容', 'error'); return; }
+  const lines = text.replace(/^﻿/, '').split(/\r?\n/).filter(l => l.trim());
+  const start = /编号|名称/.test(lines[0]) ? 1 : 0;
+  const raw = [];
+  for (let i = start; i < lines.length; i++) {
+    const cols = lines[i].split(/[,，]/).map(c => c.trim());
+    // 兼容两列（缺编号）：首列匹配不到编号时视为 名称,售出
+    let code = cols[0] || '', name = cols[1] || '', qty = cols[2] || '';
+    if (qty === '' && name !== '' && /^\d+$/.test(name) && !state.items.some(d => d.code === code)) { qty = name; name = code; code = ''; }
+    raw.push({ lineNo: i + 1, code, name, qty });
+  }
+  // 匹配 + 重复合并
+  const byDish = {};
+  importRows = [];
+  raw.forEach(r => {
+    const dish = findDish(r.code, r.name);
+    if (!r.qty) { importRows.push({ ...r, status: 'skip', dish: null, note: '售出为空' }); return; }
+    if (!/^\d+$/.test(r.qty) || Number(r.qty) > 9999) { importRows.push({ ...r, status: 'skip', dish: null, note: '售出非法' }); return; }
+    if (!dish) { importRows.push({ ...r, status: 'unmatched', dish: null, note: '未匹配' }); return; }
+    if (byDish[dish.id]) {
+      const first = byDish[dish.id];
+      first.qty = String(Number(first.qty) + Number(r.qty));
+      first.merged = (first.merged || 1) + 1;
+      importRows.push({ ...r, status: 'merged', dish, note: '并入第' + first.lineNo + '行' });
+    } else {
+      const row = { ...r, status: dish.soldQty != null ? 'overwrite' : 'ok', dish, merged: 1 };
+      byDish[dish.id] = row;
+      importRows.push(row);
+    }
+  });
+  importParsed = true;
+  renderImportTab(false);
+  $('csvText').value = text;
+  switchTab('import');
+  toast('解析完成：' + importRows.filter(r => r.status === 'ok' || r.status === 'overwrite').length + ' 行有效');
+}
+function renderPreviewTable() {
+  const badge = r =>
+    r.status === 'ok' ? '<span class="badge badge-green">匹配成功</span>' :
+    r.status === 'overwrite' ? '<span class="badge badge-blue">将覆盖 ' + r.dish.soldQty + '</span>' :
+    r.status === 'merged' ? '<span class="badge badge-amber">重复 · ' + r.note + '</span>' :
+    r.status === 'unmatched' ? '<span class="badge badge-red">未匹配</span>' :
+    '<span class="badge badge-gray">跳过 · ' + r.note + '</span>';
+  const action = r => {
+    if (r.status !== 'unmatched') return '<span style="color:var(--muted-foreground);font-size:12px">—</span>';
+    return '<select class="match-select" onchange="resolveUnmatched(' + r.lineNo + ', this.value)">' +
+      '<option value="">选择菜品…</option>' +
+      state.items.map(d => '<option value="' + d.id + '">' + d.name + '</option>').join('') +
+      '<option value="ignore">忽略本行</option></select>';
+  };
+  return '<table class="tbl"><thead><tr>' +
+    '<th style="width:56px">行号</th><th style="width:90px">编号</th><th>名称</th>' +
+    '<th class="r" style="width:80px">售出</th><th style="width:130px">匹配结果</th><th style="width:170px">处理</th>' +
+    '</tr></thead><tbody>' +
+    importRows.map(r => '<tr' + (r.status === 'unmatched' ? ' style="background:oklch(0.96 0.02 25)"' : '') + '>' +
+      '<td style="color:var(--muted-foreground)">' + r.lineNo + '</td>' +
+      '<td style="font-family:var(--font-mono);font-size:12px">' + (r.code || '—') + '</td>' +
+      '<td><div class="dish-name">' + (r.dish ? r.dish.name + (r.dish.name !== r.name ? '（' + r.name + '）' : '') : r.name) + '</div></td>' +
+      '<td class="r tabnum"><b>' + (r.qty || '—') + '</b>' + (r.merged > 1 ? '<div style="font-size:11px;color:var(--muted-foreground)">合并 ' + r.merged + ' 行</div>' : '') + '</td>' +
+      '<td>' + badge(r) + '</td>' +
+      '<td>' + action(r) + '</td>' +
+      '</tr>').join('') +
+    '</tbody></table>';
+}
+function resolveUnmatched(lineNo, val) {
+  const row = importRows.find(r => r.lineNo === lineNo);
+  if (!row || row.status !== 'unmatched') return; // 仅未匹配行可处理
+  if (val === 'ignore') { row.status = 'skip'; row.note = '已忽略'; row.dish = null; }
+  else if (val) {
+    const dish = state.items.find(d => d.id === Number(val));
+    row.dish = dish;
+    row.status = dish.soldQty != null ? 'overwrite' : 'ok';
+  }
+  $('previewWrap').innerHTML = renderPreviewTable();
+  updateFootSummary('import');
+}
+function applyImport() {
+  const now = '2026-11-07 21:36';
+  let n = 0, overwrites = 0;
+  importRows.forEach(r => {
+    if (r.status === 'ok' || r.status === 'overwrite') {
+      if (r.dish.soldQty != null) overwrites++;
+      r.dish.soldQty = Number(r.qty);
+      r.dish.recordedAt = now;
+      r.dish.recordedBy = '张浩浩';
+      n++;
+    }
+  });
+  return { n, overwrites };
+}
+
+// ===== 保存 =====
+function saveRecords() {
+  const isImport = $('tabImport').style.display !== 'none';
+  if (isImport) {
+    const valid = importRows.filter(r => r.status === 'ok' || r.status === 'overwrite');
+    if (!valid.length) { toast('没有可导入的有效行', 'error'); return; }
+    const willOverwrite = valid.filter(r => r.status === 'overwrite').length;
+    const doSave = () => {
+      const { n } = applyImport();
+      closeRecordModal();
+      renderDaily();
+      const s = calcSummary(state.items);
+      toast(s.allRecorded ? '导入成功：已回录全部 ' + s.totalCount + ' 道，复盘视图已更新' : '导入成功 ' + n + ' 行，已回录 ' + s.recordedCount + '/' + s.totalCount + ' 道');
+    };
+    if (willOverwrite > 0 || calcSummary(state.items).recordedCount > 0) {
+      openConfirm('确认导入', '将覆盖 ' + (willOverwrite || calcSummary(state.items).recordedCount) + ' 道菜的已有回录数据，且导入后不可逐行撤销（可整体修改回录）。确认导入？', '确认导入', doSave);
+    } else doSave();
+    return;
+  }
+  // 手动保存
+  const hasErr = Object.values(draft).some(v => validateQty(v));
+  if (hasErr) { toast('存在非法输入，请修正后保存', 'error'); return; }
+  const now = '2026-11-07 21:36';
+  let changed = 0;
+  state.items.forEach(it => {
+    const v = draft[it.id];
+    const newVal = v === '' ? null : Number(v);
+    if (newVal !== it.soldQty) {
+      it.soldQty = newVal;
+      it.recordedAt = newVal == null ? null : now;
+      it.recordedBy = newVal == null ? null : '张浩浩';
+      changed++;
+    }
+  });
+  const s = calcSummary(state.items);
+  const doClose = () => {
+    closeRecordModal();
+    renderDaily();
+    if (s.allRecorded) toast('回录完成：售出 ' + s.soldQty + ' 份 · 营收 ' + fmtMoney(s.revenue));
+    else if (s.recordedCount > 0) toast('已保存 ' + s.recordedCount + '/' + s.totalCount + ' 道，可随时继续回录');
+    else toast('已清空回录数据', 'success');
+  };
+  if (modalMode === 'edit' && changed > 0) {
+    openConfirm('确认修改回录', '将覆盖 ' + state.items.filter(i => i.soldQty != null).length + ' 道菜的回录数据（操作人张浩浩 · 记录日志）。确认保存？', '确认保存', doClose);
+  } else doClose();
+}
+
+// ===== 初始化 =====
+renderWeek();
+renderDaily();
+</script>
+</body>
+</html>

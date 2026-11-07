@@ -58,6 +58,7 @@ export async function getScheduleDetail(scheduleId: number) {
 
   return {
     id: schedule.id,
+    code: schedule.code,
     title: schedule.title,
     scheduleDate: schedule.scheduleDate.toISOString(),
     status: schedule.status,

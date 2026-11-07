@@ -10,7 +10,7 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { BomType, DishDetail, formatCost, calcGrossMarginPercent } from "@/app/components/dish-form/types";
+import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
 
 interface DishSheetDetailProps {
@@ -93,7 +93,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       id: `main-${idx}`,
       type: "main" as BomType,
       name: d.netIngredient?.name || "—",
-      spec: d.spec ?? null,
+      spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
       cost: d.cost != null ? Number(d.cost) : null,
@@ -102,7 +102,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       id: `support-${idx}`,
       type: "support" as BomType,
       name: d.netIngredient?.name || "—",
-      spec: d.spec ?? null,
+      spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
       cost: d.cost != null ? Number(d.cost) : null,
@@ -111,8 +111,8 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       id: `minor-${idx}`,
       type: "minor" as BomType,
       name: d.name || d.netIngredient?.name || "—",
-      spec: d.brand ?? null,
-      productName: null,
+      spec: netSpecText(d.netIngredient, null),
+      productName: d.brand ?? null,
       amountG: d.amountG ?? null,
       cost: d.cost != null ? Number(d.cost) : null,
     })) ?? []),
@@ -120,7 +120,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       id: `seasoning-${idx}`,
       type: "seasoning" as BomType,
       name: d.name || "—",
-      spec: null,
+      spec: d.spec ?? null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
       cost: d.cost != null ? Number(d.cost) : null,
@@ -271,9 +271,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
                   header: "规格",
                   cell: (row) => (
                     <span className="text-sm text-muted-foreground">
-                      {row.type === "seasoning" || row.type === "sauce"
-                        ? row.productName || "—"
-                        : row.spec || "—"}
+                      {row.type === "sauce" ? row.productName || "—" : row.spec || "—"}
                     </span>
                   ),
                 },

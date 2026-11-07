@@ -80,10 +80,22 @@ export async function POST(req: NextRequest) {
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const schedule = await tx.schedule.create({
-        data: {
-          title: title.trim(),
+    // 排程编号：SCH-生产日期-当日序号（如 SCH-20261107-001），唯一冲突重试
+    const scheduleDateObj = new Date(scheduleDate);
+    const ymd =
+      scheduleDateObj.getFullYear() +
+      String(scheduleDateObj.getMonth() + 1).padStart(2, "0") +
+      String(scheduleDateObj.getDate()).padStart(2, "0");
+    let result: Awaited<ReturnType<typeof prisma.schedule.create>> | null = null;
+    for (let attempt = 0; attempt < 5 && !result; attempt++) {
+      try {
+        result = await prisma.$transaction(async (tx) => {
+          const dayCount = await tx.schedule.count({ where: { scheduleDate: new Date(scheduleDate) } });
+          const code = "SCH-" + ymd + "-" + String(dayCount + 1).padStart(3, "0");
+          const schedule = await tx.schedule.create({
+            data: {
+              code,
+              title: title.trim(),
           scheduleDate: new Date(scheduleDate),
           storeId: storeId ?? 1,
           status: "待生效",
@@ -112,8 +124,15 @@ export async function POST(req: NextRequest) {
         await tx.purchasePlan.create({ data: pp });
       }
 
-      return schedule;
-    });
+          return schedule;
+        });
+      } catch (e) {
+        const code = (e as { code?: string }).code;
+        if (code === "P2002" && attempt < 4) continue;
+        throw e;
+      }
+    }
+    if (!result) return internalError("创建排程失败");
 
     await logOperation(req, {
       action: "CREATE",

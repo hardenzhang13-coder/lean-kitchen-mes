@@ -148,7 +148,7 @@ export interface DishDetail {
     amountG: number | string;
     spec?: string | null;
     cost?: number | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null } | null;
   }>;
   minorDetails?: Array<{
     netIngId: number;
@@ -158,7 +158,7 @@ export interface DishDetail {
     name?: string;
     unitPrice?: number | null;
     unit?: string | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null } | null;
   }>;
   seasoningDetails?: Array<{
     sourceId: number;
@@ -170,6 +170,8 @@ export interface DishDetail {
     /** 每斤单价（元/斤）：调料 BOM 成本口径 */
     pricePerJin?: number | null;
     unit?: string | null;
+    /** 采购规格（与食材模块调料表一致，如 1.9L*6） */
+    spec?: string | null;
   }>;
   sauceDetails?: Array<{
     sauceId: number;
@@ -204,6 +206,16 @@ export function dishToFormData(dish: DishDetail): DishFormData {
   };
 }
 
+/** 净料系（主料/辅料/小料）规格展示：优先封装规格 packageSpec（与食材模块一致），缺失回退历史自由文本 */
+export function netSpecText(
+  ing: { packageSpec?: number | null } | null | undefined,
+  legacySpec?: string | null
+): string | null {
+  const pkg = ing?.packageSpec;
+  if (pkg != null) return `${pkg}g`;
+  return legacySpec ?? null;
+}
+
 export function emptyBom(): Record<BomType, BomItem[]> {
   return { main: [], support: [], minor: [], seasoning: [], sauce: [] };
 }
@@ -223,7 +235,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       id: `net-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
       name,
-      spec: d.spec,
+      spec: netSpecText(ing, d.spec),
       amountG: String(d.amountG),
       unitPrice,
       unit,
@@ -245,6 +257,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       sourceId: d.netIngId,
       name,
       productName: d.brand,
+      spec: netSpecText(ing, null),
       amountG: String(d.amountG),
       unitPrice,
       unit,
@@ -264,6 +277,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       sourceId: d.sourceId,
       name,
       productName: d.brand,
+      spec: d.spec ?? null,
       amountG: String(d.amountG),
       unitPrice,
       unit,

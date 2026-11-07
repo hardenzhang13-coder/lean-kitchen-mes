@@ -11,6 +11,7 @@
 | `Router.md` | 页面路由树与交互设计 | 新增/调整页面时 |
 | `Design.md` | UI 设计规范、组件样式约定 | 设计规范变更时 |
 | `progress.md` | 项目推进日志、技术决策、已知问题与 TODO | 每日/每次迭代 |
+| `Units.md` | 单位体系与供货关系设计（采购/库存重构地基） | 单位/采购/库存模型变更前 |
 
 ## 使用方式
 
@@ -25,3 +26,4 @@
 - 项目全局指南：`../CLAUDE.md`
 - AI Agent 工作区指令：`../AGENTS.md`
 - 子系统局部指南：`../app/components/dish-form/CLAUDE.md`、`../app/lib/CLAUDE.md`、`../prisma/CLAUDE.md`、`../app/api/*/CLAUDE.md`
+

@@ -59,7 +59,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
       ["排程标题", meta.title],
       ["收货单位", "净菜加工中心（统一采购，与门店无关）"],
       ["生产日期", dateText],
-      ["单号", "SCH-" + String(meta.scheduleId).padStart(4, "0")],
+      ["单号", meta.code ?? "SCH-" + String(meta.scheduleId).padStart(4, "0")],
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],
     ];
@@ -133,7 +133,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
               const showL2 = !prev || prev.l1Name !== row.l1Name || prev.l2Name !== row.l2Name;
               const zero = row.suggestedPurchase <= 0;
               return (
-                <TableRow key={row.id} className={zero ? "text-muted-foreground" : undefined}>
+                <TableRow key={row.id} className={(zero ? "text-muted-foreground " : "") + "transition-colors hover:bg-muted/40"}>
                   {showL1 && (
                     <TableCell rowSpan={l1Span.get(row.l1Name)} className="font-medium bg-muted/30">
                       {row.l1Name}

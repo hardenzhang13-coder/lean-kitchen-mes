@@ -16,7 +16,7 @@ interface BomItemRowProps {
   readOnly?: boolean;
 }
 
-const isSeasoningOrSauce = (type: BomType) => type === "seasoning" || type === "sauce";
+const isSauce = (type: BomType) => type === "sauce";
 
 export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: BomItemRowProps) {
   const handleBlur = () => {
@@ -26,10 +26,8 @@ export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: 
     onChange({ ...item, cost });
   };
 
-  const displayValue = isSeasoningOrSauce(type)
-    ? item.productName || "—"
-    : item.spec || "—";
-  const displayLabel = isSeasoningOrSauce(type) ? "商品名称" : "规格";
+  const displayValue = isSauce(type) ? item.productName || "—" : item.spec || "—";
+  const displayLabel = isSauce(type) ? "商品名称" : "规格";
 
   return (
     <div className="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_100px_80px_28px] items-center gap-2 rounded-md border p-2 min-h-[44px]">

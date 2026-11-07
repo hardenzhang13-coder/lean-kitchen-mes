@@ -301,6 +301,7 @@ model Store {
 
 model Schedule {
   id            Int            @id @default(autoincrement())
+  code          String?        @unique
   title         String
   scheduleDate  DateTime       @map("schedule_date") @db.Date
   status        String         @default("待生效")

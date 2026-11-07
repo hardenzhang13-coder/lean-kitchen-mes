@@ -33,7 +33,7 @@ export default async function SchedulePrintPage({
   const detail = await getScheduleDetail(Number(id));
   if (!detail) notFound();
 
-  const scheduleNo = "SCH-" + String(detail.id).padStart(4, "0");
+  const scheduleNo = detail.code ?? "SCH-" + String(detail.id).padStart(4, "0");
   const printTime = fmtTime(new Date());
 
   return (

@@ -3,6 +3,46 @@
 > 按日期记录核心推进过程，包括技术决策、问题解决、功能交付。
 
 ---
+## 2026-11-07 — 单位体系与供货关系设计方案（采购/库存重构前置）
+
+### 背景
+- 用户决策：彻底重构采购与库存，现有实现仅演示用，可直接替换
+- 重构前置条件：先冻结食材（原料/调料）的采购单位与库存单位定义，这是易错地基
+
+### 核心决策（方案 B：供货关系层）
+- 三套单位体系显式分离：计算单位（g，排程/BOM）/ 库存单位（记账基准，唯一）/ 采购单位（属供应商供货关系，不属食材档案）
+- 新增 `supplier_ingredients`：食材×供应商，含 purchase_unit / units_per_purchase（显式系数）/ purchase_price / is_default
+- `ingredients` 移除 purchase_unit / purchase_spec / units_per_purchase / default_supplier_id，新增 grams_per_unit（每库存单位净含量克数）
+- 单据快照换算系数，历史台账不受档案变更影响；散称=退化形态（采购单位=库存单位，N=1）
+- spec-parser 文本解析逐步下线，系数不再运行时解析
+
+### 产出
+- 设计文档：memory-bank/Units.md（v1.0，待确认第六节三个事项：grams_per_unit 存量初始化、调料/酱料是否一次并入、计划多供应商拆单）
+- 已登记 memory-bank/INDEX.md
+
+---
+## 2026-11-07 — 排程编号落库 + 工作台返回今日 + 交互规范化
+
+### 排程编号（用户确认的定稿方案）
+- Schedule 新增 code 列（唯一，可空；迁移 20261107140000，migrate deploy 应用 + 存量回填 SCH-日期-序号）
+- 创建时生成 SCH-YYYYMMDD-NNN（当日序号，唯一冲突重试 5 次）；详情头部/打印单号/CSV 单号/快速查看全部读真实编号，废除 id 拼接
+- 详情页菜品统计卡片去掉预估成本（并行会话已同步处理）
+
+### 工作台
+- 门店选择左侧新增「返回今日」（选中日期非今天时显示，重置日期与周偏移）
+- 周日历条选中色由硬编码靛蓝 #EEF2FF/#6366F1 改 bg-primary/10 text-primary（主题色一致；DatePicker 弹层原本已是 primary）
+
+### 悬浮交互规范化
+- 详情页三表格行统一 transition-colors hover:bg-muted/40
+
+### 环境备忘
+- prisma migrate dev 在非交互 shell 不可用 → 用 migrate diff 生成 SQL + 手工迁移目录 + migrate deploy 替代
+- 并行会话与本会话并发修改同一批文件（app/page.tsx、schedule-detail.ts 等），改动后务必以磁盘最新内容为准复核
+
+### 检查
+- tsc / build / lint（0 errors）/ jest 7/7 / 迁移零差异 全过；编号生成实测 SCH-20261108-001
+
+---
 ---
 ## 2026-11-07 — 工作台计划数据直显 + 列表页卡片化/宫格筛选 + 字体本地化
 
@@ -134,6 +174,28 @@
 - 检查结果：`npx tsc --noEmit` / `npm run build` / `npm run lint`（0 errors，49 存量 warnings）全部通过
 
 ---
+## 2026-11-07 — BUG 修复：菜品库小料/调料规格口径不一致 + 重点事项记录
+
+### BUG 修复（规格字段口径统一）
+
+- **根因**：菜品 BOM 回显/展示的规格来源与食材模块不一致——
+  - 小料：dishToBom 未给 spec 赋值，详情页甚至拿 brand（商品名）当规格展示；食材模块口径应为**封装规格 packageSpec**（如 500g）
+  - 调料：详情 API 增强缺采购规格字段，BOM 行把 brand 当"商品名称"展示；食材模块口径应为**采购规格 purchaseSpec**（如 1.9L*6）
+  - 主料/辅料同类隐患：展示用的是已废弃的自由文本 spec 字段
+- **修复**：
+  - API：GET /api/dishes/[id] 调料增强补 purchaseSpec → 映射为明细 spec
+  - 共享辅助 netSpecText()（types.ts）：净料系规格 = packageSpec 优先、历史值兜底
+  - dishToBom：主料/辅料/小料 spec 统一走 netSpecText；调料 spec = purchaseSpec
+  - 详情抽屉规格列：小料显示封装规格（不再显示 brand）、调料显示采购规格，仅酱料保留"商品名称"列
+  - BOM 编辑器行：调料由"商品名称"改为"规格"展示（仅酱料保留商品名称）
+
+### ⚠️ 重点事项（待专项处理）
+
+- **采购单位与入库单位在采购数据计算中未发挥作用**：当前采购入库/金额计算疑似只按单一单位口径走，计价单位↔计量单位的换算逻辑（依据采购规格）未生效。需专项排查采购计划、采购入库单、库存台账整条链路的单位换算，涉及金额与库存数量的准确性。
+- 建议立项：梳理「采购单位/计价单位/计量单位」三单位体系在采购、入库、库存、BOM 成本各环节的实际生效情况。
+
+---
+
 ## 2026-11-06 — 菜品发布校验放宽：调料不再必填
 
 - 移除 validatePublish / validateDishDetailForPublish 中「调料不能为空」校验；现发布仅要求主料+辅料
@@ -1567,3 +1629,5 @@ tsc / build / lint（0 error）/ 88 测试全过 / migrate diff 零差异；dev 
 - 表单：基础信息加"封装规格（g）"，价格区加"标准规格价"实时预览；列表加"封装规格 / 标准规格价"两列（去掉加工费列，成本价已含）
 - 实测：成本 8.40 → 毛利40% → 出库 14.00 → 封装 250g → 标准规格价 7.00 ✓
 - tsc / build / lint / 88 测试 / migrate diff 全过；dev server 已重启
+
+

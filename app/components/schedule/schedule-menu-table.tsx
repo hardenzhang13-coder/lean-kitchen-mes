@@ -117,7 +117,7 @@ export function ScheduleMenuTable({ items, meta }: ScheduleMenuTableProps) {
               const cost = Number(item.dish.cost) || 0;
               const price = Number(item.dish.price) || 0;
               return (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} className="transition-colors hover:bg-muted/40">
                   <TableCell>{idx + 1}</TableCell>
                   <TableCell className="font-medium">{item.dish.name}</TableCell>
                   <TableCell>{item.dish.portion}</TableCell>
