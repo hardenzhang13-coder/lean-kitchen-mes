@@ -18,9 +18,21 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { toast } from "sonner";
 
+type ReimbursementRow = {
+  id: number;
+  title: string;
+  summary?: string | null;
+  receiptCount?: number | null;
+  totalAmount: number | string;
+  status: string;
+  operatorName?: string | null;
+  operator?: string | null;
+  createdAt: string;
+};
+
 export default function ReimbursementsPage() {
   const router = useRouter();
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<ReimbursementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -29,7 +41,6 @@ export default function ReimbursementsPage() {
   }, []);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       const res = await fetch("/api/purchase-reimbursements");
       const data = await res.json();

@@ -10,7 +10,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatWeight } from "@/lib/shared/weight-format";
 import { downloadCSV } from "@/lib/client/csv";
 
 export interface CuttingOrderRow {
@@ -37,6 +36,8 @@ export interface ScheduleDocMeta {
   scheduleDate: string;
   storeName: string;
   scheduleId: number;
+  /** 排程编号（SCH-日期-序号），创建时落库 */
+  code?: string | null;
 }
 
 interface ScheduleCuttingTableProps {
@@ -61,7 +62,7 @@ export function ScheduleCuttingTable({ rows, meta }: ScheduleCuttingTableProps) 
       ["排程标题", meta.title],
       ["门店", meta.storeName],
       ["生产日期", dateText],
-      ["单号", "SCH-" + String(meta.scheduleId).padStart(4, "0")],
+      ["单号", meta.code ?? "SCH-" + String(meta.scheduleId).padStart(4, "0")],
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],
     ];
@@ -116,7 +117,7 @@ export function ScheduleCuttingTable({ rows, meta }: ScheduleCuttingTableProps) 
               const showL1 = !prev || prev.l1Name !== row.l1Name;
               const showL2 = !prev || prev.l1Name !== row.l1Name || prev.l2Name !== row.l2Name;
               return (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
                   {showL1 && (
                     <TableCell rowSpan={l1Span.get(row.l1Name)} className="font-medium bg-muted/30">
                       {row.l1Name}

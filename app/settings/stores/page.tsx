@@ -44,6 +44,7 @@ type Store = {
 
 export default function StoresPage() {
   const [data, setData] = useState<Store[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,22 +54,29 @@ export default function StoresPage() {
   const [deleteTarget, setDeleteTarget] = useState<Store | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const fetchData = async () => {
+  const refresh = () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/stores?page=1&pageSize=100");
-      const json = await res.json();
-      setData(json.data || []);
-    } catch {
-      toast.error("获取门店失败");
-    } finally {
-      setLoading(false);
-    }
+    setReloadKey((k) => k + 1);
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/stores?page=1&pageSize=100");
+        const json = await res.json();
+        if (alive) setData(json.data || []);
+      } catch {
+        if (alive) toast.error("获取门店失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -142,7 +150,7 @@ export default function StoresPage() {
       }
       toast.success(editing ? "更新成功" : "创建成功");
       setDialogOpen(false);
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     } finally {
@@ -162,7 +170,7 @@ export default function StoresPage() {
       }
       toast.success("删除成功");
       setDeleteTarget(null);
-      fetchData();
+      refresh();
     } catch {
       toast.error("删除失败");
     } finally {

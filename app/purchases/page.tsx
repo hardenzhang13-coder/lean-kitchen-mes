@@ -126,9 +126,16 @@ export default function PurchasesPage() {
   }, [search]);
   /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
-  useEffect(() => {
+  // 筛选条件变化时在渲染期重置页码（react.dev prev-props 派生范式，避免 effect 内同步 setState）
+  const [prevFilters, setPrevFilters] = useState({ startDate, endDate, status });
+  if (
+    prevFilters.startDate !== startDate ||
+    prevFilters.endDate !== endDate ||
+    prevFilters.status !== status
+  ) {
+    setPrevFilters({ startDate, endDate, status });
     setPage(1);
-  }, [startDate, endDate, status]);
+  }
 
   const handleVoid = async (id: number) => {
     try {

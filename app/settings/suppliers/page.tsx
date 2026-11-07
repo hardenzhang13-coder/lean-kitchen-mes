@@ -38,6 +38,7 @@ type Supplier = {
 
 export default function SuppliersPage() {
   const [data, setData] = useState<Supplier[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -46,22 +47,29 @@ export default function SuppliersPage() {
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
-  const fetchData = async () => {
+  const refresh = () => {
     setLoading(true);
-    try {
-      const res = await fetch("/api/suppliers?page=1&pageSize=100");
-      const json = await res.json();
-      setData(json.data || []);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
+    setReloadKey((k) => k + 1);
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/suppliers?page=1&pageSize=100");
+        const json = await res.json();
+        if (alive) setData(json.data || []);
+      } catch {
+        if (alive) toast.error("获取数据失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -130,7 +138,7 @@ export default function SuppliersPage() {
         toast.success("创建成功");
       }
       setDialogOpen(false);
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     } finally {
@@ -143,7 +151,7 @@ export default function SuppliersPage() {
       await fetch(`/api/suppliers/${id}`, { method: "DELETE" });
       toast.success("删除成功");
       setDeleteId(null);
-      fetchData();
+      refresh();
     } catch {
       toast.error("删除失败");
     }

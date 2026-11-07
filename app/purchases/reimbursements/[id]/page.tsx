@@ -3,7 +3,7 @@
 import { downloadCSV } from "@/lib/client/csv";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Download, Receipt, FileText } from "lucide-react";
+import { ArrowLeft, Download } from "lucide-react";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { parseObject } from "@/lib/client/api";
 import { Button } from "@/components/ui/button";
@@ -17,41 +17,65 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 
+type ReimbursementReceipt = {
+  id: number;
+  receiptDate: string;
+  summary?: string | null;
+  operatorName?: string | null;
+  operator?: string | null;
+  totalAmount: number | string;
+};
+
+type ReimbursementDetail = {
+  id: number;
+  title: string;
+  summary?: string | null;
+  operatorName?: string | null;
+  operator?: string | null;
+  totalAmount: number | string;
+  status: string;
+  createdAt: string;
+  receipts?: ReimbursementReceipt[];
+};
+
 export default function ReimbursementDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = Number(params.id);
 
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ReimbursementDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!id) return;
-    fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/purchase-reimbursements/${id}`);
-      const d = await parseObject<any>(res);
-      if (!d) {
-        toast.error("报销单不存在");
-        return;
+    let alive = true;
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/purchase-reimbursements/${id}`);
+        const d = await parseObject<ReimbursementDetail>(res);
+        if (!d) {
+          if (alive) toast.error("报销单不存在");
+          return;
+        }
+        if (!alive) return;
+        setData(d);
+      } catch {
+        if (alive) toast.error("获取数据失败");
+      } finally {
+        if (alive) setLoading(false);
       }
-      setData(d);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchData();
+    return () => {
+      alive = false;
+    };
+  }, [id]);
 
   const handleExportCSV = () => {
     if (!data) return;
     const headers = ["采购单编号", "日期", "摘要", "负责人", "金额"];
-    const rows = (data.receipts || []).map((r: any) => [
-      r.id,
+    const rows = (data.receipts || []).map((r) => [
+      String(r.id),
       new Date(r.receiptDate).toLocaleDateString("zh-CN"),
       r.summary || "",
       r.operatorName || r.operator || "",
@@ -155,7 +179,7 @@ export default function ReimbursementDetailPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.receipts.map((r: any) => (
+                {data.receipts.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">#{r.id}</TableCell>
                     <TableCell>{new Date(r.receiptDate).toLocaleDateString("zh-CN")}</TableCell>

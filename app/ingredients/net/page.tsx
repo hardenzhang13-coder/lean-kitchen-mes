@@ -137,9 +137,12 @@ export default function NetIngredientsPage() {
     });
   }, [data, search, l1Filter, l2Filter, l2Map]);
 
-  useEffect(() => {
+  // 一级分类变化时在渲染期清空二级筛选（prev-props 派生范式，避免 effect 内同步 setState）
+  const [prevL1, setPrevL1] = useState(l1Filter);
+  if (prevL1 !== l1Filter) {
+    setPrevL1(l1Filter);
     setL2Filter("");
-  }, [l1Filter]);
+  }
 
   const {
     currentPage,

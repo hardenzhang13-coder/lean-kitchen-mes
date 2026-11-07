@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { CalendarDays, ChevronLeft, ChevronRight, ClipboardList } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Undo2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { SelectField } from "@/app/components/ui/select-field";
-import { parseList, parseObject } from "@/lib/client/api";
+import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
 interface StoreOption {
@@ -92,11 +93,22 @@ function formatMoney(value: number | null) {
 export default function HomePage() {
   const [userName, setUserName] = useState("");
   const [stores, setStores] = useState<StoreOption[]>([]);
-  const [storeId, setStoreId] = useState("1");
+  const [storeId, setStoreId] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORE_KEY) || "1";
+    }
+    return "1";
+  });
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => formatDate(new Date()));
   const [data, setData] = useState<DailyData | null>(null);
   const [loading, setLoading] = useState(true);
+  // 日期/门店变化时在渲染期置加载态（prev-props 派生范式，避免 effect 内同步 setState）
+  const [prevKey, setPrevKey] = useState({ selectedDate, storeId });
+  if (prevKey.selectedDate !== selectedDate || prevKey.storeId !== storeId) {
+    setPrevKey({ selectedDate, storeId });
+    setLoading(true);
+  }
 
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
   const todayStr = formatDate(new Date());
@@ -122,28 +134,30 @@ export default function HomePage() {
     };
     fetchUser();
     fetchStores();
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved) setStoreId(saved);
   }, []);
 
-  const fetchDaily = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({ date: selectedDate, storeId });
-      const res = await fetch(`/api/dashboard/daily?${params.toString()}`);
-      const result = await parseObject<DailyData>(res);
-      setData(result);
-    } catch {
-      toast.error("获取复盘数据失败");
-      setData(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedDate, storeId]);
-
   useEffect(() => {
+    let alive = true;
+    const fetchDaily = async () => {
+      try {
+        const params = new URLSearchParams({ date: selectedDate, storeId });
+        const res = await fetch(`/api/dashboard/daily?${params.toString()}`);
+        const result = await parseObject<DailyData>(res);
+        if (!alive) return;
+        setData(result);
+      } catch {
+        if (!alive) return;
+        toast.error("获取复盘数据失败");
+        setData(null);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
     fetchDaily();
-  }, [fetchDaily]);
+    return () => {
+      alive = false;
+    };
+  }, [selectedDate, storeId]);
 
   const changeWeek = (delta: number) => {
     const next = weekOffset + delta;
@@ -184,12 +198,20 @@ export default function HomePage() {
             {formatCnDate(todayStr)} {getWeekDay(todayStr)}
           </p>
         </div>
-        <SelectField
-          value={storeId}
-          onChange={handleStoreChange}
-          options={stores.map((s) => ({ value: String(s.id), label: s.name }))}
-          className="w-[180px]"
-        />
+        <div className="flex items-center gap-2">
+          {selectedDate !== todayStr && (
+            <Button variant="outline" size="sm" onClick={() => { setSelectedDate(todayStr); setWeekOffset(0); }}>
+              <Undo2 className="mr-1 h-3.5 w-3.5" />
+              返回今日
+            </Button>
+          )}
+          <SelectField
+            value={storeId}
+            onChange={handleStoreChange}
+            options={stores.map((s) => ({ value: String(s.id), label: s.name }))}
+            className="w-[180px]"
+          />
+        </div>
       </div>
 
       {/* 周日历条 */}
@@ -211,7 +233,7 @@ export default function HomePage() {
                 key={ds}
                 className={`rounded-lg border py-2.5 text-center transition-colors ${
                   isSelected
-                    ? "border-transparent bg-[#EEF2FF] text-[#6366F1]"
+                    ? "border-transparent bg-primary/10 text-primary"
                     : "hover:bg-muted/40"
                 }`}
                 onClick={() => setSelectedDate(ds)}

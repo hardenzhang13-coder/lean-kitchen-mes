@@ -23,6 +23,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 
 interface ScheduleData {
   id: number;
+  code: string | null;
   title: string;
   scheduleDate: string;
   store: { id: number; name: string } | null;
@@ -65,27 +66,36 @@ export default function ScheduleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"menu" | "cutting" | "purchase">("menu");
+  const [reloadKey, setReloadKey] = useState(0);
+  const refresh = () => {
+    setLoading(true);
+    setReloadKey((k) => k + 1);
+  };
 
   useEffect(() => {
-    if (id) fetchData();
-  }, [id]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/schedules/${id}`);
-      const d = await parseObject<ScheduleData>(res);
-      if (!d) {
-        toast.error("排程不存在");
-        return;
+    if (!id) return;
+    let alive = true;
+    const fetchData = async () => {
+      try {
+        const res = await fetch(`/api/schedules/${id}`);
+        const d = await parseObject<ScheduleData>(res);
+        if (!d) {
+          if (alive) toast.error("排程不存在");
+          return;
+        }
+        if (!alive) return;
+        setData(d);
+      } catch {
+        if (alive) toast.error("获取排程数据失败");
+      } finally {
+        if (alive) setLoading(false);
       }
-      setData(d);
-    } catch {
-      toast.error("获取排程数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    fetchData();
+    return () => {
+      alive = false;
+    };
+  }, [id, reloadKey]);
 
   const handleActivate = async () => {
     setActionLoading(true);
@@ -97,7 +107,7 @@ export default function ScheduleDetailPage() {
         return;
       }
       toast.success("生产计划已确认");
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作出错");
     } finally {
@@ -115,7 +125,7 @@ export default function ScheduleDetailPage() {
         return;
       }
       toast.success("生产已完成");
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作出错");
     } finally {
@@ -159,12 +169,12 @@ export default function ScheduleDetailPage() {
     );
   }
 
-  const totalCost = data.items.reduce((s, it) => s + (Number(it.dish.cost) || 0) * it.quantity, 0);
   const docMeta: ScheduleDocMeta = {
     title: data.title,
     scheduleDate: data.scheduleDate,
     storeName: data.store?.name ?? "",
     scheduleId: data.id,
+    code: data.code,
   };
 
   return (
@@ -178,7 +188,7 @@ export default function ScheduleDetailPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              排程 #{data.id} · 负责人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
+              {data.code ?? `排程 #${data.id}`} · 负责人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
             </p>
           </div>
         </div>
@@ -243,7 +253,6 @@ export default function ScheduleDetailPage() {
             菜品统计
           </div>
           <div className="font-medium">{data.dishCount} 个菜品 / {data.totalQuantity} 份</div>
-          <div className="text-sm text-muted-foreground">预估成本 ¥{totalCost.toFixed(2)}</div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, CheckSquare, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,8 +30,7 @@ export default function NewReimbursementPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const fetchReceipts = async () => {
-    setLoading(true);
+  const fetchReceipts = useCallback(async () => {
     try {
       const params = new URLSearchParams();
       if (startDate) params.set("startDate", startDate);
@@ -44,11 +43,11 @@ export default function NewReimbursementPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
 
   useEffect(() => {
     fetchReceipts();
-  }, [startDate, endDate]);
+  }, [fetchReceipts]);
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {

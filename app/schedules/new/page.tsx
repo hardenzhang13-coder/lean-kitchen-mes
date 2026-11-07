@@ -6,7 +6,6 @@ import { ArrowLeft, Plus, Minus, Search, Save, Loader2, Check, X } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { SelectField } from "@/app/components/ui/select-field";
@@ -62,33 +61,30 @@ export default function NewSchedulePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchDishes();
-    fetchStores();
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/stores");
+        const data = await res.json();
+        if (alive) setStores(Array.isArray(data) ? data : data.data || []);
+      } catch {
+        if (alive) toast.error("获取门店失败");
+      }
+      try {
+        const res = await fetch("/api/dishes?status=published&pageSize=100");
+        const data = await res.json();
+        if (alive) setDishes(data.data || []);
+      } catch {
+        if (alive) toast.error("获取菜品数据失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      alive = false;
+    };
   }, []);
-
-  const fetchStores = async () => {
-    try {
-      const res = await fetch("/api/stores");
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.data || [];
-      setStores(list);
-    } catch {
-      toast.error("获取门店失败");
-    }
-  };
-
-  const fetchDishes = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch("/api/dishes?status=published&pageSize=100");
-      const data = await res.json();
-      setDishes(data.data || []);
-    } catch {
-      toast.error("获取菜品数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // 提取所有分类
   const categories = Array.from(
@@ -100,8 +96,6 @@ export default function NewSchedulePage() {
     const matchCategory = !categoryFilter || d.category?.name === categoryFilter;
     return matchSearch && matchCategory;
   });
-
-  const isSelected = (dishId: number) => selected.some((s) => s.dishId === dishId);
 
   const toggleDish = (dish: Dish) => {
     setSelected((prev) => {

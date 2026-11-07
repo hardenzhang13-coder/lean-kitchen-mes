@@ -71,6 +71,7 @@ function StatusBadge({ isActive }: { isActive: boolean }) {
 
 export default function ClassesPage() {
   const [data, setData] = useState<L1[]>([]);
+  const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -89,23 +90,30 @@ export default function ClassesPage() {
   // 排序仅在未搜索时可用（搜索会隐藏部分行，上下移动语义不明确）
   const sortDisabled = !!search.trim() || reordering;
 
-  const fetchData = async () => {
+  const refresh = () => {
     setLoading(true);
-    try {
-      // 设置页需要管理停用分类，拉取全量；业务端默认只返回启用中的
-      const res = await fetch("/api/ingredient-categories?includeInactive=1");
-      const json = await res.json();
-      setData(json.data?.items || json.data || []);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
+    setReloadKey((k) => k + 1);
   };
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    let alive = true;
+    const load = async () => {
+      try {
+        // 设置页需要管理停用分类，拉取全量；业务端默认只返回启用中的
+        const res = await fetch("/api/ingredient-categories?includeInactive=1");
+        const json = await res.json();
+        if (alive) setData(json.data?.items || json.data || []);
+      } catch {
+        if (alive) toast.error("获取数据失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -226,7 +234,7 @@ export default function ClassesPage() {
       }
       toast.success(editing ? "更新成功" : "创建成功");
       setDialogOpen(false);
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     } finally {
@@ -251,7 +259,7 @@ export default function ClassesPage() {
         return;
       }
       toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     }
@@ -337,7 +345,7 @@ export default function ClassesPage() {
       }
       toast.success("删除成功");
       setDeleteTarget(null);
-      fetchData();
+      refresh();
     } catch {
       setDeleteError({ message: "删除失败，请稍后重试" });
     }

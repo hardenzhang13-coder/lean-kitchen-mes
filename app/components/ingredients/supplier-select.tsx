@@ -26,10 +26,9 @@ export function SupplierSelect({
   disabled = false,
 }: SupplierSelectProps) {
   const [data, setData] = useState<Supplier[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setLoading(true);
     fetch("/api/suppliers")
       .then((res) => parseList<Supplier>(res))
       .then((list) => setData(list))

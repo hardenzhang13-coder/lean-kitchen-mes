@@ -39,6 +39,18 @@ export default function EditSchedulePage() {
   const params = useParams();
   const id = Number(params.id);
 
+type ScheduleForEdit = {
+  status: string;
+  title: string;
+  scheduleDate: string;
+  storeId?: number;
+  items: {
+    dishId: number;
+    quantity: number;
+    dish: { name: string; code: string; category?: { name: string } | null };
+  }[];
+};
+
   const [title, setTitle] = useState("");
   const [scheduleDate, setScheduleDate] = useState("");
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
@@ -51,64 +63,60 @@ export default function EditSchedulePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchSchedule();
-    fetchDishes();
-    fetchStores();
-  }, [id]);
-
-  const fetchSchedule = async () => {
-    try {
-      const res = await fetch(`/api/schedules/${id}`);
-      const data = await parseObject<any>(res);
-      if (!data) {
-        toast.error("排程不存在");
-        return;
+    let alive = true;
+    const load = async () => {
+      try {
+        const res = await fetch(`/api/schedules/${id}`);
+        const data = await parseObject<ScheduleForEdit>(res);
+        if (!data) {
+          if (alive) toast.error("排程不存在");
+          return;
+        }
+        if (data.status !== "待生效") {
+          if (alive) {
+            toast.error("只有待生效的排程可以修改");
+            router.push(`/schedules/${id}`);
+          }
+          return;
+        }
+        if (!alive) return;
+        setTitle(data.title);
+        setScheduleDate(data.scheduleDate.split("T")[0]);
+        setStoreId(String(data.storeId ?? 1));
+        setSelected(
+          data.items.map((it) => ({
+            dishId: it.dishId,
+            name: it.dish.name,
+            code: it.dish.code,
+            categoryName: it.dish.category?.name || "",
+            quantity: it.quantity,
+          }))
+        );
+      } catch {
+        if (alive) toast.error("获取排程数据失败");
+      } finally {
+        if (alive) setLoading(false);
       }
-      const schedule = data;
-      if (schedule.status !== "待生效") {
-        toast.error("只有待生效的排程可以修改");
-        router.push(`/schedules/${id}`);
-        return;
+      try {
+        const res = await fetch("/api/stores");
+        const data = await res.json();
+        if (alive) setStores(Array.isArray(data) ? data : data.data || []);
+      } catch {
+        if (alive) toast.error("获取门店失败");
       }
-      setTitle(schedule.title);
-      setScheduleDate(schedule.scheduleDate.split("T")[0]);
-      setStoreId(String(schedule.storeId ?? 1));
-      setSelected(
-        schedule.items.map((it: any) => ({
-          dishId: it.dishId,
-          name: it.dish.name,
-          code: it.dish.code,
-          categoryName: it.dish.category?.name || "",
-          quantity: it.quantity,
-        }))
-      );
-    } catch {
-      toast.error("获取排程数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchStores = async () => {
-    try {
-      const res = await fetch("/api/stores");
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : data.data || [];
-      setStores(list);
-    } catch {
-      toast.error("获取门店失败");
-    }
-  };
-
-  const fetchDishes = async () => {
-    try {
-      const res = await fetch("/api/dishes");
-      const data = await res.json();
-      setDishes(data.data || []);
-    } catch {
-      toast.error("获取菜品数据失败");
-    }
-  };
+      try {
+        const res = await fetch("/api/dishes");
+        const data = await res.json();
+        if (alive) setDishes(data.data || []);
+      } catch {
+        if (alive) toast.error("获取菜品数据失败");
+      }
+    };
+    load();
+    return () => {
+      alive = false;
+    };
+  }, [id, router]);
 
   const categories = Array.from(
     new Map(dishes.filter((d) => d.category?.name).map((d) => [d.category.name, d.category.name])).entries()

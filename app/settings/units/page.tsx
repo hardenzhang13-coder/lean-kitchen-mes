@@ -75,7 +75,6 @@ export default function UnitsPage() {
   const [deleteError, setDeleteError] = useState<{ message: string; references?: UnitReferences } | null>(null);
 
   const fetchData = async () => {
-    setLoading(true);
     try {
       // 设置页需要管理停用单位，拉取全量；业务端默认只返回启用中的
       const res = await fetch("/api/units?page=1&pageSize=100&includeInactive=1");
@@ -88,8 +87,29 @@ export default function UnitsPage() {
     }
   };
 
-  useEffect(() => {
+  const refresh = () => {
+    setLoading(true);
     fetchData();
+  };
+
+  useEffect(() => {
+    let alive = true;
+    const fetchDataOnMount = async () => {
+      try {
+        // 设置页需要管理停用单位，拉取全量；业务端默认只返回启用中的
+        const res = await fetch("/api/units?page=1&pageSize=100&includeInactive=1");
+        const json = await res.json();
+        if (alive) setData(json.data || []);
+      } catch {
+        if (alive) toast.error("获取数据失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    fetchDataOnMount();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -175,7 +195,7 @@ export default function UnitsPage() {
       }
       toast.success(editing ? "更新成功" : "创建成功");
       closeDialog();
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     } finally {
@@ -196,7 +216,7 @@ export default function UnitsPage() {
         return;
       }
       toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
-      fetchData();
+      refresh();
     } catch {
       toast.error("操作失败");
     }
@@ -219,7 +239,7 @@ export default function UnitsPage() {
       }
       toast.success("删除成功");
       setDeleteTarget(null);
-      fetchData();
+      refresh();
     } catch {
       setDeleteError({ message: "删除失败，请稍后重试" });
     }

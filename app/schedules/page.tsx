@@ -45,6 +45,7 @@ interface ScheduleItem {
 /** 快速查看抽屉数据：与详情页同源同结构（复用详情页表格组件，保证一致） */
 interface QuickDetail {
   id: number;
+  code: string | null;
   title: string;
   scheduleDate: string;
   status: string;
@@ -73,6 +74,7 @@ function getWeekDay(dateStr: string) {
 export default function SchedulesPage() {
   const router = useRouter();
   const [rows, setRows] = useState<ScheduleItem[]>([]);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeFilter, setStoreFilter] = useState("");
@@ -84,36 +86,47 @@ export default function SchedulesPage() {
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
 
+  // 筛选/页码/搜索变化时在渲染期进入加载态（prev-key 派生范式）
+  const listKey = `${statusFilter}|${storeFilter}|${startDate}|${endDate}|${page}|${debouncedSearch}`;
+  const [prevListKey, setPrevListKey] = useState(listKey);
+  if (prevListKey !== listKey) {
+    setPrevListKey(listKey);
+    setLoading(true);
+  }
+
   // 快速查看抽屉
   const [quickView, setQuickView] = useState<QuickDetail | null>(null);
   const [quickViewLoading, setQuickViewLoading] = useState(false);
   const [quickTab, setQuickTab] = useState<QuickTab>("menu");
 
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
-      if (startDate) params.set("startDate", startDate);
-      if (endDate) params.set("endDate", endDate);
-      if (search) params.set("q", search);
-      if (storeFilter && storeFilter !== "all") params.set("storeId", storeFilter);
-      params.set("page", String(page));
-      params.set("pageSize", String(DEFAULT_PAGE_SIZE));
-      const res = await fetch("/api/schedules?" + params.toString());
-      const data = await res.json();
-      setRows(data.data || []);
-      setPagination(data.pagination || null);
-    } catch {
-      toast.error("获取排程数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    let alive = true;
+    const fetchData = async () => {
+      try {
+        const params = new URLSearchParams();
+        if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
+        if (startDate) params.set("startDate", startDate);
+        if (endDate) params.set("endDate", endDate);
+        if (debouncedSearch) params.set("q", debouncedSearch);
+        if (storeFilter && storeFilter !== "all") params.set("storeId", storeFilter);
+        params.set("page", String(page));
+        params.set("pageSize", String(DEFAULT_PAGE_SIZE));
+        const res = await fetch("/api/schedules?" + params.toString());
+        const data = await res.json();
+        if (!alive) return;
+        setRows(data.data || []);
+        setPagination(data.pagination || null);
+      } catch {
+        if (alive) toast.error("获取排程数据失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
     fetchData();
-  }, [statusFilter, storeFilter, startDate, endDate, page]);
+    return () => {
+      alive = false;
+    };
+  }, [statusFilter, storeFilter, startDate, endDate, page, debouncedSearch]);
 
   useEffect(() => {
     const fetchStores = async () => {
@@ -131,7 +144,7 @@ export default function SchedulesPage() {
 
   // 搜索防抖
   useEffect(() => {
-    const timer = setTimeout(() => fetchData(), 300);
+    const timer = setTimeout(() => setDebouncedSearch(search), 300);
     return () => clearTimeout(timer);
   }, [search]);
 
@@ -164,6 +177,7 @@ export default function SchedulesPage() {
         scheduleDate: quickView.scheduleDate,
         storeName: quickView.store?.name ?? "",
         scheduleId: quickView.id,
+        code: quickView.code,
       }
     : null;
 

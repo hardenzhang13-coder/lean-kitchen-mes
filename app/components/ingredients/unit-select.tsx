@@ -26,7 +26,6 @@ export function UnitSelect({
   onChange,
   placeholder = "请选择单位",
   category,
-  required = false,
   disabled = false,
   className,
 }: UnitSelectProps) {

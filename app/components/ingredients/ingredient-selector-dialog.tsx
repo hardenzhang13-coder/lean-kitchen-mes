@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Search, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,7 +12,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { DataTable } from "@/app/components/ui/data-table";
-import { EmptyState } from "@/app/components/ui/empty-state";
 import { cn } from "@/lib/shared/utils";
 
 export type CategoryL1 = {
@@ -63,13 +62,25 @@ export function IngredientSelectorDialog({
   const [selectedIngredientId, setSelectedIngredientId] = useState<string>("");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    if (!open) return;
+  // 弹窗打开/初始值变化时在渲染期同步选中状态（react.dev 推荐的 prev-props 派生范式，避免 effect 内级联 setState）
+  const [prevInit, setPrevInit] = useState({
+    open,
+    initialL1Code,
+    initialL2Code,
+    initialIngredientId,
+  });
+  if (
+    prevInit.open !== open ||
+    prevInit.initialL1Code !== initialL1Code ||
+    prevInit.initialL2Code !== initialL2Code ||
+    prevInit.initialIngredientId !== initialIngredientId
+  ) {
+    setPrevInit({ open, initialL1Code, initialL2Code, initialIngredientId });
     setSelectedL1Code(initialL1Code || "");
     setSelectedL2Code(initialL2Code || "");
     setSelectedIngredientId(initialIngredientId || "");
     setSearch("");
-  }, [open, initialL1Code, initialL2Code, initialIngredientId]);
+  }
 
   // 来源必须为原料：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
   const rawCategories = useMemo(

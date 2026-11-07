@@ -113,8 +113,6 @@ export function BomPickerDialog({
 
   const loadItems = useCallback(
     async (params: { l1Code?: string; l2Code?: string; q?: string; signal?: AbortSignal }) => {
-      setLoading(true);
-      setError(null);
       try {
         const result = await onLoadItems({ type, ...params });
         if (params.signal?.aborted) return;
@@ -133,25 +131,49 @@ export function BomPickerDialog({
     [onLoadItems, type]
   );
 
+  // 打开/搜索/分类变化时在渲染期进入加载态（prev-key 派生范式，避免 effect 内同步 setState）
+  const requestKey = `${open}|${debouncedSearch}|${selectedL1}|${selectedL2}|${hasCategories}|${l1Categories.length}`;
+  const [prevRequestKey, setPrevRequestKey] = useState(requestKey);
+  if (prevRequestKey !== requestKey) {
+    setPrevRequestKey(requestKey);
+    setLoading(true);
+    setError(null);
+  }
+
   // Load items based on category/search
   useEffect(() => {
     if (!open) return;
 
     const controller = new AbortController();
 
-    if (debouncedSearch.trim()) {
-      loadItems({ q: debouncedSearch.trim(), signal: controller.signal });
-    } else if (hasCategories) {
-      // 未选二级分类时回退到当前一级分类（级联后）的第一个子分类
-      const l2 = selectedL2 || cascadedL2[0]?.code || l2Categories[0]?.code;
-      const l1 = selectedL1 || l1Categories[0]?.code;
-      loadItems({ l1Code: l1, l2Code: l2, signal: controller.signal });
-    } else {
-      loadItems({ signal: controller.signal });
-    }
+    const load = async () => {
+      const params = debouncedSearch.trim()
+        ? { q: debouncedSearch.trim() }
+        : hasCategories
+          ? {
+              l1Code: selectedL1 || l1Categories[0]?.code,
+              l2Code: selectedL2 || cascadedL2[0]?.code || l2Categories[0]?.code,
+            }
+          : {};
+      try {
+        const result = await onLoadItems({ type, ...params });
+        if (controller.signal.aborted) return;
+        setItems(result);
+      } catch (e) {
+        if (controller.signal.aborted) return;
+        const message = e instanceof Error ? e.message : "加载失败";
+        setError(message);
+        toast.error(`加载原料失败：${message}`);
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+    void load();
 
     return () => controller.abort();
-  }, [open, debouncedSearch, selectedL1, selectedL2, hasCategories, l1Categories, cascadedL2, l2Categories, loadItems]);
+  }, [open, debouncedSearch, selectedL1, selectedL2, hasCategories, l1Categories, cascadedL2, l2Categories, onLoadItems, type]);
 
   const handleL1Click = (code: string) => {
     if (selectedL1 === code) return;
@@ -232,7 +254,7 @@ export function BomPickerDialog({
         cell: (row: IngredientOption) => row.unit || "—",
       },
     ],
-    [isSeasoningOrSauce]
+    [isSeasoningOrSauce, type]
   );
 
   const renderTableContent = () => {
@@ -249,6 +271,8 @@ export function BomPickerDialog({
           action={{
             label: "重试",
             onClick: () => {
+              setLoading(true);
+              setError(null);
               const controller = new AbortController();
               if (isSearchMode) {
                 loadItems({ q: debouncedSearch.trim(), signal: controller.signal });
