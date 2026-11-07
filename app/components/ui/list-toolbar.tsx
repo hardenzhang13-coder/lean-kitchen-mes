@@ -46,7 +46,7 @@ export function ListToolbar({
       </div>
       {children}
       {showReset && (
-        <Button variant="ghost" size="sm" onClick={onReset}>
+        <Button variant="ghost" onClick={onReset}>
           <RotateCcw className="mr-1 h-3.5 w-3.5" />
           重置
         </Button>

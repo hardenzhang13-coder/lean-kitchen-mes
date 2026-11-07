@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>排程模块迭代方案 · 可视化原型 v2</title>
+<style>
+  :root{
+    --bg:#f4f4f5; --card:#ffffff; --border:#e4e4e7; --muted:#71717a; --text:#18181b;
+    --primary:#ea580c; --primary-bg:#fff7ed; --green-bg:#f0fdf4; --green-bd:#86efac; --green-tx:#15803d;
+    --blue-bg:#eff6ff; --blue-bd:#93c5fd; --blue-tx:#1d4ed8;
+    --radius:10px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--text); padding:32px 24px 80px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  h1{font-size:22px; margin-bottom:6px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:24px; line-height:1.9;}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px; margin-bottom:28px; font-size:13px; align-items:center;}
+  .legend b{font-size:13px;}
+  .chip{display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; border:1px solid transparent;}
+  .fld-new{background:var(--green-bg); border-color:var(--green-bd); color:var(--green-tx); font-weight:600;}
+  .fld-adj{background:var(--blue-bg); border-color:var(--blue-bd); color:var(--blue-tx); font-weight:600;}
+  .fld-down{color:#a1a1aa; text-decoration:line-through;}
+  .sec-title{font-size:17px; font-weight:700; margin:40px 0 4px;}
+  .sec-desc{color:var(--muted); font-size:13px; margin-bottom:14px; line-height:1.8;}
+  .browser{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.06);}
+  .browser-bar{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--border); background:#fafafa;}
+  .dot{width:11px; height:11px; border-radius:50%;}
+  .url{flex:1; margin-left:10px; background:#fff; border:1px solid var(--border); border-radius:7px; font-size:12px; color:var(--muted); padding:4px 12px; font-family:monospace;}
+  .page{padding:24px 28px;}
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap;}
+  .topbar .title-row{display:flex; align-items:center; gap:10px;}
+  .topbar h2{font-size:18px;}
+  .badge{font-size:11px; padding:3px 10px; border-radius:999px; background:var(--primary-bg); color:var(--primary); border:1px solid #fed7aa; font-weight:600;}
+  .btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; cursor:default;}
+  .btn.primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn.ghost{background:transparent;}
+  .btn.sm{padding:5px 10px; font-size:12px;}
+  .btn.danger{color:#dc2626; border-color:#fecaca; background:#fff;}
+  .actions{display:flex; gap:8px; flex-wrap:wrap;}
+  .cards{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px;}
+  .card{border:1px solid var(--border); border-radius:var(--radius); padding:14px 16px;}
+  .card .k{font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .card .v{font-size:15px; font-weight:600;}
+  .card .s{font-size:12px; color:var(--muted); margin-top:3px;}
+  .tabs{display:flex; gap:2px; border-bottom:2px solid var(--border); align-items:flex-end;}
+  .tab{padding:10px 22px; font-size:14px; color:var(--muted); cursor:pointer; border:none; background:none; border-bottom:2px solid transparent; margin-bottom:-2px; font-weight:500;}
+  .tab.active{color:var(--primary); border-bottom-color:var(--primary); font-weight:700;}
+  .tab .cnt{font-size:11px; background:#f4f4f5; border-radius:999px; padding:1px 7px; margin-left:6px; color:var(--muted);}
+  .tab.active .cnt{background:var(--primary-bg); color:var(--primary);}
+  .tabbar{display:flex; align-items:center; justify-content:space-between; padding:12px 2px; flex-wrap:wrap; gap:8px;}
+  .chips{display:flex; gap:8px; flex-wrap:wrap;}
+  .stat{font-size:12px; color:var(--muted); background:#fafafa; border:1px solid var(--border); border-radius:8px; padding:5px 10px;}
+  .stat b{color:var(--text);}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left;}
+  th{background:#fafafa; font-weight:600; color:#3f3f46; white-space:nowrap;}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap;}
+  td.hl,th.hl{background:var(--primary-bg);}
+  td.hl{font-weight:700; color:var(--primary);}
+  tr.total td{background:#fafafa; font-weight:700;}
+  tr.total td.hl{background:#ffedd5; color:var(--primary); font-weight:800;}
+  .grp{font-weight:600; background:#fafafa;}
+  .grp2{color:var(--muted);}
+  .dish{font-weight:600;}
+  .mono{font-family:ui-monospace,monospace; font-size:12px; color:var(--muted);}
+  .note{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.8; background:#fafafa; border:1px dashed var(--border); border-radius:8px; padding:10px 14px;}
+  .note b{color:var(--text);}
+  .pane{display:none;}
+  .pane.active{display:block;}
+  .warn{background:#fffbeb; border:1px solid #fde68a; color:#92400e; border-radius:8px; padding:10px 14px; font-size:12.5px; line-height:1.8; margin-top:10px;}
+  @media (max-width:900px){ .cards{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>排程模块迭代方案 · 可视化原型 v2</h1>
+  <div class="sub">
+    本版按反馈调整：① 右上角操作区与线上一致，不新增全局打印/下载；打印与下载下沉到各板块；② 三个表格字段全部直接取自基础数据，不合并、不创造字段；
+    ③ 切配工单新增「切配份数」列（末列突出显示）；④ 采购计划定版 11 个字段，毛料需求按「斤」展示，支持按供应商拆单打印。<br>
+    关键数据事实：<b>食材档案目前没有「供应商」字段</b>（供应商仅挂在采购入库单上），本方案建议为食材档案新增「默认供应商」（可空），这是本次唯一的表结构变更点。
+  </div>
+  <div class="legend">
+    <b>图例：</b>
+    <span><span class="chip fld-new">新增字段</span></span>
+    <span><span class="chip fld-adj">名称/口径调整</span></span>
+    <span><span class="chip fld-down">移除 / 降级至移动端</span></span>
+  </div>
+
+  <!-- ============ 第一部分：排程详情页 ============ -->
+  <div class="sec-title">① 排程详情页：三段数据 Tab 化，字段全部对齐基础数据</div>
+  <div class="sec-desc">顶部信息卡片与右上角操作区（修改 / 删除 / 确认生产计划）与线上一致保持不变；打印与下载在对应板块内完成。</div>
+
+  <div class="browser">
+    <div class="browser-bar">
+      <span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span>
+      <span class="url">https://kms.lean-kitchen.cn/schedules/12</span>
+    </div>
+    <div class="page">
+
+      <div class="topbar">
+        <div class="title-row">
+          <span style="color:var(--muted)">←</span>
+          <h2>周五晚市排程 · SCH-0012</h2>
+          <span class="badge">已确认（单据已定稿）</span>
+        </div>
+        <div class="actions">
+          <span class="btn ghost">✎ 修改</span>
+          <span class="btn danger">🗑 删除</span>
+          <span class="btn primary">▶ 确认生产计划</span>
+        </div>
+      </div>
+
+      <div class="cards">
+        <div class="card"><div class="k">📅 生产日期</div><div class="v">2026-11-07</div><div class="s">星期六</div></div>
+        <div class="card"><div class="k">📍 门店</div><div class="v">望京 SOHO 店</div><div class="s">切配加工中心协同</div></div>
+        <div class="card"><div class="k">🍳 菜品统计</div><div class="v">8 个菜品 / 46 份</div><div class="s">预估成本 ¥623.40 · 计划销售 ¥1,518.00</div></div>
+        <div class="card"><div class="k">👤 制单信息</div><div class="v">王建国（厨师长）</div><div class="s">2026-11-06 14:32 创建</div></div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="menu">排程菜单<span class="cnt">8</span></button>
+        <button class="tab" data-tab="cutting">切配工单明细<span class="cnt">24</span></button>
+        <button class="tab" data-tab="purchase">采购计划明细<span class="cnt">16</span></button>
+      </div>
+
+      <!-- Tab 1: 排程菜单 -->
+      <div class="pane active" id="pane-menu">
+        <div class="tabbar">
+          <div class="chips">
+            <span class="stat">总份数 <b>46</b></span>
+            <span class="stat">成本合计 <b>¥623.40</b></span>
+            <span class="stat">计划销售额 <b>¥1,518.00</b></span>
+            <span class="stat">预计毛利率 <b>58.9%</b></span>
+          </div>
+          <div class="actions"><span class="btn sm">⬇ 导出 CSV</span></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>序号</th><th>菜品名称</th><th>份量</th><th>荤素</th><th>菜品编号</th>
+            <th class="num">数量（份）</th><th class="num">成本/份</th><th class="num">成本小计</th>
+            <th class="num">售价/份</th><th class="num hl">计划销售额</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>1</td><td class="dish">鱼香肉丝</td><td>一锅10份</td><td>荤</td><td class="mono">DSH-CH-0001</td><td class="num">20</td><td class="num">¥13.20</td><td class="num">¥264.00</td><td class="num">¥32.00</td><td class="num hl">¥640.00</td></tr>
+            <tr><td>2</td><td class="dish">宫保鸡丁</td><td>一锅10份</td><td>荤</td><td class="mono">DSH-CH-0003</td><td class="num">10</td><td class="num">¥12.80</td><td class="num">¥128.00</td><td class="num">¥30.00</td><td class="num hl">¥300.00</td></tr>
+            <tr><td>3</td><td class="dish">麻婆豆腐</td><td>一锅10份</td><td>素</td><td class="mono">DSH-CH-0005</td><td class="num">10</td><td class="num">¥6.50</td><td class="num">¥65.00</td><td class="num">¥18.00</td><td class="num hl">¥180.00</td></tr>
+            <tr><td>4</td><td class="dish">辣子鸡丁</td><td>一锅10份</td><td>荤</td><td class="mono">DSH-CH-0008</td><td class="num">10</td><td class="num">¥15.60</td><td class="num">¥156.00</td><td class="num">¥36.00</td><td class="num hl">¥360.00</td></tr>
+            <tr><td>5</td><td class="dish">番茄炒蛋</td><td>单人份</td><td>素</td><td class="mono">DSH-JZ-0002</td><td class="num">40</td><td class="num">¥4.20</td><td class="num">¥168.00</td><td class="num">¥12.00</td><td class="num hl">¥480.00</td></tr>
+            <tr><td>6</td><td class="dish">蒜蓉西兰花</td><td>单人份</td><td>素</td><td class="mono">DSH-JZ-0006</td><td class="num">30</td><td class="num">¥3.80</td><td class="num">¥114.00</td><td class="num">¥10.00</td><td class="num hl">¥300.00</td></tr>
+            <tr><td>7</td><td class="dish">红烧肉</td><td>一锅10份</td><td>荤</td><td class="mono">DSH-HZ-0001</td><td class="num">10</td><td class="num">¥22.50</td><td class="num">¥225.00</td><td class="num">¥48.00</td><td class="num hl">¥480.00</td></tr>
+            <tr><td>8</td><td class="dish">地三鲜</td><td>一锅10份</td><td>素</td><td class="mono">DSH-DD-0003</td><td class="num">10</td><td class="num">¥5.03</td><td class="num">¥50.30</td><td class="num">¥15.00</td><td class="num hl">¥150.00</td></tr>
+            <tr class="total"><td colspan="5">合计</td><td class="num">46</td><td class="num"></td><td class="num">¥623.40</td><td class="num"></td><td class="num hl">¥1,518.00</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          字段定版（不合并、不创造，全部直接取菜品档案字段）：序号、菜品名称、份量（Dish.portion：单人份/一锅10份）、荤素（Dish.meatType）、菜品编号（Dish.code）、数量（份）、成本/份（Dish.cost）、成本小计（= 成本/份 × 数量）、售价/份（Dish.price）、<b>计划销售额（= 售价/份 × 数量，末列突出显示）</b>。<br>
+          <b>预计毛利率口径（精准定义）：预计毛利率 =（计划销售额合计 − 成本小计合计）÷ 计划销售额合计 × 100% = (1,518.00 − 623.40) ÷ 1,518.00 = 58.9%</b>。即「真毛利率」口径（毛利额占售价比），与菜品库售价反推公式（售价 = 成本 ÷ (1 − 毛利率)）同源；计划销售额为 0 时不计算、显示「—」。
+        </div>
+      </div>
+
+      <!-- Tab 2: 切配工单明细 -->
+      <div class="pane" id="pane-cutting">
+        <div class="tabbar">
+          <div class="chips">
+            <span class="stat">共 <b>24</b> 项</span>
+            <span class="stat">涉及 <b>5</b> 个一级分类</span>
+            <span class="stat">菜品合计 <b>46</b> 份</span>
+          </div>
+          <div class="actions"><span class="btn sm primary">🖨 打印切配单</span><span class="btn sm">⬇ 导出 CSV</span></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>一级分类</th><th>二级分类</th><th>编号</th><th>名称</th><th>规格</th>
+            <th class="num">切配量</th><th>计量单位</th><th class="num fld-down">实际切配量</th><th class="num hl">切配份数</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="grp" rowspan="5">畜禽肉类</td><td class="grp2" rowspan="3">猪肉</td><td class="mono">NET-0012</td><td>猪里脊肉丝</td><td><span class="chip fld-new">丝 · 3mm</span></td><td class="num">6,000</td><td>g</td><td class="fld-down">—</td><td class="num hl">20</td></tr>
+            <tr><td class="mono">NET-0015</td><td>五花肉块</td><td><span class="chip fld-new">块 · 3cm</span></td><td class="num">5,500</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="mono">MIN-0004</td><td>肉馅</td><td><span class="chip fld-new">末</span></td><td class="num">800</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="grp2" rowspan="2">禽肉</td><td class="mono">NET-0021</td><td>鸡腿肉丁</td><td><span class="chip fld-new">丁 · 1.5cm</span></td><td class="num">4,200</td><td>g</td><td class="fld-down">—</td><td class="num hl">20</td></tr>
+            <tr><td class="mono">NET-0022</td><td>鸡脯肉丁</td><td><span class="chip fld-new">丁 · 1.5cm</span></td><td class="num">2,800</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+
+            <tr><td class="grp" rowspan="6">蔬菜类</td><td class="grp2" rowspan="2">茄果类</td><td class="mono">NET-0031</td><td>番茄块</td><td><span class="chip fld-new">块 · 瓣切</span></td><td class="num">8,600</td><td>g</td><td class="fld-down">—</td><td class="num hl">40</td></tr>
+            <tr><td class="mono">NET-0033</td><td>茄子滚刀块</td><td><span class="chip fld-new">滚刀块</span></td><td class="num">4,000</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="grp2" rowspan="2">叶菜类</td><td class="mono">NET-0040</td><td>西兰花小朵</td><td><span class="chip fld-new">小朵 · 3cm</span></td><td class="num">4,500</td><td>g</td><td class="fld-down">—</td><td class="num hl">30</td></tr>
+            <tr><td class="mono">NET-0042</td><td>青笋片</td><td><span class="chip fld-new">片 · 2mm</span></td><td class="num">3,200</td><td>g</td><td class="fld-down">—</td><td class="num hl">20</td></tr>
+            <tr><td class="grp2" rowspan="2">根茎类</td><td class="mono">NET-0050</td><td>土豆片</td><td><span class="chip fld-new">片 · 2mm</span></td><td class="num">5,000</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="mono">NET-0051</td><td>胡萝卜片</td><td><span class="chip fld-new">片 · 2mm</span></td><td class="num">1,500</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+
+            <tr><td class="grp" rowspan="3">豆制品类</td><td class="grp2" rowspan="3">豆腐</td><td class="mono">NET-0061</td><td>嫩豆腐块</td><td><span class="chip fld-new">块 · 2cm</span></td><td class="num">4,800</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="mono">MIN-0007</td><td>豆干丁</td><td><span class="chip fld-new">丁 · 1cm</span></td><td class="num">1,200</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+            <tr><td class="mono">NET-0062</td><td>豆腐皮丝</td><td><span class="chip fld-new">丝</span></td><td class="num">900</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+
+            <tr><td class="grp" rowspan="2">蛋品类</td><td class="grp2" rowspan="2">鸡蛋</td><td class="mono">NET-0070</td><td>蛋液</td><td><span class="chip fld-new">打散</span></td><td class="num">4,000</td><td>g</td><td class="fld-down">—</td><td class="num hl">40</td></tr>
+            <tr><td class="mono">MIN-0009</td><td>皮蛋丁</td><td><span class="chip fld-new">丁 · 1cm</span></td><td class="num">600</td><td>g</td><td class="fld-down">—</td><td class="num hl">10</td></tr>
+
+            <tr><td class="grp" rowspan="3">香辛料类</td><td class="grp2" rowspan="3">调味辅料</td><td class="mono">MIN-0011</td><td>葱花</td><td><span class="chip fld-new">花</span></td><td class="num">450</td><td>g</td><td class="fld-down">—</td><td class="num hl">46</td></tr>
+            <tr><td class="mono">MIN-0012</td><td>蒜米</td><td><span class="chip fld-new">米</span></td><td class="num">380</td><td>g</td><td class="fld-down">—</td><td class="num hl">46</td></tr>
+            <tr><td class="mono">MIN-0013</td><td>姜末</td><td><span class="chip fld-new">末</span></td><td class="num">260</td><td>g</td><td class="fld-down">—</td><td class="num hl">46</td></tr>
+          </tbody>
+        </table>
+        <div class="note">
+          字段定版：一级分类、二级分类、编号（NET-x 净料 / MIN-x 小料）、<b>名称（净菜档案名称，完整读取）</b>、<span class="chip fld-new">规格</span>（丝/丁/块/片+尺寸，改造 buildCuttingOrders 从菜品 BOM 明细规格 DishNetDetail.spec 取值，库中 CuttingOrder.spec 已存在但现未填充）、切配量、计量单位、<b>切配份数（末列突出显示）</b>。<br>
+          <b>切配份数口径（新增计算字段，不落库）：切配份数 = 排程菜单中使用该净菜的菜品「数量（份）」合计</b>。例：猪里脊肉丝只被「鱼香肉丝 20 份」使用 → 20；鸡腿肉丁被「宫保鸡丁 10 份 + 辣子鸡丁 10 份」使用 → 20；葱姜蒜等通用料为全部 46 份。切配中心可按此与菜单总份数交叉核对，发现数量异常第一时间回溯。
+        </div>
+      </div>
+
+      <!-- Tab 3: 采购计划明细 -->
+      <div class="pane" id="pane-purchase">
+        <div class="tabbar">
+          <div class="chips">
+            <span class="stat">共 <b>16</b> 项</span>
+            <span class="stat">建议采购总额 <b>¥486.20</b></span>
+            <span class="stat">涉及供应商 <b>5</b> 家 · <b>3</b> 项库存充足</span>
+          </div>
+          <div class="actions"><span class="btn sm primary">🖨 打印采购单（按供应商拆单）</span><span class="btn sm">⬇ 导出 CSV</span></div>
+        </div>
+        <table>
+          <thead><tr>
+            <th>一级分类</th><th>二级分类</th><th>编号</th><th>食材名称</th><th>采购规格</th>
+            <th class="num">毛料需求（斤）</th><th class="num">库存扣减</th><th class="num">建议采购量</th><th>采购单位</th>
+            <th>供应商</th><th class="num">预估金额</th>
+            <th class="fld-down">实际采购量</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="grp" rowspan="5">畜禽肉类</td><td class="grp2" rowspan="2">猪肉</td><td class="mono">RAW-0102</td><td>猪里脊肉</td><td>10kg/箱</td><td class="num">16.40</td><td class="num">-4.00</td><td class="num"><b>12.40</b></td><td>kg</td><td><span class="chip fld-new">京鲜肉联配送中心</span></td><td class="num">¥192.20</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0110</td><td>五花肉</td><td>10kg/箱</td><td class="num">14.20</td><td class="num">-3.00</td><td class="num"><b>11.20</b></td><td>kg</td><td><span class="chip fld-new">京鲜肉联配送中心</span></td><td class="num">¥184.80</td><td class="fld-down">—</td></tr>
+            <tr><td class="grp2" rowspan="2">禽肉</td><td class="mono">RAW-0201</td><td>鸡腿肉</td><td>5kg/袋</td><td class="num">10.00</td><td class="num">0</td><td class="num"><b>10.00</b></td><td>kg</td><td><span class="chip fld-new">正大食品</span></td><td class="num">¥110.00</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0203</td><td>鸡脯肉</td><td>5kg/袋</td><td class="num">6.20</td><td class="num">-1.00</td><td class="num"><b>5.20</b></td><td>kg</td><td><span class="chip fld-new">正大食品</span></td><td class="num">¥62.40</td><td class="fld-down">—</td></tr>
+            <tr><td class="grp2">鸡蛋</td><td class="mono">RAW-0308</td><td>鸡蛋</td><td>15kg/筐</td><td class="num">8.60</td><td class="num">-4.00</td><td class="num"><b>4.60</b></td><td>kg</td><td><span class="chip fld-new">正大食品</span></td><td class="num">¥14.95</td><td class="fld-down">—</td></tr>
+
+            <tr><td class="grp" rowspan="6">蔬菜类</td><td class="grp2" rowspan="2">茄果类</td><td class="mono">RAW-0420</td><td>番茄</td><td>散装</td><td class="num">24.80</td><td class="num">-6.00</td><td class="num"><b>18.80</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥40.42</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0433</td><td>茄子</td><td>散装</td><td class="num">10.60</td><td class="num">-2.00</td><td class="num"><b>8.60</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥19.78</td><td class="fld-down">—</td></tr>
+            <tr><td class="grp2" rowspan="2">叶菜类</td><td class="mono">RAW-0451</td><td>西兰花</td><td>10kg/筐</td><td class="num">12.00</td><td class="num">-3.00</td><td class="num"><b>9.00</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥40.50</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0470</td><td>青笋</td><td>散装</td><td class="num">6.80</td><td class="num">-0.60</td><td class="num"><b>6.20</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥27.90</td><td class="fld-down">—</td></tr>
+            <tr><td class="grp2" rowspan="2">根茎类</td><td class="mono">RAW-0460</td><td>土豆</td><td>25kg/袋</td><td class="num">12.80</td><td class="num">-12.80</td><td class="num"><b style="color:#16a34a">0</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥0.00</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0481</td><td>胡萝卜</td><td>散装</td><td class="num">3.80</td><td class="num">-0.80</td><td class="num"><b>3.00</b></td><td>kg</td><td><span class="chip fld-new">绿源果蔬合作社</span></td><td class="num">¥11.25</td><td class="fld-down">—</td></tr>
+
+            <tr><td class="grp" rowspan="3">豆制品类</td><td class="grp2" rowspan="3">豆腐</td><td class="mono">RAW-0502</td><td>嫩豆腐</td><td>4kg/板</td><td class="num">10.40</td><td class="num">-4.00</td><td class="num"><b>6.40</b></td><td>板</td><td><span class="chip fld-new">四季豆制品厂</span></td><td class="num">¥25.60</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0506</td><td>豆干</td><td>5kg/袋</td><td class="num">2.40</td><td class="num">0</td><td class="num"><b>2.40</b></td><td>kg</td><td><span class="chip fld-new">四季豆制品厂</span></td><td class="num">¥16.80</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0509</td><td>豆腐皮</td><td>2kg/捆</td><td class="num">1.80</td><td class="num">0</td><td class="num"><b>1.80</b></td><td>捆</td><td><span class="chip fld-new">四季豆制品厂</span></td><td class="num">¥21.60</td><td class="fld-down">—</td></tr>
+
+            <tr><td class="grp" rowspan="3">调味品类</td><td class="grp2" rowspan="3">调味辅料</td><td style="color:#a1a1aa" class="mono">SEA-0012</td><td style="color:#a1a1aa">食盐</td><td>500g/袋</td><td class="num">0.70</td><td class="num">-0.70</td><td class="num">0</td><td>袋</td><td style="color:#a1a1aa">中粮粮油</td><td class="num">¥0.00</td><td class="fld-down">—</td></tr>
+            <tr style="color:#a1a1aa"><td class="mono">SEA-0018</td><td>白砂糖</td><td>1kg/袋</td><td class="num">0.84</td><td class="num">-0.84</td><td class="num">0</td><td>袋</td><td>中粮粮油</td><td class="num">¥0.00</td><td class="fld-down">—</td></tr>
+            <tr><td class="mono">RAW-0601</td><td>食用油</td><td>10L/桶</td><td class="num">3.60</td><td class="num">-2.00</td><td class="num"><b>1.60</b></td><td>L</td><td><span class="chip fld-new">中粮粮油</span></td><td class="num">¥7.20</td><td class="fld-down">—</td></tr>
+            <tr class="total"><td colspan="10">合计（建议采购总额）</td><td class="num">¥486.20</td><td></td></tr>
+          </tbody>
+        </table>
+        <div class="warn">
+          ⚠ 数据缺口：现有食材档案（原料/调料/酱料）<b>没有「供应商」字段</b>，供应商只挂在采购入库单上。建议方案：为原料、调料、酱料档案各新增「默认供应商」（可空，关联 Supplier 表），采购计划生成时回填到 PurchasePlan；未设置默认供应商的食材显示「—」，不参与按供应商拆单打印。这是本次迭代<b>唯一的表结构变更</b>（新增 3 个可空外键 + PurchasePlan.supplierId，需走 prisma migrate）。
+        </div>
+        <div class="note">
+          字段定版（11 列，全部基于基础数据）：一级分类、二级分类、编号（RAW-x 原料 / SEA-x 调料 / SAU-x 酱料）、食材名称、采购规格、<span class="chip fld-new">毛料需求（斤）</span>（= grossNeed ÷ 500，1斤=500g，保留 2 位小数）、库存扣减（同口径斤）、建议采购量、采购单位、<span class="chip fld-new">供应商</span>（食材档案默认供应商）、预估金额（建议采购量 × 最新参考价换算）。<span class="chip fld-down">实际采购量</span> 降级至移动端回录。
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============ 第二部分：打印单据 ============ -->
+  <div class="sec-title">② 打印视图：切配工单 + 按供应商拆分的采购单（A4）</div>
+  <div class="sec-desc">打印路由 /schedules/[id]/print?doc=cutting|purchase。采购单按供应商自动拆分为多张独立单据（每供应商一张，含供应商抬头与签字栏），支持一次性全部打印；未设默认供应商的食材归入一张「未指定供应商」单。</div>
+
+  <div style="display:flex; gap:10px; margin-bottom:14px; align-items:center; flex-wrap:wrap;">
+    <span style="font-size:13px; color:var(--muted);">打印预览：</span>
+    <span class="btn sm primary" style="cursor:pointer" onclick="showPrint('p-cut',0)">切配工单打印单</span>
+    <span class="btn sm" style="cursor:pointer" onclick="showPrint('p-pur',1)">采购单 · 绿源果蔬合作社（供应商分单 1/5）</span>
+  </div>
+
+  <div class="print-doc" id="p-cut">
+    <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:36px 40px; box-shadow:0 8px 30px rgba(0,0,0,.06); max-width:900px;">
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="font-size:20px; font-weight:800; letter-spacing:2px;">切 配 工 单</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:4px;">精益厨房 · 切配加工中心执行单据</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px 24px; font-size:12.5px; border-top:2px solid #18181b; border-bottom:1px solid var(--border); padding:10px 2px; margin-bottom:14px;">
+        <span>门店：<b>望京 SOHO 店</b></span><span>生产日期：<b>2026-11-07（周六）</b></span><span>单号：<b>SCH-0012</b></span><span>打印时间：<b>2026-11-06 15:02</b></span>
+      </div>
+      <table style="font-size:12.5px;">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>编号</th><th>名称</th><th>规格</th><th class="num">切配量</th><th>单位</th><th class="num">切配份数</th></tr></thead>
+        <tbody>
+          <tr><td class="grp" rowspan="3">畜禽肉类</td><td class="grp2" rowspan="2">猪肉</td><td class="mono">NET-0012</td><td>猪里脊肉丝</td><td>丝 · 3mm</td><td class="num">6,000</td><td>g</td><td class="num">20</td></tr>
+          <tr><td class="mono">NET-0015</td><td>五花肉块</td><td>块 · 3cm</td><td class="num">5,500</td><td>g</td><td class="num">10</td></tr>
+          <tr><td class="grp2">禽肉</td><td class="mono">NET-0021</td><td>鸡腿肉丁</td><td>丁 · 1.5cm</td><td class="num">4,200</td><td>g</td><td class="num">20</td></tr>
+          <tr><td class="grp" rowspan="2">蔬菜类</td><td class="grp2">茄果类</td><td class="mono">NET-0031</td><td>番茄块</td><td>块 · 瓣切</td><td class="num">8,600</td><td>g</td><td class="num">40</td></tr>
+          <tr><td class="grp2">叶菜类</td><td class="mono">NET-0040</td><td>西兰花小朵</td><td>小朵 · 3cm</td><td class="num">4,500</td><td>g</td><td class="num">30</td></tr>
+          <tr class="total"><td colspan="5">合计（示例截断，实际打印全部 24 项 / 46 份）</td><td class="num">96,500</td><td>g</td><td class="num">—</td></tr>
+        </tbody>
+      </table>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:36px; font-size:12.5px;">
+        <span style="border-top:1px solid #18181b; padding-top:6px;">制单：王建国</span>
+        <span style="border-top:1px solid #18181b; padding-top:6px;">切配组长签字：＿＿＿＿＿＿</span>
+        <span style="border-top:1px solid #18181b; padding-top:6px;">完成时间：＿＿月＿＿日 ＿＿:＿＿</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="print-doc" id="p-pur" style="display:none;">
+    <div style="background:#fff; border:1px solid var(--border); border-radius:12px; padding:36px 40px; box-shadow:0 8px 30px rgba(0,0,0,.06); max-width:960px;">
+      <div style="text-align:center; margin-bottom:20px;">
+        <div style="font-size:20px; font-weight:800; letter-spacing:2px;">采 购 计 划 单</div>
+        <div style="font-size:12px; color:var(--muted); margin-top:4px;">精益厨房 · 按供应商拆单（本单供应商：绿源果蔬合作社）</div>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:8px 24px; font-size:12.5px; border-top:2px solid #18181b; border-bottom:1px solid var(--border); padding:10px 2px; margin-bottom:14px;">
+        <span>供应商：<b>绿源果蔬合作社</b></span><span>门店：<b>望京 SOHO 店</b></span><span>生产日期：<b>2026-11-07（周六）</b></span><span>单号：<b>SCH-0012-P3</b></span>
+      </div>
+      <table style="font-size:12px;">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>编号</th><th>食材名称</th><th>采购规格</th><th class="num">毛料需求（斤）</th><th class="num">库存扣减</th><th class="num">建议采购量</th><th>采购单位</th></tr></thead>
+        <tbody>
+          <tr><td class="grp" rowspan="6">蔬菜类</td><td class="grp2" rowspan="2">茄果类</td><td class="mono">RAW-0420</td><td>番茄</td><td>散装</td><td class="num">24.80</td><td class="num">-6.00</td><td class="num"><b>18.80</b></td><td>kg</td></tr>
+          <tr><td class="mono">RAW-0433</td><td>茄子</td><td>散装</td><td class="num">10.60</td><td class="num">-2.00</td><td class="num"><b>8.60</b></td><td>kg</td></tr>
+          <tr><td class="grp2" rowspan="2">叶菜类</td><td class="mono">RAW-0451</td><td>西兰花</td><td>10kg/筐</td><td class="num">12.00</td><td class="num">-3.00</td><td class="num"><b>9.00</b></td><td>kg</td></tr>
+          <tr><td class="mono">RAW-0470</td><td>青笋</td><td>散装</td><td class="num">6.80</td><td class="num">-0.60</td><td class="num"><b>6.20</b></td><td>kg</td></tr>
+          <tr><td class="grp2" rowspan="2">根茎类</td><td class="mono">RAW-0460</td><td>土豆（库存充足）</td><td>25kg/袋</td><td class="num">12.80</td><td class="num">-12.80</td><td class="num">0</td><td>kg</td></tr>
+          <tr><td class="mono">RAW-0481</td><td>胡萝卜</td><td>散装</td><td class="num">3.80</td><td class="num">-0.80</td><td class="num"><b>3.00</b></td><td>kg</td></tr>
+          <tr class="total"><td colspan="7">本单合计（6 项）</td><td class="num">—</td><td>¥149.85</td></tr>
+        </tbody>
+      </table>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:24px; margin-top:36px; font-size:12.5px;">
+        <span style="border-top:1px solid #18181b; padding-top:6px;">制单：王建国</span>
+        <span style="border-top:1px solid #18181b; padding-top:6px;">采购员签字：＿＿＿＿＿＿</span>
+        <span style="border-top:1px solid #18181b; padding-top:6px;">供应商送货签字：＿＿＿＿＿＿</span>
+      </div>
+      <div style="font-size:12px; color:var(--muted); margin-top:18px;">说明：本排程共拆分 5 张供应商采购单（京鲜肉联配送中心 / 正大食品 / 绿源果蔬合作社 / 四季豆制品厂 / 中粮粮油）+ 未指定供应商单据（如有），支持「全部打印」逐张输出。</div>
+    </div>
+  </div>
+
+  <div class="note" style="max-width:960px; margin-top:14px;">打印实现：新增路由 /schedules/[id]/print?doc=cutting|purchase，复用详情接口数据；采购按供应商分组渲染多张单据连续分页；@media print 隐藏页面其它元素仅输出单据；CSV 导出带 UTF-8 BOM 与单头信息行。</div>
+
+  <!-- ============ 第三部分：字段迭代意见总表 ============ -->
+  <div class="sec-title">③ 三份数据字段定版与改动清单</div>
+  <div class="sec-desc">按反馈定版：字段不合并、不创造，全部直接取自基础数据；仅新增 1 个计算口径（切配份数）与 1 处表结构（食材默认供应商）。</div>
+
+  <div style="display:grid; gap:18px;">
+    <div class="browser"><div class="page" style="padding:18px 22px;">
+      <b style="font-size:14px;">A. 排程菜单（10 列定版）</b>
+      <table style="margin-top:10px; font-size:12.5px;">
+        <thead><tr><th style="width:130px;">定版字段</th><th style="width:220px;">数据来源</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>序号 / 菜品名称</td><td>— / Dish.name</td><td>名称不再挂徽标，独立列展示</td></tr>
+          <tr><td>份量 / 荤素</td><td>Dish.portion / Dish.meatType</td><td><span class="chip fld-new">新增独立列</span>，直接取档案值</td></tr>
+          <tr><td>菜品编号</td><td>Dish.code</td><td><span class="chip fld-adj">正名</span>（原「编码」）</td></tr>
+          <tr><td>数量（份）</td><td>ScheduleItem.quantity</td><td>不变</td></tr>
+          <tr><td>成本/份 / 成本小计</td><td>Dish.cost / 计算</td><td><span class="chip fld-adj">「单价」正名</span>为小计=成本/份×数量</td></tr>
+          <tr><td>售价/份 / 计划销售额</td><td>Dish.price / 计算</td><td><span class="chip fld-new">新增</span>，计划销售额=售价/份×数量，<b>末列突出显示</b></td></tr>
+          <tr><td>预计毛利率</td><td>计算（统计条展示）</td><td><b>=（计划销售额合计−成本小计合计）÷计划销售额合计×100%</b>，真毛利率口径；分母为 0 显示「—」</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="browser"><div class="page" style="padding:18px 22px;">
+      <b style="font-size:14px;">B. 切配工单明细（9 列定版）</b>
+      <table style="margin-top:10px; font-size:12.5px;">
+        <thead><tr><th style="width:130px;">定版字段</th><th style="width:220px;">数据来源</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>一级分类 / 二级分类</td><td>食材分类字典</td><td>保留 rowspan 分组</td></tr>
+          <tr><td>编号</td><td>NET-x 净料 / MIN-x 小料</td><td>不变</td></tr>
+          <tr><td>名称</td><td>净菜档案名称</td><td>完整读取，不加前后缀</td></tr>
+          <tr><td>规格</td><td>CuttingOrder.spec（改造取值）</td><td><span class="chip fld-new">新增展示</span>，从菜品 BOM 明细规格 DishNetDetail.spec 聚合填充</td></tr>
+          <tr><td>切配量 / 计量单位</td><td>CuttingOrder.requiredQty / unit</td><td>不变</td></tr>
+          <tr><td>切配份数</td><td>计算（不落库）</td><td><span class="chip fld-new">新增末列突出</span>，= 排程菜单中使用该净菜的菜品份数合计</td></tr>
+          <tr><td>实际切配量</td><td>CuttingOrder.actualQty</td><td><span class="chip fld-down">移除</span>，移动端回录后再显示</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="browser"><div class="page" style="padding:18px 22px;">
+      <b style="font-size:14px;">C. 采购计划明细（11 列定版）</b>
+      <table style="margin-top:10px; font-size:12.5px;">
+        <thead><tr><th style="width:130px;">定版字段</th><th style="width:220px;">数据来源</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>一级分类 / 二级分类</td><td>食材分类字典</td><td><span class="chip fld-new">一级分类新增</span>（现状仅二级）</td></tr>
+          <tr><td>编号 / 食材名称</td><td>RAW-x / SEA-x / SAU-x + 档案名</td><td><span class="chip fld-adj">「名称」正名</span>为食材名称</td></tr>
+          <tr><td>采购规格</td><td>档案 purchaseSpec</td><td>不变</td></tr>
+          <tr><td>毛料需求（斤）</td><td>PurchasePlan.grossNeed ÷ 500</td><td><span class="chip fld-new">新增展示</span>，1斤=500g，保留 2 位小数</td></tr>
+          <tr><td>库存扣减</td><td>PurchasePlan.stockDeducted ÷ 500</td><td><span class="chip fld-new">新增展示</span>，同口径（斤）</td></tr>
+          <tr><td>建议采购量 / 采购单位</td><td>suggestedPurchase / 档案 purchaseUnit</td><td><span class="chip fld-adj">「计划采购量/计价单位」正名</span></td></tr>
+          <tr><td>供应商</td><td>食材档案「默认供应商」（新增字段）</td><td><span class="chip fld-new">新增</span>，见下方表结构变更说明</td></tr>
+          <tr><td>预估金额</td><td>建议采购量 × 最新参考价</td><td><span class="chip fld-new">新增</span>，服务端取档案 latestRefPrice 换算</td></tr>
+          <tr><td>实际采购量</td><td>actualPurchase</td><td><span class="chip fld-down">移除</span>，移动端回录后再显示</td></tr>
+          <tr><td>按供应商拆单打印</td><td>—</td><td><span class="chip fld-new">新增能力</span>，每供应商一张 A4 单据，含供应商抬头与双方签字栏</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+
+    <div class="browser"><div class="page" style="padding:18px 22px;">
+      <b style="font-size:14px;">D. 本次迭代唯一的表结构变更</b>
+      <table style="margin-top:10px; font-size:12.5px;">
+        <thead><tr><th style="width:220px;">变更</th><th>内容</th></tr></thead>
+        <tbody>
+          <tr><td>RawIngredient / Seasoning / SauceIngredient</td><td>各新增 defaultSupplierId Int?（关联 Supplier，可空）——食材档案「默认供应商」</td></tr>
+          <tr><td>PurchasePlan</td><td>新增 supplierId Int? + supplierName String?（生成采购计划时按食材默认供应商回填，冗余名称防供应商改名断链，与采购入库单同 pattern）</td></tr>
+          <tr><td>食材档案编辑表单 / API</td><td>三个食材库新增「默认供应商」选择项（下拉，可空）</td></tr>
+          <tr><td>迁移</td><td>prisma migrate dev 生成迁移；存量数据 defaultSupplier 为空，显示「—」</td></tr>
+        </tbody>
+      </table>
+    </div></div>
+  </div>
+
+  <div class="note" style="margin-top:26px;">
+    <b>实施顺序：</b>迭代一：打印路由（切配单 + 按供应商拆单采购单）+ CSV 导出升级 + 三张表字段展示改造（spec 填充、切配份数、毛料需求斤换算、预估金额）+ 默认供应商表结构变更与表单入口 + schedule-utils 分解逻辑单元测试；迭代二：详情页 Tab 化、菜单表份量/荤素/售价列、创建页菜品卡片增强、列表页状态降级、统计条毛利率。除「默认供应商」外不改表结构。
+  </div>
+
+</div>
+
+<script>
+  document.querySelectorAll('.tab').forEach(function(t){
+    t.addEventListener('click', function(){
+      document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+      document.querySelectorAll('.pane').forEach(function(x){ x.classList.remove('active'); });
+      t.classList.add('active');
+      document.getElementById('pane-' + t.dataset.tab).classList.add('active');
+    });
+  });
+  function showPrint(id, idx){
+    document.querySelectorAll('.print-doc').forEach(function(x){ x.style.display = 'none'; });
+    document.getElementById(id).style.display = 'block';
+    var bs = document.querySelectorAll('[onclick^="showPrint"]');
+    bs.forEach(function(b){ b.classList.remove('primary'); });
+    bs[idx].classList.add('primary');
+  }
+</script>
+</body>
+</html>

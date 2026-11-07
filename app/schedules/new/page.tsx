@@ -80,7 +80,7 @@ export default function NewSchedulePage() {
   const fetchDishes = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/dishes");
+      const res = await fetch("/api/dishes?status=published&pageSize=100");
       const data = await res.json();
       setDishes(data.data || []);
     } catch {
@@ -380,11 +380,6 @@ export default function NewSchedulePage() {
                         <span className="text-[10px] font-semibold rounded-md px-1.5 py-0.5 bg-yellow-100 text-yellow-700">
                           ¥{Number(dish.price).toFixed(2)}/份
                         </span>
-                      )}
-                      {selectedItem && (
-                        <Badge className="text-[10px] bg-primary text-primary-foreground">
-                          {selectedItem.quantity} 份
-                        </Badge>
                       )}
                     </div>
                   </div>

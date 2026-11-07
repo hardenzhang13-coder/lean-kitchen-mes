@@ -4,6 +4,46 @@
 
 ---
 ---
+## 2026-11-07 — 工作台计划数据直显 + 列表页卡片化/宫格筛选 + 字体本地化
+
+### 工作台（app/page.tsx + /api/dashboard/daily）
+- 排程创建后（未回录售出）即展示计划数据：菜品/规格/计划份数/售价/计划销售额，售出列显示"待回录"；头部 chips 增加计划销售额与预计毛利率（API 补 cost/planAmount）
+- 回录后仍展示原复盘视图（售出进度/销售额/销售状态）
+
+### 排程列表页
+- 状态/门店筛选由 SelectField 换成 SelectTileMode（与菜品库"全部状态"同款宫格选择器）
+- 列表由表格改回卡片式（用户偏好）：Card 组件 + 信息分区（标题/徽标 → 图标元信息行 → 负责人 → 操作区），hover 高亮，操作区 stopPropagation
+
+### 字体本地化（重要环境修复）
+- 根因：next/font/google（DM_Sans/Geist_Mono）在 dev 冷缓存时需联网下载，本机访问 fonts.gstatic.com 不通 → 全站 500
+- 修复：layout.tsx 移除 next/font/google，改系统字体栈（PingFang SC/Microsoft YaHei；mono 用 ui-monospace）经内联 CSS 变量注入，--font-sans/--font-geist-mono 变量名不变，globals.css @theme 无需改动
+- 教训：墙内/离线环境禁止依赖 Google Fonts；清 .next 前确认字体有本地兜底
+
+### 检查
+- tsc / build / lint（0 errors）全过；dev server 重启验证首页/列表/新建均 200
+
+---
+---
+## 2026-11-07 — 排程列表页整体优化 + 新建页菜品筛选
+
+### 列表页（按确认方案整体重构）
+- 卡片式 → 标准表格：排程+状态徽标 / 生产日期(星期) / 门店 / 菜品·份数 / 负责人 / 操作(快速查看·详情)，整行可点进详情
+- 筛选补状态（下拉：全部/待生效/进行中/已完成），与门店、日期范围同行；ListToolbar 重置按钮由 size=sm 改默认高度，整行控件统一
+- 快速查看抽屉改为**复用详情页三个表格组件**（ScheduleMenuTable/CuttingTable/PurchaseTable），宽 max-w-4xl，数据、列、份数展示、打印/导出与详情页 1:1，杜绝不一致
+
+### 新建排程页
+- 菜品卡片去掉份数徽标（卡片是源数据，数量只在已选清单调节）
+- 菜品只拉已发布：/api/dishes?status=published
+
+### 踩坑记录（重要）
+- Tailwind v4 自动扫描非忽略文件中的类名候选：memory-bank/UxAudit.md 文档里的 任意值类名写法（bg 绑定 status 通配变量） 示例被当成工具类生成非法 CSS，dev 编译 500。教训：**md 文档禁止出现任意值类名写法**（用 prose 描述）；已修正该文档措辞
+- 并行会话的 UxAudit.md（UI 走查报告）提到 SelectField 默认触发器 h-8 与筛选行 h-11 不齐——本次通过 ListToolbar 按钮高度统一处理，若后续按 UxAudit 改 SelectField 默认高度需注意两处联动
+
+### 检查
+- tsc / build / lint（0 errors）/ jest 7/7 全过；dev server 已重启验证 200
+
+---
+---
 ## 2026-11-06 — 排程模块当日收尾：份数展示 + 采购取整规则定稿
 
 ### 切配份数展示（用户确认方案）

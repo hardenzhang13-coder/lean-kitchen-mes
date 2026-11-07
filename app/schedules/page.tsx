@@ -1,16 +1,30 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, CalendarDays, ChefHat, Clock, Eye, X } from "lucide-react";
+import { Plus, Eye, CalendarDays, ChefHat, MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Pagination } from "@/app/components/ui/pagination";
-import { SelectField } from "@/app/components/ui/select-field";
+import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import {
+  ScheduleCuttingTable,
+  type CuttingOrderRow,
+  type ScheduleDocMeta,
+} from "@/app/components/schedule/schedule-cutting-table";
+import {
+  SchedulePurchaseTable,
+  type PurchasePlanRow,
+} from "@/app/components/schedule/schedule-purchase-table";
+import {
+  ScheduleMenuTable,
+  type ScheduleMenuItem,
+} from "@/app/components/schedule/schedule-menu-table";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
@@ -28,63 +42,28 @@ interface ScheduleItem {
   totalQuantity: number;
 }
 
-/** 快速查看抽屉数据（取自详情接口） */
-interface QuickDish {
-  id: number;
-  code: string;
-  name: string;
-  portion: string;
-  meatType: string | null;
-  price: number | null;
-  category: { name: string } | null;
-}
-
-interface QuickItem {
-  id: number;
-  quantity: number;
-  dish: QuickDish;
-}
-
-interface QuickCutting {
-  id: number;
-  sourceType: string;
-  sourceId: number;
-  itemName: string;
-  l1Name: string;
-  l2Name: string;
-  spec: string | null;
-  requiredQty: number;
-  unit: string;
-  portions: number | null;
-}
-
-interface QuickPurchase {
-  id: number;
-  sourceType: string;
-  sourceId: number;
-  itemName: string;
-  suggestedPurchase: number;
-  unit: string;
-  priceUnit: string | null;
-  purchaseSpec: string | null;
-  supplierName: string | null;
-  estimatedAmount: number | null;
-}
-
+/** 快速查看抽屉数据：与详情页同源同结构（复用详情页表格组件，保证一致） */
 interface QuickDetail {
   id: number;
   title: string;
   scheduleDate: string;
   status: string;
   store: { id: number; name: string } | null;
-  items: QuickItem[];
-  cuttingOrders: QuickCutting[];
-  purchasePlans: QuickPurchase[];
+  items: ScheduleMenuItem[];
+  cuttingOrders: CuttingOrderRow[];
+  purchasePlans: PurchasePlanRow[];
   totalQuantity: number;
   dishCount: number;
 }
 
 type QuickTab = "menu" | "cutting" | "purchase";
+
+const STATUS_OPTIONS = [
+  { value: "all", label: "全部状态" },
+  { value: "待生效", label: "待生效" },
+  { value: "进行中", label: "进行中" },
+  { value: "已完成", label: "已完成" },
+];
 
 function getWeekDay(dateStr: string) {
   const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
@@ -97,6 +76,7 @@ export default function SchedulesPage() {
   const [loading, setLoading] = useState(true);
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeFilter, setStoreFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [search, setSearch] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
@@ -113,6 +93,7 @@ export default function SchedulesPage() {
     setLoading(true);
     try {
       const params = new URLSearchParams();
+      if (statusFilter && statusFilter !== "all") params.set("status", statusFilter);
       if (startDate) params.set("startDate", startDate);
       if (endDate) params.set("endDate", endDate);
       if (search) params.set("q", search);
@@ -132,14 +113,15 @@ export default function SchedulesPage() {
 
   useEffect(() => {
     fetchData();
-  }, [storeFilter, startDate, endDate, page]);
+  }, [statusFilter, storeFilter, startDate, endDate, page]);
 
   useEffect(() => {
     const fetchStores = async () => {
       try {
         const res = await fetch("/api/stores?pageSize=100");
         const data = await res.json();
-        setStores(data.data?.items || []);
+        const list = Array.isArray(data) ? data : Array.isArray(data.data) ? data.data : [];
+        setStores(list);
       } catch {
         toast.error("获取门店失败");
       }
@@ -171,6 +153,20 @@ export default function SchedulesPage() {
     }
   };
 
+  const closeQuickView = () => {
+    setQuickView(null);
+    setQuickViewLoading(false);
+  };
+
+  const quickMeta: ScheduleDocMeta | null = quickView
+    ? {
+        title: quickView.title,
+        scheduleDate: quickView.scheduleDate,
+        storeName: quickView.store?.name ?? "",
+        scheduleId: quickView.id,
+      }
+    : null;
+
   return (
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
@@ -181,7 +177,7 @@ export default function SchedulesPage() {
         </Button>
       </div>
 
-      {/* 筛选：状态不再是筛选维度，以门店 + 日期为主 */}
+      {/* 筛选：状态 + 门店 + 日期范围，控件统一高度 */}
       <ListToolbar
         searchValue={search}
         onSearchChange={(v) => {
@@ -190,23 +186,36 @@ export default function SchedulesPage() {
         }}
         searchPlaceholder="搜索排程标题..."
         onReset={() => {
+          setStatusFilter("");
           setStartDate("");
           setEndDate("");
           setStoreFilter("");
           setSearch("");
           setPage(1);
         }}
-        hasFilters={!!(startDate || endDate || storeFilter)}
+        hasFilters={!!(statusFilter || startDate || endDate || storeFilter)}
       >
-        <SelectField
+        <SelectTileMode
+          options={STATUS_OPTIONS}
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v);
+            setPage(1);
+          }}
+          placeholder="全部状态"
+          title="选择状态"
+          className="w-[160px]"
+        />
+        <SelectTileMode
+          options={[{ value: "all", label: "全部门店" }, ...stores.map((st) => ({ value: String(st.id), label: st.name }))]}
           value={storeFilter}
           onChange={(v) => {
             setStoreFilter(v);
             setPage(1);
           }}
-          options={[{ value: "all", label: "全部门店" }, ...stores.map((st) => ({ value: String(st.id), label: st.name }))]}
           placeholder="全部门店"
-          className="w-[160px]"
+          title="选择门店"
+          className="w-[180px]"
         />
         <DatePicker
           value={startDate}
@@ -215,7 +224,7 @@ export default function SchedulesPage() {
             setPage(1);
           }}
           placeholder="开始日期"
-          className="w-[180px]"
+          className="w-[170px]"
         />
         <span className="text-sm text-muted-foreground">至</span>
         <DatePicker
@@ -225,20 +234,20 @@ export default function SchedulesPage() {
             setPage(1);
           }}
           placeholder="结束日期"
-          className="w-[180px]"
+          className="w-[170px]"
         />
       </ListToolbar>
 
-      {/* 卡片列表 */}
+      {/* 列表：卡片式，信息分区清晰 */}
       {loading ? (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-muted rounded-lg animate-pulse" />
+            <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />
           ))}
         </div>
       ) : rows.length === 0 ? (
         <EmptyState
-          icon={CalendarDays}
+          icon={Plus}
           title="暂无排程"
           action={{
             label: "创建第一个排程",
@@ -248,41 +257,63 @@ export default function SchedulesPage() {
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
-            <div
+            <Card
               key={row.id}
-              className="flex items-center gap-4 rounded-lg border p-4 hover:bg-muted/40 transition-colors"
+              className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
+              onClick={() => openQuickView(row.id)}
             >
-              <div
-                className="flex-1 min-w-0 cursor-pointer"
-                onClick={() => router.push("/schedules/" + row.id)}
-              >
-                <div className="flex items-center gap-3 mb-1">
-                  <h3 className="font-semibold text-base">{row.title}</h3>
-                  <StatusBadge status={row.status} />
+              <CardContent className="p-5 flex items-center gap-6">
+                {/* 主信息区 */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h3 className="font-semibold text-base truncate">{row.title}</h3>
+                    <StatusBadge status={row.status} />
+                  </div>
+                  <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
+                    <span className="flex items-center gap-1.5">
+                      <CalendarDays className="h-3.5 w-3.5" />
+                      {new Date(row.scheduleDate).toLocaleDateString("zh-CN")}
+                      <span className="text-xs">{getWeekDay(row.scheduleDate)}</span>
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <ChefHat className="h-3.5 w-3.5" />
+                      {row.dishCount} 个菜品 / {row.totalQuantity} 份
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5" />
+                      {row.store?.name ?? "—"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {new Date(row.scheduleDate).toLocaleDateString("zh-CN")} {getWeekDay(row.scheduleDate)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <ChefHat className="h-3.5 w-3.5" />
-                    {row.dishCount} 个菜品 / {row.totalQuantity} 份
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="h-3.5 w-3.5" />
-                    {row.store?.name ?? "—"}
-                  </span>
+
+                {/* 负责人 */}
+                <div className="hidden md:block text-sm text-muted-foreground whitespace-nowrap">
+                  负责人：{row.operatorName || row.operator || "—"}
                 </div>
-              </div>
-              <div className="text-sm text-muted-foreground">
-                负责人：{row.operatorName || row.operator || "—"}
-              </div>
-              <Button variant="outline" size="sm" onClick={() => openQuickView(row.id)}>
-                <Eye className="mr-1 h-4 w-4" />
-                快速查看
-              </Button>
-            </div>
+
+                {/* 操作区 */}
+                <div
+                  className="flex items-center gap-2 shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => openQuickView(row.id)}
+                  >
+                    <Eye className="mr-1 h-4 w-4" />
+                    快速查看
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => router.push("/schedules/" + row.id)}
+                  >
+                    详情
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -297,18 +328,12 @@ export default function SchedulesPage() {
         />
       )}
 
-      {/* 快速查看抽屉 */}
+      {/* 快速查看抽屉：复用详情页表格组件，数据与详情页 1:1 */}
       {(quickViewLoading || quickView) && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div
-            className="absolute inset-0 bg-black/35"
-            onClick={() => {
-              setQuickView(null);
-              setQuickViewLoading(false);
-            }}
-          />
-          <div className="relative w-full max-w-xl bg-background shadow-2xl flex flex-col h-full">
-            {quickViewLoading || !quickView ? (
+          <div className="absolute inset-0 bg-black/35" onClick={closeQuickView} />
+          <div className="relative w-full max-w-4xl bg-background shadow-2xl flex flex-col h-full">
+            {quickViewLoading || !quickView || !quickMeta ? (
               <div className="p-6 space-y-3">
                 <div className="h-8 bg-muted rounded animate-pulse" />
                 <div className="h-64 bg-muted rounded animate-pulse" />
@@ -327,13 +352,8 @@ export default function SchedulesPage() {
                       {" · "}{quickView.dishCount} 个菜品 / {quickView.totalQuantity} 份
                     </p>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label="关闭"
-                    onClick={() => setQuickView(null)}
-                  >
-                    <X className="h-5 w-5" />
+                  <Button size="sm" onClick={() => router.push("/schedules/" + quickView.id)}>
+                    查看完整详情 →
                   </Button>
                 </div>
 
@@ -356,114 +376,9 @@ export default function SchedulesPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4">
-                  {quickTab === "menu" && (
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="text-left text-muted-foreground">
-                          <th className="py-2 pr-2 font-medium">菜品名称</th>
-                          <th className="py-2 pr-2 font-medium">份量</th>
-                          <th className="py-2 pr-2 font-medium">荤素</th>
-                          <th className="py-2 pr-2 font-medium text-right">数量（份）</th>
-                          <th className="py-2 font-medium text-right">售价/份</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quickView.items.map((it) => (
-                          <tr key={it.id} className="border-t">
-                            <td className="py-2 pr-2 font-medium">{it.dish.name}</td>
-                            <td className="py-2 pr-2 text-muted-foreground">{it.dish.portion}</td>
-                            <td className="py-2 pr-2 text-muted-foreground">{it.dish.meatType || "—"}</td>
-                            <td className="py-2 pr-2 text-right font-semibold">{it.quantity}</td>
-                            <td className="py-2 text-right text-muted-foreground">
-                              {it.dish.price != null ? "¥" + Number(it.dish.price).toFixed(2) : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {quickTab === "cutting" && (
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="text-left text-muted-foreground">
-                          <th className="py-2 pr-2 font-medium">一级分类</th>
-                          <th className="py-2 pr-2 font-medium">名称</th>
-                          <th className="py-2 pr-2 font-medium">规格</th>
-                          <th className="py-2 pr-2 font-medium text-right">切配量</th>
-                          <th className="py-2 font-medium text-right">切配份数</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quickView.cuttingOrders.map((c) => (
-                          <tr key={c.id} className="border-t">
-                            <td className="py-2 pr-2 text-muted-foreground">{c.l1Name}</td>
-                            <td className="py-2 pr-2 font-medium">{c.itemName}</td>
-                            <td className="py-2 pr-2 text-muted-foreground">{c.spec || "—"}</td>
-                            <td className="py-2 pr-2 text-right">{c.requiredQty.toLocaleString("zh-CN")} {c.unit}</td>
-                            <td className="py-2 text-right font-semibold text-primary">{c.portions ?? "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-
-                  {quickTab === "purchase" && (
-                    <table className="w-full text-sm border-collapse">
-                      <thead>
-                        <tr className="text-left text-muted-foreground">
-                          <th className="py-2 pr-2 font-medium">食材名称</th>
-                          <th className="py-2 pr-2 font-medium">采购规格</th>
-                          <th className="py-2 pr-2 font-medium text-right">建议采购量</th>
-                          <th className="py-2 pr-2 font-medium">供应商</th>
-                          <th className="py-2 font-medium text-right">预估金额</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {quickView.purchasePlans.map((p) => (
-                          <tr key={p.id} className="border-t">
-                            <td className="py-2 pr-2 font-medium">{p.itemName}</td>
-                            <td className="py-2 pr-2 text-muted-foreground">{p.purchaseSpec || "—"}</td>
-                            <td className="py-2 pr-2 text-right">
-                              {p.suggestedPurchase > 0 ? p.suggestedPurchase.toLocaleString("zh-CN") : "0"}
-                              {" "}{p.priceUnit || p.unit}
-                            </td>
-                            <td className="py-2 pr-2 text-muted-foreground">{p.supplierName || "—"}</td>
-                            <td className="py-2 text-right">
-                              {p.estimatedAmount != null ? "¥" + p.estimatedAmount.toFixed(2) : "—"}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 px-6 py-3 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open("/schedules/" + quickView.id + "/print?doc=cutting", "_blank")}
-                  >
-                    打印切配单
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open("/schedules/" + quickView.id + "/print?doc=purchase&mode=all", "_blank")}
-                  >
-                    打印采购单（全部）
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open("/schedules/" + quickView.id + "/print?doc=purchase&mode=supplier", "_blank")}
-                  >
-                    按供应商打印
-                  </Button>
-                  <Button size="sm" onClick={() => router.push("/schedules/" + quickView.id)}>
-                    查看完整详情 →
-                  </Button>
+                  {quickTab === "menu" && <ScheduleMenuTable items={quickView.items} meta={quickMeta} />}
+                  {quickTab === "cutting" && <ScheduleCuttingTable rows={quickView.cuttingOrders} meta={quickMeta} />}
+                  {quickTab === "purchase" && <SchedulePurchaseTable rows={quickView.purchasePlans} meta={quickMeta} />}
                 </div>
               </>
             )}

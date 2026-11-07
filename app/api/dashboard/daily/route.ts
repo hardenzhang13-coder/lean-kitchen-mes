@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
                 portion: true,
                 meatType: true,
                 price: true,
+                cost: true,
                 category: { select: { name: true } },
               },
             },
@@ -46,6 +47,8 @@ export async function GET(req: NextRequest) {
       const quantity = it.quantity;
       const sold = it.actualSoldQty != null ? Number(it.actualSoldQty) : null;
       const price = it.dish.price != null ? Number(it.dish.price) : null;
+      const cost = it.dish.cost != null ? Number(it.dish.cost) : null;
+      const planAmount = price != null ? Number((quantity * price).toFixed(2)) : null;
       const diff = sold != null ? sold - quantity : null;
       const sellRate = sold != null ? sold / quantity : null;
       const amount = sold != null && price != null ? Number((sold * price).toFixed(2)) : null;
@@ -61,6 +64,8 @@ export async function GET(req: NextRequest) {
         diff,
         sellRate,
         price,
+        cost,
+        planAmount,
         amount,
       };
     });

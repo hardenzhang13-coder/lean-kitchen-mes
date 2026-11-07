@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>排程列表页 & 新建表单页 · 原型</title>
+<style>
+  :root{ --bg:#f4f4f5; --card:#fff; --border:#e4e4e7; --muted:#71717a; --text:#18181b; --primary:#ea580c; --primary-bg:#fff7ed; --radius:10px; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--text); padding:32px 24px 80px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  h1{font-size:22px; margin-bottom:6px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:24px; line-height:1.9;}
+  .sec-title{font-size:17px; font-weight:700; margin:36px 0 4px;}
+  .sec-desc{color:var(--muted); font-size:13px; margin-bottom:14px; line-height:1.8;}
+  .browser{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.06);}
+  .browser-bar{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--border); background:#fafafa;}
+  .dot{width:11px; height:11px; border-radius:50%;}
+  .url{flex:1; margin-left:10px; background:#fff; border:1px solid var(--border); border-radius:7px; font-size:12px; color:var(--muted); padding:4px 12px; font-family:monospace;}
+  .page{padding:24px 28px;}
+  .btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; cursor:default;}
+  .btn.primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn.sm{padding:4px 10px; font-size:12px;}
+  .badge{font-size:11px; padding:2px 9px; border-radius:999px; background:var(--primary-bg); color:var(--primary); border:1px solid #fed7aa; font-weight:600;}
+  .badge.gray{background:#f4f4f5; color:var(--muted); border-color:var(--border);}
+  .badge.green{background:#f0fdf4; color:#15803d; border-color:#bbf7d0;}
+  .toolbar{display:flex; gap:10px; align-items:center; margin:16px 0; flex-wrap:wrap;}
+  .inp{font-size:13px; border:1px solid var(--border); border-radius:8px; padding:7px 12px; color:var(--text); background:#fff;}
+  .card-row{display:flex; align-items:center; gap:14px; border:1px solid var(--border); border-radius:var(--radius); padding:14px 18px; margin-bottom:10px;}
+  .card-row:hover{background:#fafafa;}
+  .meta{display:flex; gap:16px; font-size:12.5px; color:var(--muted); margin-top:4px; flex-wrap:wrap;}
+  .note{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.8; background:#fafafa; border:1px dashed var(--border); border-radius:8px; padding:10px 14px;}
+  .note b{color:var(--text);}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  th,td{border:1px solid var(--border); padding:6px 9px; text-align:left;}
+  th{background:#fafafa; font-weight:600; white-space:nowrap;}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .grp{font-weight:600; background:#fafafa;}
+  .mono{font-family:ui-monospace,monospace; font-size:11.5px; color:var(--muted);}
+  .mini{font-size:11px; padding:1px 7px; border-radius:5px; font-weight:600; white-space:nowrap;}
+  .m-pot{background:#ffedd5; color:#c2410c;} .m-portion{background:#e0f2fe; color:#0369a1;}
+  .m-meat{background:#fee2e2; color:#b91c1c;} .m-veg{background:#dcfce7; color:#15803d;}
+  /* 抽屉 */
+  .drawer-mask{position:absolute; inset:0; background:rgba(0,0,0,.35); border-radius:0 0 14px 14px;}
+  .drawer{position:absolute; top:0; right:0; bottom:0; width:560px; background:#fff; box-shadow:-8px 0 30px rgba(0,0,0,.15); display:flex; flex-direction:column;}
+  .drawer-head{padding:16px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;}
+  .drawer-body{flex:1; overflow-y:auto; padding:14px 20px;}
+  .drawer-foot{padding:12px 20px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end;}
+  .dtabs{display:flex; gap:2px; border-bottom:2px solid var(--border); margin-bottom:12px;}
+  .dtab{padding:8px 16px; font-size:13px; color:var(--muted); border-bottom:2px solid transparent; margin-bottom:-2px; font-weight:600; cursor:pointer;}
+  .dtab.active{color:var(--primary); border-bottom-color:var(--primary);}
+  .rel{position:relative;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>排程列表页 & 新建表单页 · 补充原型</h1>
+  <div class="sub">
+    列表页：去掉状态 Tab（状态降级为小徽标），以门店 + 日期为主筛选；每行提供「快速查看」，右侧抽屉内直接切换 3 个核心数据（排程菜单 / 切配工单明细 / 采购计划明细），无需跳转详情页即可完成查看与打印下发。<br>
+    新建页：菜品卡片体现 <b>份量、荤素、售价</b> 三个档案字段；已选清单同步展示。
+  </div>
+
+  <!-- ============ 列表页 ============ -->
+  <div class="sec-title">① 排程列表页 /schedules（含快速查看抽屉）</div>
+  <div class="sec-desc">状态不再是筛选维度；「快速查看」是本页核心入口——在抽屉里看完三份数据、直接打印。</div>
+
+  <div class="browser">
+    <div class="browser-bar"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span>
+      <span class="url">https://kms.lean-kitchen.cn/schedules</span></div>
+    <div class="page rel" style="min-height:640px;">
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <div><b style="font-size:17px;">排程管理</b><div style="font-size:12.5px; color:var(--muted); margin-top:2px;">设定生产计划，系统自动拆解切配工单与采购计划</div></div>
+        <span class="btn primary">＋ 新建排程</span>
+      </div>
+
+      <div class="toolbar">
+        <span class="inp" style="color:var(--muted);">🔍 搜索排程标题...</span>
+        <span class="inp">全部门店 ▾</span>
+        <span class="inp" style="color:var(--muted);">开始日期</span><span style="color:var(--muted); font-size:12px;">至</span><span class="inp" style="color:var(--muted);">结束日期</span>
+        <span class="btn sm ghost" style="color:var(--muted);">重置</span>
+      </div>
+
+      <div class="card-row">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:8px; align-items:center;"><b>周五晚市排程</b><span class="mono">SCH-0012</span><span class="badge">已确认</span></div>
+          <div class="meta"><span>📅 2026-11-07 星期六</span><span>📍 望京 SOHO 店</span><span>🍳 8 个菜品 / 46 份</span><span>👤 王建国</span></div>
+        </div>
+        <span class="btn sm primary">👁 快速查看</span>
+        <span class="btn sm">查看详情 →</span>
+      </div>
+      <div class="card-row">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:8px; align-items:center;"><b>周六午市排程</b><span class="mono">SCH-0011</span><span class="badge gray">待生效</span></div>
+          <div class="meta"><span>📅 2026-11-08 星期日</span><span>📍 望京 SOHO 店</span><span>🍳 6 个菜品 / 32 份</span><span>👤 王建国</span></div>
+        </div>
+        <span class="btn sm primary">👁 快速查看</span>
+        <span class="btn sm">查看详情 →</span>
+      </div>
+      <div class="card-row" style="opacity:.75;">
+        <div style="flex:1; min-width:0;">
+          <div style="display:flex; gap:8px; align-items:center;"><b>周四晚市排程</b><span class="mono">SCH-0010</span><span class="badge green">已完成</span></div>
+          <div class="meta"><span>📅 2026-11-06 星期五</span><span>📍 望京 SOHO 店</span><span>🍳 9 个菜品 / 51 份</span><span>👤 王建国</span></div>
+        </div>
+        <span class="btn sm primary">👁 快速查看</span>
+        <span class="btn sm">查看详情 →</span>
+      </div>
+
+      <!-- 快速查看抽屉（示意展开状态） -->
+      <div class="drawer-mask"></div>
+      <div class="drawer">
+        <div class="drawer-head">
+          <div><b style="font-size:15px;">周五晚市排程 · SCH-0012</b> <span class="badge">已确认</span>
+            <div style="font-size:12px; color:var(--muted); margin-top:3px;">2026-11-07 星期六 · 望京 SOHO 店 · 8 个菜品 / 46 份</div></div>
+          <span style="color:var(--muted); cursor:pointer;">✕</span>
+        </div>
+        <div class="drawer-body">
+          <div class="dtabs">
+            <div class="dtab">排程菜单 · 8</div>
+            <div class="dtab active">切配工单明细 · 24</div>
+            <div class="dtab">采购计划明细 · 16</div>
+          </div>
+          <table>
+            <thead><tr><th>一级分类</th><th>名称</th><th>规格</th><th class="num">切配量</th><th>单位</th><th class="num">切配份数</th></tr></thead>
+            <tbody>
+              <tr><td class="grp" rowspan="3">畜禽肉类</td><td>猪里脊肉丝</td><td>丝 · 3mm</td><td class="num">6,000</td><td>g</td><td class="num">20</td></tr>
+              <tr><td>五花肉块</td><td>块 · 3cm</td><td class="num">5,500</td><td>g</td><td class="num">10</td></tr>
+              <tr><td>鸡腿肉丁</td><td>丁 · 1.5cm</td><td class="num">4,200</td><td>g</td><td class="num">20</td></tr>
+              <tr><td class="grp" rowspan="2">蔬菜类</td><td>番茄块</td><td>块 · 瓣切</td><td class="num">8,600</td><td>g</td><td class="num">40</td></tr>
+              <tr><td>西兰花小朵</td><td>小朵 · 3cm</td><td class="num">4,500</td><td>g</td><td class="num">30</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:12px; color:var(--muted); margin-top:10px;">抽屉内表格为轻量版（精简列），「查看完整详情」进入详情页看全字段与导出。</div>
+        </div>
+        <div class="drawer-foot">
+          <span class="btn sm">🖨 打印切配单</span>
+          <span class="btn sm">🖨 打印采购单</span>
+          <span class="btn sm primary">查看完整详情 →</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+  <div class="note">
+    <b>列表页改动清单：</b>① 删除状态 Tab 筛选（默认「进行中」逻辑取消），状态降级为行内小徽标；② 筛选保留：标题搜索、门店、日期范围；③ 新增「快速查看」抽屉——三份核心数据 Tab 切换、可直接打印/下载，「查看详情」进入完整页；④ 「确认生产计划」等操作仍在详情页，列表页保持轻。
+  </div>
+
+  <!-- ============ 新建页 ============ -->
+  <div class="sec-title">② 新建排程 /schedules/new（菜品卡片增强）</div>
+  <div class="sec-desc">菜品卡片与已选清单均体现份量、荤素、售价三个档案字段；卡片点击选中，数量在左侧清单调节。</div>
+
+  <div class="browser">
+    <div class="browser-bar"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span>
+      <span class="url">https://kms.lean-kitchen.cn/schedules/new</span></div>
+    <div class="page">
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px;">
+        <b style="font-size:15px;">← 新建排程</b>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap; background:#fafafa; border:1px solid var(--border); border-radius:10px; padding:12px 14px;">
+        <span style="font-size:12.5px; color:var(--muted);">排程标题</span><span class="inp" style="min-width:200px;">周五晚市排程</span>
+        <span style="font-size:12.5px; color:var(--muted);">生产日期</span><span class="inp">2026-11-07</span>
+        <span style="font-size:12.5px; color:var(--muted);">门店</span><span class="inp">望京 SOHO 店 ▾</span>
+        <span style="flex:1"></span>
+        <span class="btn primary">💾 生成排程</span>
+      </div>
+
+      <div style="display:grid; grid-template-columns:340px 1fr; gap:18px;">
+        <!-- 左：已选 -->
+        <div>
+          <div style="font-size:13.5px; font-weight:700; margin-bottom:8px;">已选菜品 <span style="color:var(--primary);">8</span> · 共 46 份 · 预估成本 ¥623.40</div>
+          <div style="border:1px solid var(--border); border-radius:10px; padding:10px; max-height:520px; overflow:hidden;">
+            <div style="display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px solid var(--border);">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600;">鱼香肉丝 <span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span></div>
+                <div style="font-size:11.5px; color:var(--muted);">DSH-CH-0001 · 售价 ¥32.00/份</div>
+              </div>
+              <span style="font-size:13px;"><b>－</b> <b style="padding:0 4px;">20</b> <b>＋</b></span>
+              <span style="color:var(--muted);">✕</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px solid var(--border);">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600;">宫保鸡丁 <span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span></div>
+                <div style="font-size:11.5px; color:var(--muted);">DSH-CH-0003 · 售价 ¥30.00/份</div>
+              </div>
+              <span style="font-size:13px;"><b>－</b> <b style="padding:0 4px;">10</b> <b>＋</b></span>
+              <span style="color:var(--muted);">✕</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:8px 6px; border-bottom:1px solid var(--border);">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600;">番茄炒蛋 <span class="mini m-portion">单人份</span><span class="mini m-veg">素</span></div>
+                <div style="font-size:11.5px; color:var(--muted);">DSH-JZ-0002 · 售价 ¥12.00/份</div>
+              </div>
+              <span style="font-size:13px;"><b>－</b> <b style="padding:0 4px;">40</b> <b>＋</b></span>
+              <span style="color:var(--muted);">✕</span>
+            </div>
+            <div style="display:flex; align-items:center; gap:8px; padding:8px 6px;">
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600;">蒜蓉西兰花 <span class="mini m-portion">单人份</span><span class="mini m-veg">素</span></div>
+                <div style="font-size:11.5px; color:var(--muted);">DSH-JZ-0006 · 售价 ¥10.00/份</div>
+              </div>
+              <span style="font-size:13px;"><b>－</b> <b style="padding:0 4px;">30</b> <b>＋</b></span>
+              <span style="color:var(--muted);">✕</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--muted); text-align:center; padding:6px;">... 等 8 项</div>
+          </div>
+        </div>
+
+        <!-- 右：菜品网格 -->
+        <div>
+          <div style="display:flex; gap:8px; margin-bottom:10px; align-items:center;">
+            <span class="inp" style="color:var(--muted); flex:1; max-width:260px;">🔍 搜索菜品名称或编号...</span>
+            <span class="inp">全部分类 ▾</span>
+          </div>
+          <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+            <div style="border:2px solid var(--primary); background:var(--primary-bg); border-radius:10px; padding:12px; position:relative;">
+              <span style="position:absolute; top:8px; right:8px; color:var(--primary);">✓</span>
+              <div style="font-size:13.5px; font-weight:700;">鱼香肉丝</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-CH-0001 · 川菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥32.00/份</span></div>
+            </div>
+            <div style="border:1px solid var(--border); border-radius:10px; padding:12px;">
+              <div style="font-size:13.5px; font-weight:700;">宫保鸡丁</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-CH-0003 · 川菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥30.00/份</span></div>
+            </div>
+            <div style="border:2px solid var(--primary); background:var(--primary-bg); border-radius:10px; padding:12px; position:relative;">
+              <span style="position:absolute; top:8px; right:8px; color:var(--primary);">✓</span>
+              <div style="font-size:13.5px; font-weight:700;">麻婆豆腐</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-CH-0005 · 川菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-pot">一锅10份</span><span class="mini m-veg">素</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥18.00/份</span></div>
+            </div>
+            <div style="border:1px solid var(--border); border-radius:10px; padding:12px;">
+              <div style="font-size:13.5px; font-weight:700;">辣子鸡丁</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-CH-0008 · 川菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥36.00/份</span></div>
+            </div>
+            <div style="border:2px solid var(--primary); background:var(--primary-bg); border-radius:10px; padding:12px; position:relative;">
+              <span style="position:absolute; top:8px; right:8px; color:var(--primary);">✓</span>
+              <div style="font-size:13.5px; font-weight:700;">番茄炒蛋</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-JZ-0002 · 家常菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-portion">单人份</span><span class="mini m-veg">素</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥12.00/份</span></div>
+            </div>
+            <div style="border:1px solid var(--border); border-radius:10px; padding:12px;">
+              <div style="font-size:13.5px; font-weight:700;">红烧肉</div>
+              <div class="mono" style="margin:2px 0 6px;">DSH-HZ-0001 · 淮扬菜</div>
+              <div style="display:flex; gap:4px; flex-wrap:wrap;"><span class="mini m-pot">一锅10份</span><span class="mini m-meat">荤</span><span class="mini" style="background:#fef9c3; color:#a16207;">¥48.00/份</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="note">
+    <b>新建页改动清单：</b>① 菜品卡片新增三枚徽标——份量（Dish.portion：单人份=天蓝 / 一锅10份=橙）、荤素（Dish.meatType：荤=红 / 素=绿）、售价（Dish.price，黄底强调）；② 已选清单每项展示份量+荤素+售价，数量步进器不变；③ 接口 /api/dishes 已返回三个字段，纯前端改动。
+  </div>
+
+</div>
+</body>
+</html>

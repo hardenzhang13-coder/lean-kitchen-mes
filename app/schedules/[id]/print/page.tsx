@@ -90,7 +90,7 @@ export default async function SchedulePrintPage({
             </tbody>
           </table>
           <div className="sign">
-            <span>制单：{detail.operator || "—"}</span>
+            <span>制单：{detail.operatorName || detail.operator || "—"}</span>
             <span>切配组长签字：＿＿＿＿＿＿</span>
             <span>完成时间：＿＿月＿＿日 ＿＿:＿＿</span>
           </div>
@@ -109,7 +109,7 @@ export default async function SchedulePrintPage({
           </div>
           <PurchaseTable rows={detail.purchasePlans} />
           <div className="sign">
-            <span>制单：{detail.operator || "—"}</span>
+            <span>制单：{detail.operatorName || detail.operator || "—"}</span>
             <span>采购员签字：＿＿＿＿＿＿</span>
             <span>验收 / 入库：＿＿＿＿＿＿</span>
           </div>
@@ -138,7 +138,7 @@ export default async function SchedulePrintPage({
               </div>
               <PurchaseTable rows={rows} />
               <div className="sign">
-                <span>制单：{detail.operator || "—"}</span>
+                <span>制单：{detail.operatorName || detail.operator || "—"}</span>
                 <span>采购员签字：＿＿＿＿＿＿</span>
                 <span>供应商送货签字：＿＿＿＿＿＿</span>
               </div>

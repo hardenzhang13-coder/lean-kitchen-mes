@@ -27,6 +27,8 @@ interface DailyItem {
   diff: number | null;
   sellRate: number | null;
   price: number | null;
+  cost: number | null;
+  planAmount: number | null;
   amount: number | null;
 }
 
@@ -163,6 +165,11 @@ export default function HomePage() {
   const greeting = hour < 6 ? "凌晨好" : hour < 12 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
 
   const schedule = data?.schedule ?? null;
+  const dashItems = data?.items ?? [];
+  const planQty = dashItems.reduce((s, i) => s + i.quantity, 0);
+  const planRevenue = dashItems.reduce((s, i) => s + (i.planAmount ?? 0), 0);
+  const planCost = dashItems.reduce((s, i) => s + (i.cost != null ? i.cost * i.quantity : 0), 0);
+  const planMargin = planRevenue > 0 && planCost > 0 ? (((planRevenue - planCost) / planRevenue) * 100).toFixed(1) + "%" : null;
   const summary = data?.summary ?? null;
 
   return (
@@ -260,11 +267,21 @@ export default function HomePage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
-                {summary ? (
+                <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                  计划 <b className="text-foreground">{summary?.planQty ?? planQty}</b> 份
+                </span>
+                {!summary && planRevenue > 0 && (
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                    计划销售额 <b className="text-foreground">{formatMoney(planRevenue)}</b>
+                  </span>
+                )}
+                {!summary && planMargin != null && (
+                  <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+                    预计毛利率 <b className="text-foreground">{planMargin}</b>
+                  </span>
+                )}
+                {summary && (
                   <>
-                    <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                      计划 <b className="text-foreground">{summary.planQty}</b> 份
-                    </span>
                     <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
                       售出 <b className="text-foreground">{summary.soldQty}</b> 份
                     </span>
@@ -278,14 +295,6 @@ export default function HomePage() {
                       营收 <b className="text-[var(--status-success)]">{formatMoney(summary.revenue)}</b>
                     </span>
                   </>
-                ) : (
-                  <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-                    计划{" "}
-                    <b className="text-foreground">
-                      {data?.items.reduce((s, i) => s + i.quantity, 0) ?? 0}
-                    </b>{" "}
-                    份
-                  </span>
                 )}
                 <Link href={`/schedules/${schedule.id}`} className="text-sm text-primary hover:underline">
                   查看排程详情 →
@@ -293,14 +302,43 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* 未回录占位 */}
+            {/* 未回录：排程生效后即展示计划数据，售出待回录 */}
             {!data?.recorded ? (
-              <div className="rounded-lg border border-dashed py-12 text-center">
-                <ClipboardList className="h-8 w-8 mx-auto text-muted-foreground mb-3" />
-                <p className="font-medium">当日售卖数据未回录</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  回录后此处展示售出进度、销售额与销售状态
-                </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">排程已创建 · 当前展示计划数据，售出进度待回录后显示</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground">
+                      <th className="py-2 pr-4 font-medium w-12">序号</th>
+                      <th className="py-2 pr-4 font-medium">菜品 / 规格</th>
+                      <th className="py-2 pr-4 font-medium text-right w-24">计划份数</th>
+                      <th className="py-2 pr-4 font-medium text-right w-24">售价</th>
+                      <th className="py-2 pr-4 font-medium text-right w-28">计划销售额</th>
+                      <th className="py-2 font-medium text-right w-24">售出</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dashItems.map((item, idx) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="py-3 pr-4 text-muted-foreground">{idx + 1}</td>
+                        <td className="py-3 pr-4">
+                          <div className="font-medium">{item.name}</div>
+                          <div className="text-xs text-muted-foreground mt-0.5">
+                            {[item.portion, item.meatType, item.categoryName]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </td>
+                        <td className="py-3 pr-4 text-right font-medium tabular-nums">{item.quantity}</td>
+                        <td className="py-3 pr-4 text-right text-muted-foreground tabular-nums">{formatMoney(item.price)}</td>
+                        <td className="py-3 pr-4 text-right font-medium tabular-nums">{formatMoney(item.planAmount)}</td>
+                        <td className="py-3 text-right">
+                          <span className="text-xs text-muted-foreground">待回录</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             ) : (
               /* 复盘单表格 */

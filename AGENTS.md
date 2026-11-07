@@ -12,22 +12,63 @@
 - ❌ 禁止新增任何 `any` 类型（现有代码逐步消除）
 - ❌ 禁止新增无分页的列表 API
 
-## 2. 代码提交前强制检查
+## 2. 代码检查流程（分阶段执行）
 
-每次修改代码后，必须按以下顺序执行：
+### 🚀 开发阶段（每次修改）
+
+**目标**：快速验证，即时反馈
+
+```bash
+# 仅需执行 TypeScript 类型检查（约 13 秒）
+npx tsc --noEmit
+```
+
+**要求**：
+- [ ] VS Code 已启用 TypeScript 实时检查
+- [ ] 保存文件后立即执行 `npx tsc --noEmit`
+- [ ] 浏览器热更新验证页面效果
+- [ ] **无需执行 build 和 lint**
+
+### 📦 提交阶段（git commit 前）
+
+**目标**：完整验证，确保质量
 
 ```bash
 # 1. TypeScript 编译检查
 npx tsc --noEmit
 
-# 2. 构建检查
-npm run build
-
-# 3. ESLint 检查
+# 2. ESLint 检查
 npm run lint
+
+# 3. 构建检查（仅在涉及以下情况时）
+#    - 修改 next.config.js
+#    - 修改 prisma/schema.prisma
+#    - 新增依赖
+#    - 修改构建配置
+npm run build
 ```
 
-**以上任一步骤失败，不得提交代码。**
+**要求**：
+- [ ] 所有检查通过后才能提交
+- [ ] 提交信息遵循规范（feat/fix/docs/refactor）
+
+### ⚡ 快速通道（纯样式/文案修改）
+
+**适用场景**：
+- 修改按钮文案
+- 调整颜色/间距
+- 修改注释/文档
+- 修改静态文本
+
+**流程**：
+```bash
+# 仅执行 TypeScript 检查
+npx tsc --noEmit
+
+# 立即提交（跳过 build 和 lint）
+```
+
+---
 
 ## 3. 项目结构约定
 
@@ -47,6 +88,8 @@ npm run lint
 - [ ] 分页（列表 API）
 - [ ] 权限检查（如需要）
 
+---
+
 ## 4. 数据库操作规范
 
 - 数据库为 **MySQL 8.4**（Prisma provider `mysql`）：禁止使用 PG 特有特性（数组列、`mode: "insensitive"` 等）；文本搜索依赖 utf8mb4 collation，天然不区分大小写
@@ -57,6 +100,8 @@ npm run lint
 - 所有表必须考虑软删除（新增 `deletedAt` 字段）
 - 删除操作前必须检查引用关系，防止外键约束失败
 
+---
+
 ## 5. AI 接口使用规范
 
 - AI 识别（Qwen）调用必须包裹 try-catch，失败时提供手动录入 fallback
@@ -65,11 +110,15 @@ npm run lint
 - 图片存储使用 Cloudinary，必须配置 `CLOUDINARY_CLOUD_NAME` 和 `CLOUDINARY_UPLOAD_PRESET`
 - 供应商自动创建必须经过人工确认，不可直接入库
 
+---
+
 ## 6. Next.js 版本警告
 
 ⚠️ **This is NOT the Next.js you know.**
 
 This version (16.2.7 + React 19.2.4) has breaking changes — APIs, conventions, and file structure may all differ from older versions. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
+
+---
 
 ## 7. 紧急联系（上下文丢失时）
 
@@ -78,6 +127,8 @@ This version (16.2.7 + React 19.2.4) has breaking changes — APIs, conventions,
 2. `memory-bank/Database.md` — 数据模型
 3. `memory-bank/progress.md` — 最新推进状态
 4. `memory-bank/Router.md` — 页面路由
+
+---
 
 ## 8. 用户画像
 

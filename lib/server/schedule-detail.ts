@@ -1,5 +1,6 @@
 import { formatPortions } from "@/lib/shared/weight-format";
 import { prisma } from "@/lib/server/prisma";
+import { resolveUsernameToName } from "@/lib/server/user-resolve";
 
 /**
  * 排程详情数据组装（API 与打印页共用）。
@@ -33,6 +34,8 @@ export async function getScheduleDetail(scheduleId: number) {
 
   if (!schedule) return null;
 
+  const operatorName = await resolveUsernameToName(schedule.operator);
+
   // 切配工单的分类名称
   const l1Codes = [...new Set(schedule.cuttingOrders.map((c) => c.l1Code).filter((c): c is string => !!c))];
   const l2Codes = [...new Set(schedule.cuttingOrders.map((c) => c.l2Code).filter((c): c is string => !!c))];
@@ -59,6 +62,7 @@ export async function getScheduleDetail(scheduleId: number) {
     scheduleDate: schedule.scheduleDate.toISOString(),
     status: schedule.status,
     operator: schedule.operator,
+    operatorName,
     createdAt: schedule.createdAt.toISOString(),
     store: schedule.store,
     items: schedule.items.map((it) => ({
