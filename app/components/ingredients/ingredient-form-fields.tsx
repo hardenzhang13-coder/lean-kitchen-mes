@@ -198,18 +198,6 @@ export function IngredientFormFields({
             disabled={viewMode}
           />
         </FormField>
-        <FormField
-          label="默认供应商"
-          className="col-span-2"
-          hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
-        >
-          <SupplierSelect
-            value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
-            onChange={(v) => onChange("defaultSupplierId", v === "" ? "" : String(v))}
-            placeholder="不设置默认供应商"
-            disabled={viewMode}
-          />
-        </FormField>
       </FormSection>
 
       <FormSection title="采购与入库" cols={2}>
@@ -338,7 +326,7 @@ export function IngredientFormFields({
           <SupplierSelect
             value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
             onChange={(v) => onChange("defaultSupplierId", v === "" ? "" : String(v))}
-            placeholder="不设置默认供应商"
+            placeholder="无"
             disabled={viewMode}
           />
         </FormField>

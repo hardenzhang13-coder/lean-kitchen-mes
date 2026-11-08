@@ -255,12 +255,22 @@ export function IngredientFormDialog({
   const handleSubmit = async () => {
     if (!validate()) return;
 
-    const dupRes = await fetch(
-      `/api/ingredients/check-name?name=${encodeURIComponent(form.name.trim())}` +
-        (initialData?.id ? `&excludeId=${initialData.id}` : "")
-    );
-    const dupData = await dupRes.json();
-    if (dupData.exists) {
+    let nameExists = false;
+    try {
+      const dupRes = await fetch(
+        `/api/ingredients/check-name?name=${encodeURIComponent(form.name.trim())}` +
+          (initialData?.id ? `&excludeId=${initialData.id}` : "")
+      );
+      // 401 已由 lib/client/api.ts 统一跳转登录页
+      if (dupRes.status !== 401) {
+        const dupData = await dupRes.json();
+        nameExists = Boolean(dupData?.exists);
+      }
+    } catch {
+      toast.error("网络异常，请检查网络后重试");
+      return;
+    }
+    if (nameExists) {
       toast.error("食材名称已存在");
       return;
     }

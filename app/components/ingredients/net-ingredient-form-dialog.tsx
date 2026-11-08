@@ -88,6 +88,8 @@ export function NetIngredientFormDialog({
   const [loadingList, setLoadingList] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const unitPriceManuallySet = useRef(false);
+  /** 右侧规格列表请求序号：防止切换来源原料后，旧请求的响应覆盖新数据 */
+  const listRequestSeq = useRef(0);
 
   const isMinor = mode === "minor";
   const isConvert = mode === "convert";
@@ -198,6 +200,7 @@ export function NetIngredientFormDialog({
   useEffect(() => {
     if (!open) return;
     const sourceId = Number(form.sourceIngredientId);
+    const seq = ++listRequestSeq.current;
     if (!sourceId) {
       setRightList([]);
       return;
@@ -205,18 +208,20 @@ export function NetIngredientFormDialog({
 
     const fetchList = async () => {
       setLoadingList(true);
+      // 切换来源时先清空，避免残留上一来源的规格数据（此前会显示"最新一次转化"的净料）
+      setRightList([]);
       try {
         const res = await fetch(
           `/api/net-ingredients?sourceIngredientId=${sourceId}`
         );
         if (res.ok) {
           const list = await parseList<NetIngredientItem>(res);
-          setRightList(list);
+          if (listRequestSeq.current === seq) setRightList(list);
         }
       } catch {
         // ignore
       } finally {
-        setLoadingList(false);
+        if (listRequestSeq.current === seq) setLoadingList(false);
       }
     };
 
@@ -341,17 +346,21 @@ export function NetIngredientFormDialog({
         resetForCreate();
         const sourceId = Number(form.sourceIngredientId);
         if (sourceId) {
+          const seq = ++listRequestSeq.current;
           setLoadingList(true);
+          setRightList([]);
           try {
             const listRes = await fetch(
               `/api/net-ingredients?sourceIngredientId=${sourceId}`
             );
             if (listRes.ok) {
-              const json = await listRes.json();
-              setRightList(json.data || []);
+              const list = await parseList<NetIngredientItem>(listRes);
+              if (listRequestSeq.current === seq) setRightList(list);
             }
+          } catch {
+            // ignore
           } finally {
-            setLoadingList(false);
+            if (listRequestSeq.current === seq) setLoadingList(false);
           }
         }
       }

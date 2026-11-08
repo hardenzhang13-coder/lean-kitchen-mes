@@ -29,7 +29,7 @@ export function SupplierSelect({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/suppliers")
+    fetch("/api/suppliers?page=1&pageSize=100")
       .then((res) => parseList<Supplier>(res))
       .then((list) => setData(list))
       .finally(() => setLoading(false));

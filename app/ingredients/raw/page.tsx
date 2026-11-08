@@ -41,6 +41,7 @@ type Ingredient = {
   pricePerJin: number | null;
   stockUnit: string | null;
   unitsPerPurchase: number | null;
+  defaultSupplierId: number | null;
 };
 
 type CategoryL1 = {
@@ -431,6 +432,7 @@ export default function RawIngredientsPage() {
                 unitsPerPurchase: editing.unitsPerPurchase ?? null,
                 latestRefPrice: editing.latestRefPrice ?? null,
                 pricePerJin: editing.pricePerJin ?? null,
+                defaultSupplierId: editing.defaultSupplierId ?? null,
               }
             : undefined
         }

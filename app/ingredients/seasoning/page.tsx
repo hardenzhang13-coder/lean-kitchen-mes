@@ -33,6 +33,7 @@ type Ingredient = {
   unitsPerPurchase: number | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
+  defaultSupplierId: number | null;
 };
 
 type CategoryL1 = {
@@ -341,6 +342,7 @@ export default function SeasoningIngredientsPage() {
                 unitsPerPurchase: editing.unitsPerPurchase ?? null,
                 latestRefPrice: editing.latestRefPrice ?? null,
                 pricePerJin: editing.pricePerJin ?? null,
+                defaultSupplierId: editing.defaultSupplierId ?? null,
               }
             : {
                 l2Code: seasoningL2Code,
@@ -372,6 +374,7 @@ export default function SeasoningIngredientsPage() {
                 unitsPerPurchase: viewing.unitsPerPurchase ?? null,
                 latestRefPrice: viewing.latestRefPrice ?? null,
                 pricePerJin: viewing.pricePerJin ?? null,
+                defaultSupplierId: viewing.defaultSupplierId ?? null,
               }
             : undefined
         }

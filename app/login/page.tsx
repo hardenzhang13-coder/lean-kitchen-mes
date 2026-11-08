@@ -28,6 +28,10 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
+    // session 过期由 lib/client/api.ts 统一跳转 ?expired=1，此处给出人性化提示
+    if (new URLSearchParams(window.location.search).get("expired") === "1") {
+      toast.error("登录已过期，请重新登录");
+    }
     fetch("/api/auth/me")
       .then((res) => {
         if (res.ok) {
