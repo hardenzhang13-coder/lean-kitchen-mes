@@ -1,9 +1,13 @@
-/* 字典基线导出器：读取本地库字典表，生成幂等对齐 SQL（scripts/dictionary-baseline.sql）。
+/* 字典基线导出器：读取本地库字典表，生成初始化 SQL（scripts/dictionary-baseline.sql）。
  *
  * 方案 B「字典即代码」：dictionary-baseline.sql 随仓库版本化，部署时由 deploy 流程
- * 灌入生产库（INSERT ... ON DUPLICATE KEY UPDATE），保证各环境字典一致。
+ * 灌入生产库（INSERT IGNORE），仅为新环境补初始字典，绝不覆盖已有记录。
  *
- * 覆盖范围（只增改、不删，不碰用户与业务数据）：
+ * ⚠️ 历史教训：曾用 ON DUPLICATE KEY UPDATE 做"对齐"，每次部署都会把生产环境的
+ * 分类改名/停用/单位换算系数改回仓库旧值（2026-11-08 生产事故）。如需向已有环境
+ * 推送字典变更，请走显式迁移或人工操作，禁止在本文件恢复 upsert。
+ *
+ * 覆盖范围（只增、不改、不删，不碰用户与业务数据）：
  * - units（计量单位，含 gramsPerUnit 换算系数）
  * - ingredient_categories_l1 / l2（食材一二级分类）
  * - dish_categories（菜品类别）
@@ -23,7 +27,7 @@ const q = (s) => `'` + String(s ?? "").replace(/'/g, "''") + `'`;
 
 const lines = [];
 lines.push("-- 字典基线（由 scripts/export-dictionary-sql.mjs 生成，勿手改）");
-lines.push("-- 幂等对齐：INSERT ... ON DUPLICATE KEY UPDATE，只增改不删，不碰用户与业务数据");
+lines.push("-- 纯初始化：INSERT IGNORE，已存在的记录一律跳过——生产环境的字典修改（改名/停用/换算系数）不会被部署覆盖");
 lines.push("SET NAMES utf8mb4;");
 lines.push("");
 
@@ -32,8 +36,7 @@ const units = await prisma.unit.findMany({ orderBy: { id: "asc" } });
 lines.push("-- 计量单位");
 for (const u of units) {
   lines.push(
-    `INSERT INTO units (name, category, grams_per_unit, is_active) VALUES (${q(u.name)}, ${q(u.category)}, ${u.gramsPerUnit != null ? Number(u.gramsPerUnit) : "NULL"}, ${u.isActive ? 1 : 0}) ` +
-      `ON DUPLICATE KEY UPDATE category = VALUES(category), grams_per_unit = VALUES(grams_per_unit), is_active = VALUES(is_active);`
+    `INSERT IGNORE INTO units (name, category, grams_per_unit, is_active) VALUES (${q(u.name)}, ${q(u.category)}, ${u.gramsPerUnit != null ? Number(u.gramsPerUnit) : "NULL"}, ${u.isActive ? 1 : 0});`
   );
 }
 lines.push("");
@@ -43,8 +46,7 @@ const l1s = await prisma.ingredientCategoryL1.findMany({ orderBy: { id: "asc" } 
 lines.push("-- 食材一级分类");
 for (const c of l1s) {
   lines.push(
-    `INSERT INTO ingredient_categories_l1 (code, name, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0}) ` +
-      `ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), is_active = VALUES(is_active);`
+    `INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0});`
   );
 }
 lines.push("");
@@ -54,8 +56,7 @@ const l2s = await prisma.ingredientCategoryL2.findMany({ orderBy: { id: "asc" } 
 lines.push("-- 食材二级分类");
 for (const c of l2s) {
   lines.push(
-    `INSERT INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${q(c.parentCode)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0}) ` +
-      `ON DUPLICATE KEY UPDATE name = VALUES(name), parent_code = VALUES(parent_code), description = VALUES(description), is_active = VALUES(is_active);`
+    `INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${q(c.parentCode)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0});`
   );
 }
 lines.push("");
@@ -65,17 +66,16 @@ const dishCats = await prisma.dishCategory.findMany({ orderBy: { id: "asc" } });
 lines.push("-- 菜品类别");
 for (const c of dishCats) {
   lines.push(
-    `INSERT INTO dish_categories (code, name, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0}) ` +
-      `ON DUPLICATE KEY UPDATE name = VALUES(name), description = VALUES(description), is_active = VALUES(is_active);`
+    `INSERT IGNORE INTO dish_categories (code, name, description, is_active) VALUES (${q(c.code)}, ${q(c.name)}, ${c.description != null ? q(c.description) : "NULL"}, ${c.isActive ? 1 : 0});`
   );
 }
 lines.push("");
 
-// 5. 门店（唯一键 name；预置两家，只增改不删）
+// 5. 门店（唯一键 name；预置两家，只增不改）
 const stores = await prisma.store.findMany({ orderBy: { id: "asc" } });
 lines.push("-- 门店");
 for (const s of stores) {
-  lines.push(`INSERT INTO stores (code, name, created_at, updated_at) VALUES (${q(s.code)}, ${q(s.name)}, NOW(3), NOW(3)) ON DUPLICATE KEY UPDATE code = VALUES(code), name = VALUES(name);`);
+  lines.push(`INSERT IGNORE INTO stores (code, name, created_at, updated_at) VALUES (${q(s.code)}, ${q(s.name)}, NOW(3), NOW(3))`);
 }
 lines.push("");
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # 一键部署：SSH 到阿里云服务器拉取最新代码并重建容器（含健康检查）。
+# 注：部署末尾会灌入 scripts/dictionary-baseline.sql 做字典基线初始化（INSERT IGNORE 只增不覆盖）。
 #
 # 用法（在 Git Bash / WSL / macOS / Linux 下均可）：
 #   DEPLOY_HOST=<公网IP> ./deploy.sh
