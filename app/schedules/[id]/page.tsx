@@ -14,11 +14,20 @@ import {
   MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 import { ScheduleCuttingTable, type CuttingOrderRow, type ScheduleDocMeta } from "@/app/components/schedule/schedule-cutting-table";
 import { SchedulePurchaseTable, type PurchasePlanRow } from "@/app/components/schedule/schedule-purchase-table";
 import { ScheduleMenuTable } from "@/app/components/schedule/schedule-menu-table";
+import { SalesRecordPanel } from "@/app/components/schedule/sales-record-panel";
+import { SalesRecordDialog, type SalesRecordItem } from "@/app/components/schedule/sales-record-dialog";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 
 interface ScheduleData {
@@ -35,6 +44,9 @@ interface ScheduleData {
     id: number;
     dishId: number;
     quantity: number;
+    soldQty: number | null;
+    soldRecordedAt: string | null;
+    soldRecordedBy: string | null;
     dish: {
       id: number;
       code: string;
@@ -65,7 +77,9 @@ export default function ScheduleDetailPage() {
   const [data, setData] = useState<ScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"menu" | "cutting" | "purchase">("menu");
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"menu" | "cutting" | "purchase" | "sales">("menu");
+  const [recordOpen, setRecordOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = () => {
     setLoading(true);
@@ -134,7 +148,6 @@ export default function ScheduleDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!confirm("确定删除此排程？")) return;
     setActionLoading(true);
     try {
       const res = await fetch(`/api/schedules/${id}`, { method: "DELETE" });
@@ -144,6 +157,7 @@ export default function ScheduleDetailPage() {
         return;
       }
       toast.success("排程已删除");
+      setDeleteOpen(false);
       router.push("/schedules");
     } catch {
       toast.error("删除出错");
@@ -188,7 +202,7 @@ export default function ScheduleDetailPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
             <p className="text-sm text-muted-foreground flex items-center gap-2">
-              {data.code ?? `排程 #${data.id}`} · 负责人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
+              {data.code ?? `排程 #${data.id}`} · 制单人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
             </p>
           </div>
         </div>
@@ -199,7 +213,7 @@ export default function ScheduleDetailPage() {
                 <Pencil className="mr-2 h-4 w-4" />
                 修改
               </Button>
-              <Button variant="destructive" onClick={handleDelete} disabled={actionLoading}>
+              <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 删除
               </Button>
@@ -256,6 +270,21 @@ export default function ScheduleDetailPage() {
         </div>
       </div>
 
+      {/* 待回录提醒横幅（未全部回录时显示） */}
+      {data.status !== "待生效" && data.items.some((it) => it.soldQty == null) && (
+        <div className="flex items-center gap-3 rounded-lg border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm">
+          <span>⚠️</span>
+          <span className="flex-1 text-[var(--status-warning)]">
+            <b className="text-foreground">
+              本排程尚未{data.items.every((it) => it.soldQty == null) ? "" : "完成"}回录销售数据
+            </b>
+            {" "}· 回录后此处展示售出复盘
+          </span>
+          <Button size="sm" onClick={() => setRecordOpen(true)}>
+            去回录 →
+          </Button>
+        </div>
+      )}
       {/* 核心数据：Tab 切换 */}
       <div>
         <div className="flex items-center gap-1 border-b">
@@ -263,6 +292,7 @@ export default function ScheduleDetailPage() {
             ["menu", "排程菜单", data.items.length],
             ["cutting", "切配工单明细", data.cuttingOrders.length],
             ["purchase", "采购计划明细", data.purchasePlans.length],
+            ...(data.status !== "待生效" ? [["sales", "销售回录", 0] as const] : []),
           ] as const).map(([key, label, count]) => (
             <button
               key={key}
@@ -274,15 +304,21 @@ export default function ScheduleDetailPage() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              {label}
-              <span
-                className={
-                  "ml-1.5 text-xs rounded-full px-1.5 py-0.5 " +
-                  (activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")
-                }
-              >
-                {count}
-              </span>
+                            {label}
+              {count > 0 && (
+                <span
+                  className={
+                    "ml-1.5 text-xs rounded-full px-1.5 py-0.5 " +
+                    (activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")
+                  }
+                >
+                  {count}
+                </span>
+              )}
+              {key === "sales" && data.items.some((it) => it.soldQty == null) && (
+                <span className="ml-1.5 inline-block w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]" />
+              )}
+
             </button>
           ))}
         </div>
@@ -300,7 +336,11 @@ export default function ScheduleDetailPage() {
             ) : (
               <p className="text-sm text-muted-foreground py-8 text-center">暂无切配工单</p>
             ))}
+          {activeTab === "sales" && (
+            <SalesRecordPanel items={data.items} onOpenRecord={() => setRecordOpen(true)} />
+          )}
           {activeTab === "purchase" &&
+
             (data.purchasePlans.length > 0 ? (
               <SchedulePurchaseTable rows={data.purchasePlans} meta={docMeta} />
             ) : (
@@ -308,6 +348,37 @@ export default function ScheduleDetailPage() {
             ))}
         </div>
       </div>
+
+      {/* 销售回录弹窗 */}
+      <SalesRecordDialog
+        open={recordOpen}
+        onOpenChange={setRecordOpen}
+        scheduleId={data.id}
+        scheduleCode={data.code}
+        items={data.items as SalesRecordItem[]}
+        onSaved={refresh}
+      />
+
+      {/* 删除二次确认 */}
+
+      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认删除</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确定要删除这条排程吗？切配工单与采购计划将一并删除，此操作不可撤销。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={actionLoading} className="h-11 px-6">
+              删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

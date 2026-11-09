@@ -70,7 +70,8 @@ export async function GET(req: NextRequest) {
       };
     });
 
-    const recorded = items.length > 0 && items.every((i) => i.soldQty != null);
+    const recordedCount = items.filter((i) => i.soldQty != null).length;
+    const recorded = items.length > 0 && recordedCount === items.length;
 
     let summary = null;
     if (recorded) {
@@ -99,6 +100,8 @@ export async function GET(req: NextRequest) {
       },
       store: schedule.store,
       recorded,
+      recordedCount,
+      totalCount: items.length,
       summary,
       items: sorted,
     });

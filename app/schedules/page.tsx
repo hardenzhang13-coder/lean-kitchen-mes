@@ -300,9 +300,9 @@ export default function SchedulesPage() {
                   </div>
                 </div>
 
-                {/* 负责人 */}
+                {/* 制单人 */}
                 <div className="hidden md:block text-sm text-muted-foreground whitespace-nowrap">
-                  负责人：{row.operatorName || row.operator || "—"}
+                  制单人：{row.operatorName || row.operator || "—"}
                 </div>
 
                 {/* 操作区 */}

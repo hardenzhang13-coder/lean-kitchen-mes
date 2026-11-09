@@ -49,6 +49,8 @@ interface DailySchedule {
 }
 
 interface DailyData {
+  recordedCount?: number;
+  totalCount?: number;
   schedule: DailySchedule | null;
   store: StoreOption | null;
   recorded: boolean;
@@ -297,7 +299,11 @@ export default function HomePage() {
                     计划销售额 <b className="text-foreground">{formatMoney(planRevenue)}</b>
                   </span>
                 )}
-                {!summary && planMargin != null && (
+                {!summary && (data?.recordedCount ?? 0) > 0 && (
+                  <span className="rounded-full bg-[var(--status-warning-bg)] px-3 py-1 text-xs text-[var(--status-warning)]">
+                    已回录 <b>{data?.recordedCount}</b>/{data?.totalCount ?? "—"} 道
+                  </span>
+                )}                {!summary && planMargin != null && (
                   <span className="rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
                     预计毛利率 <b className="text-foreground">{planMargin}</b>
                   </span>
@@ -327,7 +333,7 @@ export default function HomePage() {
             {/* 未回录：排程生效后即展示计划数据，售出待回录 */}
             {!data?.recorded ? (
               <div className="space-y-2">
-                <p className="text-xs text-muted-foreground">排程已创建 · 当前展示计划数据，售出进度待回录后显示</p>
+                <p className="text-xs text-muted-foreground">{(data?.recordedCount ?? 0) > 0 ? `已回录 ${data?.recordedCount}/${data?.totalCount} 道 · 剩余菜品售出待回录` : "排程已创建 · 当前展示计划数据，售出进度待回录后显示"}</p>
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground">

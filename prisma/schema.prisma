@@ -323,6 +323,8 @@ model ScheduleItem {
   dishId     Int      @map("dish_id")
   quantity   Int
   actualSoldQty Decimal?  @db.Decimal(10, 2) @map("actual_sold_qty") // 实际售出份数（空 = 未回录）
+  soldRecordedAt DateTime? @map("sold_recorded_at") // 本行最后回录时间
+  soldRecordedBy String?   @map("sold_recorded_by") // 本行最后回录人（显示名）
   dish       Dish     @relation(fields: [dishId], references: [id])
   schedule   Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 

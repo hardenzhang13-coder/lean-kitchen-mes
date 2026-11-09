@@ -70,6 +70,10 @@ export async function getScheduleDetail(scheduleId: number) {
       id: it.id,
       dishId: it.dishId,
       quantity: it.quantity,
+      // 销售回录：空 = 未回录
+      soldQty: it.actualSoldQty != null ? Number(it.actualSoldQty) : null,
+      soldRecordedAt: it.soldRecordedAt ? it.soldRecordedAt.toISOString() : null,
+      soldRecordedBy: it.soldRecordedBy,
       dish: it.dish,
     })),
     cuttingOrders: schedule.cuttingOrders.map((c) => ({
