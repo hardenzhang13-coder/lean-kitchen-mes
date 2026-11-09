@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>食材库 · 原型 v4</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --raw:#f97316; --sea:#3b82f6; --net:#10b981; --minor:#f43f5e; --sauce:#8b5cf6;
+    --ink:#0f172a; --sub:#64748b; --line:#e2e8f0;
+  }
+  body {
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif;
+    background:#f6f7fb; color:var(--ink); font-size:13px; min-width:1180px;
+  }
+  header {
+    background:#fff; border-bottom:1px solid var(--line);
+    padding:18px 40px; display:flex; align-items:center; gap:14px;
+  }
+  header h1 { font-size:19px; font-weight:700; }
+  header .sub { color:var(--sub); font-size:12.5px; }
+  header .total { margin-left:auto; font-size:12.5px; color:var(--sub); }
+  header .total b { font-size:20px; color:var(--ink); font-weight:800; margin:0 2px; }
+
+  .board-wrap { padding:40px 40px 16px; }
+  .board {
+    position:relative; max-width:1240px; margin:0 auto;
+    display:grid; grid-template-columns:1fr 110px 1fr 110px 1fr;
+  }
+  #edges { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:visible; }
+
+  /* 列标题：纯文字，无序号无箭头 */
+  .stage {
+    position:relative; z-index:2; text-align:center; padding-bottom:30px;
+    font-size:13px; font-weight:700; color:#334155; letter-spacing:.06em;
+  }
+  .stage::after {
+    content:""; display:block; width:28px; height:3px; border-radius:2px;
+    background:#cbd5e1; margin:8px auto 0;
+  }
+
+  .col { position:relative; z-index:2; display:flex; flex-direction:column; min-height:400px; }
+  .col.c1, .col.c2 { justify-content:space-between; }
+  .col.c3 { justify-content:center; }
+
+  .node {
+    background:#fff; border:1.5px solid var(--line); border-radius:18px;
+    padding:18px 20px; cursor:pointer; position:relative;
+    transition:transform .18s ease, box-shadow .18s ease, opacity .2s;
+  }
+  .node:hover { transform:translateY(-3px); box-shadow:0 12px 32px rgba(15,23,42,.10); }
+  .node.dimmed { opacity:.18; transform:scale(.985); }
+  .node .top { display:flex; align-items:center; gap:14px; }
+  .node .badge {
+    width:52px; height:52px; border-radius:15px; color:#fff; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px; font-weight:800; box-shadow:0 4px 12px rgba(15,23,42,.12);
+  }
+  .node .name { font-size:17px; font-weight:800; }
+  .node .desc { color:var(--sub); font-size:12px; margin-top:3px; line-height:1.5; }
+  .node .count { margin-left:auto; text-align:right; flex-shrink:0; padding-left:10px; }
+  .node .count b { font-size:26px; font-weight:800; line-height:1; }
+  .node .count span { font-size:11.5px; color:var(--sub); margin-left:2px; }
+  .node.sauce { border-color:#ddd6fe; background:linear-gradient(180deg,#ffffff 60%,#faf8ff); }
+  .node .split { display:flex; gap:8px; margin-top:14px; }
+  .node .split div {
+    flex:1; border-radius:10px; padding:8px 11px; font-size:11px; color:#6d28d9;
+    background:#f3efff; border:1px solid #e9e2ff; line-height:1.5;
+  }
+  .node .split b { display:block; font-size:12px; margin-bottom:1px; }
+  .node .go {
+    position:absolute; top:16px; right:16px; font-size:11px; font-weight:600;
+    color:#a78bfa; opacity:0; transition:opacity .15s;
+  }
+  .node:hover .go { opacity:1; }
+
+  .chain-bar {
+    max-width:1240px; margin:24px auto 8px; background:#fff;
+    border:1px solid var(--line); border-radius:14px; padding:13px 22px;
+    display:flex; align-items:center; gap:10px; justify-content:center;
+  }
+  .chain-bar .title { font-size:12.5px; font-weight:700; color:#334155; }
+  .chain-bar .term { font-size:12px; color:var(--sub); }
+  .chain-bar .term b { color:var(--ink); font-weight:700; }
+  .chain-bar .arrow { color:#cbd5e1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>食材库</h1>
+  <span class="sub">原料与调料经初加工、配比组合，转化为净料、小料与酱料</span>
+  <span class="total">共 <b>31</b> 种食材</span>
+</header>
+<div class="board-wrap">
+  <div class="board">
+    <svg id="edges"></svg>
+    <div class="stage">采购入库</div>
+    <div></div>
+    <div class="stage">初加工</div>
+    <div></div>
+    <div class="stage">复合加工</div>
+
+    <div class="col c1">
+      <div class="node" data-id="raw" data-color="#f97316">
+        <span class="go">进入清单 →</span>
+        <div class="top">
+          <span class="badge" style="background:var(--raw)">原</span>
+          <div><div class="name">原料</div><div class="desc">采购入库、库存管理的基本单位</div></div>
+          <div class="count"><b style="color:var(--raw)">15</b><span>种</span></div>
+        </div>
+      </div>
+      <div class="node" data-id="seasoning" data-color="#3b82f6">
+        <span class="go">进入清单 →</span>
+        <div class="top">
+          <span class="badge" style="background:var(--sea)">调</span>
+          <div><div class="name">调料</div><div class="desc">标准化产品形态的基础调味品</div></div>
+          <div class="count"><b style="color:var(--sea)">5</b><span>种</span></div>
+        </div>
+      </div>
+    </div>
+    <div></div>
+    <div class="col c2">
+      <div class="node" data-id="net" data-color="#10b981">
+        <span class="go">进入清单 →</span>
+        <div class="top">
+          <span class="badge" style="background:var(--net)">净</span>
+          <div><div class="name">净料</div><div class="desc">原料初加工后的规格化半成品</div></div>
+          <div class="count"><b style="color:var(--net)">6</b><span>种</span></div>
+        </div>
+      </div>
+      <div class="node" data-id="minor" data-color="#f43f5e">
+        <span class="go">进入清单 →</span>
+        <div class="top">
+          <span class="badge" style="background:var(--minor)">料</span>
+          <div><div class="name">小料</div><div class="desc">增香提味、按标准规格封装</div></div>
+          <div class="count"><b style="color:var(--minor)">2</b><span>种</span></div>
+        </div>
+      </div>
+    </div>
+    <div></div>
+    <div class="col c3">
+      <div class="node sauce" data-id="sauce" data-color="#8b5cf6">
+        <span class="go">进入清单 →</span>
+        <div class="top">
+          <span class="badge" style="background:var(--sauce)">酱</span>
+          <div><div class="name">酱料</div><div class="desc">复合调味半成品，决定菜品味型</div></div>
+          <div class="count"><b style="color:var(--sauce)">3</b><span>种</span></div>
+        </div>
+        <div class="split">
+          <div><b>自制</b>由调料与小料配比而成</div>
+          <div><b>外购</b>成品酱料直接采购</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="chain-bar">
+  <span class="title">统一计价</span>
+  <span class="term"><b>成本价</b>（元/斤）</span><span class="arrow">→</span>
+  <span class="term"><b>出库价</b>（元/斤）</span><span class="arrow">→</span>
+  <span class="term"><b>标准规格价</b>（元/份）</span>
+</div>
+<script>
+// 转化流：颜色跟随来源节点
+const FLOWS = [
+  { from:"raw",       to:"net",   color:"#f97316" },
+  { from:"raw",       to:"minor", color:"#fb923c" },
+  { from:"minor",     to:"sauce", color:"#f43f5e" },
+  { from:"seasoning", to:"sauce", color:"#3b82f6" },
+];
+const REL = {};
+FLOWS.forEach(f => {
+  (REL[f.from] = REL[f.from] || { up:[], down:[] }).down.push(f.to);
+  (REL[f.to] = REL[f.to] || { up:[], down:[] }).up.push(f.from);
+});
+function lineage(id) {
+  const set = new Set([id]);
+  const walk = (x, d) => (REL[x]?.[d] || []).forEach(n => { if (!set.has(n)) { set.add(n); walk(n, d); } });
+  walk(id, "up"); walk(id, "down");
+  return set;
+}
+
+const svg = document.getElementById("edges");
+const board = document.querySelector(".board");
+const NS = "http://www.w3.org/2000/svg";
+function pt(id, side) {
+  const el = document.querySelector(`.node[data-id="${id}"]`);
+  const b = board.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return { x: (side === "r" ? r.right : r.left) - b.left, y: r.top - b.top + r.height / 2 };
+}
+function build() {
+  svg.setAttribute("viewBox", `0 0 ${board.scrollWidth} ${board.scrollHeight}`);
+  svg.innerHTML = "<defs></defs>";
+  const defs = svg.querySelector("defs");
+  FLOWS.forEach((f, i) => {
+    const a = pt(f.from, "r"), b = pt(f.to, "l");
+    const dx = Math.max(46, (b.x - a.x) * .5);
+    const d = `M ${a.x + 2} ${a.y} C ${a.x + dx} ${a.y}, ${b.x - dx} ${b.y}, ${b.x - 6} ${b.y}`;
+    const m = document.createElementNS(NS, "marker");
+    m.setAttribute("id", "mh-" + i); m.setAttribute("viewBox", "0 0 10 10");
+    m.setAttribute("refX", "8.5"); m.setAttribute("refY", "5");
+    m.setAttribute("markerWidth", "9"); m.setAttribute("markerHeight", "9"); m.setAttribute("orient", "auto");
+    m.innerHTML = '<path d="M0,0 L10,5 L0,10 z" fill="' + f.color + '"></path>';
+    defs.appendChild(m);
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", d); p.setAttribute("fill", "none");
+    p.setAttribute("stroke", f.color); p.setAttribute("stroke-width", "2.6");
+    p.setAttribute("stroke-linecap", "round"); p.setAttribute("opacity", ".55");
+    p.dataset.flow = i; p.classList.add("edge");
+    svg.appendChild(p);
+    const dot = document.createElementNS(NS, "circle");
+    dot.setAttribute("r", "3.4"); dot.setAttribute("fill", f.color);
+    const am = document.createElementNS(NS, "animateMotion");
+    am.setAttribute("dur", (2 + i * 0.35) + "s");
+    am.setAttribute("repeatCount", "indefinite");
+    am.setAttribute("path", d);
+    am.setAttribute("begin", (i * 0.5) + "s");
+    dot.appendChild(am); dot.dataset.flow = i; dot.classList.add("flowdot");
+    svg.appendChild(dot);
+  });
+}
+window.addEventListener("load", build);
+window.addEventListener("resize", () => setTimeout(build, 60));
+
+document.querySelectorAll(".node").forEach(el => {
+  const id = el.dataset.id;
+  el.addEventListener("mouseenter", () => {
+    const keep = lineage(id);
+    document.querySelectorAll(".node").forEach(n => n.classList.toggle("dimmed", !keep.has(n.dataset.id)));
+    const active = new Set(FLOWS.map((f, i) => (f.from === id || f.to === id) ? i : -1).filter(i => i >= 0));
+    document.querySelectorAll(".edge").forEach(p => p.setAttribute("opacity", active.has(+p.dataset.flow) ? "1" : ".12"));
+    document.querySelectorAll(".flowdot").forEach(dd => dd.setAttribute("opacity", active.has(+dd.dataset.flow) ? "1" : ".1"));
+  });
+  el.addEventListener("mouseleave", () => {
+    document.querySelectorAll(".node").forEach(n => n.classList.remove("dimmed"));
+    document.querySelectorAll(".edge").forEach(p => p.setAttribute("opacity", ".55"));
+    document.querySelectorAll(".flowdot").forEach(dd => dd.setAttribute("opacity", "1"));
+  });
+  el.addEventListener("click", () => {
+    el.style.boxShadow = "0 0 0 3px " + el.dataset.color;
+    setTimeout(() => el.style.boxShadow = "", 450);
+  });
+});
+</script>
+</body>
+</html>
