@@ -120,8 +120,8 @@ describe("buildCuttingOrders", () => {
 });
 
 describe("buildPurchasePlans", () => {
-  // 前腿散称案例：出成率 80%，净需求 2500g → 毛料 3125g = 6.25 斤，扣 2 斤库存，按斤采购
-  it("出成率百分数口径 + 斤口径库存抵扣 + 散称按斤建议", async () => {
+  // 前腿散称案例：出成率 80%，净需求 2500g → 毛料 3125g = 6.25 斤；库存抵扣已下线（v002），按毛需求采购
+  it("出成率百分数口径 + 散称按斤建议（库存抵扣已下线）", async () => {
     const prisma = makePrismaMock({
       netDetails: [
         {
@@ -157,10 +157,10 @@ describe("buildPurchasePlans", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.grossNeed).toBe(3125); // 2500 × 100 ÷ 80（克）
-    expect(row.stockDeducted).toBe(2); // 斤
-    expect(row.suggestedPurchase).toBe(4.25); // 6.25 − 2（斤）
+    expect(row.stockDeducted).toBe(0); // 库存抵扣已下线，恒 0
+    expect(row.suggestedPurchase).toBe(6.25); // 毛需求（斤）
     expect(row.unit).toBe("斤");
-    expect(row.estimatedAmount).toBe(30.6); // 4.25 × 7.2
+    expect(row.estimatedAmount).toBe(45); // 6.25 × 7.2
     expect(row.supplierId).toBe(7);
     expect(row.supplierName).toBe("京鲜肉联配送中心");
   });
@@ -207,8 +207,8 @@ describe("buildPurchasePlans", () => {
     expect(row.estimatedAmount).toBe(112); // 2 箱 × 56 元/箱
   });
 
-  // 盐案例：库存 3 包（1斤/包）抵扣 0.2 斤需求 → 无需采购
-  it("调料库存按入库单位换算为斤后抵扣", async () => {
+  // 盐案例：库存抵扣已下线（v002）→ 按毛需求 0.2 斤建议最小采购单位 1 件
+  it("调料不再抵扣库存（库存抵扣已下线）", async () => {
     const prisma = makePrismaMock({
       seasoningDetails: [{ dishId: 1, sourceId: 30, amountG: 100 }],
       seasonings: [
@@ -235,9 +235,9 @@ describe("buildPurchasePlans", () => {
     expect(rows).toHaveLength(1);
     const row = rows[0];
     expect(row.grossNeed).toBe(100); // 克
-    expect(row.stockDeducted).toBe(0.2); // 0.2 斤 ≤ 3 斤库存
-    expect(row.suggestedPurchase).toBe(0);
-    expect(row.estimatedAmount).toBeNull();
+    expect(row.stockDeducted).toBe(0); // 库存抵扣已下线，恒 0
+    expect(row.suggestedPurchase).toBe(1); // 0.2 斤 → 最小采购单位 1 件
+    expect(row.estimatedAmount).toBe(75); // 1 件 × 参考单价 75
   });
 
   // 生抽案例：液体规格无法换算重量 → 最小采购单位 1 件

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Eye, CalendarDays, ChefHat, MapPin } from "lucide-react";
+import { Plus, Eye, CalendarDays, ChefHat, MapPin, FileStack } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -98,6 +98,13 @@ export default function SchedulesPage() {
   const [quickView, setQuickView] = useState<QuickDetail | null>(null);
   const [quickViewLoading, setQuickViewLoading] = useState(false);
   const [quickTab, setQuickTab] = useState<QuickTab>("menu");
+  const [module, setModule] = useState<"schedules" | "plans">("schedules");
+  const [plans, setPlans] = useState<Array<{ id: number; code: string | null; title: string; planDate: string; status: string; operator: string | null; operatorName?: string | null; createdAt: string; scheduleCount: number }>>([]);
+  const [plansLoading, setPlansLoading] = useState(false);
+  const [planSearch, setPlanSearch] = useState("");
+  const [planStatus, setPlanStatus] = useState("");
+  const [planStart, setPlanStart] = useState("");
+  const [planEnd, setPlanEnd] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -148,6 +155,33 @@ export default function SchedulesPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab") === "plans") setModule("plans");
+  }, []);
+
+  useEffect(() => {
+    if (module !== "plans") return;
+    const fetchPlans = async () => {
+      setPlansLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (planStatus && planStatus !== "all") params.set("status", planStatus);
+        if (planSearch) params.set("q", planSearch);
+        if (planStart) params.set("startDate", planStart);
+        if (planEnd) params.set("endDate", planEnd);
+        params.set("pageSize", "100");
+        const res = await fetch("/api/production-plans?" + params.toString());
+        const data = await res.json();
+        setPlans(data.data || []);
+      } catch {
+        toast.error("获取生产计划单失败");
+      } finally {
+        setPlansLoading(false);
+      }
+    };
+    fetchPlans();
+  }, [module, planStatus, planStart, planEnd, planSearch]);
+
   const openQuickView = async (id: number) => {
     setQuickViewLoading(true);
     setQuickTab("menu");
@@ -185,12 +219,95 @@ export default function SchedulesPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <PageHeader title="排程管理" description="设定生产计划，系统自动拆解切配工单与采购计划" />
-        <Button onClick={() => router.push("/schedules/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          新建排程
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 bg-muted rounded-md p-1">
+            {(["schedules", "plans"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setModule(m)}
+                className={"px-4 py-1.5 rounded-md text-sm font-medium transition-colors " + (module === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
+              >
+                {m === "schedules" ? "门店排程单" : "生产计划单"}
+              </button>
+            ))}
+          </div>
+          {module === "schedules" ? (
+          <Button onClick={() => router.push("/schedules/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            新建排程
+          </Button>
+        ) : (
+          <Button onClick={() => router.push("/production-plans/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增生产计划单
+          </Button>
+        )}
+        </div>
       </div>
 
+      {module === "plans" && (
+        <>
+        <ListToolbar
+          searchValue={planSearch}
+          onSearchChange={setPlanSearch}
+          searchPlaceholder="搜索生产计划单标题..."
+          onReset={() => { setPlanSearch(""); setPlanStatus(""); setPlanStart(""); setPlanEnd(""); }}
+          hasFilters={!!(planStatus || planStart || planEnd)}
+        >
+          <SelectTileMode
+            options={[
+              { value: "all", label: "全部状态" },
+              { value: "待生效", label: "待生效" },
+              { value: "进行中", label: "进行中" },
+              { value: "已完成", label: "已完成" },
+            ]}
+            value={planStatus}
+            onChange={setPlanStatus}
+            placeholder="全部状态"
+            title="选择状态"
+            className="w-[160px]"
+          />
+          <DatePicker value={planStart} onChange={setPlanStart} placeholder="开始日期" className="w-[170px]" />
+          <span className="text-sm text-muted-foreground">至</span>
+          <DatePicker value={planEnd} onChange={setPlanEnd} placeholder="结束日期" className="w-[170px]" />
+        </ListToolbar>
+        <div className="space-y-3">
+          {plansLoading ? (
+            <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}</div>
+          ) : plans.length === 0 ? (
+            <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">暂无生产计划单，点击右上角「新增生产计划单」汇总各门店进行中的排程单</div>
+          ) : (
+            plans.map((p) => (
+              <Card
+                key={p.id}
+                className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
+                onClick={() => router.push("/production-plans/" + p.id)}
+              >
+                <CardContent className="p-5 flex items-stretch gap-6">
+                  <div className="flex-1 min-w-0 flex flex-col justify-between">
+                    <h3 className="font-semibold text-base truncate mb-2">{p.title}</h3>
+                    <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
+                      <span className="flex items-center gap-1.5"><CalendarDays className="h-3.5 w-3.5" />{new Date(p.planDate).toLocaleDateString("zh-CN")} {getWeekDay(p.planDate)}</span>
+                      <span className="flex items-center gap-1.5"><FileStack className="h-3.5 w-3.5" />汇总 {p.scheduleCount} 张排程单</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end justify-between shrink-0 gap-2">
+                    <StatusBadge status={p.status} className="text-sm font-semibold px-3 py-1" />
+                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                      <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">制单人:{p.operatorName || p.operator || "—"}</span>
+                      <Button variant="ghost" size="sm" onClick={() => router.push("/production-plans/" + p.id)}>详情</Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+          </div>
+        </>
+      )}
+
+      {module === "schedules" && (
+        <>
       {/* 筛选：状态 + 门店 + 日期范围，控件统一高度 */}
       <ListToolbar
         searchValue={search}
@@ -276,13 +393,10 @@ export default function SchedulesPage() {
               className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
               onClick={() => openQuickView(row.id)}
             >
-              <CardContent className="p-5 flex items-center gap-6">
-                {/* 主信息区 */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-2">
-                    <h3 className="font-semibold text-base truncate">{row.title}</h3>
-                    <StatusBadge status={row.status} />
-                  </div>
+              <CardContent className="p-5 flex items-stretch gap-6">
+                {/* 左：标题 + 元信息 */}
+                <div className="flex-1 min-w-0 flex flex-col justify-between">
+                  <h3 className="font-semibold text-base truncate mb-2">{row.title}</h3>
                   <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5" />
@@ -300,31 +414,22 @@ export default function SchedulesPage() {
                   </div>
                 </div>
 
-                {/* 制单人 */}
-                <div className="hidden md:block text-sm text-muted-foreground whitespace-nowrap">
-                  制单人：{row.operatorName || row.operator || "—"}
-                </div>
-
-                {/* 操作区 */}
-                <div
-                  className="flex items-center gap-2 shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openQuickView(row.id)}
+                {/* 右：状态右上（与标题同字号） + 制单人/操作右下 */}
+                <div className="flex flex-col items-end justify-between shrink-0 gap-2">
+                  <StatusBadge status={row.status} className="text-sm font-semibold px-3 py-1" />
+                  <div
+                    className="flex items-center gap-3"
+                    onClick={(e) => e.stopPropagation()}
                   >
-                    <Eye className="mr-1 h-4 w-4" />
-                    快速查看
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => router.push("/schedules/" + row.id)}
-                  >
-                    详情
-                  </Button>
+                    <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">制单人：{row.operatorName || row.operator || "—"}</span>
+                    <Button variant="outline" size="sm" onClick={() => openQuickView(row.id)}>
+                      <Eye className="mr-1 h-4 w-4" />
+                      预览
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => router.push("/schedules/" + row.id)}>
+                      详情
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -340,6 +445,9 @@ export default function SchedulesPage() {
           end={Math.min(page * DEFAULT_PAGE_SIZE, pagination.totalItems)}
           onPageChange={setPage}
         />
+      )}
+
+        </>
       )}
 
       {/* 快速查看抽屉：复用详情页表格组件，数据与详情页 1:1 */}

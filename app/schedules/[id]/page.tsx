@@ -129,24 +129,6 @@ export default function ScheduleDetailPage() {
     }
   };
 
-  const handleComplete = async () => {
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/schedules/${id}/complete`, { method: "PUT" });
-      if (!res.ok) {
-        const d = await res.json();
-        toast.error(d.error || "操作失败");
-        return;
-      }
-      toast.success("生产已完成");
-      refresh();
-    } catch {
-      toast.error("操作出错");
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
   const handleDelete = async () => {
     setActionLoading(true);
     try {
@@ -222,12 +204,6 @@ export default function ScheduleDetailPage() {
                 确认生产计划
               </Button>
             </>
-          )}
-          {data.status === "进行中" && (
-            <Button onClick={handleComplete} disabled={actionLoading}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              完成生产
-            </Button>
           )}
         </div>
       </div>

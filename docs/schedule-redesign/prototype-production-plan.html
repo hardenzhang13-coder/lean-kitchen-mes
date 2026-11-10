@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>切配中心生产计划单 · 功能原型</title>
+<style>
+  :root{ --bg:#f4f4f5; --card:#fff; --border:#e4e4e7; --muted:#71717a; --text:#18181b; --primary:#ea580c; --primary-bg:#fff7ed; --radius:10px; }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif; background:var(--bg); color:var(--text); padding:32px 24px 80px;}
+  .wrap{max-width:1180px; margin:0 auto;}
+  h1{font-size:22px; margin-bottom:6px;}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:22px; line-height:1.9;}
+  .legend{display:flex; gap:14px; flex-wrap:wrap; background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:12px 16px; margin-bottom:24px; font-size:13px; align-items:center;}
+  .chip{display:inline-block; padding:2px 8px; border-radius:6px; font-size:12px; border:1px solid transparent;}
+  .fld-new{background:#f0fdf4; border-color:#86efac; color:#15803d; font-weight:600;}
+  .fld-adj{background:#eff6ff; border-color:#93c5fd; color:#1d4ed8; font-weight:600;}
+  .sec-title{font-size:17px; font-weight:700; margin:36px 0 4px;}
+  .sec-desc{color:var(--muted); font-size:13px; margin-bottom:14px; line-height:1.8;}
+  .browser{background:var(--card); border:1px solid var(--border); border-radius:14px; overflow:hidden; box-shadow:0 8px 30px rgba(0,0,0,.06); margin-bottom:12px;}
+  .browser-bar{display:flex; align-items:center; gap:6px; padding:10px 14px; border-bottom:1px solid var(--border); background:#fafafa;}
+  .dot{width:11px; height:11px; border-radius:50%;}
+  .url{flex:1; margin-left:10px; background:#fff; border:1px solid var(--border); border-radius:7px; font-size:12px; color:var(--muted); padding:4px 12px; font-family:monospace;}
+  .page{padding:24px 28px;}
+  .btn{display:inline-flex; align-items:center; gap:6px; font-size:13px; padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:#fff; cursor:pointer;}
+  .btn.primary{background:var(--primary); border-color:var(--primary); color:#fff;}
+  .btn.ghost{background:transparent;}
+  .btn.sm{padding:4px 10px; font-size:12px;}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .segtabs{display:inline-flex; gap:2px; background:#f4f4f5; border-radius:10px; padding:3px;}
+  .segtab{padding:7px 18px; border-radius:8px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:none; background:none;}
+  .segtab.active{background:#fff; color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.1);}
+  .card-row{display:flex; align-items:center; gap-14px; border:1px solid var(--border); border-radius:12px; padding:16px 18px; margin-bottom:10px; background:#fff; gap:14px;}
+  .badge{font-size:11px; padding:2px 9px; border-radius:999px; background:var(--primary-bg); color:var(--primary); border:1px solid #fed7aa; font-weight:600; white-space:nowrap;}
+  .badge.green{background:#f0fdf4; color:#15803d; border-color:#bbf7d0;}
+  .badge.blue{background:#eff6ff; color:#1d4ed8; border-color:#bfdbfe;}
+  .mono{font-family:ui-monospace,monospace; font-size:12px; color:var(--muted);}
+  .meta{display:flex; gap:16px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;}
+  .pane{display:none;}
+  .pane.active{display:block;}
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{border:1px solid var(--border); padding:8px 10px; text-align:left;}
+  th{background:#fafafa; font-weight:600; white-space:nowrap;}
+  td.num,th.num{text-align:right; font-variant-numeric:tabular-nums;}
+  .hl{color:var(--primary); font-weight:700;}
+  .dist{font-size:11px; color:var(--muted); margin-top:2px;}
+  .schpick{display:flex; align-items:flex-start; gap:10px; border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; cursor:pointer;}
+  .schpick.on{border-color:var(--primary); background:var(--primary-bg);}
+  .schpick input{margin-top:3px;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .formcard{border:1px solid var(--border); border-radius:10px; padding:14px 16px; background:#fff;}
+  .formcard label{font-size:12px; color:var(--muted); display:block; margin-bottom:6px;}
+  .fakeinp{border:1px solid var(--border); border-radius:8px; padding:8px 12px; font-size:13px; background:#fff;}
+  .note{font-size:12px; color:var(--muted); margin-top:10px; line-height:1.8; background:#fafafa; border:1px dashed var(--border); border-radius:8px; padding:10px 14px;}
+  .statrow{display:flex; gap:8px; flex-wrap:wrap; margin:12px 0;}
+  .stat{font-size:12px; color:var(--muted); background:#fafafa; border:1px solid var(--border); border-radius:8px; padding:5px 10px;}
+  .stat b{color:var(--text);}
+  .cards4{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:20px;}
+  .infocard{border:1px solid var(--border); border-radius:10px; padding:13px 16px; background:#fff;}
+  .infocard .k{font-size:12px; color:var(--muted); margin-bottom:5px;}
+  .infocard .v{font-size:15px; font-weight:600;}
+  .infocard .s{font-size:12px; color:var(--muted); margin-top:2px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>切配中心生产计划单 · 功能原型</h1>
+  <div class="sub">
+    需求：把各门店「进行中」排程单的切配工单与采购计划按净料/食材维度跨店汇总，生成切配中心生产计划单。<br>
+    流程：排程管理新增「生产计划单」模块 → 新增（标题 + 日期 + 勾选进行中排程单）→ 生成 → 详情（汇总切配 + 汇总采购 + 打印/导出）。
+  </div>
+  <div class="legend">
+    <b>图例：</b>
+    <span><span class="chip fld-new">汇总新增</span></span>
+    <span><span class="chip fld-adj">口径调整</span></span>
+  </div>
+  <!-- ===== ① 排程管理页：模块入口（排程单 / 生产计划单） ===== -->
+  <div class="sec-title">① 排程管理页：顶部模块切换</div>
+  <div class="sec-desc">/schedules 页顶部增加模块分段切换，默认「排程单」；切到「生产计划单」显示生产计划单列表。</div>
+  <div class="browser">
+    <div class="browser-bar"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span><span class="url">https://kms.lean-kitchen.cn/schedules</span></div>
+    <div class="page">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+        <div class="segtabs">
+          <button class="segtab active" onclick="showPane('pane-schedules', this)">排程单</button>
+          <button class="segtab" onclick="showPane('pane-plans', this)">生产计划单</button>
+        </div>
+        <button class="btn primary" id="newBtn" style="display:none" onclick="showPane('pane-new', null)">＋ 新增生产计划单</button>
+      </div>
+
+      <!-- 排程单 pane（现有列表，略） -->
+      <div class="pane active" id="pane-schedules">
+        <div class="note">此处为现有排程单列表（卡片式，交互不变）。切「生产计划单」查看新模块 ↓</div>
+      </div>
+
+      <!-- 生产计划单列表 pane -->
+      <div class="pane" id="pane-plans">
+        <div class="card-row">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;"><b style="font-size:15px;">周五切配中心生产计划</b><span class="mono">PPL-20261110-001</span></div>
+            <div class="meta"><span>📅 2026-11-10 星期二</span><span>🧾 汇总 2 张排程单</span><span>📍 新金食堂 / 明天吃啥首店</span><span>👤 制单人：管理员</span></div>
+          </div>
+          <span class="badge green">已生成</span>
+          <button class="btn sm" onclick="showPane('pane-detail', null)">👁 查看</button>
+        </div>
+        <div class="card-row" style="opacity:.7;">
+          <div style="flex:1; min-width:0;">
+            <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;"><b style="font-size:15px;">周一切配中心生产计划</b><span class="mono">PPL-20261103-001</span></div>
+            <div class="meta"><span>📅 2026-11-03 星期一</span><span>🧾 汇总 1 张排程单</span><span>📍 新金食堂</span><span>👤 制单人：管理员</span></div>
+          </div>
+          <span class="badge">已生成</span>
+          <button class="btn sm">👁 查看</button>
+        </div>
+      </div>
+
+      <!-- 新增 pane -->
+      <div class="pane" id="pane-new">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;"><b style="font-size:15px;">← 新增生产计划单</b></div>
+        <div class="grid2" style="margin-bottom:14px;">
+          <div class="formcard"><label>标题 <span style="color:#dc2626">*</span></label><div class="fakeinp">周五切配中心生产计划</div></div>
+          <div class="formcard"><label>生产日期 <span style="color:#dc2626">*</span></label><div class="fakeinp">2026-11-10</div></div>
+        </div>
+        <div class="formcard" style="margin-bottom:4px;">
+          <label>选择进行中的排程单（跨店汇总来源）<span style="color:#dc2626">*</span>　<span style="color:var(--primary); font-weight:700;" id="pickCount">已选 2 张</span></label>
+          <div class="schpick on" onclick="togglePick(this)"><input type="checkbox" checked onclick="event.stopPropagation(); this.parentNode.click();">
+            <div style="flex:1;"><div style="display:flex; gap:8px; align-items:center;"><b>周六员工餐</b><span class="mono">SCH-20261107-001</span><span class="badge green">进行中</span></div>
+            <div class="meta" style="margin-top:3px;"><span>📅 2026-11-07</span><span>📍 新金食堂</span><span>🍳 辣椒炒肉 × 10 份</span></div></div></div>
+          <div class="schpick on" onclick="togglePick(this)"><input type="checkbox" checked onclick="event.stopPropagation(); this.parentNode.click();">
+            <div style="flex:1;"><div style="display:flex; gap:8px; align-items:center;"><b>测试打印表单</b><span class="mono">SCH-20261110-001</span><span class="badge green">进行中</span></div>
+            <div class="meta" style="margin-top:3px;"><span>📅 2026-11-10</span><span>📍 明天吃啥首店</span><span>🍳 辣椒炒肉 × 5 份</span></div></div></div>
+          <div class="schpick" style="opacity:.55; cursor:not-allowed;" title="仅「进行中」状态的排程单可汇总"><input type="checkbox" disabled>
+            <div style="flex:1;"><div style="display:flex; gap:8px; align-items:center;"><b>周三员工餐</b><span class="mono">SCH-20261104-001</span><span class="badge">待生效</span></div>
+            <div class="meta" style="margin-top:3px;"><span>📅 2026-11-04</span><span>📍 新金食堂</span><span>仅「进行中」可汇总</span></div></div></div>
+        </div>
+        <div class="note">汇总预览（随勾选实时变化）：共 <b>2</b> 家门店、<b>2</b> 道菜品排程、计划 <b>15</b> 份；切配明细 <b>4</b> 项（跨店合并后）、采购明细 <b>4</b> 项。生成后数据为<b>快照</b>，之后门店排程单变化不影响本单。</div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;"><button class="btn ghost" onclick="showPane('pane-plans', null)">取消</button><button class="btn primary" onclick="showPane('pane-detail', null)">生成生产计划单</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ② 生产计划单详情：汇总切配 + 汇总采购 ===== -->
+  <div class="sec-title">② 生产计划单详情：两块核心汇总数据</div>
+  <div class="sec-desc">基于真实数据演算：门店A 辣椒炒肉×10份 + 门店B 辣椒炒肉×5份 → 跨店合并后的结果。</div>
+  <div class="browser">
+    <div class="browser-bar"><span class="dot" style="background:#f87171"></span><span class="dot" style="background:#fbbf24"></span><span class="dot" style="background:#34d399"></span><span class="url">https://kms.lean-kitchen.cn/schedules/production-plans/1</span></div>
+    <div class="page">
+      <div class="pane" id="pane-detail" style="display:block;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+          <div>
+            <div style="display:flex; align-items:center; gap:10px;"><b style="font-size:18px;">周五切配中心生产计划</b><span class="badge">PPL-20261110-001</span></div>
+            <div style="font-size:13px; color:var(--muted); margin-top:4px;">2026-11-10 星期二 · 制单人：管理员 · 2026-11-10 14:32 创建</div>
+          </div>
+          <div style="display:flex; gap:8px;"><button class="btn sm">🖨 打印切配单</button><button class="btn sm">🖨 打印采购单</button><button class="btn sm">⬇ 导出 CSV</button><button class="btn sm ghost">🗑 删除</button></div>
+        </div>
+
+        <div class="cards4">
+          <div class="infocard"><div class="k">🧾 汇总排程单</div><div class="v">2 张</div><div class="s">SCH-20261107-001 等</div></div>
+          <div class="infocard"><div class="k">📍 涉及门店</div><div class="v">2 家</div><div class="s">新金食堂 / 明天吃啥首店</div></div>
+          <div class="infocard"><div class="k">🍳 计划份数合计</div><div class="v">15 份</div><div class="s">辣椒炒肉 × 2 店</div></div>
+          <div class="infocard"><div class="k">🧊 汇总切配项 / 采购项</div><div class="v">4 项 / 4 项</div><div class="s">跨店合并后</div></div>
+        </div>
+
+        <div class="segtabs" style="margin-bottom:14px;">
+          <button class="segtab active" onclick="showTab('dt-cut', this)">切配工单明细 · 4</button>
+          <button class="segtab" onclick="showTab('dt-pur', this)">采购计划明细 · 4</button>
+        </div>
+
+        <!-- 汇总切配 -->
+        <div id="dt-cut">
+          <div class="statrow"><span class="stat">合计净料 <b>3,150 g</b></span><span class="stat">合计毛料 <b>6.08 斤</b></span><span class="stat">跨店合并 <b>4 → 8</b> 行（原两单共 8 行）</span></div>
+          <table>
+            <thead><tr><th>序号</th><th>名称</th><th>切配份数</th><th class="num">净料用量</th><th class="num">毛料用量（斤）</th><th style="width:60px; text-align:center;">完成状态</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>前瘦•上浆•片•700g<div class="dist">新金食堂 1,000 g · 明天吃啥首店 500 g</div></td><td>2 份 + 100 g</td><td class="num">1,500 g</td><td class="num">2.40</td><td style="text-align:center;">☐</td></tr>
+              <tr><td>2</td><td>螺丝椒•6厘段•1000g<div class="dist">新金食堂 800 g · 明天吃啥首店 400 g</div></td><td>1 份 + 200 g</td><td class="num">1,200 g</td><td class="num">3.00</td><td style="text-align:center;">☐</td></tr>
+              <tr><td>3</td><td>白木耳•手撕片•100g<div class="dist">新金食堂 300 g · 明天吃啥首店 150 g</div></td><td>4 份 + 50 g</td><td class="num">450 g</td><td class="num">0.38</td><td style="text-align:center;">☐</td></tr>
+              <tr><td>4</td><td>蒜米•拍蒜丁•500g<div class="dist">新金食堂 100 g · 明天吃啥首店 50 g</div></td><td>零配 150 g</td><td class="num">150 g</td><td class="num">0.30</td><td style="text-align:center;">☐</td></tr>
+            </tbody>
+          </table>
+          <div class="note">与门店排程切配单字段一致（序号/名称/切配份数/净料用量/毛料用量/完成状态），额外在名称下展示<b>门店分布</b>。切配份数 = 合并后总量 ÷ 封装规格 重算（1,500÷700=2 份+100g）。</div>
+        </div>
+
+        <!-- 汇总采购 -->
+        <div id="dt-pur" style="display:none;">
+          <div class="statrow"><span class="stat">涉及供应商 <b>4 家</b></span><span class="stat">预估采购总额 <b>¥211.2</b></span><span class="stat">支持按供应商拆单打印</span></div>
+          <table>
+            <thead><tr><th>序号</th><th>食材名称</th><th>采购规格</th><th class="num">毛料用量（斤）</th><th class="num">库存扣减</th><th class="num">采购量</th><th>采购单位</th><th>供应商</th></tr></thead>
+            <tbody>
+              <tr><td>1</td><td>带皮前腿（带梅花）</td><td>散称</td><td class="num">2.40</td><td class="num">0</td><td class="num"><b>2.40</b></td><td>斤</td><td>京鲜肉联</td></tr>
+              <tr><td>2</td><td>螺丝椒</td><td>19斤/箱</td><td class="num">3.00</td><td class="num">0</td><td class="num"><b>1</b></td><td>箱</td><td>绿源果蔬</td></tr>
+              <tr><td>3</td><td>白玉木耳</td><td>散称</td><td class="num">0.38</td><td class="num">0</td><td class="num"><b>0.38</b></td><td>斤</td><td>绿源果蔬</td></tr>
+              <tr><td>4</td><td>蒜米（袋装）</td><td>1.9斤/袋</td><td class="num">0.30</td><td class="num">0</td><td class="num"><b>1</b></td><td>袋</td><td>四季豆制品</td></tr>
+            </tbody>
+          </table>
+          <div class="note">聚合口径：毛需求跨店<b>相加</b>（1,000+500=1,500g → 3.0斤）；库存扣减按<b>合并后总量重新抵扣一次</b>（不再各单各扣）；建议采购量按取整规则<b>重算</b>（螺丝椒 3.0斤 ÷ 19斤/箱 → 1 箱）。打印/导出时采购量列留白手写，与门店采购单一致。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ③ 聚合口径与数据模型 ===== -->
+  <div class="sec-title">③ 聚合口径与数据模型（实现依据）</div>
+  <div class="sec-desc">所有展示字段可追溯到基础数据；汇总规则与门店排程同一套计算（复用 buildCuttingOrders / buildPurchasePlans 的量纲与取整规则）。</div>
+  <div class="browser"><div class="page" style="padding:18px 22px;">
+    <table style="font-size:12.5px;">
+      <thead><tr><th style="width:150px;">项</th><th style="width:300px;">口径</th><th>说明</th></tr></thead>
+      <tbody>
+        <tr><td><b>新表</b></td><td>ProductionPlan（生产计划单）</td><td>id / <span class="chip fld-new">code（PPL-日期-序号，与 SCH 同规则）</span> / title / planDate / operator / createdAt；<span class="chip fld-new">快照语义：生成时固化，之后门店排程变化不影响</span></td></tr>
+        <tr><td><b>关联表</b></td><td>ProductionPlanSchedule</td><td><span class="chip fld-new">planId + scheduleId（记录汇总的来源排程单，便于溯源）</span></td></tr>
+        <tr><td><b>汇总切配</b></td><td>按 (sourceType, sourceId) 跨店合并</td><td>净料用量=Σ各单；切配份数=合并量÷封装规格重算（formatPortions）；毛料用量=经来源原料取汇总采购行；行内展示门店分布（从各单明细按门店分组求和）</td></tr>
+        <tr><td><b>汇总采购</b></td><td>按 (sourceType, sourceId) 跨店合并</td><td>毛需求=Σ各单克数；<span class="chip fld-adj">库存扣减=合并后毛需求(斤) 对当前库存重新抵扣一次（避免多单重复扣库存）</span>；建议采购量按三条取整规则重算；预估金额=采购口径金额；供应商取食材档案默认供应商</td></tr>
+        <tr><td><b>可选范围</b></td><td>仅 status=进行中 的排程单</td><td>待生效/已完成不可选（避免计划外与已结束数据混入）；勾选列表显示编号/门店/菜品/份数</td></tr>
+        <tr><td><b>打印/导出</b></td><td>复用门店单据版式</td><td>切配单（含完成状态空栏☐）与采购单（采购量留白）与门店版字段一致；采购单支持按供应商拆单打印</td></tr>
+        <tr><td><b>权限/操作</b></td><td>与排程单一致</td><td>创建/删除记操作日志；删除走标准二次确认弹窗</td></tr>
+      </tbody>
+    </table>
+    <div class="note">待你确认的口径：① 切配明细的「门店分布」是否需要（还是只留合并总量）？② 生产计划单是否需要状态流转（如 草稿→已下发）还是生成即定稿？③ 汇总采购的库存扣减用「当前库存重新抵扣」是否符合预期（替代方案：只展示各单扣减之和，不重复执行）？</div>
+  </div></div>
+</div>
+<script>
+  function showPane(id, btn) {
+    document.querySelectorAll(".pane").forEach(function(p){ p.classList.remove("active"); });
+    var t = document.getElementById(id);
+    if (t) t.classList.add("active");
+    document.querySelectorAll(".segtab").forEach(function(b){ b.classList.remove("active"); });
+    if (btn) btn.classList.add("active");
+    document.getElementById("newBtn").style.display = (id === "pane-plans") ? "" : "none";
+  }
+  function showTab(id, btn) {
+    document.getElementById("dt-cut").style.display = "none";
+    document.getElementById("dt-pur").style.display = "none";
+    document.getElementById(id).style.display = "block";
+    btn.parentNode.querySelectorAll(".segtab").forEach(function(b){ b.classList.remove("active"); });
+    btn.classList.add("active");
+  }
+  function togglePick(el) {
+    var on = el.classList.toggle("on");
+    el.querySelector("input").checked = on;
+    var n = document.querySelectorAll(".schpick.on").length;
+    document.getElementById("pickCount").textContent = "已选 " + n + " 张";
+  }
+</script>
+</body>
+</html>

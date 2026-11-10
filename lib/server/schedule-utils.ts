@@ -314,19 +314,7 @@ export async function buildPurchasePlans(
     },
   });
 
-  // 5. 查询当前库存（原料 + 调料，ingredientId 同表）
-  const stockIngIds = [
-    ...new Set([
-      ...netDetails.map((d) => d.netIngredient.sourceIngredientId),
-      ...minorDetails.map((d) => d.netIngredient.sourceIngredientId),
-      ...seasoningIds,
-    ].filter((id): id is number => id != null)),
-  ];
-  const inventories = await prisma.inventory.findMany({
-    where: { ingredientId: { in: stockIngIds } },
-    select: { ingredientId: true, currentQty: true },
-  });
-  const invMap = new Map(inventories.map((i) => [i.ingredientId, Number(i.currentQty)]));
+  // 库存抵扣已下线（净菜库存改版 v002，见 memory-bank/v002-净菜库存管理-方案.md）：建议采购量 = 毛需求
 
   interface PlanAgg {
     sourceType: string;
@@ -491,19 +479,9 @@ export async function buildPurchasePlans(
 
     // 每采购单位斤数（与档案每斤单价换算同口径）
     const jinPerPurchase = calcJinPerPurchaseUnit(p.purchaseSpec ?? "", jinFactors);
-    // 每入库单位斤数：入库单位本身是斤 = 1；否则 每采购单位斤数 ÷ 每采购单位入库数
-    let jinPerStock: number | null = null;
-    if (p.stockUnit === "斤") {
-      jinPerStock = 1;
-    } else if (jinPerPurchase != null && p.unitsPerPurchase > 0) {
-      jinPerStock = jinPerPurchase / p.unitsPerPurchase;
-    }
-
-    // 库存抵扣（斤），无换算口径时保守不抵扣
-    const stockQty = invMap.get(p.sourceId) || 0;
-    const stockJin = jinPerStock != null ? stockQty * jinPerStock : 0;
-    const deductJin = Math.min(stockJin, grossJin);
-    const needJin = Math.max(0, grossJin - deductJin);
+    // 库存抵扣已下线（净菜库存改版 v002）：建议采购量 = 毛需求，stockDeducted 恒 0
+    const deductJin = 0;
+    const needJin = grossJin;
 
     // 采购单位是否重量单位（散称/按重直采）：空采购单位视为散称按斤
     const isWeightPurchase = !p.purchaseUnit || weightUnitNames.has(p.purchaseUnit);

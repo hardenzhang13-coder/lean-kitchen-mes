@@ -17,7 +17,7 @@ function fmtTime(d: Date) {
 type Detail = NonNullable<Awaited<ReturnType<typeof getScheduleDetail>>>;
 type PurchaseRow = Detail["purchasePlans"][number];
 
-const PRINT_CSS = "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody { background: #fff; }\n.print-root { font-family: \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif; color: #18181b; padding: 24px; }\n.no-print { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }\n.no-print button { font-size: 14px; padding: 8px 22px; border-radius: 8px; border: 1px solid #e4e4e7; background: #fff; cursor: pointer; }\n.no-print button.primary { background: #ea580c; border-color: #ea580c; color: #fff; }\n.doc { max-width: 900px; margin: 0 auto 24px; border: 1px solid #e4e4e7; border-radius: 8px; padding: 32px 36px; background: #fff; }\n.doc-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 3px; margin-bottom: 4px; }\n.doc-sub { text-align: center; font-size: 12px; color: #71717a; margin-bottom: 18px; }\n.pm-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 20px; font-size: 12.5px; border-top: 2px solid #18181b; border-bottom: 1px solid #e4e4e7; padding: 10px 2px; margin-bottom: 12px; }\ntable { width: 100%; border-collapse: collapse; font-size: 12.5px; }\nth, td { border: 1px solid #d4d4d8; padding: 6px 8px; text-align: left; }\nth { background: #fafafa; font-weight: 600; }\ntd.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }\ntr.grp td { font-weight: 600; background: #fafafa; }\ntr.total td { font-weight: 700; background: #fafafa; }\n.sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 40px; font-size: 12.5px; }\n.sign span { border-top: 1px solid #18181b; padding-top: 6px; }\n.doc-note { font-size: 12px; color: #71717a; margin-top: 16px; line-height: 1.7; }\n@media print { .no-print { display: none !important; } .print-root { padding: 0; } .doc { border: none; border-radius: 0; max-width: none; margin: 0; page-break-after: always; } .doc:last-child { page-break-after: auto; } }\n@page { size: A4; margin: 14mm 12mm; }";
+const PRINT_CSS = "* { box-sizing: border-box; margin: 0; padding: 0; }\nbody { background: #fff; }\n.print-root { font-family: \"PingFang SC\", \"Microsoft YaHei\", system-ui, sans-serif; color: #18181b; padding: 24px; }\n.no-print { display: flex; gap: 10px; justify-content: center; margin-bottom: 20px; }\n.no-print button { font-size: 14px; padding: 8px 22px; border-radius: 8px; border: 1px solid #e4e4e7; background: #fff; cursor: pointer; }\n.no-print button.primary { background: #ea580c; border-color: #ea580c; color: #fff; }\n.doc { max-width: 900px; margin: 0 auto 24px; border: 1px solid #e4e4e7; border-radius: 8px; padding: 32px 36px; background: #fff; }\n.doc-title { text-align: center; font-size: 20px; font-weight: 800; letter-spacing: 3px; margin-bottom: 4px; }\n.doc-sub { text-align: center; font-size: 12px; color: #71717a; margin-bottom: 18px; }\n.pm-meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 20px; font-size: 12.5px; border-top: 2px solid #18181b; border-bottom: 1px solid #e4e4e7; padding: 10px 2px; margin-bottom: 12px; }\ntable { width: 100%; border-collapse: collapse; font-size: 12.5px; }\nth, td { border: 1px solid #d4d4d8; padding: 6px 8px; text-align: left; }\nth { background: #fafafa; font-weight: 600; }\ntd.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }\ntr.grp td { font-weight: 600; background: #fafafa; }\ntr.total td { font-weight: 700; background: #fafafa; }\n.sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 40px; font-size: 12.5px; }\n.sign span { border-top: 1px solid #18181b; padding-top: 6px; }\n.doc-note { font-size: 12px; color: #71717a; margin-top: 16px; line-height: 1.7; }\n@media print { .no-print { display: none !important; } .print-root { padding: 0; } .doc { border: none; border-radius: 0; max-width: none; margin: 0; page-break-after: always; } .doc:last-child { page-break-after: auto; } }\n@page { size: A4; margin: 14mm 12mm; } @media print { body aside { display: none !important; } body main { margin-left: 0 !important; } }";
 
 export default async function SchedulePrintPage({
   params,
@@ -57,36 +57,25 @@ export default async function SchedulePrintPage({
           <table>
             <thead>
               <tr>
-                <th>一级分类</th>
-                <th>二级分类</th>
-                <th>编号</th>
+                <th className="w-10">序号</th>
                 <th>名称</th>
-                <th>规格</th>
-                <th className="num">切配量</th>
                 <th className="num">切配份数</th>
+                <th className="num">净料用量</th>
+                <th className="num">毛料用量（斤）</th>
+                <th className="w-16 text-center">完成状态</th>
               </tr>
             </thead>
             <tbody>
-              {detail.cuttingOrders.map((c, i) => {
-                const prev = detail.cuttingOrders[i - 1];
-                const showL1 = !prev || prev.l1Name !== c.l1Name;
-                const showL2 = !prev || prev.l1Name !== c.l1Name || prev.l2Name !== c.l2Name;
-                return (
-                  <tr key={c.id}>
-                    {showL1 && <td rowSpan={detail.cuttingOrders.filter((x) => x.l1Name === c.l1Name).length}>{c.l1Name}</td>}
-                    {showL2 && (
-                      <td rowSpan={detail.cuttingOrders.filter((x) => x.l1Name === c.l1Name && x.l2Name === c.l2Name).length}>
-                        {c.l2Name}
-                      </td>
-                    )}
-                    <td>{c.sourceCode || "—"}</td>
-                    <td>{c.itemName}</td>
-                    <td>{c.packageSpec != null ? c.packageSpec + "g" : "—"}</td>
-                    <td className="num">{c.requiredQty.toLocaleString("zh-CN")} g</td>
-                    <td className="num">{c.portionsText || "—"}</td>
-                  </tr>
-                );
-              })}
+              {detail.cuttingOrders.map((c, i) => (
+                <tr key={c.id}>
+                  <td>{i + 1}</td>
+                  <td>{c.itemName}</td>
+                  <td className="num">{c.portionsText || "—"}</td>
+                  <td className="num">{c.requiredQty.toLocaleString("zh-CN")} g</td>
+                  <td className="num">{c.grossNeedJin != null ? c.grossNeedJin.toFixed(2) : "—"}</td>
+                  <td className="text-center text-base leading-none">☐</td>
+                </tr>
+              ))}
             </tbody>
           </table>
           <div className="sign">
@@ -150,50 +139,34 @@ export default async function SchedulePrintPage({
 }
 
 function PurchaseTable({ rows }: { rows: PurchaseRow[] }) {
-  const total = rows.reduce((s, r) => s + (r.estimatedAmount ?? 0), 0);
   return (
     <table>
       <thead>
         <tr>
-          <th>一级分类</th>
-          <th>二级分类</th>
-          <th>编号</th>
+          <th className="w-10">序号</th>
           <th>食材名称</th>
           <th>采购规格</th>
-          <th className="num">毛料需求（斤）</th>
-          <th className="num">库存扣减（斤）</th>
-          <th className="num">建议采购量</th>
+          <th className="num">毛料用量（斤）</th>
+          <th className="num">库存扣减</th>
+          <th className="num w-24">采购量</th>
           <th>采购单位</th>
-          <th className="num">预估金额</th>
         </tr>
       </thead>
       <tbody>
         {rows.map((p, i) => {
-          const prev = rows[i - 1];
-          const showL1 = !prev || prev.l1Name !== p.l1Name;
-          const showL2 = !prev || prev.l1Name !== p.l1Name || prev.l2Name !== p.l2Name;
           const zero = p.suggestedPurchase <= 0;
           return (
             <tr key={p.id} style={zero ? { color: "#a1a1aa" } : undefined}>
-              {showL1 && <td rowSpan={rows.filter((x) => x.l1Name === p.l1Name).length}>{p.l1Name}</td>}
-              {showL2 && (
-                <td rowSpan={rows.filter((x) => x.l1Name === p.l1Name && x.l2Name === p.l2Name).length}>{p.l2Name}</td>
-              )}
-              <td>{p.sourceCode || "—"}</td>
+              <td>{i + 1}</td>
               <td>{zero ? p.itemName + "（库存充足）" : p.itemName}</td>
               <td>{p.purchaseSpec || "—"}</td>
               <td className="num">{gramsToJin(p.grossNeed)}</td>
               <td className="num">-{Number(p.stockDeducted).toFixed(2)}</td>
-              <td className="num">{p.suggestedPurchase > 0 ? p.suggestedPurchase.toLocaleString("zh-CN") : "0"}</td>
+              <td className="num"></td>
               <td>{p.priceUnit || p.unit}</td>
-              <td className="num">{p.estimatedAmount != null ? "¥" + p.estimatedAmount.toFixed(2) : "—"}</td>
             </tr>
           );
         })}
-        <tr className="total">
-          <td colSpan={9}>合计（{rows.length} 项）</td>
-          <td className="num">{total > 0 ? "¥" + total.toFixed(2) : "—"}</td>
-        </tr>
       </tbody>
     </table>
   );

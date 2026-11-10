@@ -1,0 +1,767 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>净菜库存管理 v002 · 精益厨房</title>
+<style>
+:root{
+  --primary:#6366f1; --primary-hover:#4f46e5; --primary-bg:#eef2ff;
+  --bg:#f8fafc; --card:#ffffff; --border:#e2e8f0;
+  --text:#0f172a; --muted:#64748b;
+  --success:#16a34a; --success-bg:#f0fdf4;
+  --warning:#d97706; --warning-bg:#fffbeb;
+  --danger:#dc2626; --danger-bg:#fef2f2;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+.app{display:flex;min-height:100vh}
+.side{width:80px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;position:sticky;top:0;height:100vh}
+.brand{width:44px;height:44px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:16px}
+.brand-name{font-size:10px;color:var(--muted);margin-bottom:16px}
+.nav-item{width:64px;height:64px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:var(--muted);margin-bottom:6px;border:none;background:none;font-size:11px}
+.nav-item .ico{font-size:18px}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
+.main{flex:1;padding:24px 32px;max-width:1280px}
+.page-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.page-head h1{font-size:20px;font-weight:700}
+.page-head .sub{color:var(--muted);font-size:13px;margin-top:4px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 16px;border:none;background:none;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi .label{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+.kpi .value{font-size:24px;font-weight:700;margin-top:6px}
+.kpi .value small{font-size:13px;color:var(--muted);font-weight:400;margin-left:4px}
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap}
+.toolbar .spacer{flex:1}
+.search{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:8px;padding:6px 12px;background:#fff;min-width:220px}
+.search input{border:none;outline:none;font-size:13px;flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:5px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;font-size:13px;cursor:pointer;color:var(--muted)}
+.chip.active{background:var(--primary-bg);border-color:var(--primary);color:var(--primary);font-weight:600}
+.tbl-wrap{border:1px solid var(--border);border-radius:10px;overflow-x:auto;background:#fff}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:#f8fafc;padding:10px 12px;text-align:left;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)}
+.tbl td{padding:10px 12px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fafafc}
+.td-num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}
+.group-cell{font-weight:600;background:#f8fafc !important}
+.group-cell2{color:var(--muted);background:#fbfcfe !important}
+.badge{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:500;white-space:nowrap}
+.badge.gray{background:#f1f5f9;color:var(--muted)}
+.badge.green{background:var(--success-bg);color:var(--success)}
+.badge.orange{background:var(--warning-bg);color:var(--warning)}
+.badge.red{background:var(--danger-bg);color:var(--danger)}
+.badge.indigo{background:var(--primary-bg);color:var(--primary)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;cursor:pointer;border:1px solid transparent;background:var(--primary);color:#fff;font-weight:500}
+.btn:hover{background:var(--primary-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.outline{background:#fff;border-color:var(--border);color:var(--text)}
+.btn.outline:hover{background:var(--bg)}
+.btn.ghost{background:none;color:var(--muted)}
+.btn.ghost:hover{background:var(--bg);color:var(--text)}
+.btn.danger{background:var(--danger)}
+.btn.danger:hover{background:#b91c1c}
+.btn.sm{padding:5px 12px;font-size:12px}
+.input,select.input,textarea.input{border:1px solid var(--border);border-radius:8px;padding:7px 12px;font-size:13px;outline:none;background:#fff;font-family:inherit}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.input.w80{width:80px;text-align:right}
+.input.err{border-color:var(--danger);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:48px 16px;overflow-y:auto}
+.dialog{background:#fff;border-radius:14px;width:100%;max-width:1200px;padding:24px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.dialog.small{max-width:520px}
+.dialog .tbl td{white-space:nowrap}
+.dialog h3{font-size:16px;margin-bottom:4px}
+.dialog .d-sub{color:var(--muted);font-size:13px;margin-bottom:16px}
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.seg button{padding:5px 12px;font-size:12px;border:none;background:#fff;cursor:pointer;color:var(--muted)}
+.seg button.on-done{background:var(--success-bg);color:var(--success);font-weight:600}
+.seg button.on-undone{background:var(--danger-bg);color:var(--danger);font-weight:600}
+.seg button.on-hold{background:#f1f5f9;color:var(--muted);font-weight:600}
+.summary{display:flex;gap:20px;align-items:center;background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin:14px 0;font-size:13px;flex-wrap:wrap}
+.summary b{font-size:16px}
+.steps{display:flex;gap:8px;align-items:center;margin-bottom:18px;font-size:13px}
+.step{display:flex;align-items:center;gap:6px;color:var(--muted)}
+.step .n{width:22px;height:22px;border-radius:50%;background:#e2e8f0;color:var(--muted);display:inline-flex;align-items:center;justify-content:center;font-size:12px}
+.step.active{color:var(--primary);font-weight:600}
+.step.active .n{background:var(--primary);color:#fff}
+.step.done .n{background:var(--success-bg);color:var(--success)}
+.step-line{width:32px;height:1px;background:var(--border)}
+.pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.pick{border:1px solid var(--border);border-radius:10px;padding:14px;cursor:pointer;background:#fff}
+.pick:hover{border-color:var(--primary)}
+.pick.sel{border-color:var(--primary);background:var(--primary-bg);box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.pick .t{font-weight:600;margin-bottom:4px}
+.pick .m{font-size:12px;color:var(--muted);line-height:1.7}
+.banner{display:flex;gap:10px;align-items:flex-start;background:var(--primary-bg);border:1px solid #c7d2fe;border-radius:10px;padding:12px 16px;font-size:13px;margin-bottom:16px;line-height:1.8}
+.banner b{color:var(--primary)}
+.empty{text-align:center;padding:60px 0;color:var(--muted)}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 22px;border-radius:10px;font-size:13px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.danger-text{color:var(--danger)}
+.link{color:var(--primary);cursor:pointer;font-weight:500}
+.link:hover{text-decoration:underline}
+.row-red td{background:var(--danger-bg) !important}
+.row-orange td{background:var(--warning-bg) !important}
+.mt8{margin-top:8px}.mt16{margin-top:16px}.mb8{margin-bottom:8px}.mb16{margin-bottom:16px}
+.muted{color:var(--muted)}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer;margin-bottom:12px;font-size:13px}
+.back:hover{color:var(--text)}
+#print-root{display:none}
+@media print{
+  .app{display:none}
+  #print-root{display:block;font-family:"PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;padding:24px}
+  #print-root h1{font-size:20px;margin-bottom:16px}
+}
+@media (max-width:900px){
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .pick-grid{grid-template-columns:1fr}
+  .main{padding:16px}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">🍳</div>
+    <div class="brand-name">精益厨房</div>
+    <button class="nav-item" onclick="nav('todo')"><span class="ico">⊞</span>工作台</button>
+    <button class="nav-item" id="nav-schedule" onclick="nav('plan')"><span class="ico">📋</span>排程</button>
+    <button class="nav-item" onclick="nav('todo')"><span class="ico">🛒</span>采购</button>
+    <button class="nav-item" id="nav-inventory" onclick="nav('stock')"><span class="ico">📦</span>库存</button>
+    <button class="nav-item" onclick="nav('todo')"><span class="ico">🍽️</span>菜品</button>
+    <button class="nav-item" onclick="nav('todo')"><span class="ico">🥬</span>食材</button>
+    <button class="nav-item" onclick="nav('todo')"><span class="ico">📖</span>字典</button>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+<div id="dialog-root"></div>
+<div id="toast-root"></div>
+<div id="print-root"></div>
+
+<script>
+/* ==================== 模拟数据 ==================== */
+const TODAY = "2026-11-10";
+/* 出库价（元/斤，档案当时值快照来源） */
+const PRICE = {"NET-0003":22.00,"NET-0007":18.50,"NET-0012":30.00,"NET-0018":8.00,"SML-0002":12.00,"SML-0005":10.00};
+/* 封装规格（g/份） */
+const PKG = {"NET-0003":250,"NET-0007":250,"NET-0012":300,"NET-0018":300,"SML-0002":100,"SML-0005":100};
+const stores = [
+  {id:1, name:"华阳店", code:"ST-0001"},
+  {id:2, name:"天府三街店", code:"ST-0002"},
+  {id:3, name:"春熙路店", code:"ST-0003"},
+];
+const schedules = [
+  {id:1, code:"SCH-20261110-001", storeId:1, date:"2026-11-10", status:"进行中", title:"11月10日 华阳店午晚市", operator:"张浩浩"},
+  {id:2, code:"SCH-20261110-002", storeId:2, date:"2026-11-10", status:"进行中", title:"11月10日 天府三街店午市", operator:"张浩浩"},
+  {id:3, code:"SCH-20261109-003", storeId:1, date:"2026-11-09", status:"已完成", title:"11月9日 华阳店午晚市", operator:"张浩浩"},
+];
+/* 生产计划单（跨店汇总：SCH-001 + SCH-002 的切配工单按净菜合并） */
+const plan = {
+  id:1, code:"PPL-20261110-001", title:"11月10日 切配中心生产计划单", date:"2026-11-10",
+  status:"进行中", operator:"张浩浩", scheduleIds:[1,2],
+  cutting:[
+    {key:"net:NET-0003", sourceType:"net",   code:"NET-0003", name:"猪里脊丝", l1:"畜肉", l2:"猪肉",   pkg:250, requiredG:7750, portions:31, status:"pending", actualPortions:null, remark:""},
+    {key:"net:NET-0007", sourceType:"net",   code:"NET-0007", name:"鸡腿肉丁", l1:"禽肉", l2:"鸡肉",   pkg:250, requiredG:4000, portions:16, status:"pending", actualPortions:null, remark:""},
+    {key:"net:NET-0012", sourceType:"net",   code:"NET-0012", name:"鲈鱼片",   l1:"水产", l2:"淡水鱼", pkg:300, requiredG:1800, portions:6,  status:"pending", actualPortions:null, remark:""},
+    {key:"net:NET-0018", sourceType:"net",   code:"NET-0018", name:"青红椒丝", l1:"蔬菜", l2:"椒类",   pkg:300, requiredG:2400, portions:8,  status:"pending", actualPortions:null, remark:""},
+    {key:"minor:SML-0002", sourceType:"minor", code:"SML-0002", name:"蒜末",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:900,  portions:9,  status:"pending", actualPortions:null, remark:""},
+    {key:"minor:SML-0005", sourceType:"minor", code:"SML-0005", name:"姜片",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:400,  portions:4,  status:"pending", actualPortions:null, remark:""},
+  ],
+};
+/* 各排程的切配工单行（出库单带出用，份数口径） */
+const schedCutting = {
+  1:[
+    {id:11, key:"net:NET-0003", sourceType:"net",   code:"NET-0003", name:"猪里脊丝", l1:"畜肉", l2:"猪肉",   pkg:250, requiredG:5250, portions:21, status:"pending"},
+    {id:12, key:"net:NET-0007", sourceType:"net",   code:"NET-0007", name:"鸡腿肉丁", l1:"禽肉", l2:"鸡肉",   pkg:250, requiredG:4000, portions:16, status:"pending"},
+    {id:13, key:"net:NET-0012", sourceType:"net",   code:"NET-0012", name:"鲈鱼片",   l1:"水产", l2:"淡水鱼", pkg:300, requiredG:1800, portions:6,  status:"pending"},
+    {id:14, key:"net:NET-0018", sourceType:"net",   code:"NET-0018", name:"青红椒丝", l1:"蔬菜", l2:"椒类",   pkg:300, requiredG:2400, portions:8,  status:"pending"},
+    {id:15, key:"minor:SML-0002", sourceType:"minor", code:"SML-0002", name:"蒜末",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:600,  portions:6,  status:"pending"},
+    {id:16, key:"minor:SML-0005", sourceType:"minor", code:"SML-0005", name:"姜片",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:400,  portions:4,  status:"pending"},
+  ],
+  2:[
+    {id:21, key:"net:NET-0003", sourceType:"net",   code:"NET-0003", name:"猪里脊丝", l1:"畜肉", l2:"猪肉", pkg:250, requiredG:2500, portions:10, status:"pending"},
+    {id:22, key:"minor:SML-0002", sourceType:"minor", code:"SML-0002", name:"蒜末",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:300,  portions:3,  status:"pending"},
+  ],
+  3:[
+    {id:31, key:"net:NET-0003", sourceType:"net",   code:"NET-0003", name:"猪里脊丝", l1:"畜肉", l2:"猪肉", pkg:250, requiredG:5250, portions:21, status:"completed"},
+    {id:32, key:"minor:SML-0002", sourceType:"minor", code:"SML-0002", name:"蒜末",   l1:"蔬菜", l2:"葱蒜",   pkg:100, requiredG:500,  portions:5,  status:"completed"},
+  ],
+};
+/* 净菜当前库存（份为记账主单位 + g 辅助） */
+let stock = {
+  "net:NET-0003":   {p:15,   g:3750},
+  "net:NET-0007":   {p:10,   g:2500},
+  "net:NET-0012":   {p:7,    g:2100},
+  "net:NET-0018":   {p:3,    g:900},
+  "minor:SML-0002": {p:16,   g:1600},
+  "minor:SML-0005": {p:7,    g:700},
+};
+/* 台账（双单位，新事件置顶） */
+let ledger = [
+  {t:"2026-11-10 09:12", type:"stock_in", l1:"蔬菜", l2:"葱蒜", code:"SML-0002", name:"蒜末",     cp:8,    cq:800,  bp:16, bq:1600, source:"生产入库 / PPL-20261109-001（第 2 批）", operator:"张浩浩"},
+  {t:"2026-11-09 16:05", type:"stock_out", l1:"蔬菜", l2:"葱蒜", code:"SML-0002", name:"蒜末",     cp:5,    cq:500,  bp:8,  bq:800,  source:"出库单 OUT-20261109-001", operator:"张浩浩"},
+  {t:"2026-11-09 16:05", type:"stock_out", l1:"畜肉", l2:"猪肉", code:"NET-0003", name:"猪里脊丝", cp:10,   cq:5000, bp:15, bq:3750, source:"出库单 OUT-20261109-001", operator:"张浩浩"},
+  {t:"2026-11-09 15:32", type:"stock_in", l1:"蔬菜", l2:"葱蒜", code:"SML-0002", name:"蒜末",     cp:5,    cq:500,  bp:13, bq:1300, source:"生产入库 / PPL-20261109-001", operator:"张浩浩"},
+  {t:"2026-11-09 15:32", type:"stock_in", l1:"畜肉", l2:"猪肉", code:"NET-0003", name:"猪里脊丝", cp:21,   cq:5250, bp:28, bq:8750, source:"生产入库 / PPL-20261109-001", operator:"张浩浩"},
+  {t:"2026-11-09 09:40", type:"stock_in", l1:"水产", l2:"淡水鱼", code:"NET-0012", name:"鲈鱼片", cp:7,    cq:2100, bp:7,  bq:2100, source:"生产入库 / PPL-20261108-001", operator:"张浩浩"},
+  {t:"2026-11-09 09:40", type:"stock_in", l1:"禽肉", l2:"鸡肉", code:"NET-0007", name:"鸡腿肉丁", cp:10,   cq:2500, bp:10, bq:2500, source:"生产入库 / PPL-20261108-001", operator:"张浩浩"},
+  {t:"2026-11-08 10:00", type:"stock_in", l1:"蔬菜", l2:"椒类", code:"NET-0018", name:"青红椒丝", cp:3,    cq:900,  bp:3,  bq:900,  source:"期初结余建账", operator:"系统"},
+  {t:"2026-11-08 10:00", type:"stock_in", l1:"蔬菜", l2:"葱蒜", code:"SML-0005", name:"姜片",     cp:7,    cq:700,  bp:7,  bq:700,  source:"期初结余建账", operator:"系统"},
+  {t:"2026-11-08 10:00", type:"stock_in", l1:"蔬菜", l2:"葱蒜", code:"SML-0002", name:"蒜末",     cp:8,    cq:800,  bp:8,  bq:800,  source:"期初结余建账", operator:"系统"},
+  {t:"2026-11-08 10:00", type:"stock_in", l1:"畜肉", l2:"猪肉", code:"NET-0003", name:"猪里脊丝", cp:4,    cq:2000, bp:4,  bq:2000, source:"期初结余建账", operator:"系统"},
+];
+/* 出库单 */
+let outbounds = [
+  {id:1, code:"OUT-20261109-001", scheduleId:3, storeId:1, scheduleCode:"SCH-20261109-003", scheduleTitle:"11月9日 华阳店午晚市", scheduleDate:"2026-11-09",
+   status:"confirmed", operator:"张浩浩", createdAt:"2026-11-09 16:05", remark:"晚市补货",
+   totalPortions:15, totalAmount:232.00, asPlanned:true,
+   items:[
+     {sourceType:"net", code:"NET-0003", name:"猪里脊丝", l1:"畜肉", l2:"猪肉", pkg:250, portionsText:"21 份", requiredPortions:21, requiredQty:5250, availablePortions:25, shippedPortions:10, shippedQty:5000, pricePerJin:22.00, amount:220.00, prepStatus:"normal"},
+     {sourceType:"minor", code:"SML-0002", name:"蒜末", l1:"蔬菜", l2:"葱蒜", pkg:100, portionsText:"5 份", requiredPortions:5, requiredQty:500, availablePortions:13, shippedPortions:5, shippedQty:500, pricePerJin:12.00, amount:12.00, prepStatus:"normal"},
+   ]},
+];
+let seqOutbound = 1;
+
+/* ==================== 状态 ==================== */
+const S = {
+  view:"stock", invTab:"stock",
+  stockSearch:"", stockL1:"全部", stockType:"全部",
+  ledgerFilter:"全部",
+  completeRows:null,
+  obDraft:null, obRows:null,
+};
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+function fmtG(g){
+  g = Math.round(g*10)/10;
+  if(g >= 1000){ const jin = Math.floor(g/500); const rem = Math.round(g - jin*500); return jin + " 斤" + (rem ? " " + rem + " g" : ""); }
+  return g + " g";
+}
+function fmtP(p){
+  p = Math.round(p*10)/10;
+  return (Number.isInteger(p) ? String(p) : p.toFixed(1)) + " 份";
+}
+function money(n){ return "¥" + Number(n).toFixed(2); }
+function stockKeyOf(x){ return x.key || (x.sourceType + ":" + x.code); }
+function now(){ const d = new Date(); return TODAY + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); }
+function toast(msg){
+  const r = document.getElementById("toast-root");
+  r.innerHTML = `<div class="toast">${esc(msg)}</div>`;
+  setTimeout(()=>{ r.innerHTML = ""; }, 2600);
+}
+function nav(view){ S.view = view; render(); window.scrollTo(0,0); }
+
+/* ==================== 渲染入口 ==================== */
+function render(){
+  document.querySelectorAll(".nav-item").forEach(n=>n.classList.remove("active"));
+  const inInventory = ["stock","outbound","ledger","ob-new","ob-detail"].includes(S.view);
+  document.getElementById(inInventory ? "nav-inventory" : "nav-schedule").classList.add("active");
+  const m = document.getElementById("main");
+  if(S.view==="stock"||S.view==="outbound"||S.view==="ledger") renderInventory(m);
+  else if(S.view==="plan") renderPlan(m);
+  else if(S.view==="ob-new") renderObNew(m);
+  else if(S.view==="ob-detail") renderObDetail(m);
+  else m.innerHTML = `<div class="empty">该模块不在本次原型范围内<br><br><button class="btn outline" onclick="nav('stock')">回到库存模块</button></div>`;
+}
+
+/* ==================== 库存模块 ==================== */
+function renderInventory(m){
+  const tabs = [["stock","当前库存"],["outbound","出库单"],["ledger","出入库流水"]];
+  let body = "";
+  if(S.invTab==="stock") body = viewStock();
+  else if(S.invTab==="outbound") body = viewOutboundList();
+  else body = viewLedger();
+  m.innerHTML = `
+    <div class="page-head">
+      <div><h1>库存管理</h1><div class="sub">只管理切配中心加工完成的净菜（净料 + 小料），按份出入库</div></div>
+      <button class="btn" onclick="startOb()">＋ 创建出库单</button>
+    </div>
+    <div class="banner">📌 <div><b>演示指引</b> — 流程 ①：点左侧「排程」进入<b>生产计划单</b>详情，点 <b>【完成生产】</b>，按<b>份</b>逐行确认实际完成量（可改小、可标未完成、可暂不确认），提交后净菜自动入库；流程 ②：回到本页点 <b>【创建出库单】</b>，选门店 → 选排程，系统按实际库存（份）算可出量并自动算<b>金额</b>，未切配的货标红，生成后可见<b>是否按计划出库</b>。</div></div>
+    <div class="tabs">${tabs.map(t=>`<button class="tab ${S.invTab===t[0]?"active":""}" onclick="setTab('${t[0]}')">${t[1]}</button>`).join("")}</div>
+    ${body}`;
+}
+function setTab(t){ S.invTab=t; S.view="stock"; render(); }
+
+/* ---- 当前库存（无 KPI，份 + g 双字段） ---- */
+function itemMaster(){
+  const map = {};
+  plan.cutting.forEach(r=>{ map[r.key] = r; });
+  Object.values(schedCutting).flat().forEach(r=>{ if(!map[r.key]) map[r.key] = r; });
+  return map;
+}
+function stockRows(){
+  const master = itemMaster();
+  let rows = Object.keys(stock).map(k=>({...(master[k] || {key:k, code:k.split(":")[1], name:"—", l1:"—", l2:"—", sourceType:k.split(":")[0]}), ...stock[k]}));
+  if(S.stockSearch){ const q=S.stockSearch.toLowerCase(); rows = rows.filter(r=> r.name.toLowerCase().includes(q) || r.code.toLowerCase().includes(q)); }
+  if(S.stockL1!=="全部") rows = rows.filter(r=>r.l1===S.stockL1);
+  if(S.stockType!=="全部") rows = rows.filter(r=>(S.stockType==="净料")===(r.sourceType==="net"));
+  return rows.sort((a,b)=> a.l1===b.l1 ? (a.l2===b.l2 ? a.code.localeCompare(b.code) : a.l2.localeCompare(b.l2)) : a.l1.localeCompare(b.l1));
+}
+function viewStock(){
+  const rows = stockRows();
+  const l1s = ["全部", ...new Set(Object.values(itemMaster()).map(o=>o.l1))];
+  return `
+    <div class="toolbar">
+      <div class="search">🔍 <input placeholder="搜索名称 / 编号" value="${esc(S.stockSearch)}" oninput="S.stockSearch=this.value;refreshStockTbl()"></div>
+      <div class="chips">${l1s.map(c=>`<button class="chip ${S.stockL1===c?"active":""}" onclick="S.stockL1='${c}';render()">${c}</button>`).join("")}</div>
+      <div class="chips">${["全部","净料","小料"].map(c=>`<button class="chip ${S.stockType===c?"active":""}" onclick="S.stockType='${c}';render()">${c}</button>`).join("")}</div>
+      <div class="spacer"></div><span class="muted">共 ${rows.length} 种</span>
+    </div>
+    <div id="stock-tbl">${stockTbl(rows)}</div>`;
+}
+function stockTbl(rows){
+  if(!rows.length) return `<div class="card empty">暂无符合条件的净菜</div>`;
+  const lastUpd = code => (ledger.find(l=>l.code===code) || {}).t || "—";
+  return `<div class="tbl-wrap"><table class="tbl">
+    <thead><tr><th>一级分类</th><th>二级分类</th><th>编号</th><th>名称</th><th>类型</th><th class="td-num">库存份数</th><th class="td-num">库存量</th><th>最近变动</th></tr></thead>
+    <tbody>${rows.map(r=>`
+      <tr>
+        <td class="group-cell">${r.l1}</td><td class="group-cell2">${r.l2}</td>
+        <td class="mono">${r.code}</td><td style="font-weight:600">${r.name}</td>
+        <td><span class="badge ${r.sourceType==="net"?"indigo":"gray"}">${r.sourceType==="net"?"净料":"小料"}</span></td>
+        <td class="td-num" style="font-weight:700;font-size:15px">${fmtP(r.p)}</td>
+        <td class="td-num muted">${fmtG(r.g)}</td>
+        <td class="muted">${lastUpd(r.code)}</td>
+      </tr>`).join("")}
+    </tbody></table></div>`;
+}
+function refreshStockTbl(){ document.getElementById("stock-tbl").innerHTML = stockTbl(stockRows()); }
+/* ---- 出库单列表（定稿 11 列） ---- */
+function viewOutboundList(){
+  const rows = outbounds.slice().sort((a,b)=> b.id - a.id);
+  return `
+    <div class="toolbar"><div class="spacer"></div><button class="btn" onclick="startOb()">＋ 创建出库单</button></div>
+    ${rows.length ? `<div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>序号</th><th>出库单号</th><th>门店</th><th>来源排程单名称</th><th class="td-num">出库份数</th><th class="td-num">合计金额</th><th>是否按计划出库</th><th>状态</th><th>库管负责人</th><th>创建时间</th><th>操作</th></tr></thead>
+      <tbody>${rows.map((o,idx)=>{
+        const st = stores.find(s=>s.id===o.storeId);
+        return `<tr>
+          <td class="mono">${String(idx+1).padStart(2,"0")}</td>
+          <td class="mono">${o.code}</td><td>${st.name}</td><td>${esc(o.scheduleTitle)}</td>
+          <td class="td-num">${fmtP(o.totalPortions)}</td>
+          <td class="td-num" style="font-weight:600">${money(o.totalAmount)}</td>
+          <td>${o.asPlanned ? `<span class="badge green">是</span>` : `<span class="badge orange">否</span>`}</td>
+          <td>${o.status==="confirmed" ? `<span class="badge green">已出库</span>` : `<span class="badge gray">已作废</span>`}</td>
+          <td>${o.operator}</td><td class="muted">${o.createdAt}</td>
+          <td><span class="link" onclick="openOb(${o.id})">详情</span></td>
+        </tr>`;}).join("")}
+      </tbody></table></div>` : `<div class="card empty">还没有出库单<br><br><button class="btn" onclick="startOb()">创建第一张出库单</button></div>`}`;
+}
+
+/* ---- 台账（双单位） ---- */
+function viewLedger(){
+  const types = {"全部":null,"入库":"stock_in","出库":"stock_out","作废回滚":"stock_rollback"};
+  let rows = ledger.slice();
+  if(S.ledgerFilter!=="全部") rows = rows.filter(l=>l.type===types[S.ledgerFilter]);
+  const badge = t => t==="stock_in" ? `<span class="badge green">入库</span>` : t==="stock_out" ? `<span class="badge indigo">出库</span>` : `<span class="badge orange">作废回滚</span>`;
+  return `
+    <div class="toolbar">
+      <div class="chips">${Object.keys(types).map(c=>`<button class="chip ${S.ledgerFilter===c?"active":""}" onclick="S.ledgerFilter='${c}';render()">${c}</button>`).join("")}</div>
+      <div class="spacer"></div><span class="muted">共 ${rows.length} 笔</span>
+    </div>
+    <div class="tbl-wrap"><table class="tbl">
+      <thead><tr><th>时间</th><th>类型</th><th>一级分类</th><th>名称</th><th class="td-num">变动（份）</th><th class="td-num">变动（量）</th><th class="td-num">结存（份）</th><th class="td-num">结存（量）</th><th>来源单据</th><th>操作人</th></tr></thead>
+      <tbody>${rows.map(l=>`<tr>
+        <td class="mono muted">${l.t}</td><td>${badge(l.type)}</td>
+        <td>${l.l1}</td><td style="font-weight:600">${l.name}</td>
+        <td class="td-num" style="font-weight:700;color:${l.type==="stock_out"?"var(--danger)":"var(--success)"}">${l.type==="stock_out"?"−":"+"}${fmtP(l.cp)}</td>
+        <td class="td-num muted">${l.type==="stock_out"?"−":"+"}${fmtG(l.cq)}</td>
+        <td class="td-num">${fmtP(l.bp)}</td>
+        <td class="td-num muted">${fmtG(l.bq)}</td>
+        <td class="muted">${esc(l.source)}</td><td>${l.operator}</td>
+      </tr>`).join("")}
+      </tbody></table></div>`;
+}
+
+/* ==================== 生产计划单详情（入库线入口） ==================== */
+function renderPlan(m){
+  const rows = plan.cutting;
+  const pendingCnt = rows.filter(r=>r.status==="pending").length;
+  const doneCnt = rows.filter(r=>r.status==="completed").length;
+  const undoneCnt = rows.filter(r=>r.status==="unfinished").length;
+  const statusBadge = r => r.status==="pending" ? `<span class="badge gray">待切配</span>`
+    : r.status==="completed" ? `<span class="badge green">已完成 · 实切 ${fmtP(r.actualPortions)}</span>`
+    : `<span class="badge red" title="${esc(r.remark)}">未完成${r.remark? " · "+esc(r.remark):""}</span>`;
+  m.innerHTML = `
+    <div class="back" onclick="nav('stock')">← 返回</div>
+    <div class="page-head">
+      <div><h1>${esc(plan.title)}</h1><div class="sub">${plan.code} · 制单人：${plan.operator} <span class="badge ${plan.status==="进行中"?"indigo":"green"}">${plan.status}</span></div></div>
+      <div>
+      ${plan.status==="进行中" ? `<button class="btn" onclick="openComplete()">✓ 完成生产${pendingCnt?`（剩余 ${pendingCnt} 项待确认）`:""}</button>` : ""}
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><div class="label">📅 生产日期</div><div class="value" style="font-size:18px">${plan.date}</div></div>
+      <div class="card kpi"><div class="label">📋 来源排程</div><div class="value" style="font-size:18px">${plan.scheduleIds.length} 张（跨店合并）</div></div>
+      <div class="card kpi"><div class="label">🔪 切配行数</div><div class="value" style="font-size:18px">${rows.length} 行净菜</div></div>
+      <div class="card kpi"><div class="label">📊 确认进度</div><div class="value" style="font-size:18px">${doneCnt} 完成 · ${undoneCnt} 未完成 · ${pendingCnt} 待确认</div></div>
+    </div>
+    <div class="card">
+      <h3 class="mb16" style="font-size:15px">切配工单汇总明细（按份入库口径）</h3>
+      <div class="tbl-wrap" style="border:none">
+      <table class="tbl">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>编号</th><th>名称</th><th>封装规格</th><th class="td-num">计划份数</th><th class="td-num">计划量</th><th>完成状态</th></tr></thead>
+        <tbody>${rows.map(r=>`<tr class="${r.status==="unfinished"?"row-red":""}">
+          <td class="group-cell">${r.l1}</td><td class="group-cell2">${r.l2}</td>
+          <td class="mono">${r.code}</td><td style="font-weight:600">${r.name}</td>
+          <td class="muted">${r.pkg} g/份</td>
+          <td class="td-num" style="font-weight:600">${fmtP(r.portions)}</td>
+          <td class="td-num muted">${fmtG(r.requiredG)}</td>
+          <td>${statusBadge(r)}</td>
+        </tr>`).join("")}
+        </tbody></table></div>
+    </div>`;
+}
+
+/* ---- 完成生产弹窗（按份确认） ---- */
+function openComplete(){
+  const pend = plan.cutting.filter(r=>r.status==="pending");
+  if(!pend.length){ toast("本计划单没有待确认的切配行"); return; }
+  S.completeRows = pend.map(r=>({key:r.key, status:"completed", portions:r.portions, remark:""}));
+  renderCompleteDialog();
+}
+function renderCompleteDialog(){
+  const done = plan.cutting.filter(r=>r.status!=="pending");
+  const rows = S.completeRows;
+  let inKinds=0, inP=0, inG=0, undone=0, hold=0;
+  rows.forEach(r=>{
+    const o = plan.cutting.find(c=>c.key===r.key);
+    if(r.status==="completed"){ inKinds++; inP+=Number(r.portions)||0; inG+=(Number(r.portions)||0)*o.pkg; }
+    else if(r.status==="unfinished"){ undone++; } else hold++;
+  });
+  const body = rows.map((r,i)=>{
+    const o = plan.cutting.find(c=>c.key===r.key);
+    const isDone = r.status==="completed";
+    return `<tr class="${r.status==="unfinished"?"row-red":""}">
+      <td class="group-cell">${o.l1}</td><td class="group-cell2">${o.l2}</td>
+      <td class="mono">${o.code}</td><td style="font-weight:600">${o.name}</td>
+      <td class="muted">${o.pkg} g/份</td>
+      <td class="td-num" style="font-weight:600">${fmtP(o.portions)}</td>
+      <td class="td-num muted">${fmtG(o.requiredG)}</td>
+      <td><input class="input w80 ${isDone&&(!r.portions||r.portions<0)?"err":""}" type="number" min="0" step="0.5" value="${isDone?r.portions:""}" ${isDone?"":"disabled"} oninput="updComplete(${i},'portions',this.value)"> 份</td>
+      <td><div class="seg">
+        <button class="${isDone?"on-done":""}" onclick="updComplete(${i},'status','completed')">完成</button>
+        <button class="${r.status==="unfinished"?"on-undone":""}" onclick="updComplete(${i},'status','unfinished')">未完成</button>
+        <button class="${r.status==="hold"?"on-hold":""}" onclick="updComplete(${i},'status','hold')">暂不确认</button>
+      </div></td>
+      <td><input class="input" style="width:130px" placeholder="未完成原因（选填）" value="${esc(r.remark)}" ${r.status==="unfinished"?"":"disabled"} oninput="updComplete(${i},'remark',this.value)"></td>
+    </tr>`;}).join("");
+  document.getElementById("dialog-root").innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeDialog()">
+    <div class="dialog">
+      <h3>完成生产确认 — ${plan.code}</h3>
+      <div class="d-sub">按<b>份</b>逐行确认当日切配（跨店合并口径）：默认全部「完成」，实际完成份数可改小（支持部分完成）；没切完改为「未完成」并标注原因；「暂不确认」保持待切配、留到下次确认（支持分批提交）。提交后净菜<b>自动入库</b>（份 + g 双单位）。</div>
+      <div class="tbl-wrap" style="border:none;max-height:380px;overflow-y:auto">
+      <table class="tbl">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>编号</th><th>名称</th><th>封装规格</th><th class="td-num">计划份数</th><th class="td-num">计划量</th><th class="td-num">实际完成份数</th><th>状态</th><th>备注</th></tr></thead>
+        <tbody>${body}</tbody></table></div>
+      <div class="summary">
+        <span>本次入库 <b style="color:var(--success)">${inKinds}</b> 种 / 共 <b style="color:var(--success)">${fmtP(inP)}</b>（${fmtG(inG)}）</span>
+        <span>未完成 <b class="danger-text">${undone}</b> 种</span>
+        <span>暂不确认 <b>${hold}</b> 种（留待下次）</span>
+        <span style="flex:1"></span>
+        <button class="btn outline" onclick="closeDialog()">取消</button>
+        <button class="btn" onclick="submitComplete()">提交并入库</button>
+      </div>
+      ${done.length?`<details class="mt8 muted" style="font-size:12px"><summary>已确认 ${done.length} 行（只读）</summary>
+        <div class="mt8">${done.map(o=>`<div style="padding:4px 0">· ${o.code} ${o.name} — ${o.status==="completed"?"已完成 "+fmtP(o.actualPortions):"未完成"+(o.remark?"（"+esc(o.remark)+"）":"")}</div>`).join("")}</div></details>`:""}
+    </div>
+  </div>`;
+}
+function updComplete(i, field, val){
+  const r = S.completeRows[i];
+  if(field==="status"){ r.status = val; if(val==="completed"){ const o = plan.cutting.find(c=>c.key===r.key); r.portions = o.portions; } }
+  else if(field==="portions"){ r.portions = Number(val); }
+  else r.remark = val;
+  renderCompleteDialog();
+}
+function submitComplete(){
+  for(const r of S.completeRows){
+    if(r.status==="completed" && (r.portions==="" || r.portions==null || Number(r.portions)<0)){ toast("请填写有效的实际完成份数"); return; }
+  }
+  const t = now();
+  let inP = 0, inG = 0;
+  S.completeRows.forEach(r=>{
+    const o = plan.cutting.find(c=>c.key===r.key);
+    if(r.status==="hold") return;
+    if(r.status==="completed"){
+      const ap = Number(r.portions);
+      o.status = "completed"; o.actualPortions = ap;
+      const k = o.key;
+      stock[k].p = Math.round((stock[k].p + ap)*10)/10;
+      stock[k].g = Math.round((stock[k].g + ap*o.pkg)*10)/10;
+      inP += ap; inG += ap*o.pkg;
+      ledger.unshift({t:t, type:"stock_in", l1:o.l1, l2:o.l2, code:o.code, name:o.name, cp:ap, cq:ap*o.pkg, bp:stock[k].p, bq:stock[k].g, source:"生产入库 / " + plan.code, operator:"张浩浩"});
+      /* 回写各店切配工单状态 */
+      Object.values(schedCutting).flat().filter(x=>x.key===k).forEach(x=>{ x.status = "completed"; });
+    } else {
+      o.status = "unfinished"; o.remark = r.remark;
+      Object.values(schedCutting).flat().filter(x=>x.key===o.key).forEach(x=>{ x.status = "unfinished"; });
+    }
+  });
+  const stillPending = plan.cutting.some(r=>r.status==="pending");
+  plan.status = stillPending ? "进行中" : "已完成";
+  closeDialog();
+  render();
+  toast(`已入库 ${fmtP(inP)}（${fmtG(inG)}）${stillPending ? "，本计划单尚有切配行待确认" : "，本计划单全部确认完成"}`);
+}
+function closeDialog(){ document.getElementById("dialog-root").innerHTML = ""; }
+/* ==================== 创建出库单 ==================== */
+function startOb(){ S.obDraft = {storeId:null, scheduleId:null}; S.obRows=null; S.view="ob-new"; render(); }
+function pickStore(id){ S.obDraft.storeId=id; S.obDraft.scheduleId=null; render(); }
+function pickSchedule(id){
+  S.obDraft.scheduleId=id;
+  const rows = schedCutting[id] || [];
+  S.obRows = rows.map(o=>{
+    const avail = stock[o.key] ? stock[o.key].p : 0;
+    let st = "normal";
+    if(o.status!=="completed") st = "unfinished";
+    else if(avail < o.portions) st = "insufficient";
+    const shipped = st==="unfinished" ? 0 : Math.min(o.portions, avail);
+    return {orderId:o.id, key:o.key, shipped:shipped, available:avail, prepStatus:st};
+  });
+  render();
+}
+function setShipped(orderId, val){
+  const r = S.obRows.find(x=>x.orderId===orderId);
+  r.shipped = Number(val);
+  const inp = document.querySelector(`input[data-ship="${orderId}"]`);
+  if(inp) inp.classList.toggle("err", r.shipped > r.available || r.shipped < 0);
+  updObSummary();
+  const amtCell = document.querySelector(`span[data-amt="${orderId}"]`);
+  if(amtCell){ const o = schedCutting[S.obDraft.scheduleId].find(c=>c.id===orderId); amtCell.textContent = money(lineAmount(o, r.shipped)); }
+}
+function lineAmount(o, portions){ return Math.round(portions * o.pkg / 500 * (PRICE[o.code] || 0) * 100) / 100; }
+function obStatusBadge(st){
+  return st==="unfinished" ? `<span class="badge red">未切配</span>`
+    : st==="insufficient" ? `<span class="badge orange">量不足</span>` : `<span class="badge green">正常</span>`;
+}
+function renderObNew(m){
+  const d = S.obDraft;
+  let step = 1;
+  if(d.scheduleId) step = 3; else if(d.storeId) step = 2;
+  let body = "";
+  if(step===1){
+    body = `<h3 class="mb8" style="font-size:15px">选择门店</h3>
+      <div class="pick-grid">${stores.map(s=>{
+        const cnt = schedules.filter(x=>x.storeId===s.id && x.status!=="待生效").length;
+        return `<div class="pick" onclick="pickStore(${s.id})">
+          <div class="t">📍 ${s.name}</div><div class="m">${s.code} · ${cnt} 张可用排程</div></div>`;}).join("")}
+      </div>`;
+  } else if(step===2){
+    const list = schedules.filter(x=>x.storeId===d.storeId && x.status!=="待生效");
+    const st = stores.find(s=>s.id===d.storeId);
+    body = `<h3 class="mb8" style="font-size:15px">选择 ${st.name} 的排程计划</h3>
+      ${list.length?`<div class="pick-grid">${list.map(x=>{
+        const orders = schedCutting[x.id] || [];
+        const done = orders.filter(o=>o.status==="completed").length;
+        return `<div class="pick" onclick="pickSchedule(${x.id})">
+          <div class="t">${x.code} <span class="badge ${x.status==="进行中"?"indigo":"green"}" style="margin-left:4px">${x.status}</span></div>
+          <div class="m">${esc(x.title)}<br>生产日期 ${x.date}<br>切配工单 ${done}/${orders.length} 已确认</div></div>`;}).join("")}</div>`
+      :`<div class="card empty">该门店暂无可出库的排程</div>`}`;
+  } else {
+    const sc = schedules.find(s=>s.id===d.scheduleId);
+    const st = stores.find(s=>s.id===d.storeId);
+    const rows = schedCutting[sc.id] || [];
+    body = `
+      <div class="card mb16" style="background:#f8fafc">
+        <b>${esc(sc.title)}</b>　<span class="mono">${sc.code}</span>　📍 ${st.name}　📅 ${sc.date}
+        <span class="muted" style="float:right">本次出库按<b>份</b>出库（可出量 = min(计划份数, 库存份数)）· 未切配的货标红、默认不出</span>
+      </div>
+      <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>序号</th><th>名称</th><th>封装规格</th><th class="td-num">计划份数</th><th class="td-num">计划量</th><th class="td-num">库存份数</th><th class="td-num">本次出库</th><th class="td-num">行金额</th><th>状态</th></tr></thead>
+        <tbody>${S.obRows.map((r,i)=>{
+          const o = rows.find(c=>c.id===r.orderId);
+          const rowCls = r.prepStatus==="unfinished" ? "row-red" : r.prepStatus==="insufficient" ? "row-orange" : "";
+          return `<tr class="${rowCls}">
+            <td class="group-cell">${o.l1}</td><td class="group-cell2">${o.l2}</td>
+            <td class="mono">${String(i+1).padStart(2,"0")}</td>
+            <td style="font-weight:600">${o.name}<div class="mono" style="font-size:11px">${o.code}</div></td>
+            <td class="muted">${o.pkg} g/份</td>
+            <td class="td-num" style="font-weight:600">${fmtP(o.portions)}</td>
+            <td class="td-num muted">${fmtG(o.requiredG)}</td>
+            <td class="td-num muted">${fmtP(r.available)}</td>
+            <td class="td-num"><input class="input w80" type="number" min="0" step="0.5" data-ship="${o.id}" value="${r.shipped}" oninput="setShipped(${o.id},this.value)"> 份</td>
+            <td class="td-num" style="font-weight:600" data-amt="${o.id}">${money(lineAmount(o, r.shipped))}</td>
+            <td>${obStatusBadge(r.prepStatus)}</td>
+          </tr>`;}).join("")}
+        </tbody></table></div>
+      <div class="summary" id="ob-summary"></div>
+      <div style="display:flex;justify-content:flex-end;gap:10px">
+        <button class="btn outline" onclick="S.obDraft.scheduleId=null;render()">上一步</button>
+        <button class="btn" onclick="submitOb()">确认出库</button>
+      </div>`;
+  }
+  m.innerHTML = `
+    <div class="back" onclick="nav('stock')">← 返回库存</div>
+    <div class="page-head"><div><h1>创建出库单</h1><div class="sub">出库单按排程的切配工单生成，按份出库，金额按净菜档案出库价自动核算</div></div></div>
+    <div class="steps">
+      <div class="step ${step>=1?"active":""} ${step>1?"done":""}"><span class="n">${step>1?"✓":1}</span>选择门店</div><div class="step-line"></div>
+      <div class="step ${step===2?"active":""} ${step>2?"done":""}"><span class="n">${step>2?"✓":2}</span>选择排程计划</div><div class="step-line"></div>
+      <div class="step ${step===3?"active":""}"><span class="n">3</span>确认出库明细</div>
+    </div>
+    <div class="card">${body}</div>`;
+  if(step===3) updObSummary();
+}
+function updObSummary(){
+  const rows = schedCutting[S.obDraft.scheduleId] || [];
+  let planP=0, shipP=0, amount=0, unfinished=0;
+  S.obRows.forEach(r=>{
+    const o = rows.find(c=>c.id===r.orderId);
+    planP += o.portions; shipP += Number(r.shipped)||0; amount += lineAmount(o, Number(r.shipped)||0);
+    if(r.prepStatus==="unfinished") unfinished++;
+  });
+  const el = document.getElementById("ob-summary");
+  if(!el) return;
+  el.innerHTML = `
+    <span>共 <b>${S.obRows.length}</b> 行</span>
+    <span>计划 <b>${fmtP(planP)}</b></span>
+    <span>本次出库 <b style="color:var(--primary)">${fmtP(shipP)}</b></span>
+    <span>合计金额 <b style="color:var(--primary)">${money(amount)}</b></span>
+    <span>未切配 <b class="danger-text">${unfinished}</b> 行</span>
+    ${unfinished?`<span class="danger-text" style="font-size:12px">⚠️ 未切配的净菜默认不出库，将在单据上明确标注，本单将标记为「未按计划出库」</span>`:""}`;
+}
+function submitOb(){
+  for(const r of S.obRows){
+    if(r.shipped < 0 || r.shipped > r.available){ toast("本次出库份数不能超过库存份数"); return; }
+  }
+  const sc = schedules.find(s=>s.id===S.obDraft.scheduleId);
+  const st = stores.find(s=>s.id===S.obDraft.storeId);
+  const rows = schedCutting[sc.id] || [];
+  const t = now();
+  seqOutbound++;
+  const code = "OUT-" + TODAY.replace(/-/g,"") + "-" + String(seqOutbound).padStart(3,"0");
+  let totalP = 0, totalAmt = 0, asPlanned = true;
+  const items = S.obRows.map((r,i)=>{
+    const o = rows.find(c=>c.id===r.orderId);
+    const shippedP = Number(r.shipped);
+    const shippedG = Math.round(shippedP * o.pkg * 10)/10;
+    const price = PRICE[o.code] || 0;
+    const amt = lineAmount(o, shippedP);
+    totalP += shippedP; totalAmt += amt;
+    if(Math.round(shippedP*10)/10 !== Math.round(o.portions*10)/10) asPlanned = false;
+    const k = o.key;
+    stock[k].p = Math.round((stock[k].p - shippedP)*100)/100;
+    stock[k].g = Math.round((stock[k].g - shippedG)*10)/10;
+    if(shippedP > 0){
+      ledger.unshift({t:t, type:"stock_out", l1:o.l1, l2:o.l2, code:o.code, name:o.name, cp:shippedP, cq:shippedG, bp:stock[k].p, bq:stock[k].g, source:"出库单 " + code, operator:"张浩浩"});
+    }
+    return {sourceType:o.sourceType, code:o.code, name:o.name, l1:o.l1, l2:o.l2, pkg:o.pkg, portionsText:fmtP(o.portions),
+      requiredPortions:o.portions, requiredQty:o.requiredG, availablePortions:r.available, shippedPortions:shippedP, shippedQty:shippedG,
+      pricePerJin:price, amount:amt, prepStatus:r.prepStatus};
+  });
+  const ob = {id: seqOutbound, code:code, scheduleId:sc.id, storeId:st.id, scheduleCode:sc.code, scheduleTitle:sc.title, scheduleDate:sc.date,
+    status:"confirmed", operator:"张浩浩", createdAt:t, remark:"", totalPortions:Math.round(totalP*100)/100, totalAmount:Math.round(totalAmt*100)/100, asPlanned:asPlanned, items:items};
+  outbounds.push(ob);
+  S.obDetailId = ob.id;
+  S.view = "ob-detail";
+  render();
+  toast("出库单 " + code + " 已创建（" + money(ob.totalAmount) + "），库存已扣减");
+}
+
+/* ==================== 出库单详情 ==================== */
+function openOb(id){ S.obDetailId = id; S.view = "ob-detail"; render(); }
+function renderObDetail(m){
+  const o = outbounds.find(x=>x.id===S.obDetailId);
+  if(!o){ S.view="outbound"; S.invTab="outbound"; render(); return; }
+  const st = stores.find(s=>s.id===o.storeId);
+  const voided = o.status==="voided";
+  m.innerHTML = `
+    <div class="back" onclick="S.view='outbound';S.invTab='outbound';render()">← 返回出库单列表</div>
+    <div class="page-head">
+      <div><h1>出库单 ${o.code} ${voided?'<span class="badge gray">已作废</span>':'<span class="badge green">已出库</span>'} ${o.asPlanned&&!voided?'<span class="badge green">按计划出库</span>':'<span class="badge orange">未按计划出库</span>'}</h1>
+      <div class="sub">${st.name} · 来源排程 ${o.scheduleCode}（${esc(o.scheduleTitle)}）· 生产日期 ${o.scheduleDate} · 库管负责人 ${o.operator} · ${o.createdAt}</div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn outline" onclick="doPrint(${o.id})">🖨️ 打印出库单</button>
+        ${!voided?`<button class="btn danger" onclick="openVoid(${o.id})">作废</button>`:`<div class="muted" style="font-size:12px">作废原因：${esc(o.voidReason||"—")} · ${o.voidedAt||""}</div>`}
+      </div>
+    </div>
+    <div class="kpis">
+      <div class="card kpi"><div class="label">📍 门店</div><div class="value" style="font-size:18px">${st.name}</div></div>
+      <div class="card kpi"><div class="label">⬆️ 出库总份数</div><div class="value" style="font-size:18px">${fmtP(o.totalPortions)}</div></div>
+      <div class="card kpi"><div class="label">💰 合计金额</div><div class="value" style="font-size:18px;color:var(--primary)">${money(o.totalAmount)}</div></div>
+      <div class="card kpi"><div class="label">⚠️ 未切配行</div><div class="value" style="font-size:18px">${o.items.filter(i=>i.prepStatus==="unfinished").length}</div></div>
+    </div>
+    <div class="card">
+      <div class="tbl-wrap" style="border:none">
+      <table class="tbl">
+        <thead><tr><th>一级分类</th><th>二级分类</th><th>序号</th><th>名称</th><th>封装规格</th><th class="td-num">计划份数</th><th class="td-num">计划量</th><th class="td-num">本次出库</th><th class="td-num">出库量</th><th class="td-num">行金额</th><th>状态</th></tr></thead>
+        <tbody>${o.items.map((it,i)=>`<tr class="${it.prepStatus==="unfinished"?"row-red":it.prepStatus==="insufficient"?"row-orange":""}">
+          <td class="group-cell">${it.l1}</td><td class="group-cell2">${it.l2}</td>
+          <td class="mono">${String(i+1).padStart(2,"0")}</td>
+          <td style="font-weight:600">${it.name}<div class="mono" style="font-size:11px">${it.code}</div></td>
+          <td class="muted">${it.pkg} g/份</td>
+          <td class="td-num" style="font-weight:600">${fmtP(it.requiredPortions)}</td>
+          <td class="td-num muted">${fmtG(it.requiredQty)}</td>
+          <td class="td-num" style="font-weight:700">${fmtP(it.shippedPortions)}</td>
+          <td class="td-num muted">${fmtG(it.shippedQty)}</td>
+          <td class="td-num" style="font-weight:600">${money(it.amount)}</td>
+          <td>${obStatusBadge(it.prepStatus)}</td>
+        </tr>`).join("")}
+        </tbody></table></div>
+      ${voided?`<div class="summary mt16" style="background:var(--danger-bg);border-color:#fecaca"><span class="danger-text">本单已作废，${fmtP(o.totalPortions)}（${money(o.totalAmount)}）已回滚至库存（见台账「作废回滚」）。</span></div>`:""}
+    </div>`;
+}
+
+/* ---- 作废 ---- */
+function openVoid(id){
+  S.voidId = id;
+  document.getElementById("dialog-root").innerHTML = `
+  <div class="overlay" onclick="if(event.target===this)closeDialog()">
+    <div class="dialog small">
+      <h3>作废出库单</h3>
+      <div class="d-sub">作废后该单全部出库量将<b>回滚</b>到净菜库存（份 + g），并记录作废流水。历史单据保留可查（作废 ≠ 删除）。</div>
+      <textarea class="input" id="void-reason" rows="3" style="width:100%" placeholder="请填写作废原因（必填）"></textarea>
+      <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:16px">
+        <button class="btn outline" onclick="closeDialog()">取消</button>
+        <button class="btn danger" onclick="confirmVoid()">确认作废并回滚库存</button>
+      </div>
+    </div>
+  </div>`;
+}
+function confirmVoid(){
+  const reason = document.getElementById("void-reason").value.trim();
+  if(!reason){ toast("请填写作废原因"); return; }
+  const o = outbounds.find(x=>x.id===S.voidId);
+  const t = now();
+  o.status = "voided"; o.voidReason = reason; o.voidedAt = t;
+  o.items.forEach(it=>{
+    if(it.shippedPortions<=0) return;
+    const k = it.sourceType + ":" + it.code;
+    stock[k].p = Math.round((stock[k].p + it.shippedPortions)*100)/100;
+    stock[k].g = Math.round((stock[k].g + it.shippedQty)*10)/10;
+    ledger.unshift({t:t, type:"stock_rollback", l1:it.l1, l2:it.l2, code:it.code, name:it.name, cp:it.shippedPortions, cq:it.shippedQty, bp:stock[k].p, bq:stock[k].g, source:"作废回滚 " + o.code, operator:"张浩浩"});
+  });
+  closeDialog(); render();
+  toast("出库单已作废，库存已回滚");
+}
+
+/* ---- 打印 ---- */
+function doPrint(id){
+  const o = outbounds.find(x=>x.id===id);
+  const st = stores.find(s=>s.id===o.storeId);
+  document.getElementById("print-root").innerHTML = `
+    <h1>净菜出库单 ${o.code}${o.status==="voided"?"（已作废）":""}</h1>
+    <p>门店：${st.name}　　来源排程：${o.scheduleCode}（${esc(o.scheduleTitle)}）　　生产日期：${o.scheduleDate}　　库管负责人：${o.operator}　　打印时间：${now()}</p>
+    <table border="1" cellspacing="0" cellpadding="8" style="width:100%;border-collapse:collapse;margin-top:12px">
+      <thead><tr><th>一级分类</th><th>二级分类</th><th>序号</th><th>名称</th><th>封装规格</th><th>计划份数</th><th>本次出库</th><th>行金额</th><th>状态</th></tr></thead>
+      <tbody>${o.items.map((it,i)=>`<tr>
+        <td>${it.l1}</td><td>${it.l2}</td><td>${i+1}</td><td>${it.name}</td><td>${it.pkg} g/份</td>
+        <td style="text-align:right">${fmtP(it.requiredPortions)}</td><td style="text-align:right;font-weight:bold">${fmtP(it.shippedPortions)}</td>
+        <td style="text-align:right">${money(it.amount)}</td>
+        <td>${it.prepStatus==="unfinished"?"未切配":it.prepStatus==="insufficient"?"量不足":"正常"}</td></tr>`).join("")}
+        <tr><td colspan="6" style="text-align:right;font-weight:bold">合计</td><td style="text-align:right;font-weight:bold">${fmtP(o.totalPortions)}</td><td style="text-align:right;font-weight:bold">${money(o.totalAmount)}</td><td>${o.asPlanned?"按计划出库":"未按计划出库"}</td></tr>
+      </tbody></table>
+    <p style="margin-top:24px">司机签字：＿＿＿＿＿＿＿＿　　门店收货人：＿＿＿＿＿＿＿＿</p>`;
+  window.print();
+}
+
+render();
+</script>
+</body>
+</html>

@@ -22,7 +22,8 @@ export interface PurchasePlanRow {
   l1Name: string;
   l2Name: string;
   grossNeed: number;
-  stockDeducted: number;
+  /** 库存扣减（斤）；null = 未做库存抵扣（如生产计划单，库存模块改版中） */
+  stockDeducted: number | null;
   suggestedPurchase: number;
   unit: string;
   purchaseSpec: string | null;
@@ -63,31 +64,24 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],
     ];
-    const headers = [
-      "一级分类", "二级分类", "编号", "食材名称", "采购规格",
-      "毛料需求（斤）", "库存扣减（斤）", "建议采购量", "采购单位", "供应商", "预估金额",
-    ];
-    const data = rows.map((r) => [
-      r.l1Name,
-      r.l2Name,
-      r.sourceCode || "",
+    const headers = ["序号", "食材名称", "采购规格", "毛料用量（斤）", "库存扣减", "采购量", "采购单位"];
+    const data = rows.map((r, idx) => [
+      String(idx + 1),
       r.itemName,
       r.purchaseSpec || "",
       toJin(r.grossNeed),
-      "-" + Number(r.stockDeducted).toFixed(2),
-      String(r.suggestedPurchase),
+      r.stockDeducted != null ? "-" + Number(r.stockDeducted).toFixed(2) : "",
+      "", // 采购量：纸质单手写实际采购量
       r.priceUnit || r.unit,
-      r.supplierName || "",
-      r.estimatedAmount != null ? r.estimatedAmount.toFixed(2) : "",
     ]);
     downloadCSV("采购计划单.csv", [...headerRows, headers, ...data]);
   };
 
   const printAll = () => {
-    window.open("/schedules/" + meta.scheduleId + "/print?doc=purchase&mode=all", "_blank");
+    window.open((meta.printBase ?? "/schedules/") + meta.scheduleId + "/print?doc=purchase&mode=all", "_blank");
   };
   const printBySupplier = () => {
-    window.open("/schedules/" + meta.scheduleId + "/print?doc=purchase&mode=supplier", "_blank");
+    window.open((meta.printBase ?? "/schedules/") + meta.scheduleId + "/print?doc=purchase&mode=supplier", "_blank");
   };
 
   return (
@@ -152,7 +146,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
                     {row.purchaseSpec || "—"}
                   </TableCell>
                   <TableCell className="text-right">{toJin(row.grossNeed)}</TableCell>
-                  <TableCell className="text-right">-{toJin(row.stockDeducted)}</TableCell>
+                  <TableCell className="text-right" title={row.stockDeducted != null ? "" : "库存模块改版中，暂不抵扣"}>{row.stockDeducted != null ? "-" + toJin(Number(row.stockDeducted)) : "—"}</TableCell>
                   <TableCell className="text-right font-semibold">
                     {row.suggestedPurchase > 0 ? row.suggestedPurchase.toLocaleString("zh-CN") : "0"}
                   </TableCell>

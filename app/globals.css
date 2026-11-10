@@ -180,3 +180,13 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* 打印：隐藏系统导航（侧边栏/顶栏），仅输出页面主体（如排程打印单） */
+@media print {
+  body aside {
+    display: none !important;
+  }
+  body main[class*="ml-20"] {
+    margin-left: 0 !important;
+  }
+}

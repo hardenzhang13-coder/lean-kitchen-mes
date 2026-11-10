@@ -4,6 +4,57 @@
 
 ---
 ---
+## 2026-11-10（补）— 列表页卡片布局优化
+
+- 模块切换（排程单/生产计划单）与操作按钮右对齐
+- 卡片重构：不显示编号；状态徽标右上方且字号与标题一致；制单人+预览/详情右下方；点击卡片=预览抽屉；「快速查看」更名「预览」
+- 已删除验证用测试数据（PPL-20261110-001）
+
+---
+
+---
+## 2026-11-10 — 切配中心生产计划单（跨店汇总）完整落地
+
+### 数据模型（迁移 20261110090000_add_production_plan）
+- ProductionPlan：code（PPL-日期-序号）/ title / planDate / status（与排程单一致：待生效→进行中→已完成）/ operator / cuttingJson+purchaseJson（汇总快照，生成时固化）/ 软删除
+- ProductionPlanSchedule：planId+scheduleId 溯源关联（唯一）
+
+### 汇总口径（用户确认）
+- 与门店有关字段一律不显示（列表/详情/选择器均无门店）；无门店分布行
+- 切配按净料跨店合并：用量相加、份数=合并量÷封装规格重算（formatPortions）、毛料经来源原料取汇总采购行
+- 采购按食材合并毛需求（克相加）；不做库存抵扣（库存模块改版中，表格显示「—」）；采购量按三条取整规则重算；预估金额=采购口径金额
+- 系统内展示复用排程单表格组件（ScheduleCuttingTable/SchedulePurchaseTable）；打印/CSV 沿用今天定版格式（切配含☐完成状态、采购量留白、按供应商拆单）
+
+### 交付物
+- lib/server/production-plan-utils.ts（汇总计算）+ schemas/production-plan.ts
+- API：/api/production-plans（GET 分页/POST 创建，仅可汇总「进行中」排程单）+ /[id]（GET/DELETE 仅待生效）+ /[id]/activate + /[id]/complete，均记操作日志
+- 页面：/schedules 顶部「排程单|生产计划单」模块切换 + /production-plans/new（标题+日期+进行中排程单多选）+ /production-plans/[id]（信息卡+两 Tab+状态流转+删除确认弹窗）+ /production-plans/[id]/print（切配/采购两种单据，采购按供应商拆单）
+- 端到端验证：汇总计算实测（前瘦1500g/2.4斤/2份+100g、螺丝椒3斤→1箱）+ 真实创建 PPL-20261110-001 + 页面截图验证
+
+### 检查
+- tsc / build / lint（0 errors）/ jest 全过；迁移零差异（empty migration 验证过）
+
+---
+---
+## 2026-11-10 — 切配/采购单据打印导出字段定版 + 打印侧边栏 BUG 修复
+
+### 切配工单（打印/CSV，页面表格不变）
+- 字段：序号、名称、切配份数、净料用量（原「切配量」文案）、毛料用量（斤）（新增：经净料来源原料关联采购计划 grossNeed÷500，detail 组装时计算 grossNeedJin）、完成状态（空栏 ☐ 供纸质打钩）
+- CSV 与打印列一致；打印改为平铺行（不再按分类分组）
+
+### 采购计划单（打印/CSV）
+- 字段：序号、食材名称、采购规格、毛料用量（斤）（原「毛料需求」改名）、库存扣减、采购量（原「建议采购量」改名、留白供手写实际采购量）、采购单位
+- 去掉分类分组/编号/供应商/预估金额列与合计行；库存充足行置灰保留
+
+### 打印 BUG 修复
+- 现象：打印页带出系统侧边栏。全局 globals.css 的 @media print 规则未生效 → 改为打印页内联 style（body aside display:none / body main margin-left:0），print media 截图验证侧边栏消失、单据顶格
+- 验证方式：tsx 生成测试 session cookie + Playwright emulateMedia print 截图
+
+### 检查
+- tsc / build / lint（0 errors，10 warnings）全过；数据链路实测（蒜米 0.2 斤、前瘦 1.6 斤、螺丝椒 2 斤与采购计划一致）
+
+---
+---
 ## 2026-11-08 — 列表排序核实 + 制单人文案统一 + 删除确认弹窗标准化
 
 - 列表/详情页「负责人」文案统一改为「制单人」
@@ -1668,3 +1719,67 @@ tsc / build / lint（0 error）/ 88 测试全过 / migrate diff 零差异；dev 
 1. "对转化逻辑理解不透彻"：酱料 = 调料 + 小料配比组合（首轮误画净料→酱料）
 2. "受补充信息影响大，轻视模块迭代思路"：新增可视化时先回模块既有语义找准确性，不为炫技加信息
 3. 视觉迭代方法论：先逻辑后视觉；用户的"丑"通常 = 信息层级不清 + 装饰性元素抢戏，解法是砍信息、强色彩层级，不是加装饰
+---
+## 2026-11-10 — 库存模块重构：净菜库存管理 v001（设计 + 原型）
+
+### 需求决策（张浩浩）
+- 完整放弃现有库存管理功能（原料精确库存、采购入库联动、切配扣原料库存全部下线）
+- 库存对象 = 净菜（食材库净料 + 小料），只有两条动线：完成生产→入库；出库单→出库
+- 交付物：
+  - memory-bank/净菜库存管理-讨论.md（阶段一，含 8 条关键口径假设待确认）
+  - memory-bank/v001-净菜库存管理-方案.md（PRD：数据模型/状态机/API/页面/联动调整）
+  - prototypes/v001-净菜库存管理.html（可交互原型，Playwright 全链路验证通过）
+
+### 核心设计点
+- cutting_orders 加 completed_qty/completed_at/remark；完成生产弹窗三态：完成（实际量入库，默认=需求量可改小）/未完成（当日终态+备注）/暂不确认（保持 pending，实现分批提交）
+- 排程完成条件：全部工单达终态自动「已完成」；有 pending 则保持进行中可再次提交
+- 新表：prepped_stock（净菜汇总库存，单位 g）、prepped_stock_ledger（台账）、outbound_orders + items（出库单，明细快照分类/名称/份数/用量/可出量）
+- 出库单行状态：未切配（红，可出 0）/量不足（橙）/正常（绿）；可出量=min(需求,实际库存)；创建即扣库存，作废回滚（作废≠删除）
+- 待确认：口径表 8 条（部分完成/分批/按可出量出库等）、配送字段、采购计划不再扣库存、旧数据归档
+
+### 环境备忘
+- node_repl 内 playwright-core 需 createRequire 加载 + executablePath 指向本机 Chrome（无 headless shell）
+---
+## 2026-11-10（晚）— 净菜库存管理 v002：入库线移至生产计划单 + 按份出入库
+
+### 张浩浩新决策（第二轮）
+- 入库线移到排程模块新增的「生产计划单」（ProductionPlan，跨店汇总进行中排程 cuttingJson 快照）；排程详情完成入口下线
+- 库存单位拍板：**按份出入库**（封装规格 g/份 换算，packageSpec 净料/小料必填，双单位：库存份数 + 库存量g）
+- 当前库存页去掉 KPI 汇总，只留 库存份数 + 库存量(g) 两个字段
+- 出库单列表 11 列定稿：序号/出库单号/门店/来源排程单名称/出库份数/合计金额/是否按计划出库/状态/库管负责人/创建时间/操作
+- 合计金额 = 出库价（净菜档案元/斤链路快照）× 出库g ÷ 500；是否按计划出库 = 逐行 shipped==required
+- 暂缓开发，待排程模块完成后再进入；交互视觉必须匹配现行系统规范
+
+### 产出
+- memory-bank/净菜库存管理-讨论.md 追加第二轮补充
+- memory-bank/v002-净菜库存管理-方案.md（替代 v001）
+- prototypes/v002-净菜库存管理.html（Playwright 全链路验证：按份完成生产→双单位入库→按份出库+金额→未按计划标记→作废回滚→台账）
+
+### 关键设计
+- 完成确认单位 = 计划单跨店合并行；三态（完成/未完成/暂不确认）按份录入实际完成份数
+- prepped_stock 双单位（current_portions 主 + current_qty 辅）；台账双单位
+- 计划单完成后回写各店 cutting_orders（actualQty 按需求占比分摊，展示级）
+- v002 原型修复记录：submitComplete 未完成分支引用了完成分支的局部变量 k；种子数据份/g 对齐
+---
+## 2026-11-10（深夜）— 净菜库存 v002 开发完成并端到端验证
+
+### 交付（按 v002 PRD 落地）
+- Schema + 迁移 20261110160000_add_prepped_stock_outbound：prepped_stock（份+g 双单位）/ prepped_stock_ledger / outbound_orders / outbound_order_items；旧 inventory 表保留停用
+- 服务端：lib/shared/prepped-stock.ts（类型+纯函数）、lib/server/prepped-stock.ts（applyStockChange 双单位变动+台账，出库条件更新防超发）、lib/server/outbound-utils.ts（getOutboundLines 计划行+库存+出库价快照）、lib/server/schemas/prepped-stock.ts（zod）
+- API：
+  - PUT /api/production-plans/[id]/complete 改造：行级三态确认（完成/未完成/暂不确认，幂等跳过终态行）→ 快照演进 → 入库 → 回写各店 cutting_orders（actualQty 按需求占比分摊）→ 计划单终态
+  - GET /api/prepped-stock、GET /api/prepped-stock/ledger（分页+筛选）
+  - GET/POST /api/outbound-orders（POST 事务：快照+扣库存+台账+as_planned；GET 兼报价预览 ?scheduleId=）
+  - GET /api/outbound-orders/[id]、POST /api/outbound-orders/[id]/void（作废回滚事务）
+- UI：/inventory 三 Tab（当前库存无 KPI 份+g / 出库单 11 列 / 双单位台账）、/inventory/outbound/new 两步向导（按份编辑+行金额实时）、/inventory/outbound/[id] 详情（作废 Dialog+打印）、打印页、生产计划单详情接入完成生产弹窗+切配确认进度卡片
+- 下线：/api/inventory*、/api/schedules/[id]/complete、排程详情完成按钮、采购入库库存联动、采购计划库存抵扣（stockDeducted 恒 0，建议=毛需求）、死组件 ingredient-card/inventory-status
+
+### 验证
+- tsc 0 / eslint 0 errors（warnings 与存量一致）/ build 通过 / 迁移零差异通过 / jest 94-95（唯一失败 middleware 用例为存量问题，与本次无关）
+- Playwright 端到端（admin 会话，真实数据）：激活 PPL-20261110-002 → 完成生产（前瘦改 1 份部分完成）→ 库存 4 种入库 → 台账 4 笔入库 → 创建出库单 OUT-20261110-001（5 份/¥27.09/前瘦量不足/未按计划）→ 作废回滚 → 库存恢复、台账 12 笔全轨迹
+
+### 环境备忘
+- 本会话沙箱对 lib/server、app 目录写入需 require_escalated（其余目录正常）；prisma generate/build 需提权
+- 新 prisma CLI：migrate diff 用 --from-schema/--to-schema + -o（--script 不支持 --output 混用旧参数）；schema.prisma 写入必须无 BOM
+- 造合法会话：node --env-file=.env --import tsx 调 createSession（lib/server/prisma 会触发 env-check，必须带 .env）
+- 排程模块并行会话正在改 app/schedules/*（当时 tsc 报的 schedules 语法错误均为其中间态，非本次引入）

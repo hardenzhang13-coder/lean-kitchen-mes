@@ -21,6 +21,8 @@ export interface CuttingOrderRow {
   packageSpec: number | null;
   /** 切配份数展示（如「1 份 + 300 g」「零配 800 g」「2 份」） */
   portionsText: string | null;
+  /** 毛料用量（斤）：经来源原料关联采购计划（打印/导出用） */
+  grossNeedJin: number | null;
   itemName: string;
   l1Name: string;
   l2Name: string;
@@ -38,6 +40,8 @@ export interface ScheduleDocMeta {
   scheduleId: number;
   /** 排程编号（SCH-日期-序号），创建时落库 */
   code?: string | null;
+  /** 打印路由前缀：门店排程 /schedules/，生产计划单 /production-plans/ */
+  printBase?: string;
 }
 
 interface ScheduleCuttingTableProps {
@@ -66,21 +70,20 @@ export function ScheduleCuttingTable({ rows, meta }: ScheduleCuttingTableProps) 
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],
     ];
-    const headers = ["一级分类", "二级分类", "编号", "名称", "规格", "切配量", "切配份数"];
-    const data = rows.map((r) => [
-      r.l1Name,
-      r.l2Name,
-      r.sourceCode || "",
+    const headers = ["序号", "名称", "切配份数", "净料用量", "毛料用量（斤）", "完成状态"];
+    const data = rows.map((r, idx) => [
+      String(idx + 1),
       r.itemName,
-      r.packageSpec != null ? r.packageSpec + "g" : "",
-      Number(r.requiredQty) + " g",
       r.portionsText || "",
+      Number(r.requiredQty) + " g",
+      r.grossNeedJin != null ? r.grossNeedJin.toFixed(2) : "",
+      "", // 完成状态：纸质单手写打钩
     ]);
     downloadCSV("切配工单.csv", [...headerRows, headers, ...data]);
   };
 
   const handlePrint = () => {
-    window.open("/schedules/" + meta.scheduleId + "/print?doc=cutting", "_blank");
+    window.open((meta.printBase ?? "/schedules/") + meta.scheduleId + "/print?doc=cutting", "_blank");
   };
 
   return (

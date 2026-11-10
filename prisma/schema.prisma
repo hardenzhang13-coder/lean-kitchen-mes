@@ -294,6 +294,7 @@ model Store {
   updatedAt DateTime   @updatedAt @map("updated_at")
   deletedAt DateTime?  @map("deleted_at")
   schedules Schedule[]
+  outboundOrders OutboundOrder[]
 
   @@index([deletedAt])
   @@map("stores")
@@ -312,6 +313,7 @@ model Schedule {
   cuttingOrders CuttingOrder[]
   purchasePlans PurchasePlan[]
   items         ScheduleItem[]
+  productionPlanRefs ProductionPlanSchedule[]
   store         Store                 @relation(fields: [storeId], references: [id])
 
   @@map("schedules")
@@ -490,4 +492,127 @@ model OperationLog {
   user        User     @relation(fields: [userId], references: [id])
 
   @@map("operation_logs")
+}
+
+// 切配中心生产计划单：跨店汇总「进行中」排程单的切配工单与采购计划（生成时快照固化）
+model ProductionPlan {
+  id          Int      @id @default(autoincrement())
+  code        String?  @unique // 编号：PPL-生产日期-当日序号
+  title       String
+  planDate    DateTime @map("plan_date") @db.Date
+  status      String   @default("待生效") // 与排程单一致：待生效 / 进行中 / 已完成
+  operator    String?
+  cuttingJson Json?    @map("cutting_json") // 汇总切配工单明细快照
+  purchaseJson Json?   @map("purchase_json") // 汇总采购计划明细快照
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+  schedules   ProductionPlanSchedule[]
+
+  @@map("production_plans")
+}
+
+// 生产计划单 ↔ 来源排程单（溯源）
+model ProductionPlanSchedule {
+  id         Int            @id @default(autoincrement())
+  planId     Int            @map("plan_id")
+  scheduleId Int            @map("schedule_id")
+  plan       ProductionPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  schedule   Schedule       @relation(fields: [scheduleId], references: [id])
+
+  @@unique([planId, scheduleId])
+  @@map("production_plan_schedules")
+}
+
+// ===== 净菜库存（v002）：切配中心库存只管理加工完成的净菜（净料+小料），按份出入库 =====
+
+// 净菜库存表：份为记账主单位，g 按当时封装规格换算同步累加（金额计算/展示用）
+model PreppedStock {
+  id              Int      @id @default(autoincrement())
+  sourceType      String   @map("source_type") // net / minor
+  sourceId        Int      @map("source_id")
+  currentPortions Decimal  @map("current_portions") @db.Decimal(12, 2)
+  currentQty      Decimal  @map("current_qty") @db.Decimal(14, 2)
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@unique([sourceType, sourceId])
+  @@map("prepped_stock")
+}
+
+// 净菜库存台账：双单位（份 + g）流水
+model PreppedStockLedger {
+  id              Int      @id @default(autoincrement())
+  sourceType      String   @map("source_type")
+  sourceId        Int      @map("source_id")
+  changeType      String   @map("change_type") // stock_in / stock_out / stock_rollback
+  changePortions  Decimal  @map("change_portions") @db.Decimal(12, 2)
+  changeQty       Decimal  @map("change_qty") @db.Decimal(14, 2)
+  balancePortions Decimal  @map("balance_portions") @db.Decimal(12, 2)
+  balanceQty      Decimal  @map("balance_qty") @db.Decimal(14, 2)
+  bizType         String   @map("biz_type") // production_complete / outbound / outbound_void
+  bizId           Int?     @map("biz_id")
+  bizRefCode      String?  @map("biz_ref_code")
+  scheduleId      Int?     @map("schedule_id")
+  storeId         Int?     @map("store_id")
+  itemCode        String?  @map("item_code")
+  itemName        String   @map("item_name")
+  l1Name          String?  @map("l1_name")
+  l2Name          String?  @map("l2_name")
+  operator        String?
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([sourceType, sourceId])
+  @@index([createdAt])
+  @@map("prepped_stock_ledger")
+}
+
+// 净菜出库单：创建即扣库存（confirmed），作废回滚（voided，作废≠删除）
+model OutboundOrder {
+  id             Int      @id @default(autoincrement())
+  code           String   @unique // OUT-YYYYMMDD-NNN（当日序号）
+  scheduleId     Int      @map("schedule_id")
+  storeId        Int      @map("store_id")
+  scheduleCode   String?  @map("schedule_code")
+  scheduleTitle  String   @map("schedule_title")
+  scheduleDate   DateTime @map("schedule_date") @db.Date
+  totalPortions  Decimal  @map("total_portions") @db.Decimal(12, 2)
+  totalAmount    Decimal  @map("total_amount") @db.Decimal(12, 2)
+  asPlanned      Boolean  @default(true) @map("as_planned") // 是否按计划出库：逐行 shipped == required
+  status         String   @default("confirmed") // confirmed / voided
+  operator       String? // 库管负责人（制单人）
+  remark         String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  voidedAt       DateTime? @map("voided_at")
+  voidReason     String?   @map("void_reason")
+  store          Store    @relation(fields: [storeId], references: [id])
+  items          OutboundOrderItem[]
+
+  @@index([storeId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("outbound_orders")
+}
+
+model OutboundOrderItem {
+  id                Int      @id @default(autoincrement())
+  outboundOrderId   Int      @map("outbound_order_id")
+  sourceType        String   @map("source_type")
+  sourceId          Int      @map("source_id")
+  itemCode          String?  @map("item_code")
+  itemName          String   @map("item_name")
+  l1Name            String?  @map("l1_name")
+  l2Name            String?  @map("l2_name")
+  packageSpec       Int?     @map("package_spec")
+  requiredPortions  Decimal  @map("required_portions") @db.Decimal(12, 2)
+  requiredQty       Decimal  @map("required_qty") @db.Decimal(14, 2)
+  availablePortions Decimal  @map("available_portions") @db.Decimal(12, 2)
+  shippedPortions   Decimal  @map("shipped_portions") @db.Decimal(12, 2)
+  shippedQty        Decimal  @map("shipped_qty") @db.Decimal(14, 2)
+  pricePerJin       Decimal? @map("price_per_jin") @db.Decimal(10, 2) // 出库价快照（元/斤）
+  amount            Decimal  @map("amount") @db.Decimal(12, 2) // 行金额 = 出库价 × shippedQty ÷ 500
+  prepStatus        String   @default("normal") @map("prep_status") // normal / insufficient / unfinished
+  sortIndex         Int      @map("sort_index")
+  outboundOrder     OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)
+
+  @@map("outbound_order_items")
 }

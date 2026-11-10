@@ -30,8 +30,12 @@
 | | `cutting_orders` | 切配工单 | ✅ |
 | **采购库存** | `purchase_receipts` | 采购入库单主表 | ✅ |
 | | `purchase_receipt_items` | 采购入库单明细 | ✅ |
-| | `inventory` | 库存表 | ✅ |
-| | `inventory_ledger` | 库存台账 | ✅ |
+| | ~~`inventory`~~ | 旧原料库存表 | ⚠️ 已下线停用（v002 净菜库存改版，表保留不再写入） |
+| | ~~`inventory_ledger`~~ | 旧原料库存台账 | ⚠️ 已下线停用 |
+| | `prepped_stock` | 净菜库存表（份+g 双单位） | ✅ v002 |
+| | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
+| | `outbound_orders` | 净菜出库单主表 | ✅ v002 |
+| | `outbound_order_items` | 净菜出库单明细 | ✅ v002 |
 
 ---
 

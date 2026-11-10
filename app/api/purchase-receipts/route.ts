@@ -203,47 +203,7 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          const existing = await tx.inventory.findUnique({
-            where: { ingredientId: item.ingredientId },
-          });
-
-          if (existing) {
-            const newQty = Number(existing.currentQty) + item.stockInQty;
-            await tx.inventory.update({
-              where: { ingredientId: item.ingredientId },
-              data: { currentQty: newQty, unit: item.stockUnit },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                ingredientId: item.ingredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: newQty,
-                source: `采购入库/${receipt.id}`,
-                operator,
-              },
-            });
-          } else {
-            await tx.inventory.create({
-              data: {
-                ingredientId: item.ingredientId,
-                currentQty: item.stockInQty,
-                unit: item.stockUnit,
-              },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                ingredientId: item.ingredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: item.stockInQty,
-                source: `采购入库/${receipt.id}`,
-                operator,
-              },
-            });
-          }
+          // 原料精确库存已下线（净菜库存改版 v002）：采购单仅作凭证，不再联动库存台账
         }
       }
 

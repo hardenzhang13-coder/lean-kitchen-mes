@@ -56,6 +56,21 @@ export async function getScheduleDetail(scheduleId: number) {
     select: { code: true, name: true },
   });
 
+  // 切配工单的毛料用量（斤）：净料/小料经来源原料关联到采购计划的毛需求
+  const netIds = schedule.cuttingOrders.filter((c) => c.sourceType === "net").map((c) => c.sourceId);
+  const minorIds = schedule.cuttingOrders.filter((c) => c.sourceType === "minor").map((c) => c.sourceId);
+  const cuttingSources = await prisma.netIngredient.findMany({
+    where: { id: { in: [...netIds, ...minorIds] } },
+    select: { id: true, sourceIngredientId: true },
+  });
+  const sourceIdByNetId = new Map<number, number | null>();
+  cuttingSources.forEach((n) => sourceIdByNetId.set(n.id, n.sourceIngredientId));
+  // 原料毛需求（斤）：采购计划中 sourceType = ingredient 的行
+  const grossJinByIngredientId = new Map<number, number>();
+  schedule.purchasePlans
+    .filter((p) => p.sourceType === "ingredient")
+    .forEach((p) => grossJinByIngredientId.set(p.sourceId, Number(p.grossNeed) / 500));
+
   return {
     id: schedule.id,
     code: schedule.code,
@@ -99,6 +114,10 @@ export async function getScheduleDetail(scheduleId: number) {
         c.packageSpec != null && Number(c.packageSpec) > 0
           ? formatPortions(Number(c.requiredQty), Number(c.packageSpec))
           : null,
+      grossNeedJin: (() => {
+        const srcId = sourceIdByNetId.get(c.sourceId);
+        return srcId != null ? grossJinByIngredientId.get(srcId) ?? null : null;
+      })(),
     })),
     purchasePlans: schedule.purchasePlans.map((p) => {
       const l2Cat = pL2Cats.find((cat) => cat.code === p.l2Code);

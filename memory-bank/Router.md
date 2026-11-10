@@ -19,9 +19,11 @@
 │   ├── /purchases/new             采购单录入
 │   └── /purchases/[id]            采购单详情
 │
-├── /inventory                     库存管理
-│   ├── /inventory                 库存实况
-│   └── /inventory/ledger          库存台账
+├── /inventory                     库存管理（v002 净菜库存）
+│   ├── /inventory                 当前库存 / 出库单 / 出入库流水（三 Tab）
+│   ├── /inventory/outbound/new    创建出库单（两步向导）
+│   ├── /inventory/outbound/[id]   出库单详情（打印/作废回滚）
+│   └── /inventory/outbound/[id]/print 出库单打印
 │
 ├── /dishes                        菜品库
 │   ├── /dishes                    菜品列表
