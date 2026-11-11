@@ -47,7 +47,7 @@ services:
       db-users:
         condition: service_completed_successfully
     environment:
-      DATABASE_URL: mysql://lean_migrate:${DB_MIGRATE_PASSWORD}@db:3306/lean_kms
+      DATABASE_URL: mysql://lean_migrate:${DB_MIGRATE_PASSWORD}@db:3306/lean_kms?allowPublicKeyRetrieval=true
       INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
       INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
       INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-管理员}
@@ -76,7 +76,7 @@ services:
       retries: 3
       start_period: 60s
     environment:
-      DATABASE_URL: mysql://lean_app:${DB_APP_PASSWORD}@db:3306/lean_kms
+      DATABASE_URL: mysql://lean_app:${DB_APP_PASSWORD}@db:3306/lean_kms?allowPublicKeyRetrieval=true
       SESSION_SECRET: ${SESSION_SECRET}
       FORCE_HTTPS: ${FORCE_HTTPS:-false}
       QWEN_API_KEY: ${QWEN_API_KEY}
