@@ -77,6 +77,8 @@ services:
       start_period: 60s
     environment:
       DATABASE_URL: mysql://lean_app:${DB_APP_PASSWORD}@db:3306/lean_kms?allowPublicKeyRetrieval=true
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
       SESSION_SECRET: ${SESSION_SECRET}
       FORCE_HTTPS: ${FORCE_HTTPS:-false}
       QWEN_API_KEY: ${QWEN_API_KEY}
