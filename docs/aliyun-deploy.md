@@ -151,9 +151,11 @@ ssh-copy-id -i ~/.ssh/aliyun_deploy.pub root@<公网IP>
 ssh -i ~/.ssh/aliyun_deploy root@<公网IP> "echo ok"
 ```
 
-### 方式 B：push 即部署（GitHub Actions）
+### 方式 B：手动触发 GitHub Actions
 
-`.github/workflows/deploy.yml` 已随仓库提供：push 到 `main` 自动部署。
+`.github/workflows/deploy.yml` 已随仓库提供。为避免 2C4G 服务器被普通 push
+触发的全量构建拖入长时间高负载，工作流改为人工触发：GitHub 仓库 →
+**Actions → deploy → Run workflow**。
 
 **首次配置（只需一次）**：
 
@@ -183,12 +185,18 @@ systemctl restart sshd
 ```bash
 # 本地开发机
 git push origin main
-# → Actions 自动部署；或手动执行方式 A 的 ./deploy.sh
+# → 人工到 GitHub Actions 触发 deploy；或手动执行方式 A 的 ./deploy.sh
+```
+
+仅修改 Compose、环境变量或运行时配置时，优先使用无构建部署：
+
+```bash
+DEPLOY_NO_BUILD=1 DEPLOY_HOST=<公网IP> ./deploy.sh
 ```
 
 ## 注意事项
 
 - `.env` 已在 `.gitignore` 和 `.dockerignore` 中排除，不会进入镜像或仓库
 - 数据库不对外暴露端口（只在 Docker 内网），无需在防火墙开 3306
-- 服务器代码必须用 **git clone** 管理；后续更新：`git push origin main`（Actions 自动部署）或 `./deploy.sh`（见「八、一键/自动部署」）
+- 服务器代码必须用 **git clone** 管理；后续更新先 push，再人工触发 GitHub Actions 或执行 `./deploy.sh`
 - 旧 Zeabur 数据已过期无法迁移，系统从 seed 基础数据重新开始

@@ -1,12 +1,13 @@
 name: deploy
 
-# push 到 main 即自动部署到阿里云（与 docs/aliyun-deploy.md 手动流程等价：
+# 人工触发后部署到阿里云（与 docs/aliyun-deploy.md 手动流程等价：
 # git pull --ff-only && docker compose up -d --build，迁移由 compose 的 migrate 服务自动执行；
 # 随后灌入 scripts/dictionary-baseline.sql 做字典基线初始化（INSERT IGNORE 只增不覆盖，生产字典修改不会被部署回滚））
 
+# 2C4G 服务器现场构建曾多次造成资源饱和。生产构建迁移到独立 CI/镜像仓库前，
+# 默认只允许人工触发，避免普通 push 直接把生产拖入长时间构建。
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read

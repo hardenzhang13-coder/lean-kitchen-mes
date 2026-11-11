@@ -20,10 +20,16 @@ DEPLOY_PATH="${DEPLOY_PATH:-/opt/lean-kms-v3}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/aliyun_deploy}"
 PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-http://${DEPLOY_HOST}}"
 DEPLOY_DOMAIN_MODE="${DEPLOY_DOMAIN_MODE:-0}"
+DEPLOY_NO_BUILD="${DEPLOY_NO_BUILD:-0}"
 
 COMPOSE_COMMAND="docker compose"
 if [ "$DEPLOY_DOMAIN_MODE" = "1" ]; then
   COMPOSE_COMMAND="docker compose -f docker-compose.yml -f docker-compose.domain.yml"
+fi
+
+UP_ARGS="-d --build"
+if [ "$DEPLOY_NO_BUILD" = "1" ]; then
+  UP_ARGS="-d --no-build"
 fi
 
 if [ -z "$DEPLOY_HOST" ]; then
@@ -34,7 +40,7 @@ fi
 echo "==> 部署到 ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
   "${DEPLOY_USER}@${DEPLOY_HOST}" \
-  "cd '${DEPLOY_PATH}' && git pull --ff-only && ${COMPOSE_COMMAND} up -d --build && ${COMPOSE_COMMAND} exec -T db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" lean_kms' < scripts/dictionary-baseline.sql"
+  "cd '${DEPLOY_PATH}' && git pull --ff-only && ${COMPOSE_COMMAND} up ${UP_ARGS} && ${COMPOSE_COMMAND} exec -T db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" lean_kms' < scripts/dictionary-baseline.sql"
 
 echo "==> 健康检查 ${PUBLIC_BASE_URL%/}/login"
 for _ in $(seq 1 30); do
