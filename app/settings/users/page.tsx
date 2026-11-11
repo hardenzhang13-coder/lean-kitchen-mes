@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Power } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -35,13 +35,14 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
-import { ROLE_OPTIONS } from "@/lib/server/roles";
+import { ROLE_OPTIONS } from "@/lib/shared/roles";
 
 type User = {
   id: number;
   username: string;
   name: string;
   role: string;
+  isActive: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -130,6 +131,10 @@ export default function UsersPage() {
       toast.error("创建用户时必须设置密码");
       return;
     }
+    if (form.password.trim() && form.password.trim().length < 10) {
+      toast.error("密码至少需要 10 位");
+      return;
+    }
 
     setSubmitting(true);
     try {
@@ -192,7 +197,7 @@ export default function UsersPage() {
         toast.error(err.error || "删除失败");
         return;
       }
-      toast.success("删除成功");
+      toast.success("用户已停用并移出列表");
       setDeleteId(null);
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
@@ -201,6 +206,33 @@ export default function UsersPage() {
       }
     } catch {
       toast.error("删除失败");
+    }
+  };
+
+  const handleToggleActive = async (row: User) => {
+    if (row.id === currentUser?.id) {
+      toast.error("不能停用当前登录用户");
+      return;
+    }
+    try {
+      const res = await fetch(`/api/users/${row.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: !row.isActive }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error || "更新账号状态失败");
+        return;
+      }
+      toast.success(row.isActive ? "账号已停用" : "账号已启用");
+      const usersRes = await fetch("/api/users?page=1&pageSize=100");
+      if (usersRes.ok) {
+        const json = await usersRes.json();
+        setData(json.data || []);
+      }
+    } catch {
+      toast.error("更新账号状态失败");
     }
   };
 
@@ -241,7 +273,7 @@ export default function UsersPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
+            <SkeletonTable cols={7} rows={DEFAULT_PAGE_SIZE} />
           ) : (
             <>
               <div className="rounded-md border overflow-x-auto">
@@ -252,6 +284,7 @@ export default function UsersPage() {
                       <TableHead>账号</TableHead>
                       <TableHead>姓名</TableHead>
                       <TableHead>角色</TableHead>
+                      <TableHead>状态</TableHead>
                       <TableHead>创建时间</TableHead>
                       <TableHead className="w-[120px] text-right">操作</TableHead>
                     </TableRow>
@@ -259,7 +292,7 @@ export default function UsersPage() {
                   <TableBody>
                     {pageItems.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
                           暂无数据
                         </TableCell>
                       </TableRow>
@@ -274,12 +307,29 @@ export default function UsersPage() {
                           <TableCell>
                             <Badge variant="secondary">{row.role}</Badge>
                           </TableCell>
+                          <TableCell>
+                            <Badge variant={row.isActive ? "secondary" : "destructive"}>
+                              {row.isActive ? "启用" : "停用"}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-muted-foreground text-sm">
                             {formatDate(row.createdAt)}
                           </TableCell>
                           <TableCell className="text-right">
                             <Button variant="ghost" size="icon" aria-label="编辑用户" onClick={() => openEdit(row)}>
                               <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={row.isActive ? "停用用户" : "启用用户"}
+                              title={row.isActive ? "停用用户" : "启用用户"}
+                              onClick={() => handleToggleActive(row)}
+                              disabled={row.id === currentUser?.id}
+                            >
+                              <Power
+                                className={row.isActive ? "h-4 w-4" : "h-4 w-4 text-muted-foreground"}
+                              />
                             </Button>
                             <Button
                               variant="ghost"
@@ -363,6 +413,7 @@ export default function UsersPage() {
                 placeholder={editing ? "留空则不修改" : "初始密码"}
                 className="h-11 text-base px-4"
               />
+              <p className="text-xs text-muted-foreground">密码至少 10 位</p>
             </div>
           </div>
           <DialogFooter>
@@ -382,9 +433,11 @@ export default function UsersPage() {
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
           <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
+          <DialogTitle className="text-lg">确认停用并移出列表</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">确定要删除该用户吗？此操作不可撤销。</p>
+          <p className="text-muted-foreground text-base">
+            确定要停用该用户并移出列表吗？历史审计记录会保留。
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
               取消

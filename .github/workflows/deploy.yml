@@ -8,6 +8,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: deploy-production
   cancel-in-progress: false
@@ -28,14 +31,21 @@ jobs:
           script: |
             cd /opt/lean-kms-v3
             git pull --ff-only
-            docker compose up -d --build
+            if [ "${{ vars.DEPLOY_DOMAIN_MODE }}" = "1" ]; then
+              docker compose -f docker-compose.yml -f docker-compose.domain.yml up -d --build
+            else
+              docker compose up -d --build
+            fi
             # 字典基线初始化（INSERT IGNORE，只增不覆盖）：仅补缺失字典，不碰生产已有数据
             docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms' < scripts/dictionary-baseline.sql
 
       - name: 健康检查
+        env:
+          PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
         run: |
           for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://${{ secrets.ALIYUN_HOST }}/login" || true)
+            base_url="${PUBLIC_BASE_URL:-http://${{ secrets.ALIYUN_HOST }}}"
+            code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "${base_url%/}/login" || true)
             if [ "$code" = "200" ]; then
               echo "部署完成，服务正常（HTTP 200）"
               exit 0

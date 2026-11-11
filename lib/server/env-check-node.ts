@@ -17,4 +17,9 @@ export function checkRequiredEnvVars(): void {
     }
     process.exit(1);
   }
+
+  if ((process.env.SESSION_SECRET?.trim().length ?? 0) < 32) {
+    console.error("【致命错误】SESSION_SECRET 长度必须不少于 32 个字符");
+    process.exit(1);
+  }
 }

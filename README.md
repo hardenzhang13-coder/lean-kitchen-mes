@@ -14,7 +14,7 @@
 | 菜品库 | ✅ 完成（BOM + 工艺） |
 | 工作台 | ✅ 完成 |
 | 排程管理 | ✅ 完成（自动拆解切配工单 + 采购计划） |
-| 采购管理 | ⚠️ 基础完成（录入/列表/AI识别/报销） |
+| 采购管理 | ⏸ 试运行暂未开放（入口保留，接口锁定） |
 | 库存管理 | ✅ 完成（实时库存 + 台账） |
 | 用户权限 | ✅ 基础完成（4 角色） |
 | 系统设置 | ✅ 完成 |
@@ -25,10 +25,10 @@
 |------|------|------|
 | 框架 | Next.js (App Router) | 16.2.7 |
 | UI | React + Tailwind CSS v4 + shadcn/ui | 19.2.4 / v4 |
-| 数据库 | PostgreSQL + Prisma 7 | — |
+| 数据库 | MySQL 8.4 + Prisma 7 | — |
 | 认证 | JWT (jose) | 自研 |
-| AI 识别 | 通义千问 Qwen | 多模态图片识别 |
-| 部署 | Zeabur | 自动检测 |
+| AI 识别 | 通义千问 Qwen | 采购功能重新开放后启用 |
+| 部署 | 阿里云 ECS | Docker Compose + Caddy HTTPS |
 
 ## 快速启动
 
@@ -40,25 +40,27 @@
 # 数据库（必须）
 DATABASE_URL="mysql://user:pass@host:port/db"
 
-# 会话密钥（必须，生产环境请生成随机字符串）
-SESSION_SECRET="your-random-secret-key"
+# 会话密钥（必须，至少 32 位）
+SESSION_SECRET="your-random-secret-key-at-least-32-characters"
 
-# AI 识别（必须）
-QWEN_API_KEY="your-qwen-api-key"
-QWEN_BASE_URL="https://dashscope.aliyuncs.com/compatible-mode/v1"
-QWEN_MODEL="qwen-vl-max"
+# 空库首次管理员（已有数据库不会覆盖现有账号）
+INITIAL_ADMIN_PASSWORD="your-secure-initial-password"
 
-# 图片存储（必须）
-CLOUDINARY_CLOUD_NAME="your-cloud-name"
-CLOUDINARY_UPLOAD_PRESET="your-upload-preset"
+# Docker Compose 最小权限数据库账号
+DB_APP_PASSWORD="GenerateAppPasswordA1"
+DB_MIGRATE_PASSWORD="GenerateMigratePasswordB2"
+DB_BACKUP_PASSWORD="GenerateBackupPasswordC3"
+
+# 加密备份密钥
+BACKUP_ENCRYPTION_KEY="your-separately-stored-backup-key"
 ```
 
 ### 2. 安装与初始化
 
 ```bash
 npm install
-npx prisma db push      # 推送数据库结构
-npx prisma db seed      # 灌入基础字典数据（含默认账号）
+npx prisma migrate deploy
+npx prisma db seed
 npm run dev             # 开发服务器 http://localhost:3000
 ```
 
@@ -66,7 +68,7 @@ npm run dev             # 开发服务器 http://localhost:3000
 
 ```bash
 npm run build
-# 输出到 .next/standalone，用于 Zeabur 部署
+# 输出到 .next/standalone，用于 Docker 部署
 ```
 
 ## 常用命令
@@ -80,15 +82,9 @@ npm run build
 | `npx prisma db seed` | 运行种子脚本 |
 | `npx prisma generate` | 重新生成 Prisma Client |
 
-## 默认账号
+## 试运行账号
 
-种子数据 `prisma/seed.ts` 创建：
-
-| 账号 | 密码 | 角色 |
-|------|------|------|
-| zhang | 123456 | 业务运营 |
-| yang | 123456 | 厨师长 |
-| admin | admin123 | 系统管理员 |
+现有 `admin`、`zhang`、`yang` 三个账号及其角色继续保留。上线前必须分别修改为三个不同的强密码；源码不再创建固定弱口令账号。空库部署通过 `INITIAL_ADMIN_*` 环境变量创建首个管理员。
 
 ## 文档索引
 
@@ -99,16 +95,13 @@ npm run build
 | `memory-bank/Database.md` | 数据库设计、25 张表、字段说明 | ✅ |
 | `memory-bank/Router.md` | 页面路由、交互设计 | ✅ |
 | `memory-bank/progress.md` | 项目推进日志、技术决策 | ✅ |
+| `docs/trial-security.md` | 试运行账号、备份、HTTPS 与回滚流程 | ✅ |
 | `CLAUDE.md` | Claude Code 项目指南 | ✅ |
 | `AGENTS.md` | AI Agent 工作区指令 | ✅ |
 
 ## 部署
 
-当前部署在 **Zeabur**。每次部署前确保：
-1. `DATABASE_URL` 已配置
-2. `SESSION_SECRET` 已配置
-3. `CLOUDINARY_CLOUD_NAME` 和 `CLOUDINARY_UPLOAD_PRESET` 已配置
-4. `npm run build` 通过
+当前部署在阿里云 ECS。正式域名完成 ICP 后使用 `docker-compose.domain.yml` 增加 Caddy HTTPS 入口；详细步骤见 `docs/trial-security.md` 和 `docs/aliyun-deploy.md`。
 
 ---
 

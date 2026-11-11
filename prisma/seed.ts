@@ -130,30 +130,23 @@ async function main() {
     await prisma.store.upsert({ where: { name: s.name }, create: s, update: { code: s.code, isSystem: s.isSystem } });
   }
 
-  // 5. 用户
-  const users = [
-    { username: "zhang", password: "123456", name: "张浩", role: "业务运营" },
-    { username: "yang", password: "123456", name: "杨厨", role: "厨师长" },
-    { username: "admin", password: "admin123", name: "管理员", role: "系统管理员" },
-  ];
-  for (const u of users) {
-    const existing = await prisma.user.findUnique({ where: { username: u.username } });
-    if (!existing) {
-      await prisma.user.create({
-        data: {
-          username: u.username,
-          password: await bcrypt.hash(u.password, 10),
-          name: u.name,
-          role: u.role,
-        },
-      });
-    } else {
-      // 更新已有用户的 name 和 role
-      await prisma.user.update({
-        where: { username: u.username },
-        data: { name: u.name, role: u.role },
-      });
+  // 5. 首次管理员：只在空库创建，绝不覆盖现网已有账号、密码或角色。
+  const existingUserCount = await prisma.user.count({ where: { deletedAt: null } });
+  if (existingUserCount === 0) {
+    const username = process.env.INITIAL_ADMIN_USERNAME?.trim() || "admin";
+    const password = process.env.INITIAL_ADMIN_PASSWORD?.trim();
+    const name = process.env.INITIAL_ADMIN_NAME?.trim() || "管理员";
+    if (!password || password.length < 10) {
+      throw new Error("空库首次部署必须设置至少 10 位的 INITIAL_ADMIN_PASSWORD");
     }
+    await prisma.user.create({
+      data: {
+        username,
+        password: await bcrypt.hash(password, 10),
+        name,
+        role: "系统管理员",
+      },
+    });
   }
 
   console.log("Seed completed.");

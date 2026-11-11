@@ -16,18 +16,37 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(scheduleQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { status, startDate, endDate, q, storeId, page, pageSize } = validation.data;
+    const {
+      status,
+      startDate,
+      endDate,
+      q,
+      storeId,
+      availableForPlan,
+      excludePlanId,
+      page,
+      pageSize,
+    } = validation.data;
 
     const where: Prisma.ScheduleWhereInput = {};
     if (status) where.status = status;
     if (storeId) where.storeId = storeId;
     if (startDate || endDate) {
-      where.createdAt = {};
-      if (startDate) where.createdAt.gte = new Date(startDate);
-      if (endDate) where.createdAt.lte = new Date(endDate);
+      where.scheduleDate = {};
+      if (startDate) where.scheduleDate.gte = new Date(startDate);
+      if (endDate) where.scheduleDate.lte = new Date(endDate);
     }
     if (q) {
       where.title = { contains: q };
+    }
+    if (availableForPlan) {
+      const planWhere: Prisma.ProductionPlanWhereInput = { deletedAt: null };
+      if (excludePlanId != null) {
+        planWhere.id = { not: excludePlanId };
+      }
+      where.productionPlanRefs = {
+        none: { plan: planWhere },
+      };
     }
 
     const skip = (page - 1) * pageSize;
@@ -45,6 +64,22 @@ export async function GET(req: NextRequest) {
             },
           },
           store: { select: { id: true, name: true } },
+          productionPlanRefs: {
+            where: { plan: { deletedAt: null } },
+            orderBy: { id: "desc" },
+            take: 1,
+            select: {
+              plan: {
+                select: {
+                  id: true,
+                  code: true,
+                  title: true,
+                  planDate: true,
+                  status: true,
+                },
+              },
+            },
+          },
           _count: {
             select: { items: true },
           },
@@ -54,11 +89,15 @@ export async function GET(req: NextRequest) {
     ]);
 
     const enriched = await enrichOperatorNames(
-      rows.map((r) => ({
-        ...r,
-        totalQuantity: r.items.reduce((s, it) => s + it.quantity, 0),
-        dishCount: r._count.items,
-      }))
+      rows.map((r) => {
+        const { productionPlanRefs, ...schedule } = r;
+        return {
+          ...schedule,
+          productionPlan: productionPlanRefs[0]?.plan ?? null,
+          totalQuantity: r.items.reduce((s, it) => s + it.quantity, 0),
+          dishCount: r._count.items,
+        };
+      })
     );
 
     const totalPages = Math.ceil(totalItems / pageSize);

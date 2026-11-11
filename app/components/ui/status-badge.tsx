@@ -20,8 +20,8 @@ const statusMap: Record<string, StatusVariant> = {
   // 排程
   已发布: "success",
   待生效: "warning",
-  进行中: "success",
-  已完成: "neutral",
+  进行中: "info",
+  已完成: "success",
   已取消: "danger",
   // 库存流水
   入库: "success",

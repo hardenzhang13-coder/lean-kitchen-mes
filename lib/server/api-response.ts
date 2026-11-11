@@ -8,6 +8,7 @@ export const HTTP_STATUS = {
   FORBIDDEN: 403,
   NOT_FOUND: 404,
   CONFLICT: 409,
+  TOO_MANY_REQUESTS: 429,
   INTERNAL_ERROR: 500,
 } as const;
 
@@ -17,6 +18,7 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   message?: string;
   code?: string;
+  retryAfterSeconds?: number;
   pagination?: PaginationMeta;
 }
 
@@ -74,6 +76,20 @@ export const notFound = (message = "资源不存在") =>
 
 export const conflict = (message: string) =>
   error(message, HTTP_STATUS.CONFLICT, "CONFLICT");
+
+export const tooManyRequests = (message: string, retryAfterSeconds: number) =>
+  NextResponse.json(
+    {
+      success: false,
+      error: message,
+      code: "RATE_LIMITED",
+      retryAfterSeconds,
+    } satisfies ApiResponse,
+    {
+      status: HTTP_STATUS.TOO_MANY_REQUESTS,
+      headers: { "Retry-After": String(retryAfterSeconds) },
+    }
+  );
 
 export const internalError = (message = "服务器内部错误") =>
   error(message, HTTP_STATUS.INTERNAL_ERROR, "INTERNAL_ERROR");

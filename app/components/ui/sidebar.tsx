@@ -17,11 +17,18 @@ import { cn, getInitials } from "@/lib/shared/utils";
 import { Logo } from "@/app/components/ui/logo";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { TRIAL_FEATURES } from "@/lib/shared/features";
+import { canAccessPage } from "@/lib/shared/access-control";
 
 const navItems = [
   { href: "/", label: "工作台", icon: LayoutDashboard },
   { href: "/schedules", label: "排程", icon: CalendarDays },
-  { href: "/purchases", label: "采购", icon: ShoppingCart },
+  {
+    href: "/purchases",
+    label: "采购",
+    icon: ShoppingCart,
+    unavailable: !TRIAL_FEATURES.purchases,
+  },
   { href: "/inventory", label: "库存", icon: Package },
   { href: "/dishes", label: "菜品", icon: UtensilsCrossed },
   { href: "/ingredients", label: "食材", icon: Carrot },
@@ -42,7 +49,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
-        {navItems.map((item) => {
+        {navItems.filter((item) => canAccessPage(item.href, user?.role)).map((item) => {
           const isActive = item.href === "/"
             ? pathname === "/"
             : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -57,10 +64,16 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
                   ? "bg-primary/10 text-primary before:absolute before:left-1 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:rounded-full before:bg-primary"
                   : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
-              title={item.label}
+              title={item.unavailable ? `${item.label}（试运行暂未开放）` : item.label}
             >
               <Icon className="h-5 w-5" />
               <span className="text-xs font-bold">{item.label}</span>
+              {item.unavailable && (
+                <span
+                  className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-amber-500"
+                  aria-label="试运行暂未开放"
+                />
+              )}
             </Link>
           );
         })}

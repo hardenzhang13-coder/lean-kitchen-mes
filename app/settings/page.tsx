@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Store, Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/server/session";
-import { isAdmin } from "@/lib/server/roles";
+import { isAdmin } from "@/lib/shared/roles";
 
 const settingsItems = [
   {

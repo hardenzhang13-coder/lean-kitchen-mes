@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success } from "@/lib/server/api-response";
@@ -30,7 +31,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   try {
     const result = await prisma.$transaction(async (tx) => {
-      // 检查状态
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM schedules WHERE id = ${scheduleId} FOR UPDATE`
+      );
       const existing = await tx.schedule.findUnique({
         where: { id: scheduleId },
         select: { status: true },
@@ -87,7 +90,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return success(result);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 400 });
+    return NextResponse.json(
+      { error: message },
+      { status: message.startsWith("只有") ? 409 : 400 }
+    );
   }
 }
 
@@ -96,16 +102,21 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const scheduleId = Number(id);
 
   try {
-    const existing = await prisma.schedule.findUnique({
-      where: { id: scheduleId },
-      select: { status: true, title: true },
+    const existing = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM schedules WHERE id = ${scheduleId} FOR UPDATE`
+      );
+      const row = await tx.schedule.findUnique({
+        where: { id: scheduleId },
+        select: { status: true, title: true },
+      });
+      if (!row) throw new Error("排程不存在");
+      if (row.status !== "待生效") {
+        throw new Error("只有待生效的排程可以删除");
+      }
+      await tx.schedule.delete({ where: { id: scheduleId } });
+      return row;
     });
-    if (!existing) return NextResponse.json({ error: "排程不存在" }, { status: 404 });
-    if (existing.status !== "待生效") {
-      return NextResponse.json({ error: "只有待生效的排程可以删除" }, { status: 400 });
-    }
-
-    await prisma.schedule.delete({ where: { id: scheduleId } });
 
     await logOperation(req, {
       action: "DELETE",
@@ -117,6 +128,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ success: true });
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: message }, { status: 400 });
+    const status = message === "排程不存在" ? 404 : message.startsWith("只有") ? 409 : 400;
+    return NextResponse.json({ error: message }, { status });
   }
 }

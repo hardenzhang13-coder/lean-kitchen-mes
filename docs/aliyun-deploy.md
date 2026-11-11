@@ -62,15 +62,29 @@ cat > .env <<'EOF'
 # 数据库密码（自定义，务必足够复杂）
 DB_PASSWORD=换成强密码
 
+# 应用/迁移/备份最小权限账号（至少 16 位字母或数字）
+DB_APP_PASSWORD=GenerateAppPasswordA1
+DB_MIGRATE_PASSWORD=GenerateMigratePasswordB2
+DB_BACKUP_PASSWORD=GenerateBackupPasswordC3
+
 # JWT 签名密钥，生成方式：openssl rand -base64 48
 SESSION_SECRET=换成至少32位随机字符串
 
-# 阿里云百炼（通义千问）API
+# 空库首个管理员；已有数据库不会覆盖现有账号
+INITIAL_ADMIN_USERNAME=admin
+INITIAL_ADMIN_PASSWORD=换成至少10位初始密码
+INITIAL_ADMIN_NAME=管理员
+
+# 加密备份密钥，生成方式：openssl rand -base64 48
+BACKUP_ENCRYPTION_KEY=请另存到密码管理器
+
+# 域名 HTTPS 完成后开启
+FORCE_HTTPS=false
+
+# 采购/AI 试运行期间暂不配置
 QWEN_API_KEY=你的百炼API-KEY
 QWEN_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 QWEN_MODEL=qwen-vl-max
-
-# Cloudinary 图片存储
 CLOUDINARY_CLOUD_NAME=你的cloud-name
 CLOUDINARY_UPLOAD_PRESET=你的upload-preset
 EOF
@@ -85,16 +99,17 @@ docker compose up -d --build
 首次启动约 5-10 分钟（构建镜像）。compose 会自动按顺序完成：
 
 1. 启动 MySQL 8.4（数据持久化在 docker 卷 `mysqldata`，utf8mb4 编码）
-2. 执行 `prisma migrate deploy` + `seed`（自动建表、写入默认账号）
-3. 启动 Next.js 监听 80 端口
-4. 启动每日备份任务（`./backups` 目录，保留 7 天）
+2. 创建 `lean_app`、`lean_migrate`、`lean_backup` 三个最小权限账号
+3. 执行 `prisma migrate deploy` + `seed`（自动建表；已有账号不会被覆盖）
+4. 启动 Next.js 监听 80 端口
+5. 启动每日加密备份任务（`./backups`，保留 30 天）
 
-验证：浏览器访问 `http://公网IP`，用 `admin / admin123` 登录。
+验证：浏览器访问 `http://公网IP`，使用现有三个账号登录。源码不再提供固定默认密码。
 
 ## 六、登录后必做
 
-1. **立即修改默认密码**（个人中心 → 修改密码）
-2. 删除或停用不用的默认账号（zhang / yang）
+1. `admin`、`zhang`、`yang` 分别修改为三个不同的强密码
+2. 确认采购入口显示“试运行暂未开放”，采购页面和接口均不可用
 3. 到「设置」里补充基础数据
 
 ## 七、常用运维命令
@@ -106,11 +121,8 @@ docker compose logs -f db         # 看数据库日志
 docker compose up -d --build web  # 更新代码后重建应用
 ls backups/                       # 查看备份文件
 
-# 手动备份
-docker compose exec db sh -c 'mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction lean_kms' | gzip > backups/manual-$(date +%F).sql.gz
-
-# 从备份恢复（危险操作）
-gunzip -c backups/xxx.sql.gz | docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms'
+# 备份为加密文件；恢复流程见 docs/trial-security.md
+ls backups/
 ```
 
 ## 八、一键/自动部署

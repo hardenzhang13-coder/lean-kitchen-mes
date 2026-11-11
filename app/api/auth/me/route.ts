@@ -6,5 +6,12 @@ export async function GET() {
   if (!user) {
     return unauthorized();
   }
-  return success({ user });
+  return success({
+    user: {
+      id: user.userId,
+      username: user.username,
+      name: user.name,
+      role: user.role,
+    },
+  });
 }

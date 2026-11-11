@@ -5,13 +5,13 @@ import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
   Play,
-  CheckCircle2,
   Trash2,
   Pencil,
   ChefHat,
   CalendarDays,
   Clock,
   MapPin,
+  FileStack,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,13 @@ interface ScheduleData {
   operator: string | null;
   operatorName?: string | null;
   createdAt: string;
+  productionPlan: {
+    id: number;
+    code: string | null;
+    title: string;
+    planDate: string;
+    status: string;
+  } | null;
   items: Array<{
     id: number;
     dishId: number;
@@ -78,6 +85,7 @@ export default function ScheduleDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activateOpen, setActivateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"menu" | "cutting" | "purchase" | "sales">("menu");
   const [recordOpen, setRecordOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -121,6 +129,7 @@ export default function ScheduleDetailPage() {
         return;
       }
       toast.success("生产计划已确认");
+      setActivateOpen(false);
       refresh();
     } catch {
       toast.error("操作出错");
@@ -199,7 +208,7 @@ export default function ScheduleDetailPage() {
                 <Trash2 className="mr-2 h-4 w-4" />
                 删除
               </Button>
-              <Button onClick={handleActivate} disabled={actionLoading}>
+              <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
                 <Play className="mr-2 h-4 w-4" />
                 确认生产计划
               </Button>
@@ -245,6 +254,36 @@ export default function ScheduleDetailPage() {
           <div className="font-medium">{data.dishCount} 个菜品 / {data.totalQuantity} 份</div>
         </div>
       </div>
+
+      {data.productionPlan && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <FileStack className="h-4 w-4 text-muted-foreground" />
+          <span className="flex-1">
+            已纳入生产计划单{" "}
+            <span className="font-mono text-xs">{data.productionPlan.code ?? `PPL-${data.productionPlan.id}`}</span>
+            {" · "}
+            {data.productionPlan.title}
+          </span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => router.push(`/production-plans/${data.productionPlan?.id}`)}
+          >
+            查看生产计划
+          </Button>
+        </div>
+      )}
+      {!data.productionPlan && data.status === "进行中" && (
+        <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <FileStack className="h-4 w-4 text-muted-foreground" />
+          <span className="flex-1 text-muted-foreground">
+            本排程尚未纳入生产计划单，可前往生产计划单选择汇总。
+          </span>
+          <Button size="sm" variant="outline" onClick={() => router.push("/production-plans/new")}>
+            新增生产计划单
+          </Button>
+        </div>
+      )}
 
       {/* 待回录提醒横幅（未全部回录时显示） */}
       {data.status !== "待生效" && data.items.some((it) => it.soldQty == null) && (
@@ -351,6 +390,25 @@ export default function ScheduleDetailPage() {
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={actionLoading} className="h-11 px-6">
               删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认生产计划</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确认后排程单将进入「进行中」，菜品、数量、门店和生产日期不可再修改，也不能删除。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button onClick={handleActivate} disabled={actionLoading} className="h-11 px-6">
+              确认并进入生产
             </Button>
           </DialogFooter>
         </DialogContent>

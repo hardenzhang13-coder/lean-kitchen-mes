@@ -18,6 +18,13 @@ DEPLOY_HOST="${DEPLOY_HOST:-}"
 DEPLOY_USER="${DEPLOY_USER:-root}"
 DEPLOY_PATH="${DEPLOY_PATH:-/opt/lean-kms-v3}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/aliyun_deploy}"
+PUBLIC_BASE_URL="${PUBLIC_BASE_URL:-http://${DEPLOY_HOST}}"
+DEPLOY_DOMAIN_MODE="${DEPLOY_DOMAIN_MODE:-0}"
+
+COMPOSE_COMMAND="docker compose"
+if [ "$DEPLOY_DOMAIN_MODE" = "1" ]; then
+  COMPOSE_COMMAND="docker compose -f docker-compose.yml -f docker-compose.domain.yml"
+fi
 
 if [ -z "$DEPLOY_HOST" ]; then
   echo "请设置 DEPLOY_HOST，例如：DEPLOY_HOST=1.2.3.4 ./deploy.sh" >&2
@@ -27,11 +34,11 @@ fi
 echo "==> 部署到 ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}"
 ssh -i "$SSH_KEY" -o StrictHostKeyChecking=accept-new \
   "${DEPLOY_USER}@${DEPLOY_HOST}" \
-  "cd '${DEPLOY_PATH}' && git pull --ff-only && docker compose up -d --build && docker compose exec -T db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" lean_kms' < scripts/dictionary-baseline.sql"
+  "cd '${DEPLOY_PATH}' && git pull --ff-only && ${COMPOSE_COMMAND} up -d --build && ${COMPOSE_COMMAND} exec -T db sh -c 'mysql -uroot -p\"\$MYSQL_ROOT_PASSWORD\" lean_kms' < scripts/dictionary-baseline.sql"
 
-echo "==> 健康检查 http://${DEPLOY_HOST}/login"
+echo "==> 健康检查 ${PUBLIC_BASE_URL%/}/login"
 for _ in $(seq 1 30); do
-  code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "http://${DEPLOY_HOST}/login" || true)
+  code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 5 "${PUBLIC_BASE_URL%/}/login" || true)
   if [ "$code" = "200" ]; then
     echo "==> 部署完成，服务正常（HTTP 200）"
     exit 0

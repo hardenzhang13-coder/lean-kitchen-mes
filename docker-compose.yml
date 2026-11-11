@@ -1,10 +1,17 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: mysql:8.4
     restart: always
+    logging: *default-logging
     environment:
       MYSQL_DATABASE: lean_kms
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_0900_ai_ci
     volumes:
       - mysqldata:/var/lib/mysql
@@ -14,55 +21,105 @@ services:
       timeout: 5s
       retries: 12
 
+  # 为应用、迁移和备份创建最小权限账号（可重复执行）
+  db-users:
+    image: mysql:8.4
+    logging: *default-logging
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./scripts/init-db-users.sh:/init-db-users.sh:ro
+    environment:
+      MYSQL_PWD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?DB_APP_PASSWORD is required}
+      DB_MIGRATE_PASSWORD: ${DB_MIGRATE_PASSWORD:?DB_MIGRATE_PASSWORD is required}
+      DB_BACKUP_PASSWORD: ${DB_BACKUP_PASSWORD:?DB_BACKUP_PASSWORD is required}
+    entrypoint: ["sh", "/init-db-users.sh"]
+
   # 启动时自动执行迁移和种子（幂等，已有数据不会重复写入）
   migrate:
     build:
       context: .
       target: migrate
+    logging: *default-logging
     depends_on:
-      db:
-        condition: service_healthy
+      db-users:
+        condition: service_completed_successfully
     environment:
-      DATABASE_URL: mysql://root:${DB_PASSWORD}@db:3306/lean_kms
+      DATABASE_URL: mysql://lean_migrate:${DB_MIGRATE_PASSWORD}@db:3306/lean_kms
+      INITIAL_ADMIN_USERNAME: ${INITIAL_ADMIN_USERNAME:-admin}
+      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD:-}
+      INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-管理员}
 
   web:
     build:
       context: .
       target: runner
     restart: always
+    logging: *default-logging
     depends_on:
       migrate:
         condition: service_completed_successfully
     ports:
       - "80:3000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
     environment:
-      DATABASE_URL: mysql://root:${DB_PASSWORD}@db:3306/lean_kms
+      DATABASE_URL: mysql://lean_app:${DB_APP_PASSWORD}@db:3306/lean_kms
       SESSION_SECRET: ${SESSION_SECRET}
+      FORCE_HTTPS: ${FORCE_HTTPS:-false}
       QWEN_API_KEY: ${QWEN_API_KEY}
       QWEN_BASE_URL: ${QWEN_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
       QWEN_MODEL: ${QWEN_MODEL:-qwen-vl-max}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME}
       CLOUDINARY_UPLOAD_PRESET: ${CLOUDINARY_UPLOAD_PRESET}
 
-  # 每日自动备份，保留 7 天（容器内不依赖 gzip，输出明文 SQL）
+  # 每日加密备份，保留 30 天
   backup:
     image: mysql:8.4
     restart: always
+    logging: *default-logging
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - ./backups:/backups
     environment:
-      MYSQL_PWD: ${DB_PASSWORD}
+      MYSQL_PWD: ${DB_BACKUP_PASSWORD}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
     entrypoint: >
       sh -c "while true; do
-        f=/backups/lean_kms-$$(date +%Y%m%d_%H%M%S).sql;
-        mysqldump -h db -uroot --single-transaction --routines --triggers lean_kms > $$f;
-        find /backups -name '*.sql*' -mtime +7 -delete;
+        if [ -z \"$$BACKUP_ENCRYPTION_KEY\" ]; then
+          echo '[backup] BACKUP_ENCRYPTION_KEY 未配置，拒绝生成明文备份' >&2;
+          exit 1;
+        fi;
+        f=/backups/lean_kms-$$(date +%Y%m%d_%H%M%S).sql.gz.enc;
+        mysqldump -h db -ulean_backup --single-transaction --triggers lean_kms |
+          gzip |
+          openssl enc -aes-256-cbc -salt -pbkdf2 -pass env:BACKUP_ENCRYPTION_KEY > $$f;
+        test -s $$f || { rm -f $$f; echo '[backup] 备份文件为空' >&2; exit 1; };
+        chmod 600 $$f;
+        find /backups -name 'lean_kms-*.sql.gz.enc' -mtime +30 -delete;
         echo \"[backup] $$f done\";
         sleep 86400;
       done"
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups -name 'lean_kms-*.sql.gz.enc' -mtime -2 | grep -q ."]
+      interval: 1h
+      timeout: 10s
+      retries: 2
+      start_period: 10m
 
 volumes:
   mysqldata:

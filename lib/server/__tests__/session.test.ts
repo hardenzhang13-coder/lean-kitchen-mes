@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { prisma } from "../prisma";
 import {
   createSession,
   verifySession,
@@ -11,8 +12,18 @@ import {
 jest.mock("next/headers", () => ({
   cookies: jest.fn(),
 }));
+jest.mock("../prisma", () => ({
+  prisma: {
+    user: {
+      findUnique: jest.fn(),
+    },
+  },
+}));
 
 const mockedCookies = cookies as jest.MockedFunction<typeof cookies>;
+const mockedPrisma = prisma as unknown as {
+  user: { findUnique: jest.Mock };
+};
 
 function createMockCookieStore(initial: { name: string; value: string }[] = []) {
   const store = new Map(initial.map((c) => [c.name, c.value]));
@@ -33,11 +44,16 @@ function createMockCookieStore(initial: { name: string; value: string }[] = []) 
 describe("session", () => {
   beforeEach(() => {
     mockedCookies.mockReset();
+    mockedPrisma.user.findUnique.mockReset();
   });
 
   describe("createSession", () => {
     it("returns a non-empty JWT string", async () => {
-      const token = await createSession({ userId: 1, username: "zhang" });
+      const token = await createSession({
+        userId: 1,
+        username: "zhang",
+        sessionVersion: 1,
+      });
       expect(typeof token).toBe("string");
       expect(token.length).toBeGreaterThan(0);
       expect(token.split(".").length).toBe(3);
@@ -46,7 +62,13 @@ describe("session", () => {
 
   describe("verifySession", () => {
     it("returns payload for a valid token", async () => {
-      const payload = { userId: 1, username: "zhang", name: "Zhang", role: "admin" };
+      const payload = {
+        userId: 1,
+        username: "zhang",
+        name: "Zhang",
+        role: "admin",
+        sessionVersion: 1,
+      };
       const token = await createSession(payload);
       const verified = await verifySession(token);
       expect(verified).toMatchObject(payload);
@@ -118,13 +140,44 @@ describe("session", () => {
     });
 
     it("returns payload for a valid session cookie", async () => {
-      const payload = { userId: 2, username: "yang", role: "chef" };
+      const payload = { userId: 2, username: "yang", role: "厨师长", sessionVersion: 1 };
       const token = await createSession(payload);
       const store = createMockCookieStore([{ name: "session", value: token }]);
       mockedCookies.mockReturnValue(store as unknown as ReturnType<typeof cookies>);
+      mockedPrisma.user.findUnique.mockResolvedValueOnce({
+        id: 2,
+        username: "yang",
+        name: null,
+        role: "厨师长",
+        isActive: true,
+        sessionVersion: 1,
+        deletedAt: null,
+      });
 
       const user = await getCurrentUser();
       expect(user).toMatchObject(payload);
+    });
+
+    it("rejects a session after the account session version changes", async () => {
+      const token = await createSession({
+        userId: 2,
+        username: "yang",
+        role: "厨师长",
+        sessionVersion: 1,
+      });
+      const store = createMockCookieStore([{ name: "session", value: token }]);
+      mockedCookies.mockReturnValue(store as unknown as ReturnType<typeof cookies>);
+      mockedPrisma.user.findUnique.mockResolvedValueOnce({
+        id: 2,
+        username: "yang",
+        name: null,
+        role: "厨师长",
+        isActive: true,
+        sessionVersion: 2,
+        deletedAt: null,
+      });
+
+      await expect(getCurrentUser()).resolves.toBeNull();
     });
   });
 });

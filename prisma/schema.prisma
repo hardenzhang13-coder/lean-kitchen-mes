@@ -468,14 +468,19 @@ model PurchaseReimbursement {
 }
 
 model User {
-  id        Int            @id @default(autoincrement())
-  username  String         @unique
-  password  String
-  name      String?
-  role      String?        @map("role")
-  createdAt DateTime       @default(now()) @map("created_at")
-  updatedAt DateTime       @updatedAt @map("updated_at")
-  logs      OperationLog[]
+  id             Int            @id @default(autoincrement())
+  username       String         @unique
+  password       String
+  name           String?
+  role           String?        @map("role")
+  isActive       Boolean        @default(true) @map("is_active")
+  sessionVersion Int            @default(1) @map("session_version")
+  deletedAt      DateTime?      @map("deleted_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+  logs           OperationLog[]
+
+  @@index([deletedAt])
 
   @@map("users")
 }

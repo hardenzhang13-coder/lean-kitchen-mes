@@ -52,6 +52,10 @@ export default function ProfilePage() {
       toast.error("两次输入的新密码不一致");
       return;
     }
+    if (form.newPassword && form.newPassword.length < 10) {
+      toast.error("新密码至少需要 10 位");
+      return;
+    }
 
     setSaving(true);
     try {
@@ -148,6 +152,7 @@ export default function ProfilePage() {
                 placeholder="不修改则留空"
                 className="h-11 text-base px-4"
               />
+              <p className="text-xs text-muted-foreground">新密码至少 10 位</p>
             </div>
             <div className="grid gap-2.5">
               <Label htmlFor="confirmPassword" className="text-base">确认新密码</Label>

@@ -1,22 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { success } from "@/lib/server/api-response";
+import { error, success } from "@/lib/server/api-response";
 import { logger } from "@/lib/server/logger";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const planId = Number(id);
   try {
-    const existing = await prisma.productionPlan.findFirst({
-      where: { id: planId, deletedAt: null },
-      select: { status: true },
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw(
+        Prisma.sql`SELECT id FROM production_plans WHERE id = ${planId} AND deleted_at IS NULL FOR UPDATE`
+      );
+      const existing = await tx.productionPlan.findFirst({
+        where: { id: planId, deletedAt: null },
+        select: { status: true },
+      });
+      if (!existing) throw new Error("生产计划单不存在");
+      if (existing.status !== "待生效") {
+        throw new Error("只有待生效的生产计划单可以确认");
+      }
+      await tx.productionPlan.update({ where: { id: planId }, data: { status: "进行中" } });
     });
-    if (!existing) return NextResponse.json({ error: "生产计划单不存在" }, { status: 404 });
-    if (existing.status !== "待生效") {
-      return NextResponse.json({ error: "只有待生效的生产计划单可以确认" }, { status: 400 });
-    }
-    await prisma.productionPlan.update({ where: { id: planId }, data: { status: "进行中" } });
     await logOperation(req, {
       action: "UPDATE",
       entity: "ProductionPlan",
@@ -25,7 +31,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     });
     return success({ ok: true });
   } catch (err) {
+    const message = err instanceof Error ? err.message : "操作失败";
+    if (message === "生产计划单不存在") return error(message, 404, "NOT_FOUND");
+    if (message.startsWith("只有")) return error(message, 409, "CONFLICT");
     logger.error({ err }, "PUT activate failed");
-    return NextResponse.json({ error: "操作失败" }, { status: 500 });
+    return error("操作失败", 500, "INTERNAL_ERROR");
   }
 }

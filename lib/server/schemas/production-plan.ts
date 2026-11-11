@@ -6,6 +6,8 @@ export const createProductionPlanSchema = z.object({
   scheduleIds: z.array(z.number().int().positive()).min(1).max(100),
 });
 
+export const updateProductionPlanSchema = createProductionPlanSchema;
+
 export const productionPlanQuerySchema = z.object({
   status: z.string().max(20).optional(),
   startDate: z.string().max(20).optional(),

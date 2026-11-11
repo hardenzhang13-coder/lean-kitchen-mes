@@ -1,10 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Eye, CalendarDays, ChefHat, MapPin, FileStack } from "lucide-react";
+import { Plus, Eye, CalendarDays, ChefHat, MapPin, FileStack, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -40,6 +47,13 @@ interface ScheduleItem {
   createdAt: string;
   dishCount: number;
   totalQuantity: number;
+  productionPlan: {
+    id: number;
+    code: string | null;
+    title: string;
+    planDate: string;
+    status: string;
+  } | null;
 }
 
 /** 快速查看抽屉数据：与详情页同源同结构（复用详情页表格组件，保证一致） */
@@ -55,9 +69,37 @@ interface QuickDetail {
   purchasePlans: PurchasePlanRow[];
   totalQuantity: number;
   dishCount: number;
+  productionPlan: {
+    id: number;
+    code: string | null;
+    title: string;
+    planDate: string;
+    status: string;
+  } | null;
+}
+
+interface ProductionPlanPreview {
+  id: number;
+  code: string | null;
+  title: string;
+  planDate: string;
+  status: string;
+  operator: string | null;
+  operatorName: string | null;
+  createdAt: string;
+  cuttingOrders: CuttingOrderRow[];
+  purchasePlans: PurchasePlanRow[];
+  sourceSchedules: Array<{
+    id: number;
+    code: string | null;
+    title: string;
+    scheduleDate: string;
+    totalQuantity: number;
+  }>;
 }
 
 type QuickTab = "menu" | "cutting" | "purchase";
+type PlanPreviewTab = "cutting" | "purchase";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "全部状态" },
@@ -102,9 +144,15 @@ export default function SchedulesPage() {
   const [plans, setPlans] = useState<Array<{ id: number; code: string | null; title: string; planDate: string; status: string; operator: string | null; operatorName?: string | null; createdAt: string; scheduleCount: number }>>([]);
   const [plansLoading, setPlansLoading] = useState(false);
   const [planSearch, setPlanSearch] = useState("");
+  const [debouncedPlanSearch, setDebouncedPlanSearch] = useState("");
   const [planStatus, setPlanStatus] = useState("");
   const [planStart, setPlanStart] = useState("");
   const [planEnd, setPlanEnd] = useState("");
+  const [planPage, setPlanPage] = useState(1);
+  const [planPagination, setPlanPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
+  const [planPreview, setPlanPreview] = useState<ProductionPlanPreview | null>(null);
+  const [planPreviewLoading, setPlanPreviewLoading] = useState(false);
+  const [planPreviewTab, setPlanPreviewTab] = useState<PlanPreviewTab>("cutting");
 
   useEffect(() => {
     let alive = true;
@@ -156,6 +204,14 @@ export default function SchedulesPage() {
   }, [search]);
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedPlanSearch(planSearch);
+      setPlanPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [planSearch]);
+
+  useEffect(() => {
     if (new URLSearchParams(window.location.search).get("tab") === "plans") setModule("plans");
   }, []);
 
@@ -166,13 +222,15 @@ export default function SchedulesPage() {
       try {
         const params = new URLSearchParams();
         if (planStatus && planStatus !== "all") params.set("status", planStatus);
-        if (planSearch) params.set("q", planSearch);
+        if (debouncedPlanSearch) params.set("q", debouncedPlanSearch);
         if (planStart) params.set("startDate", planStart);
         if (planEnd) params.set("endDate", planEnd);
-        params.set("pageSize", "100");
+        params.set("page", String(planPage));
+        params.set("pageSize", String(DEFAULT_PAGE_SIZE));
         const res = await fetch("/api/production-plans?" + params.toString());
         const data = await res.json();
         setPlans(data.data || []);
+        setPlanPagination(data.pagination || null);
       } catch {
         toast.error("获取生产计划单失败");
       } finally {
@@ -180,7 +238,7 @@ export default function SchedulesPage() {
       }
     };
     fetchPlans();
-  }, [module, planStatus, planStart, planEnd, planSearch]);
+  }, [module, planStatus, planStart, planEnd, planPage, debouncedPlanSearch]);
 
   const openQuickView = async (id: number) => {
     setQuickViewLoading(true);
@@ -205,6 +263,29 @@ export default function SchedulesPage() {
     setQuickViewLoading(false);
   };
 
+  const openPlanPreview = async (id: number) => {
+    setPlanPreviewLoading(true);
+    setPlanPreviewTab("cutting");
+    try {
+      const res = await fetch("/api/production-plans/" + id);
+      const data = await parseObject<ProductionPlanPreview>(res);
+      if (!data) {
+        toast.error("生产计划单不存在");
+        return;
+      }
+      setPlanPreview(data);
+    } catch {
+      toast.error("获取生产计划单失败");
+    } finally {
+      setPlanPreviewLoading(false);
+    }
+  };
+
+  const closePlanPreview = () => {
+    setPlanPreview(null);
+    setPlanPreviewLoading(false);
+  };
+
   const quickMeta: ScheduleDocMeta | null = quickView
     ? {
         title: quickView.title,
@@ -212,6 +293,17 @@ export default function SchedulesPage() {
         storeName: quickView.store?.name ?? "",
         scheduleId: quickView.id,
         code: quickView.code,
+      }
+    : null;
+
+  const planPreviewMeta: ScheduleDocMeta | null = planPreview
+    ? {
+        title: planPreview.title,
+        scheduleDate: planPreview.planDate,
+        storeName: "",
+        scheduleId: planPreview.id,
+        code: planPreview.code,
+        printBase: "/production-plans/",
       }
     : null;
 
@@ -251,7 +343,14 @@ export default function SchedulesPage() {
           searchValue={planSearch}
           onSearchChange={setPlanSearch}
           searchPlaceholder="搜索生产计划单标题..."
-          onReset={() => { setPlanSearch(""); setPlanStatus(""); setPlanStart(""); setPlanEnd(""); }}
+          onReset={() => {
+            setPlanSearch("");
+            setDebouncedPlanSearch("");
+            setPlanStatus("");
+            setPlanStart("");
+            setPlanEnd("");
+            setPlanPage(1);
+          }}
           hasFilters={!!(planStatus || planStart || planEnd)}
         >
           <SelectTileMode
@@ -262,14 +361,33 @@ export default function SchedulesPage() {
               { value: "已完成", label: "已完成" },
             ]}
             value={planStatus}
-            onChange={setPlanStatus}
+            onChange={(value) => {
+              setPlanStatus(value);
+              setPlanPage(1);
+            }}
             placeholder="全部状态"
             title="选择状态"
             className="w-[160px]"
           />
-          <DatePicker value={planStart} onChange={setPlanStart} placeholder="开始日期" className="w-[170px]" />
+          <DatePicker
+            value={planStart}
+            onChange={(value) => {
+              setPlanStart(value);
+              setPlanPage(1);
+            }}
+            placeholder="开始日期"
+            className="w-[170px]"
+          />
           <span className="text-sm text-muted-foreground">至</span>
-          <DatePicker value={planEnd} onChange={setPlanEnd} placeholder="结束日期" className="w-[170px]" />
+          <DatePicker
+            value={planEnd}
+            onChange={(value) => {
+              setPlanEnd(value);
+              setPlanPage(1);
+            }}
+            placeholder="结束日期"
+            className="w-[170px]"
+          />
         </ListToolbar>
         <div className="space-y-3">
           {plansLoading ? (
@@ -281,7 +399,7 @@ export default function SchedulesPage() {
               <Card
                 key={p.id}
                 className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
-                onClick={() => router.push("/production-plans/" + p.id)}
+                onClick={() => openPlanPreview(p.id)}
               >
                 <CardContent className="p-5 flex items-stretch gap-6">
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
@@ -295,6 +413,10 @@ export default function SchedulesPage() {
                     <StatusBadge status={p.status} className="text-sm font-semibold px-3 py-1" />
                     <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
                       <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">制单人:{p.operatorName || p.operator || "—"}</span>
+                      <Button variant="outline" size="sm" onClick={() => openPlanPreview(p.id)}>
+                        <Eye className="mr-1 h-4 w-4" />
+                        预览
+                      </Button>
                       <Button variant="ghost" size="sm" onClick={() => router.push("/production-plans/" + p.id)}>详情</Button>
                     </div>
                   </div>
@@ -303,6 +425,16 @@ export default function SchedulesPage() {
             ))
           )}
           </div>
+          {planPagination && planPagination.totalItems > 0 && (
+            <Pagination
+              currentPage={planPage}
+              totalPages={planPagination.totalPages}
+              totalItems={planPagination.totalItems}
+              start={(planPage - 1) * DEFAULT_PAGE_SIZE + 1}
+              end={Math.min(planPage * DEFAULT_PAGE_SIZE, planPagination.totalItems)}
+              onPageChange={setPlanPage}
+            />
+          )}
         </>
       )}
 
@@ -411,6 +543,12 @@ export default function SchedulesPage() {
                       <MapPin className="h-3.5 w-3.5" />
                       {row.store?.name ?? "—"}
                     </span>
+                    {row.productionPlan && (
+                      <span className="flex items-center gap-1.5">
+                        <FileStack className="h-3.5 w-3.5" />
+                        {row.productionPlan.code ?? `PPL-${row.productionPlan.id}`}
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -450,63 +588,156 @@ export default function SchedulesPage() {
         </>
       )}
 
-      {/* 快速查看抽屉：复用详情页表格组件，数据与详情页 1:1 */}
-      {(quickViewLoading || quickView) && (
-        <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0 bg-black/35" onClick={closeQuickView} />
-          <div className="relative w-full max-w-4xl bg-background shadow-2xl flex flex-col h-full">
-            {quickViewLoading || !quickView || !quickMeta ? (
-              <div className="p-6 space-y-3">
-                <div className="h-8 bg-muted rounded animate-pulse" />
-                <div className="h-64 bg-muted rounded animate-pulse" />
-              </div>
-            ) : (
-              <>
-                <div className="flex items-start justify-between px-6 py-4 border-b">
-                  <div>
+      {/* 预览抽屉：复用详情页表格组件，数据与详情页 1:1 */}
+      <Sheet open={quickViewLoading || !!quickView} onOpenChange={(open) => !open && closeQuickView()}>
+        <SheetContent className="w-full sm:max-w-4xl p-0">
+          {quickViewLoading || !quickView || !quickMeta ? (
+            <div className="p-6 space-y-3">
+              <SheetTitle className="sr-only">排程预览</SheetTitle>
+              <div className="h-8 bg-muted rounded animate-pulse" />
+              <div className="h-64 bg-muted rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              <SheetHeader className="border-b px-6 py-4 pr-14">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-semibold">{quickView.title}</h2>
+                      <SheetTitle className="text-lg">{quickView.title}</SheetTitle>
                       <StatusBadge status={quickView.status} />
                     </div>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {new Date(quickView.scheduleDate).toLocaleDateString("zh-CN")} {getWeekDay(quickView.scheduleDate)}
+                    <SheetDescription className="mt-1">
+                      {new Date(quickView.scheduleDate).toLocaleDateString("zh-CN")}{" "}
+                      {getWeekDay(quickView.scheduleDate)}
                       {" · "}{quickView.store?.name ?? "—"}
                       {" · "}{quickView.dishCount} 个菜品 / {quickView.totalQuantity} 份
-                    </p>
+                    </SheetDescription>
+                    {quickView.productionPlan && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        生产计划：
+                        {quickView.productionPlan.code ?? `PPL-${quickView.productionPlan.id}`}
+                        {" · "}
+                        {quickView.productionPlan.title}
+                      </p>
+                    )}
                   </div>
                   <Button size="sm" onClick={() => router.push("/schedules/" + quickView.id)}>
-                    查看完整详情 →
+                    查看完整详情
                   </Button>
                 </div>
+              </SheetHeader>
 
-                <div className="flex items-center gap-1 border-b px-4">
-                  {([['menu', '排程菜单', quickView.items.length], ['cutting', '切配工单明细', quickView.cuttingOrders.length], ['purchase', '采购计划明细', quickView.purchasePlans.length]] as const).map(([key, label, count]) => (
-                    <button
-                      key={key}
-                      onClick={() => setQuickTab(key)}
-                      className={
-                        "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px " +
-                        (quickTab === key
-                          ? "border-primary text-primary"
-                          : "border-transparent text-muted-foreground hover:text-foreground")
-                      }
+              <div className="flex items-center gap-1 border-b px-4">
+                {([["menu", "排程菜单", quickView.items.length], ["cutting", "切配工单明细", quickView.cuttingOrders.length], ["purchase", "采购计划明细", quickView.purchasePlans.length]] as const).map(([key, label, count]) => (
+                  <button
+                    key={key}
+                    onClick={() => setQuickTab(key)}
+                    className={
+                      "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px " +
+                      (quickTab === key
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {label}
+                    <span className="ml-1 text-xs rounded-full bg-muted px-1.5 py-0.5">{count}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {quickTab === "menu" && <ScheduleMenuTable items={quickView.items} meta={quickMeta} />}
+                {quickTab === "cutting" && <ScheduleCuttingTable rows={quickView.cuttingOrders} meta={quickMeta} />}
+                {quickTab === "purchase" && <SchedulePurchaseTable rows={quickView.purchasePlans} meta={quickMeta} />}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={planPreviewLoading || !!planPreview}
+        onOpenChange={(open) => !open && closePlanPreview()}
+      >
+        <SheetContent className="w-full sm:max-w-4xl p-0">
+          {planPreviewLoading || !planPreview || !planPreviewMeta ? (
+            <div className="p-6 space-y-3">
+              <SheetTitle className="sr-only">生产计划单预览</SheetTitle>
+              <div className="h-8 bg-muted rounded animate-pulse" />
+              <div className="h-64 bg-muted rounded animate-pulse" />
+            </div>
+          ) : (
+            <>
+              <SheetHeader className="border-b px-6 py-4 pr-14">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <SheetTitle className="text-lg">{planPreview.title}</SheetTitle>
+                      <StatusBadge status={planPreview.status} />
+                    </div>
+                    <SheetDescription className="mt-1">
+                      {new Date(planPreview.planDate).toLocaleDateString("zh-CN")}{" "}
+                      {getWeekDay(planPreview.planDate)}
+                      {" · "}汇总 {planPreview.sourceSchedules.length} 张排程
+                      {" · "}制单人：{planPreview.operatorName || planPreview.operator || "—"}
+                    </SheetDescription>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      来源日期：
+                      {[...new Set(planPreview.sourceSchedules.map((schedule) => schedule.scheduleDate.slice(0, 10)))]
+                        .map((date) => new Date(date).toLocaleDateString("zh-CN"))
+                        .join("、") || "—"}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(`/production-plans/${planPreview.id}/labels`, "_blank", "noopener,noreferrer")}
+                      disabled={planPreview.cuttingOrders.length === 0}
                     >
-                      {label}
-                      <span className="ml-1 text-xs rounded-full bg-muted px-1.5 py-0.5">{count}</span>
-                    </button>
-                  ))}
+                      <Tags className="mr-1 h-4 w-4" />
+                      打印净菜标签
+                    </Button>
+                    <Button size="sm" onClick={() => router.push("/production-plans/" + planPreview.id)}>
+                      查看完整详情
+                    </Button>
+                  </div>
                 </div>
+              </SheetHeader>
 
-                <div className="flex-1 overflow-y-auto p-4">
-                  {quickTab === "menu" && <ScheduleMenuTable items={quickView.items} meta={quickMeta} />}
-                  {quickTab === "cutting" && <ScheduleCuttingTable rows={quickView.cuttingOrders} meta={quickMeta} />}
-                  {quickTab === "purchase" && <SchedulePurchaseTable rows={quickView.purchasePlans} meta={quickMeta} />}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+              <div className="flex items-center gap-1 border-b px-4">
+                {([
+                  ["cutting", "切配工单明细", planPreview.cuttingOrders.length],
+                  ["purchase", "采购计划明细", planPreview.purchasePlans.length],
+                ] as const).map(([key, label, count]) => (
+                  <button
+                    key={key}
+                    onClick={() => setPlanPreviewTab(key)}
+                    className={
+                      "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px " +
+                      (planPreviewTab === key
+                        ? "border-primary text-primary"
+                        : "border-transparent text-muted-foreground hover:text-foreground")
+                    }
+                  >
+                    {label}
+                    <span className="ml-1 text-xs rounded-full bg-muted px-1.5 py-0.5">{count}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4">
+                {planPreviewTab === "cutting" && (
+                  <ScheduleCuttingTable rows={planPreview.cuttingOrders} meta={planPreviewMeta} />
+                )}
+                {planPreviewTab === "purchase" && (
+                  <SchedulePurchaseTable rows={planPreview.purchasePlans} meta={planPreviewMeta} />
+                )}
+              </div>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

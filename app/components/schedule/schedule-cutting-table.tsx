@@ -13,7 +13,7 @@ import {
 import { downloadCSV } from "@/lib/client/csv";
 
 export interface CuttingOrderRow {
-  id: number;
+  id?: number;
   sourceType: string;
   sourceId: number;
   sourceCode: string | null;
@@ -120,7 +120,10 @@ export function ScheduleCuttingTable({ rows, meta }: ScheduleCuttingTableProps) 
               const showL1 = !prev || prev.l1Name !== row.l1Name;
               const showL2 = !prev || prev.l1Name !== row.l1Name || prev.l2Name !== row.l2Name;
               return (
-                <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
+                <TableRow
+                  key={row.id ?? `${row.sourceType}:${row.sourceId}`}
+                  className="transition-colors hover:bg-muted/40"
+                >
                   {showL1 && (
                     <TableCell rowSpan={l1Span.get(row.l1Name)} className="font-medium bg-muted/30">
                       {row.l1Name}

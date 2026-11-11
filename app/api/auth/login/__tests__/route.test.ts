@@ -9,6 +9,9 @@ jest.mock("@/lib/server/prisma", () => ({
     user: {
       findUnique: jest.fn(),
     },
+    operationLog: {
+      create: jest.fn(),
+    },
   },
 }));
 
@@ -23,6 +26,7 @@ jest.mock("@/lib/server/session", () => ({
 
 const mockedPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
+  operationLog: { create: jest.Mock };
 };
 const mockedBcryptCompare = bcrypt.compare as jest.Mock;
 const mockedCreateSession = createSession as jest.Mock;
@@ -38,6 +42,7 @@ function createLoginRequest(body: unknown): NextRequest {
 describe("POST /api/auth/login", () => {
   beforeEach(() => {
     mockedPrisma.user.findUnique.mockReset();
+    mockedPrisma.operationLog.create.mockReset();
     mockedBcryptCompare.mockReset();
     mockedCreateSession.mockReset();
     mockedSetSessionCookie.mockReset();
@@ -78,6 +83,9 @@ describe("POST /api/auth/login", () => {
       password: "hashed-password",
       name: "Zhang",
       role: "operator",
+      isActive: true,
+      sessionVersion: 2,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -91,6 +99,22 @@ describe("POST /api/auth/login", () => {
     expect(body.error).toBe("用户名或密码错误");
   });
 
+  it("returns 429 after repeated failures for the same account", async () => {
+    mockedPrisma.user.findUnique.mockResolvedValue(null);
+    for (let i = 0; i < 5; i += 1) {
+      const res = await POST(
+        createLoginRequest({ username: "bruteforce", password: "wrong-password" })
+      );
+      expect(res.status).toBe(401);
+    }
+
+    const blocked = await POST(
+      createLoginRequest({ username: "bruteforce", password: "wrong-password" })
+    );
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("Retry-After")).toBeTruthy();
+  });
+
   it("returns 200 with user info on successful login", async () => {
     const user = {
       id: 1,
@@ -98,6 +122,9 @@ describe("POST /api/auth/login", () => {
       password: "hashed-password",
       name: "Zhang",
       role: "operator",
+      isActive: true,
+      sessionVersion: 2,
+      deletedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -123,6 +150,7 @@ describe("POST /api/auth/login", () => {
       username: "zhang",
       name: "Zhang",
       role: "operator",
+      sessionVersion: 2,
     });
     expect(mockedSetSessionCookie).toHaveBeenCalledWith("mock-token");
   });

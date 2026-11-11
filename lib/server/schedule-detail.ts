@@ -29,6 +29,22 @@ export async function getScheduleDetail(scheduleId: number) {
       },
       cuttingOrders: { orderBy: [{ l1Code: "asc" }, { l2Code: "asc" }, { itemName: "asc" }] },
       purchasePlans: { orderBy: [{ l2Code: "asc" }, { itemName: "asc" }] },
+      productionPlanRefs: {
+        where: { plan: { deletedAt: null } },
+        orderBy: { id: "desc" },
+        take: 1,
+        select: {
+          plan: {
+            select: {
+              id: true,
+              code: true,
+              title: true,
+              planDate: true,
+              status: true,
+            },
+          },
+        },
+      },
     },
   });
 
@@ -81,6 +97,7 @@ export async function getScheduleDetail(scheduleId: number) {
     operatorName,
     createdAt: schedule.createdAt.toISOString(),
     store: schedule.store,
+    productionPlan: schedule.productionPlanRefs[0]?.plan ?? null,
     items: schedule.items.map((it) => ({
       id: it.id,
       dishId: it.dishId,

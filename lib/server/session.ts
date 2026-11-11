@@ -1,12 +1,14 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { SESSION_SECRET } from "@/lib/server/env-check";
+import { prisma } from "@/lib/server/prisma";
 
 export interface SessionPayload {
   userId: number;
   username: string;
   name?: string | null;
   role?: string | null;
+  sessionVersion: number;
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {
@@ -55,5 +57,35 @@ export async function clearSessionCookie(): Promise<void> {
 export async function getCurrentUser(): Promise<SessionPayload | null> {
   const token = await getSessionCookie();
   if (!token) return null;
-  return verifySession(token);
+  const payload = await verifySession(token);
+  if (!payload) return null;
+
+  const user = await prisma.user.findUnique({
+    where: { id: payload.userId },
+    select: {
+      id: true,
+      username: true,
+      name: true,
+      role: true,
+      isActive: true,
+      sessionVersion: true,
+      deletedAt: true,
+    },
+  });
+  if (
+    !user ||
+    !user.isActive ||
+    user.deletedAt ||
+    user.sessionVersion !== payload.sessionVersion
+  ) {
+    return null;
+  }
+
+  return {
+    userId: user.id,
+    username: user.username,
+    name: user.name,
+    role: user.role,
+    sessionVersion: user.sessionVersion,
+  };
 }

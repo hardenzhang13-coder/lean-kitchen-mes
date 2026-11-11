@@ -13,6 +13,7 @@ const publicFields = {
   username: true,
   name: true,
   role: true,
+  isActive: true,
   createdAt: true,
   updatedAt: true,
 };
@@ -33,12 +34,13 @@ export async function GET(req: NextRequest) {
 
     const [rows, totalItems] = await Promise.all([
       prisma.user.findMany({
+        where: { deletedAt: null },
         orderBy: { id: "asc" },
         select: publicFields,
         skip,
         take: pageSize,
       }),
-      prisma.user.count(),
+      prisma.user.count({ where: { deletedAt: null } }),
     ]);
 
     const totalPages = Math.ceil(totalItems / pageSize);

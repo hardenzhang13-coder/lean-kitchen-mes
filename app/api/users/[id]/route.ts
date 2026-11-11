@@ -13,6 +13,7 @@ const publicFields = {
   username: true,
   name: true,
   role: true,
+  isActive: true,
   createdAt: true,
   updatedAt: true,
 };
@@ -25,7 +26,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const row = await prisma.user.findUnique({
-    where: { id: Number(id) },
+    where: { id: Number(id), deletedAt: null },
     select: publicFields,
   });
   if (!row) {
@@ -45,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateUserSchema, body);
   if (!validation.success) return validation.response;
 
-  const { username, name, role, password } = validation.data;
+  const { username, name, role, password, isActive } = validation.data;
 
   if (name !== undefined && !name.trim()) {
     return NextResponse.json({ error: "姓名不能为空" }, { status: 400 });
@@ -53,8 +54,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (role !== undefined && !ROLE_OPTIONS.some((r) => r.value === role)) {
     return NextResponse.json({ error: "无效的角色" }, { status: 400 });
   }
+  if (Number(id) === user.userId && isActive === false) {
+    return NextResponse.json({ error: "不能停用当前登录用户" }, { status: 400 });
+  }
 
-  const existing = await prisma.user.findUnique({ where: { id: Number(id) } });
+  const existing = await prisma.user.findUnique({
+    where: { id: Number(id), deletedAt: null },
+  });
   if (!existing) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
@@ -71,6 +77,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (name !== undefined) data.name = name.trim();
   if (role !== undefined) data.role = role;
   if (password?.trim()) data.password = await bcrypt.hash(password.trim(), 10);
+  if (isActive !== undefined) data.isActive = isActive;
+  if (
+    username !== undefined ||
+    role !== undefined ||
+    password?.trim() ||
+    isActive !== undefined
+  ) {
+    data.sessionVersion = { increment: 1 };
+  }
 
   const row = await prisma.user.update({
     where: { id: Number(id) },
@@ -101,18 +116,27 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return NextResponse.json({ error: "不能删除当前登录用户" }, { status: 400 });
   }
 
-  const existing = await prisma.user.findUnique({ where: { id: numericId } });
+  const existing = await prisma.user.findUnique({
+    where: { id: numericId, deletedAt: null },
+  });
   if (!existing) {
     return NextResponse.json({ error: "用户不存在" }, { status: 404 });
   }
 
-  await prisma.user.delete({ where: { id: numericId } });
+  await prisma.user.update({
+    where: { id: numericId },
+    data: {
+      isActive: false,
+      deletedAt: new Date(),
+      sessionVersion: { increment: 1 },
+    },
+  });
 
   await logOperation(req, {
     action: "DELETE",
     entity: "User",
     entityId: numericId,
-    description: `删除用户: ${existing.name} (${existing.username})`,
+    description: `停用用户: ${existing.name} (${existing.username})`,
   });
 
   return NextResponse.json({ success: true });

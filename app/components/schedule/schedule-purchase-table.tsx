@@ -14,7 +14,7 @@ import { downloadCSV } from "@/lib/client/csv";
 import type { ScheduleDocMeta } from "./schedule-cutting-table";
 
 export interface PurchasePlanRow {
-  id: number;
+  id?: number;
   sourceType: string;
   sourceId: number;
   sourceCode: string | null;
@@ -127,7 +127,10 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
               const showL2 = !prev || prev.l1Name !== row.l1Name || prev.l2Name !== row.l2Name;
               const zero = row.suggestedPurchase <= 0;
               return (
-                <TableRow key={row.id} className={(zero ? "text-muted-foreground " : "") + "transition-colors hover:bg-muted/40"}>
+                <TableRow
+                  key={row.id ?? `${row.sourceType}:${row.sourceId}`}
+                  className={(zero ? "text-muted-foreground " : "") + "transition-colors hover:bg-muted/40"}
+                >
                   {showL1 && (
                     <TableCell rowSpan={l1Span.get(row.l1Name)} className="font-medium bg-muted/30">
                       {row.l1Name}

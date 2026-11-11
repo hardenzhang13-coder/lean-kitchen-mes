@@ -44,26 +44,28 @@ export async function PUT(req: NextRequest) {
   const trimmedUsername = username?.trim();
   const changedUsername = trimmedUsername && trimmedUsername !== current.username;
   if (changedUsername) data.username = trimmedUsername;
-  if (newPassword?.trim()) data.password = await bcrypt.hash(newPassword.trim(), 10);
+  if (newPassword?.trim()) {
+    data.password = await bcrypt.hash(newPassword.trim(), 10);
+    data.sessionVersion = { increment: 1 };
+  }
 
   const updated = await prisma.user.update({
     where: { id: user.userId },
     data,
   });
 
-  if (changedUsername) {
-    const token = await createSession({
-      userId: updated.id,
-      username: updated.username,
-      name: updated.name,
-      role: updated.role,
-    });
-    await setSessionCookie(token);
-  }
+  const token = await createSession({
+    userId: updated.id,
+    username: updated.username,
+    name: updated.name,
+    role: updated.role,
+    sessionVersion: updated.sessionVersion,
+  });
+  await setSessionCookie(token);
 
   return NextResponse.json({
     success: true,
-    needRelogin: changedUsername,
+    needRelogin: false,
     user: {
       id: updated.id,
       username: updated.username,

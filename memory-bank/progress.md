@@ -4,6 +4,43 @@
 
 ---
 ---
+## 2026-11-11 — 排程状态闭环与核心流程优化
+
+### 用户确认口径
+- 不新增任何单据状态：门店排程单、生产计划单均严格保持「待生效 / 进行中 / 已完成」
+- 生产计划单日期与来源排程日期不强制一致，允许跨日期汇总
+- 切配确认进度模块保持原位置与原样，不并入 Tab
+
+### 状态与数据一致性
+- 生产计划单完成时，按来源排程切配工单终态在同一事务内同步门店排程状态；全部切配行终态后来源排程同步「已完成」
+- 同一门店排程只允许纳入一个未删除的生产计划单；创建/修改均使用事务行锁校验，重复汇总返回 409
+- 排程确认/修改/删除、生产计划确认/修改/删除、完成生产接入事务行锁或锁定记录，状态冲突不再产生半更新
+- 修正实际完成份数为 0 时无法提交完成的问题
+- 生产计划单待生效阶段支持修改标题、日期和来源排程；修改时重新生成共享的快照与编号
+
+### 交互与页面
+- 门店排程卡片/预览/详情展示所属生产计划；未纳入计划时提供新增生产计划入口
+- 门店排程与生产计划卡片点击均进入标准 Sheet 预览，详情按钮独立
+- 生产计划列表补齐搜索防抖、分页和预览交互
+- 排程确认、生产计划确认使用标准 Dialog；删除提示补充来源排程释放说明
+- 状态颜色调整：待生效警示色、进行中主题色、已完成成功色
+- 门店排程日期筛选改为按生产日期 `scheduleDate`，不再按创建时间
+- 修正生产计划快照行缺少数据库 id 时的 React 列表 key 警告
+
+### 历史数据审计
+- 新增 `scripts/audit-production-plan-schedules.mjs`，默认只审计，确认后使用 `--apply`
+- 本地审计发现 1 张异常：`SCH-20261107-001` 来源计划 `PPL-20261110-002` 已完成，但排程仍为进行中
+- 经用户确认执行 `--apply`，已将该排程修复为「已完成」；复查异常数量为 0
+
+### 验证
+- `npx tsc --noEmit` 通过
+- `npm run lint` 0 errors（14 个存量 warning）
+- Jest 96/97 通过；唯一失败为存量 `middleware.test.ts` 用例，与本次改动无关
+- API 实测：重复汇总 409、待生效修改跨日期成功、编号随日期重算、删除计划释放排程、完成生产后计划与来源排程均变为已完成
+- 自动验证数据已全部清理
+
+---
+---
 ## 2026-11-10（补）— 列表页卡片布局优化
 
 - 模块切换（排程单/生产计划单）与操作按钮右对齐
@@ -1783,3 +1820,15 @@ tsc / build / lint（0 error）/ 88 测试全过 / migrate diff 零差异；dev 
 - 新 prisma CLI：migrate diff 用 --from-schema/--to-schema + -o（--script 不支持 --output 混用旧参数）；schema.prisma 写入必须无 BOM
 - 造合法会话：node --env-file=.env --import tsx 调 createSession（lib/server/prisma 会触发 env-check，必须带 .env）
 - 排程模块并行会话正在改 app/schedules/*（当时 tsc 报的 schedules 语法错误均为其中间态，非本次引入）
+---
+## 2026-11-10（部署）— v002 净菜库存 + 生产计划单 已上线生产
+
+- 提交 01e4431（70 文件，main）已推送 GitHub 并部署至生产 101.37.64.216
+- 部署由并行会话触发（服务器 git pull --ff-only + docker compose up -d --build），本会话完成验证
+- 验证结果：
+  - 服务器代码 HEAD = 01e4431 ✓
+  - migrate 容器 Exited(0)，生产库新表全部就位：production_plans / production_plan_schedules / prepped_stock / prepped_stock_ledger / outbound_orders / outbound_order_items ✓
+  - web 容器 Up，http://101.37.64.216/login → 200 ✓
+  - web 近 10 分钟日志无 error/unhandled/failed ✓
+- 部署方式备忘：deploy.sh 为 bash 脚本（Git Bash 不在本机标准路径），本机用 Windows OpenSSH 等价执行：ssh -i ~/.ssh/aliyun_deploy root@101.37.64.216；migrate 由 docker-compose migrate 服务自动执行，无需手工 migrate deploy
+- 生产数据待办：存量净料/小料需补齐 packageSpec（封装规格），否则完成生产/出库对该净菜报错拦截

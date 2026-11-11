@@ -4,7 +4,18 @@ import { CompleteProductionDialog } from "@/app/components/production-plan/compl
 import { rowConfirmStatus, formatPortionsCount, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, Play, CheckCircle2, Trash2, CalendarDays, Clock, ChefHat, FileStack } from "lucide-react";
+import {
+  ArrowLeft,
+  Play,
+  CheckCircle2,
+  Trash2,
+  CalendarDays,
+  Clock,
+  ChefHat,
+  FileStack,
+  Pencil,
+  Tags,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -55,6 +66,7 @@ export default function ProductionPlanDetailPage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [activateOpen, setActivateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"cutting" | "purchase">("cutting");
   const [completeOpen, setCompleteOpen] = useState(false);
 
@@ -79,22 +91,32 @@ export default function ProductionPlanDetailPage() {
     if (id) fetchData();
   }, [id]);
 
-  const doAction = async (url: string, successMsg: string) => {
+  const doAction = async (url: string, successMsg: string): Promise<boolean> => {
     setActionLoading(true);
     try {
       const res = await fetch(url, { method: "PUT" });
       if (!res.ok) {
         const d = await res.json();
         toast.error(d.error || "操作失败");
-        return;
+        return false;
       }
       toast.success(successMsg);
       fetchData();
+      return true;
     } catch {
       toast.error("操作出错");
+      return false;
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const handleActivate = async () => {
+    const success = await doAction(
+      "/api/production-plans/" + id + "/activate",
+      "生产计划已确认"
+    );
+    if (success) setActivateOpen(false);
   };
 
   const handleDelete = async () => {
@@ -156,13 +178,26 @@ export default function ProductionPlanDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => window.open(`/production-plans/${id}/labels`, "_blank", "noopener,noreferrer")}
+            disabled={data.cuttingOrders.length === 0}
+            title={data.cuttingOrders.length === 0 ? "当前计划单没有净菜标签" : "打印本生产计划单的全部净菜标签"}
+          >
+            <Tags className="mr-2 h-4 w-4" />
+            打印净菜标签
+          </Button>
           {data.status === "待生效" && (
             <>
+              <Button variant="outline" onClick={() => router.push(`/production-plans/${id}/edit`)} disabled={actionLoading}>
+                <Pencil className="mr-2 h-4 w-4" />
+                修改
+              </Button>
               <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 删除
               </Button>
-              <Button onClick={() => doAction("/api/production-plans/" + id + "/activate", "生产计划已确认")} disabled={actionLoading}>
+              <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
                 <Play className="mr-2 h-4 w-4" />
                 确认生产计划
               </Button>
@@ -193,6 +228,12 @@ export default function ProductionPlanDetailPage() {
           <div className="font-medium">{data.sourceSchedules.length} 张</div>
           <div className="text-sm text-muted-foreground truncate">
             {data.sourceSchedules.map((s) => s.code ?? "#" + s.id).join("、")}
+          </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            来源日期：
+            {[...new Set(data.sourceSchedules.map((s) => s.scheduleDate.slice(0, 10)))]
+              .map((date) => new Date(date).toLocaleDateString("zh-CN"))
+              .join("、") || "—"}
           </div>
         </div>
         <div className="rounded-lg border p-4">
@@ -297,10 +338,31 @@ export default function ProductionPlanDetailPage() {
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">确定要删除这条生产计划单吗？此操作不可撤销。</p>
+          <p className="text-muted-foreground text-base">
+            确定要删除这条生产计划单吗？删除后来源排程可重新纳入其他生产计划单，此操作不可撤销。
+          </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">取消</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={actionLoading} className="h-11 px-6">删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
+        <DialogContent className="sm:max-w-[440px]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认生产计划</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确认后生产计划单将进入「进行中」，标题、日期和来源排程不可再修改，也不能删除。
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">
+              取消
+            </Button>
+            <Button onClick={handleActivate} disabled={actionLoading} className="h-11 px-6">
+              确认并进入生产
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

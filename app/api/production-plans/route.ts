@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
-import { created, paginated, internalError, badRequest } from "@/lib/server/api-response";
+import { created, paginated, internalError, error } from "@/lib/server/api-response";
 import { createProductionPlanSchema, productionPlanQuerySchema } from "@/lib/server/schemas/production-plan";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
+import {
+  lockSchedulesForProductionPlan,
+  nextProductionPlanCode,
+  ProductionPlanAssignmentError,
+} from "@/lib/server/production-plan-assignment";
 import { resolveUsernamesToNames } from "@/lib/server/user-resolve";
 import { logger } from "@/lib/server/logger";
 
@@ -65,29 +70,16 @@ export async function POST(req: NextRequest) {
     const { title, planDate, scheduleIds } = validation.data;
 
     const uniqueIds = [...new Set(scheduleIds)];
-    const schedules = await prisma.schedule.findMany({
-      where: { id: { in: uniqueIds } },
-      select: { id: true, status: true },
-    });
-    if (schedules.length !== uniqueIds.length) return badRequest("存在无效的排程单");
-    if (schedules.some((s) => s.status !== "进行中")) {
-      return badRequest("只能汇总「进行中」状态的排程单");
-    }
-
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
     const planDateObj = new Date(planDate);
-    const ymd =
-      planDateObj.getFullYear() +
-      String(planDateObj.getMonth() + 1).padStart(2, "0") +
-      String(planDateObj.getDate()).padStart(2, "0");
 
     let result: Awaited<ReturnType<typeof prisma.productionPlan.create>> | null = null;
     for (let attempt = 0; attempt < 5 && !result; attempt++) {
       try {
         result = await prisma.$transaction(async (tx) => {
-          const dayCount = await tx.productionPlan.count({ where: { planDate: planDateObj } });
-          const code = "PPL-" + ymd + "-" + String(dayCount + 1).padStart(3, "0");
+          await lockSchedulesForProductionPlan(tx, uniqueIds);
+          const code = await nextProductionPlanCode(tx, planDateObj);
           const data = await buildProductionPlanData(tx, uniqueIds);
           return await tx.productionPlan.create({
             data: {
@@ -118,6 +110,9 @@ export async function POST(req: NextRequest) {
     });
     return created(result);
   } catch (err) {
+    if (err instanceof ProductionPlanAssignmentError) {
+      return error(err.message, err.status, err.status === 409 ? "CONFLICT" : "BAD_REQUEST");
+    }
     logger.error({ err }, "POST /api/production-plans failed");
     return internalError("创建生产计划单失败");
   }
