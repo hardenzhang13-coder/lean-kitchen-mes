@@ -2,11 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Pagination } from "@/app/components/ui/pagination";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { formatPortionsCount } from "@/lib/shared/prepped-stock";
 
 interface OutboundRow {
@@ -34,19 +37,26 @@ export function OutboundTab() {
   const router = useRouter();
   const [rows, setRows] = useState<OutboundRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [total, setTotal] = useState({ totalItems: 0, totalPages: 1 });
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/outbound-orders?page=${page}&pageSize=${pageSize}`);
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || "加载出库单失败");
+      }
       const json = (await res.json()) as PageData;
       setRows(json.data ?? []);
       setTotal({ totalItems: json.pagination?.totalItems ?? 0, totalPages: json.pagination?.totalPages ?? 1 });
-    } catch {
+    } catch (e) {
       setRows([]);
+      setError(e instanceof Error ? e.message : "加载出库单失败");
     } finally {
       setLoading(false);
     }
@@ -60,7 +70,22 @@ export function OutboundTab() {
   return (
     <div className="space-y-4">
       {loading ? (
-        <div className="h-[300px] bg-muted rounded animate-pulse" />
+        <div className="space-y-2" aria-label="正在加载出库单">
+          <div className="h-10 rounded-lg bg-muted animate-pulse" />
+          {[1, 2, 3, 4, 5].map((item) => (
+            <div key={item} className="h-12 rounded-lg bg-muted animate-pulse" />
+          ))}
+        </div>
+      ) : error ? (
+        <div className="flex min-h-[260px] flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center">
+          <AlertCircle className="mb-3 h-6 w-6 text-destructive" />
+          <p className="font-medium">出库单加载失败</p>
+          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
+          <Button variant="outline" className="mt-4" onClick={fetchRows}>
+            <RefreshCw className="mr-2 h-4 w-4" />
+            重试
+          </Button>
+        </div>
       ) : rows.length === 0 ? (
         <EmptyState
           title="还没有出库单"
@@ -98,16 +123,16 @@ export function OutboundTab() {
                   <TableCell className="text-right font-medium">¥{o.totalAmount.toFixed(2)}</TableCell>
                   <TableCell>
                     {o.asPlanned ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">是</span>
+                      <StatusBadge status="是" variant="success" />
                     ) : (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">否</span>
+                      <StatusBadge status="否" variant="warning" />
                     )}
                   </TableCell>
                   <TableCell>
                     {o.status === "confirmed" ? (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已出库</span>
+                      <StatusBadge status="已出库" variant="success" />
                     ) : (
-                      <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">已作废</span>
+                      <StatusBadge status="已作废" variant="danger" />
                     )}
                   </TableCell>
                   <TableCell>{o.operator}</TableCell>

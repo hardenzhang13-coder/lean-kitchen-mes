@@ -20,24 +20,24 @@ describe("syncSourceScheduleStatuses", () => {
       { scheduleId: 1, status: "completed" },
       { scheduleId: 1, status: "unfinished" },
       { scheduleId: 2, status: "completed" },
-      { scheduleId: 2, status: "pending" },
     ]);
 
-    const completed = await syncSourceScheduleStatuses(tx, [1, 2]);
+    const completed = await syncSourceScheduleStatuses(tx, [1, 2], true);
 
-    expect(completed).toEqual([1]);
+    expect(completed).toEqual([1, 2]);
     expect(updateMany).toHaveBeenCalledWith({
-      where: { id: { in: [1] }, status: "进行中" },
+      where: { id: { in: [1, 2] }, status: "进行中" },
       data: { status: "已完成" },
     });
   });
 
-  it("存在待确认行时不更新来源排程", async () => {
+  it("生产计划未完成时不更新来源排程", async () => {
     const { tx, updateMany } = createTx([
-      { scheduleId: 3, status: "pending" },
+      { scheduleId: 3, status: "completed" },
+      { scheduleId: 4, status: "pending" },
     ]);
 
-    const completed = await syncSourceScheduleStatuses(tx, [3]);
+    const completed = await syncSourceScheduleStatuses(tx, [3, 4], false);
 
     expect(completed).toEqual([]);
     expect(updateMany).not.toHaveBeenCalled();

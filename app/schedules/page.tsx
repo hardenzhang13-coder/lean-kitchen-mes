@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Eye, CalendarDays, ChefHat, MapPin, FileStack, Tags } from "lucide-react";
+import { Plus, Eye, CalendarDays, ChefHat, FileStack, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -528,7 +528,12 @@ export default function SchedulesPage() {
               <CardContent className="p-5 flex items-stretch gap-6">
                 {/* 左：标题 + 元信息 */}
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
-                  <h3 className="font-semibold text-base truncate mb-2">{row.title}</h3>
+                  <h3
+                    className="font-semibold text-base truncate mb-2"
+                    title={row.store ? `${row.store.name} · ${row.title}` : row.title}
+                  >
+                    {row.store ? `${row.store.name} · ${row.title}` : row.title}
+                  </h3>
                   <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
                     <span className="flex items-center gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5" />
@@ -539,15 +544,19 @@ export default function SchedulesPage() {
                       <ChefHat className="h-3.5 w-3.5" />
                       {row.dishCount} 个菜品 / {row.totalQuantity} 份
                     </span>
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="h-3.5 w-3.5" />
-                      {row.store?.name ?? "—"}
-                    </span>
                     {row.productionPlan && (
-                      <span className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        className="flex items-center gap-1.5 transition-colors hover:text-foreground"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          router.push(`/production-plans/${row.productionPlan?.id}`);
+                        }}
+                        title="查看生产计划单"
+                      >
                         <FileStack className="h-3.5 w-3.5" />
-                        {row.productionPlan.code ?? `PPL-${row.productionPlan.id}`}
-                      </span>
+                        生产计划 {row.productionPlan.code ?? `PPL-${row.productionPlan.id}`}
+                      </button>
                     )}
                   </div>
                 </div>
@@ -728,7 +737,11 @@ export default function SchedulesPage() {
 
               <div className="flex-1 overflow-y-auto p-4">
                 {planPreviewTab === "cutting" && (
-                  <ScheduleCuttingTable rows={planPreview.cuttingOrders} meta={planPreviewMeta} />
+                  <ScheduleCuttingTable
+                    rows={planPreview.cuttingOrders}
+                    meta={planPreviewMeta}
+                    enableLabelPrint
+                  />
                 )}
                 {planPreviewTab === "purchase" && (
                   <SchedulePurchaseTable rows={planPreview.purchasePlans} meta={planPreviewMeta} />

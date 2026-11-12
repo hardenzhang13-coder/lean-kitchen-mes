@@ -35,6 +35,8 @@ export type NetIngredientItem = {
   code: string;
   name: string;
   packageSpec: number | null;
+  packageMaterial: string | null;
+  packageSize: string | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
@@ -64,6 +66,8 @@ const emptyForm: NetIngredientFormData = {
   l2Code: "",
   sourceIngredientId: "",
   packageSpec: "500",
+  packageMaterial: "密封袋",
+  packageSize: "50cm×40cm",
   // 封装加工费默认 0.35 元/斤（最常见档位，可改）
   processingFeePerJin: "0.35",
   yieldRate: "",
@@ -129,6 +133,8 @@ export function NetIngredientFormDialog({
           ? String(initialData.sourceIngredientId)
           : "",
         packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
+        packageMaterial: initialData.packageMaterial || "",
+        packageSize: initialData.packageSize || "",
         processingFeePerJin:
           initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
         yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
@@ -257,10 +263,10 @@ export function NetIngredientFormDialog({
     if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
       next.yieldRate = "出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）";
     }
-    // 封装规格（g）必填
+    // 包装规格（g）必填
     const pkg = Number(form.packageSpec);
     if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
-      next.packageSpec = "请填写有效的封装规格（g）";
+      next.packageSpec = "请填写有效的包装规格（g）";
     }
     if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
       next.processingFeePerJin = "封装加工费不能为负数";
@@ -312,6 +318,8 @@ export function NetIngredientFormDialog({
         sourceIngredientId: Number(form.sourceIngredientId),
         yieldRate: Number(form.yieldRate),
         packageSpec: Number(form.packageSpec),
+        packageMaterial: form.packageMaterial.trim() || null,
+        packageSize: form.packageSize.trim() || null,
         processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
           : null,
@@ -380,6 +388,8 @@ export function NetIngredientFormDialog({
       l2Code: row.l2Code || "",
       sourceIngredientId: row.sourceIngredientId ? String(row.sourceIngredientId) : "",
       packageSpec: row.packageSpec != null ? String(row.packageSpec) : "",
+      packageMaterial: row.packageMaterial || "",
+      packageSize: row.packageSize || "",
       processingFeePerJin:
         row.processingFeePerJin != null ? String(row.processingFeePerJin) : "",
       yieldRate: row.yieldRate != null ? String(row.yieldRate) : "",
@@ -453,7 +463,9 @@ export function NetIngredientFormDialog({
                       <TableRow>
                         <TableHead className="whitespace-nowrap">编号</TableHead>
                         <TableHead className="whitespace-nowrap">名称</TableHead>
-                        <TableHead className="whitespace-nowrap">封装规格</TableHead>
+                        <TableHead className="whitespace-nowrap">包装规格</TableHead>
+                        <TableHead className="whitespace-nowrap">包装物料</TableHead>
+                        <TableHead className="whitespace-nowrap">包装尺寸</TableHead>
                         <TableHead className="whitespace-nowrap">出成率</TableHead>
                         <TableHead className="whitespace-nowrap">净料单价</TableHead>
                         <TableHead className="whitespace-nowrap">加工费</TableHead>
@@ -474,6 +486,12 @@ export function NetIngredientFormDialog({
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {row.packageSpec != null ? `${row.packageSpec}g` : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {row.packageMaterial || "—"}
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {row.packageSize || "—"}
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {row.yieldRate != null ? `${row.yieldRate}%` : "—"}
@@ -551,8 +569,16 @@ export function NetIngredientFormDialog({
           { header: "编号", accessorKey: "code" },
           { header: "名称", accessorKey: "name" },
           {
-            header: "封装规格",
+            header: "包装规格",
             cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
+          },
+          {
+            header: "包装物料",
+            cell: (row) => row.packageMaterial || "—",
+          },
+          {
+            header: "包装尺寸",
+            cell: (row) => row.packageSize || "—",
           },
           {
             header: "出成率",

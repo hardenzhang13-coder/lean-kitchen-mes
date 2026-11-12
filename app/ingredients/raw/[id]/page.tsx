@@ -122,6 +122,8 @@ export default function RawIngredientDetailPage() {
       id: row.id,
       name: row.name,
       packageSpec: row.packageSpec ?? null,
+      packageMaterial: row.packageMaterial ?? null,
+      packageSize: row.packageSize ?? null,
       processingFeePerJin: row.processingFeePerJin ?? null,
       yieldRate: row.yieldRate,
       unitPrice: row.unitPrice,
@@ -224,7 +226,7 @@ export default function RawIngredientDetailPage() {
               columns={[
                 { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
                 { header: "名称", accessorKey: "name" },
-                { header: "封装规格", cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—") },
+                { header: "包装规格", cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—") },
                 { header: "出成率", cell: (row) => `${row.yieldRate}%` },
                 {
                   header: "净料单价",

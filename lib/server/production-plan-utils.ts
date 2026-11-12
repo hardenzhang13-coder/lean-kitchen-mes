@@ -2,6 +2,15 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { formatPortions } from "@/lib/shared/weight-format";
 import { getJinFactors, getGramsPerJin, getWeightUnitNames } from "@/lib/server/unit-factors";
+import {
+  buildSourceScheduleSnapshot,
+  type ProductionPlanSourceSnapshot,
+} from "@/lib/shared/production-plan";
+
+export {
+  buildSourceScheduleSnapshot,
+  type ProductionPlanSourceSnapshot,
+} from "@/lib/shared/production-plan";
 
 /**
  * 切配中心生产计划单汇总计算（快照，生成时固化一次）。
@@ -48,15 +57,42 @@ export interface AggregatedPurchase {
 export interface ProductionPlanData {
   cutting: AggregatedCutting[];
   purchase: AggregatedPurchase[];
+  sourceSnapshot: ProductionPlanSourceSnapshot;
 }
 
 export async function buildProductionPlanData(
   prisma: PrismaClient | Prisma.TransactionClient,
   scheduleIds: number[]
 ): Promise<ProductionPlanData> {
-  const [cuttingOrders, purchasePlans, jinFactors, gramsPerJin, weightUnitNames] = await Promise.all([
+  const [cuttingOrders, purchasePlans, sourceSchedules, jinFactors, gramsPerJin, weightUnitNames] = await Promise.all([
     prisma.cuttingOrder.findMany({ where: { scheduleId: { in: scheduleIds } } }),
     prisma.purchasePlan.findMany({ where: { scheduleId: { in: scheduleIds } } }),
+    prisma.schedule.findMany({
+      where: { id: { in: scheduleIds } },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        scheduleDate: true,
+        store: { select: { id: true, name: true } },
+        items: {
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            quantity: true,
+            dish: {
+              select: {
+                id: true,
+                code: true,
+                name: true,
+                portion: true,
+                meatType: true,
+              },
+            },
+          },
+        },
+      },
+    }),
     getJinFactors(prisma),
     getGramsPerJin(prisma),
     getWeightUnitNames(prisma),
@@ -211,5 +247,9 @@ export async function buildProductionPlanData(
   cutting.sort((a, b) => a.l1Name.localeCompare(b.l1Name, "zh") || a.l2Name.localeCompare(b.l2Name, "zh") || a.itemName.localeCompare(b.itemName, "zh"));
   purchase.sort((a, b) => a.l1Name.localeCompare(b.l1Name, "zh") || a.l2Name.localeCompare(b.l2Name, "zh") || a.itemName.localeCompare(b.itemName, "zh"));
 
-  return { cutting, purchase };
+  return {
+    cutting,
+    purchase,
+    sourceSnapshot: buildSourceScheduleSnapshot(sourceSchedules),
+  };
 }

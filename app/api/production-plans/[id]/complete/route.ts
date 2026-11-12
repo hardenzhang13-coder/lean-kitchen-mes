@@ -145,7 +145,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const stillPending = rows.some((r) => rowConfirmStatus(r) === "pending");
       const newStatus = stillPending ? "进行中" : "已完成";
       await tx.productionPlan.update({ where: { id: planId }, data: { status: newStatus } });
-      const completedScheduleIds = await syncSourceScheduleStatuses(tx, scheduleIds);
+      const completedScheduleIds = await syncSourceScheduleStatuses(
+        tx,
+        scheduleIds,
+        newStatus === "已完成"
+      );
 
       return {
         status: newStatus,

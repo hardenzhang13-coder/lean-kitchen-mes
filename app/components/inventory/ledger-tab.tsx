@@ -6,6 +6,7 @@ import {
 } from "@/components/ui/table";
 import { Pagination } from "@/app/components/ui/pagination";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { StatusBadge, type StatusVariant } from "@/app/components/ui/status-badge";
 import { formatPortionsCount } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
 
@@ -38,10 +39,10 @@ const TYPE_OPTIONS = [
   { key: "作废回滚", value: "stock_rollback" },
 ] as const;
 
-const TYPE_BADGE: Record<string, string> = {
-  stock_in: "bg-green-50 text-green-600",
-  stock_out: "bg-primary/10 text-primary",
-  stock_rollback: "bg-amber-50 text-amber-600",
+const TYPE_VARIANT: Record<string, StatusVariant> = {
+  stock_in: "success",
+  stock_out: "danger",
+  stock_rollback: "warning",
 };
 
 /** 出入库流水 Tab：双单位（份 + g）台账 */
@@ -125,9 +126,10 @@ export function LedgerTab() {
                     {new Date(r.t).toLocaleString("zh-CN")}
                   </TableCell>
                   <TableCell>
-                    <span className={"inline-block px-2 py-0.5 rounded-full text-xs font-medium " + (TYPE_BADGE[r.type] ?? "bg-muted text-muted-foreground")}>
-                      {r.typeLabel}
-                    </span>
+                    <StatusBadge
+                      status={r.typeLabel}
+                      variant={TYPE_VARIANT[r.type] ?? "neutral"}
+                    />
                   </TableCell>
                   <TableCell>{r.l1Name}</TableCell>
                   <TableCell className="font-medium">
@@ -137,7 +139,7 @@ export function LedgerTab() {
                   <TableCell
                     className={
                       "text-right font-semibold " +
-                      (r.type === "stock_out" ? "text-red-600" : "text-green-600")
+                      (r.type === "stock_out" ? "text-danger" : "text-success")
                     }
                   >
                     {r.type === "stock_out" ? "−" : "+"}{formatPortionsCount(r.changePortions)}

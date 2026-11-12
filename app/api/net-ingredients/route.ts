@@ -83,6 +83,8 @@ export async function POST(req: NextRequest) {
       name,
       sourceIngredientId,
       packageSpec,
+      packageMaterial,
+      packageSize,
       processingFeePerJin,
       yieldRate,
       unitPrice,
@@ -105,13 +107,13 @@ export async function POST(req: NextRequest) {
 
     const isMinor = l2Row.parentCode === "MIN";
 
-    // 净料/小料统一口径：均由原料转化（来源原料 + 出成率 + 封装规格），成本价元/斤
+    // 净料/小料统一口径：均由原料转化（来源原料 + 出成率 + 包装规格），成本价元/斤
     if (!sourceIngredientId) {
       return badRequest("必须选择来源原料");
     }
-    // 封装规格（g）必填：标准规格价格的计算基础
+    // 包装规格（g）必填：标准规格价格的计算基础
     if (!packageSpec) {
-      return badRequest("必须填写封装规格（g）");
+      return badRequest("必须填写包装规格（g）");
     }
     const finalSourceIngredientId = Number(sourceIngredientId);
 
@@ -141,6 +143,8 @@ export async function POST(req: NextRequest) {
         name: name.trim(),
         sourceIngredientId: finalSourceIngredientId,
         packageSpec,
+        packageMaterial: packageMaterial?.trim() || "密封袋",
+        packageSize: packageSize?.trim() || "50cm×40cm",
         processingFeePerJin: processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
         unitPrice: calculated,

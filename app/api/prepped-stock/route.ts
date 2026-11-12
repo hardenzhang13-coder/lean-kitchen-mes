@@ -1,4 +1,4 @@
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { paginated, internalError } from "@/lib/server/api-response";
 import { validateQuery } from "@/lib/server/validate";
@@ -13,9 +13,10 @@ export async function GET(req: NextRequest) {
   const { q, l1, type, page, pageSize } = validation.data;
 
   try {
-    const [rows] = await Promise.all([
-      prisma.preppedStock.findMany({ orderBy: { updatedAt: "desc" } }),
-    ]);
+    const rows = await prisma.preppedStock.findMany({
+      where: { currentPortions: { gt: 0 } },
+      orderBy: { updatedAt: "desc" },
+    });
 
     const netIds = [...new Set(rows.map((r) => r.sourceId))];
     const nets = await prisma.netIngredient.findMany({
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
       };
     });
 
+    const availableL1 = [...new Set(unified.map((row) => row.l1Name))]
+      .filter((name) => name !== "—")
+      .sort((a, b) => a.localeCompare(b, "zh"));
+
     if (q) {
       const kw = q.toLowerCase();
       unified = unified.filter((r) => r.name.toLowerCase().includes(kw) || r.code.toLowerCase().includes(kw));
@@ -69,7 +74,17 @@ export async function GET(req: NextRequest) {
     );
 
     const paged = unified.slice((page - 1) * pageSize, page * pageSize);
-    return paginated(paged, { page, pageSize, totalItems: unified.length, totalPages: Math.max(1, Math.ceil(unified.length / pageSize)) });
+    const response = paginated(paged, {
+      page,
+      pageSize,
+      totalItems: unified.length,
+      totalPages: Math.max(1, Math.ceil(unified.length / pageSize)),
+    });
+    const body = await response.json();
+    return NextResponse.json(
+      { ...body, filters: { availableL1 } },
+      { status: response.status }
+    );
   } catch (e) {
     void e;
     return internalError("获取净菜库存失败");

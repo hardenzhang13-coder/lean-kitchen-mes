@@ -1,7 +1,9 @@
 "use client";
 
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
-import { rowConfirmStatus, formatPortionsCount, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
+import { ProductionPlanStoreSchedules } from "@/app/components/production-plan/store-schedules-tab";
+import { rowConfirmStatus, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
+import type { ProductionPlanSourceSnapshot } from "@/lib/shared/production-plan";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
@@ -36,6 +38,8 @@ interface SourceSchedule {
   title: string;
   scheduleDate: string;
   totalQuantity: number;
+  status: string;
+  store: { id: number; name: string };
 }
 
 interface PlanDetail {
@@ -50,6 +54,7 @@ interface PlanDetail {
   cuttingOrders: CuttingOrderRow[];
   purchasePlans: PurchasePlanRow[];
   sourceSchedules: SourceSchedule[];
+  sourceSnapshot: ProductionPlanSourceSnapshot;
 }
 
 function getWeekDay(dateStr: string) {
@@ -67,7 +72,7 @@ export default function ProductionPlanDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cutting" | "purchase">("cutting");
+  const [activeTab, setActiveTab] = useState<"cutting" | "purchase" | "stores">("cutting");
   const [completeOpen, setCompleteOpen] = useState(false);
 
   const fetchData = async () => {
@@ -162,6 +167,14 @@ export default function ProductionPlanDetailPage() {
     code: data.code,
     printBase: "/production-plans/",
   };
+  const cuttingRows = data.cuttingOrders as PlanCuttingRow[];
+  const completedCount = cuttingRows.filter(
+    (row) => rowConfirmStatus(row) === "completed"
+  ).length;
+  const unfinishedCount = cuttingRows.filter(
+    (row) => rowConfirmStatus(row) === "unfinished"
+  ).length;
+  const pendingCount = cuttingRows.length - completedCount - unfinishedCount;
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -245,64 +258,13 @@ export default function ProductionPlanDetailPage() {
         </div>
       </div>
 
-      {/* 切配确认进度（净菜入库口径，v002） */}
-      {(() => {
-        const rows = data.cuttingOrders as unknown as PlanCuttingRow[];
-        if (!rows.length) return null;
-        const done = rows.filter((r) => rowConfirmStatus(r) === "completed").length;
-        const undone = rows.filter((r) => rowConfirmStatus(r) === "unfinished").length;
-        const pending = rows.length - done - undone;
-        if (done + undone === 0 && data.status === "待生效") return null;
-        return (
-          <div className="rounded-lg border p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium">切配确认进度</h3>
-              <span className="text-xs text-muted-foreground">
-                {done} 完成 · {undone} 未完成 · {pending} 待确认
-              </span>
-            </div>
-            <div className="rounded-lg border overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-muted/50 text-muted-foreground text-left">
-                    <th className="px-3 py-2 font-medium">编号</th>
-                    <th className="px-3 py-2 font-medium">名称</th>
-                    <th className="px-3 py-2 font-medium text-right">计划份数</th>
-                    <th className="px-3 py-2 font-medium">完成状态</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r) => {
-                    const st = rowConfirmStatus(r);
-                    return (
-                      <tr key={`${r.sourceType}:${r.sourceId}`} className={"border-t transition-colors hover:bg-muted/40 " + (st === "unfinished" ? "bg-red-50" : "")}>
-                        <td className="px-3 py-2 font-mono text-xs">{r.sourceCode}</td>
-                        <td className="px-3 py-2 font-medium">{r.itemName}</td>
-                        <td className="px-3 py-2 text-right">{formatPortionsCount(r.portions ?? 0)}</td>
-                        <td className="px-3 py-2">
-                          {st === "pending" ? (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">待切配</span>
-                          ) : st === "completed" ? (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已完成 · 实切 {formatPortionsCount(r.actualPortions ?? 0)}</span>
-                          ) : (
-                            <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600" title={r.remark ?? ""}>
-                              未完成{r.remark ? ` · ${r.remark}` : ""}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        );
-      })()}
-
       <div>
         <div className="flex items-center gap-1 border-b">
-          {(["cutting", "purchase"] as const).map((key) => (
+          {([
+            ["cutting", "切配工单明细", data.cuttingOrders.length],
+            ["purchase", "采购计划明细", data.purchasePlans.length],
+            ["stores", "门店排程", data.sourceSchedules.length],
+          ] as const).map(([key, label, count]) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
@@ -313,16 +275,42 @@ export default function ProductionPlanDetailPage() {
                   : "border-transparent text-muted-foreground hover:text-foreground")
               }
             >
-              {key === "cutting" ? "切配工单明细" : "采购计划明细"}
+              {label}
               <span className={"ml-1.5 text-xs rounded-full px-1.5 py-0.5 " + (activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                {key === "cutting" ? data.cuttingOrders.length : data.purchasePlans.length}
+                {count}
               </span>
             </button>
           ))}
         </div>
         <div className="pt-4">
-          {activeTab === "cutting" && <ScheduleCuttingTable rows={data.cuttingOrders} meta={docMeta} />}
+          {activeTab === "cutting" && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                <span>
+                  已完成 <b className="text-foreground">{completedCount}</b> 项
+                </span>
+                <span>
+                  未完成 <b className="text-foreground">{unfinishedCount}</b> 项
+                </span>
+                <span>
+                  待确认 <b className="text-foreground">{pendingCount}</b> 项
+                </span>
+              </div>
+              <ScheduleCuttingTable
+                rows={data.cuttingOrders}
+                meta={docMeta}
+                showConfirmColumns
+                enableLabelPrint
+              />
+            </div>
+          )}
           {activeTab === "purchase" && <SchedulePurchaseTable rows={data.purchasePlans} meta={docMeta} />}
+          {activeTab === "stores" && (
+            <ProductionPlanStoreSchedules
+              snapshot={data.sourceSnapshot}
+              sourceSchedules={data.sourceSchedules}
+            />
+          )}
         </div>
       </div>
 
@@ -330,7 +318,7 @@ export default function ProductionPlanDetailPage() {
         open={completeOpen}
         onOpenChange={setCompleteOpen}
         planId={id}
-        rows={data.cuttingOrders as unknown as PlanCuttingRow[]}
+        rows={cuttingRows}
         onCompleted={fetchData}
       />
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>

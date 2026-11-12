@@ -4,6 +4,8 @@ export interface PrepLabelIngredient {
   id: number;
   name: string;
   packageSpec: number | null;
+  packageMaterial: string | null;
+  packageSize: string | null;
 }
 
 export interface PrepLabelItem {
@@ -11,6 +13,8 @@ export interface PrepLabelItem {
   sourceId: number;
   itemName: string;
   packageSpec: number;
+  packageMaterial: string | null;
+  packageSize: string | null;
   copies: number;
 }
 
@@ -32,7 +36,7 @@ type LabelSourceRow = Pick<
   "sourceType" | "sourceId" | "sourceCode" | "itemName" | "requiredQty"
 >;
 
-/** 标签张数按完整标准包装计算；生产数据应保证用量与封装规格整除。 */
+/** 标签张数按完整标准包装计算；生产数据应保证用量与包装规格整除。 */
 export function calculatePrepLabelCopies(requiredQty: number, packageSpec: number): number {
   if (!Number.isFinite(requiredQty) || !Number.isFinite(packageSpec) || packageSpec <= 0) {
     return 0;
@@ -42,7 +46,7 @@ export function calculatePrepLabelCopies(requiredQty: number, packageSpec: numbe
   return copies > 0 ? copies : 0;
 }
 
-/** 标签名称和封装规格直接取净料/小料档案；计划行只提供本次生产用量。 */
+/** 标签名称和包装规格直接取净料/小料档案；计划行只提供本次生产用量。 */
 export function buildPrepLabels(
   rows: LabelSourceRow[],
   ingredients: PrepLabelIngredient[]
@@ -70,7 +74,7 @@ export function buildPrepLabels(
         sourceType: row.sourceType,
         sourceId: row.sourceId,
         itemName: ingredient.name,
-        reason: "缺少有效封装规格",
+        reason: "缺少有效包装规格",
       });
       continue;
     }
@@ -89,6 +93,8 @@ export function buildPrepLabels(
       sourceId: row.sourceId,
       itemName: ingredient.name,
       packageSpec,
+      packageMaterial: ingredient.packageMaterial,
+      packageSize: ingredient.packageSize,
       copies,
     });
   }
@@ -100,14 +106,17 @@ export function buildPrepLabels(
   };
 }
 
-/** 生产日期取实际打印日期；默认浏览器/服务器本地时区。 */
+/** 生产日期取实际打印日期时间，精确到分；默认浏览器/服务器本地时区。 */
 export function formatPrepLabelDate(date: Date, timeZone?: string): string {
   const parts = new Intl.DateTimeFormat("zh-CN", {
     timeZone,
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
   }).formatToParts(date);
   const values = new Map(parts.map((part) => [part.type, part.value]));
-  return `${values.get("year")}-${values.get("month")}-${values.get("day")}`;
+  return `${values.get("year")}-${values.get("month")}-${values.get("day")} ${values.get("hour")}:${values.get("minute")}`;
 }

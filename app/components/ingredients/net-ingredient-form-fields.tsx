@@ -26,8 +26,12 @@ export interface NetIngredientFormData {
   l1Code: string;
   l2Code: string;
   sourceIngredientId: string;
-  /** 封装规格（g），净料/小料必填 */
+  /** 包装规格（g），净料/小料必填 */
   packageSpec: string;
+  /** 包装物料，如 密封袋 */
+  packageMaterial: string;
+  /** 包装尺寸，如 35cm×30cm */
+  packageSize: string;
   /** 封装加工费（元/斤），留空 = 0；净料/小料使用 */
   processingFeePerJin: string;
   yieldRate: string;
@@ -96,7 +100,7 @@ export function NetIngredientFormFields({
   // 净料编辑：分类与来源锁定（分类继承自来源原料）
   const sourceLocked = readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
 
-  // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 封装规格 ÷ 500
+  // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 包装规格 ÷ 500
   const costPricePerJin = useMemo(
     () =>
       calcCostPricePerJin(
@@ -255,11 +259,11 @@ export function NetIngredientFormFields({
         </FormField>
 
         <FormField
-          label="封装规格（g）"
+          label="包装规格（g）"
           required
           optionalHint={false}
           error={errors?.packageSpec}
-          hint="标准封装单位的克数，如 500g/袋填 500"
+          hint="标准包装单位的克数，如 500g/袋填 500"
         >
           <Input
             type="number"
@@ -268,6 +272,36 @@ export function NetIngredientFormFields({
             value={form.packageSpec}
             onChange={(e) => onChange("packageSpec", e.target.value)}
             placeholder="如 500"
+            className="h-11 text-base px-4"
+            disabled={viewMode}
+          />
+        </FormField>
+
+        <FormField
+          label="包装物料"
+          error={errors?.packageMaterial}
+          hint="包装所用的物料，如 密封袋"
+        >
+          <Input
+            value={form.packageMaterial}
+            onChange={(e) => onChange("packageMaterial", e.target.value)}
+            placeholder="如 密封袋"
+            maxLength={100}
+            className="h-11 text-base px-4"
+            disabled={viewMode}
+          />
+        </FormField>
+
+        <FormField
+          label="包装尺寸"
+          error={errors?.packageSize}
+          hint="包装物料的实际尺寸，如 35cm×30cm"
+        >
+          <Input
+            value={form.packageSize}
+            onChange={(e) => onChange("packageSize", e.target.value)}
+            placeholder="如 35cm×30cm"
+            maxLength={100}
             className="h-11 text-base px-4"
             disabled={viewMode}
           />
@@ -369,7 +403,7 @@ export function NetIngredientFormFields({
         <FormField
           label="标准规格价（元/份）"
           optionalHint={false}
-          hint="= 出库价 × 封装规格 ÷ 500，即每封装单位的出库价"
+          hint="= 出库价 × 包装规格 ÷ 500，即每包装单位的出库价"
         >
           <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
             {standardPackagePrice != null ? `¥${standardPackagePrice.toFixed(2)}` : "—"}

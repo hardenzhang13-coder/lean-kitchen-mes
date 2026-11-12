@@ -28,6 +28,14 @@ export type PlanCuttingConfirmStatus = "pending" | "completed" | "unfinished";
 
 export const PLAN_ROW_PENDING = "pending" as const;
 
+export type OutboundDisplayStatus = "unshipped" | "partial" | "shipped";
+
+export const OUTBOUND_STATUS_LABEL: Record<OutboundDisplayStatus, string> = {
+  unshipped: "未出库",
+  partial: "部分出库",
+  shipped: "已出库",
+};
+
 /** 行确认态归一（兼容历史快照无 confirmStatus 字段） */
 export function rowConfirmStatus(row: PlanCuttingRow): PlanCuttingConfirmStatus {
   return row.confirmStatus ?? "pending";
@@ -42,6 +50,24 @@ export function round2(n: number): number {
 export function formatPortionsCount(portions: number): string {
   const p = Math.round(portions * 10) / 10;
   return (Number.isInteger(p) ? String(p) : p.toFixed(1)) + " 份";
+}
+
+/** 份数数值展示（不带单位）：整数 "N"，一位小数 "N.N" */
+export function formatPortionsValue(portions: number): string {
+  const p = Math.round(portions * 10) / 10;
+  return Number.isInteger(p) ? String(p) : p.toFixed(1);
+}
+
+/** 出库行展示状态：按计划出库数与本单实际出库数比较得出。 */
+export function getOutboundDisplayStatus(
+  requiredPortions: number,
+  shippedPortions: number
+): OutboundDisplayStatus {
+  const required = round2(requiredPortions);
+  const shipped = round2(shippedPortions);
+  if (shipped <= 0) return "unshipped";
+  if (shipped < required) return "partial";
+  return "shipped";
 }
 
 /** 行金额（元）= 出库价（元/斤）× 出库量 g ÷ 500 */

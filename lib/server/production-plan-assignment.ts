@@ -98,14 +98,15 @@ export async function nextProductionPlanCode(
 }
 
 /**
- * 根据各来源排程的切配工单终态同步排程状态。
- * 某张排程的全部切配行均已进入终态时，该排程变为「已完成」。
+ * 生产计划完成时同步全部来源排程状态。
+ * 只有整张计划已无待确认行，才允许来源排程进入「已完成」。
  */
 export async function syncSourceScheduleStatuses(
   tx: Prisma.TransactionClient,
-  scheduleIds: number[]
+  scheduleIds: number[],
+  planCompleted: boolean
 ): Promise<number[]> {
-  if (scheduleIds.length === 0) return [];
+  if (!planCompleted || scheduleIds.length === 0) return [];
 
   const orders = await tx.cuttingOrder.findMany({
     where: { scheduleId: { in: scheduleIds } },

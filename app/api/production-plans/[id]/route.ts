@@ -7,13 +7,24 @@ import { resolveUsernameToName } from "@/lib/server/user-resolve";
 import { logger } from "@/lib/server/logger";
 import { updateProductionPlanSchema } from "@/lib/server/schemas/production-plan";
 import { validateBody } from "@/lib/server/validate";
-import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
+import {
+  buildProductionPlanData,
+  buildSourceScheduleSnapshot,
+  type ProductionPlanSourceSnapshot,
+} from "@/lib/server/production-plan-utils";
 import {
   lockProductionPlan,
   lockSchedulesForProductionPlan,
   nextProductionPlanCode,
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
+
+function normalizeSourceSnapshot(value: unknown): ProductionPlanSourceSnapshot | null {
+  if (!value || typeof value !== "object") return null;
+  const snapshot = value as { version?: unknown; stores?: unknown };
+  if (snapshot.version !== 1 || !Array.isArray(snapshot.stores)) return null;
+  return value as ProductionPlanSourceSnapshot;
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -30,7 +41,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               code: true,
               title: true,
               scheduleDate: true,
-              items: { select: { quantity: true } },
+              status: true,
+              store: { select: { id: true, name: true } },
+              items: {
+                orderBy: { id: "asc" },
+                select: {
+                  id: true,
+                  quantity: true,
+                  dish: {
+                    select: {
+                      id: true,
+                      code: true,
+                      name: true,
+                      portion: true,
+                      meatType: true,
+                    },
+                  },
+                },
+              },
             },
           },
         },
@@ -41,6 +69,24 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!plan) return NextResponse.json({ error: "生产计划单不存在" }, { status: 404 });
 
   const operatorName = await resolveUsernameToName(plan.operator);
+  const sourceSnapshot =
+    normalizeSourceSnapshot(plan.sourceScheduleJson) ??
+    buildSourceScheduleSnapshot(plan.schedules.map((reference) => reference.schedule));
+  const sourceSchedules = [...plan.schedules]
+    .sort(
+      (a, b) =>
+        a.schedule.scheduleDate.getTime() - b.schedule.scheduleDate.getTime() ||
+        (a.schedule.code ?? "").localeCompare(b.schedule.code ?? "", "zh")
+    )
+    .map((s) => ({
+      id: s.schedule.id,
+      code: s.schedule.code,
+      title: s.schedule.title,
+      scheduleDate: s.schedule.scheduleDate.toISOString(),
+      status: s.schedule.status,
+      totalQuantity: s.schedule.items.reduce((sum, item) => sum + item.quantity, 0),
+      store: s.schedule.store,
+    }));
   return success({
     id: plan.id,
     code: plan.code,
@@ -61,13 +107,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     }),
 
     purchasePlans: plan.purchaseJson ?? [],
-    sourceSchedules: plan.schedules.map((s) => ({
-      id: s.schedule.id,
-      code: s.schedule.code,
-      title: s.schedule.title,
-      scheduleDate: s.schedule.scheduleDate.toISOString(),
-      totalQuantity: s.schedule.items.reduce((sum, it) => sum + it.quantity, 0),
-    })),
+    sourceSchedules,
+    sourceSnapshot,
   });
 }
 
@@ -118,6 +159,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             planDate: planDateObj,
             cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
             purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
+            sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
           },
         });
       });

@@ -109,6 +109,10 @@ model NetIngredient {
   yieldRate          Decimal?          @map("yield_rate") @db.Decimal(5, 2)
   // 封装规格（g），净料/小料必填
   packageSpec        Int?              @map("package_spec")
+  // 包装物料，如 密封袋
+  packageMaterial    String            @default("密封袋") @map("package_material")
+  // 包装尺寸，如 35cm×30cm
+  packageSize        String            @default("50cm×40cm") @map("package_size")
   // 封装加工费（元/斤），空 = 0；净料/小料使用
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
   // 毛利率（%）：空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100)，真毛利率口径
@@ -509,6 +513,7 @@ model ProductionPlan {
   operator    String?
   cuttingJson Json?    @map("cutting_json") // 汇总切配工单明细快照
   purchaseJson Json?   @map("purchase_json") // 汇总采购计划明细快照
+  sourceScheduleJson Json? @map("source_schedule_json") // 来源门店排程及菜单快照
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")

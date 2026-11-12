@@ -90,6 +90,7 @@ export async function POST(req: NextRequest) {
               operator,
               cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
               purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
+              sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
               schedules: { create: uniqueIds.map((scheduleId) => ({ scheduleId })) },
             },
           });

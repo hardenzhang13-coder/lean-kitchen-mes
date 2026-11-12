@@ -22,6 +22,8 @@ export type NetIngredientEditItem = {
   id: number;
   name: string;
   packageSpec: number | null;
+  packageMaterial: string | null;
+  packageSize: string | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
@@ -60,6 +62,8 @@ export function NetIngredientEditDialog({
     l2Code: "",
     sourceIngredientId: "",
     packageSpec: "",
+    packageMaterial: "密封袋",
+    packageSize: "50cm×40cm",
     processingFeePerJin: "",
     yieldRate: "",
     unitPrice: "",
@@ -90,6 +94,8 @@ export function NetIngredientEditDialog({
         ? String(initialData.sourceIngredientId)
         : "",
       packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
+      packageMaterial: initialData.packageMaterial || "",
+      packageSize: initialData.packageSize || "",
       processingFeePerJin:
         initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
       yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
@@ -125,10 +131,10 @@ export function NetIngredientEditDialog({
     if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
       next.yieldRate = "出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）";
     }
-    // 封装规格（g）必填
+    // 包装规格（g）必填
     const pkg = Number(form.packageSpec);
     if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
-      next.packageSpec = "请填写有效的封装规格（g）";
+      next.packageSpec = "请填写有效的包装规格（g）";
     }
     if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
       next.processingFeePerJin = "封装加工费不能为负数";
@@ -162,6 +168,8 @@ export function NetIngredientEditDialog({
         sourceIngredientId: Number(form.sourceIngredientId),
         yieldRate: Number(form.yieldRate),
         packageSpec: Number(form.packageSpec),
+        packageMaterial: form.packageMaterial.trim() || null,
+        packageSize: form.packageSize.trim() || null,
         processingFeePerJin: form.processingFeePerJin
           ? Number(form.processingFeePerJin)
           : null,

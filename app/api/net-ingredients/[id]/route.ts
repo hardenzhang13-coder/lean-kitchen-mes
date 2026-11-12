@@ -31,6 +31,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       name,
       sourceIngredientId,
       packageSpec,
+      packageMaterial,
+      packageSize,
       processingFeePerJin,
       yieldRate,
       unitPrice,
@@ -58,14 +60,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const isMinor = l2Row.parentCode === "MIN";
 
-    // 净料/小料统一口径（同 POST）：来源原料 + 出成率 + 封装规格必填，成本价元/斤
+    // 净料/小料统一口径（同 POST）：来源原料 + 出成率 + 包装规格必填，成本价元/斤
     if (!sourceIngredientId) {
       return badRequest("必须选择来源原料");
     }
-    // 封装规格（g）必填：编辑存量数据时补填
+    // 包装规格（g）必填：编辑存量数据时补填
     const finalPackageSpec = packageSpec ?? existing.packageSpec;
     if (!finalPackageSpec) {
-      return badRequest("必须填写封装规格（g）");
+      return badRequest("必须填写包装规格（g）");
     }
     const finalSourceIngredientId = Number(sourceIngredientId);
 
@@ -89,6 +91,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         name: name.trim(),
         sourceIngredientId: finalSourceIngredientId,
         packageSpec: finalPackageSpec,
+        packageMaterial:
+          packageMaterial === undefined ? existing.packageMaterial : packageMaterial?.trim() || "密封袋",
+        packageSize:
+          packageSize === undefined ? existing.packageSize : packageSize?.trim() || "50cm×40cm",
         processingFeePerJin: processingFeePerJin ?? existing.processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
         unitPrice: calculated,

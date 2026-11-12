@@ -1,12 +1,16 @@
 import { z } from "zod";
 
-// 净料/小料统一口径：均由原料转化而来（来源原料 + 出成率 + 封装规格），价格体系元/斤
+// 净料/小料统一口径：均由原料转化而来（来源原料 + 出成率 + 包装规格），价格体系元/斤
 export const createNetIngredientSchema = z.object({
   name: z.string().min(1).max(100),
   // 来源原料：净料/小料必填
   sourceIngredientId: z.number().int().positive(),
-  // 净料/小料封装规格（g），必填：标准规格价格的计算基础
+  // 净料/小料包装规格（g），必填：标准规格价格的计算基础
   packageSpec: z.number().int().min(1).max(1000000),
+  // 包装物料，如 密封袋
+  packageMaterial: z.string().trim().max(100).nullish(),
+  // 包装尺寸，如 35cm×30cm
+  packageSize: z.string().trim().max(100).nullish(),
   // 封装加工费（元/斤），空 = 0
   processingFeePerJin: z.number().min(0).max(10000).nullish(),
   // 毛利率（%）：空 = 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100)，上限 95

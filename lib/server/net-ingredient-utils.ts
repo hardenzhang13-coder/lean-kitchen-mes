@@ -42,7 +42,7 @@ export async function calculateUnitPrice(
  * 净料行序列化：附加价格体系的计算字段（不落库，实时计算）。
  * - costPricePerJin        成本价（元/斤）= 净料单价 + 封装加工费
  * - outPricePerJin         出库价（元/斤）= 成本价 ÷ (1 - 毛利率/100)，空毛利率 = 0
- * - standardPackagePrice   标准规格价格（元/份）= 出库价 × 封装规格(g) ÷ 500
+ * - standardPackagePrice   标准规格价格（元/份）= 出库价 × 包装规格(g) ÷ 500
  */
 export function serializeNetIngredient<T extends {
   unitPrice: unknown;

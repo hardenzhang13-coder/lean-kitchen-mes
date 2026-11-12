@@ -245,7 +245,7 @@ export default function IngredientsPage() {
           <span className="rounded-lg bg-slate-100 px-3 py-[6px] text-xs font-semibold text-slate-800">
             出库价<span className="ml-1 font-normal text-slate-500">元/斤</span>
           </span>
-          <span className="text-xs font-medium text-slate-400">× 封装规格（g）÷ 500</span>
+          <span className="text-xs font-medium text-slate-400">× 包装规格（g）÷ 500</span>
           <span className="rounded-lg bg-slate-100 px-3 py-[6px] text-xs font-semibold text-slate-800">
             标准规格价<span className="ml-1 font-normal text-slate-500">元/份</span>
           </span>

@@ -30,8 +30,20 @@ describe("prep label helpers", () => {
         },
       ],
       [
-        { id: 1, name: "净料档案名称", packageSpec: 700 },
-        { id: 2, name: "小料档案名称", packageSpec: 100 },
+        {
+          id: 1,
+          name: "净料档案名称",
+          packageSpec: 700,
+          packageMaterial: "密封袋",
+          packageSize: "35cm×30cm",
+        },
+        {
+          id: 2,
+          name: "小料档案名称",
+          packageSpec: 100,
+          packageMaterial: null,
+          packageSize: null,
+        },
       ]
     );
 
@@ -41,6 +53,8 @@ describe("prep label helpers", () => {
         sourceId: 1,
         itemName: "净料档案名称",
         packageSpec: 700,
+        packageMaterial: "密封袋",
+        packageSize: "35cm×30cm",
         copies: 2,
       },
       {
@@ -48,6 +62,8 @@ describe("prep label helpers", () => {
         sourceId: 2,
         itemName: "小料档案名称",
         packageSpec: 100,
+        packageMaterial: null,
+        packageSize: null,
         copies: 2,
       },
     ]);
@@ -73,18 +89,24 @@ describe("prep label helpers", () => {
           requiredQty: 100,
         },
       ],
-      [{ id: 2, name: "无规格小料", packageSpec: null }]
+      [{
+        id: 2,
+        name: "无规格小料",
+        packageSpec: null,
+        packageMaterial: "密封袋",
+        packageSize: "20cm×15cm",
+      }]
     );
 
     expect(result.labels).toEqual([]);
     expect(result.skipped.map((item) => item.reason)).toEqual([
       "净料/小料档案不存在或已停用",
-      "缺少有效封装规格",
+      "缺少有效包装规格",
     ]);
   });
 
-  it("生产日期按指定时区格式化为 YYYY-MM-DD", () => {
+  it("生产日期按指定时区格式化到时分", () => {
     const printTime = new Date("2026-11-10T16:30:00.000Z");
-    expect(formatPrepLabelDate(printTime, "Asia/Shanghai")).toBe("2026-11-11");
+    expect(formatPrepLabelDate(printTime, "Asia/Shanghai")).toBe("2026-11-11 00:30");
   });
 });

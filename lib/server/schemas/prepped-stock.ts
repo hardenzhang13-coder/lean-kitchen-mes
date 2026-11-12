@@ -24,6 +24,18 @@ export const createOutboundSchema = z.object({
   scheduleId: z.number().int().positive(),
   remark: z.string().max(200).optional(),
   items: z.array(createOutboundItemSchema).min(1).max(500),
+}).superRefine((value, ctx) => {
+  const totalPortions = value.items.reduce(
+    (sum, item) => sum + item.shippedPortions,
+    0
+  );
+  if (totalPortions <= 0) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["items"],
+      message: "本次出库总数必须大于 0",
+    });
+  }
 });
 
 export const outboundQuerySchema = z.object({

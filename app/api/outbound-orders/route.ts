@@ -128,6 +128,9 @@ export async function POST(req: NextRequest) {
           sortIndex: idx + 1,
         };
       });
+      if (totalPortions <= 0) {
+        throw new Error("本次出库总数必须大于 0");
+      }
 
       // 生成单号（当日序号，唯一冲突重试 5 次）
       let lastError: unknown = null;

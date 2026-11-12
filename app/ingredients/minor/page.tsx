@@ -33,6 +33,8 @@ type NetIngredient = {
   name: string;
   sourceIngredientId: number | null;
   packageSpec: number | null;
+  packageMaterial: string | null;
+  packageSize: string | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
   unitPrice: number;
@@ -145,6 +147,8 @@ export default function MinorIngredientsPage() {
     id: row.id,
     name: row.name,
     packageSpec: row.packageSpec ?? null,
+    packageMaterial: row.packageMaterial ?? null,
+    packageSize: row.packageSize ?? null,
     processingFeePerJin: row.processingFeePerJin ?? null,
     yieldRate: row.yieldRate,
     unitPrice: row.unitPrice,
@@ -236,7 +240,7 @@ export default function MinorIngredientsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           {loading ? (
-            <SkeletonTable cols={11} rows={20} />
+            <SkeletonTable cols={13} rows={20} />
           ) : (
             <DataTable<NetIngredient>
               data={pageItems}
@@ -267,8 +271,16 @@ export default function MinorIngredientsPage() {
                 },
                 { header: "名称", accessorKey: "name" },
                 {
-                  header: "封装规格",
+                  header: "包装规格",
                   cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
+                },
+                {
+                  header: "包装物料",
+                  cell: (row) => row.packageMaterial || "—",
+                },
+                {
+                  header: "包装尺寸",
+                  cell: (row) => row.packageSize || "—",
                 },
                 {
                   header: "来源原料",

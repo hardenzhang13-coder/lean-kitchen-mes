@@ -12,7 +12,12 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { formatPortionsCount } from "@/lib/shared/prepped-stock";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  formatPortionsCount,
+  getOutboundDisplayStatus,
+  OUTBOUND_STATUS_LABEL,
+} from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
 
 interface OutboundDetail {
@@ -49,10 +54,10 @@ interface OutboundDetail {
   }[];
 }
 
-function prepBadge(st: string) {
-  if (st === "unfinished") return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">未切配</span>;
-  if (st === "insufficient") return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">量不足</span>;
-  return <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">正常</span>;
+function outboundBadge(requiredPortions: number, shippedPortions: number) {
+  const status = getOutboundDisplayStatus(requiredPortions, shippedPortions);
+  const variant = status === "shipped" ? "success" : status === "partial" ? "warning" : "danger";
+  return <StatusBadge status={OUTBOUND_STATUS_LABEL[status]} variant={variant} />;
 }
 
 export default function OutboundDetailPage() {
@@ -129,27 +134,32 @@ export default function OutboundDetailPage() {
     <div className="flex flex-col gap-6 p-8">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push("/inventory")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="返回出库单列表"
+            onClick={() => router.push("/inventory?tab=outbound")}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               出库单 {data.code}
               {voided ? (
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground">已作废</span>
+                <StatusBadge status="已作废" variant="danger" />
               ) : (
-                <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">已出库</span>
+                <StatusBadge status="已出库" variant="success" />
               )}
               {!voided && (
                 data.asPlanned ? (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-green-50 text-green-600">按计划出库</span>
+                  <StatusBadge status="按计划出库" variant="success" />
                 ) : (
-                  <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-600">未按计划出库</span>
+                  <StatusBadge status="未按计划出库" variant="warning" />
                 )
               )}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {data.storeName} · 来源排程 {data.scheduleCode}（{data.scheduleTitle}）· 生产日期 {new Date(data.scheduleDate).toLocaleDateString("zh-CN")} · 库管负责人 {data.operator} · {new Date(data.createdAt).toLocaleString("zh-CN")}
+              {data.storeName} · 排程单 {data.scheduleTitle} · 制单人 {data.operator} · {new Date(data.createdAt).toLocaleString("zh-CN")}
             </p>
           </div>
         </div>
@@ -194,17 +204,26 @@ export default function OutboundDetailPage() {
               <TableHead>序号</TableHead>
               <TableHead>名称</TableHead>
               <TableHead>封装规格</TableHead>
-              <TableHead className="text-right">计划份数</TableHead>
+              <TableHead className="text-right">计划出库数（份）</TableHead>
               <TableHead className="text-right">计划量</TableHead>
-              <TableHead className="text-right">本次出库</TableHead>
+              <TableHead className="text-right">本次出库数（份）</TableHead>
               <TableHead className="text-right">出库量</TableHead>
-              <TableHead className="text-right">行金额</TableHead>
-              <TableHead>状态</TableHead>
+              <TableHead className="text-right">金额</TableHead>
+              <TableHead>出库状态</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {data.items.map((it) => (
-              <TableRow key={it.id} className={"transition-colors hover:bg-muted/40 " + (it.prepStatus === "unfinished" ? "bg-red-50 hover:bg-red-100/60" : it.prepStatus === "insufficient" ? "bg-amber-50 hover:bg-amber-100/60" : "")}>
+              <TableRow
+                key={it.id}
+                className={
+                  it.prepStatus === "unfinished"
+                    ? "bg-danger-muted/40"
+                    : it.prepStatus === "insufficient"
+                      ? "bg-warning-muted/40"
+                      : ""
+                }
+              >
                 <TableCell className="font-medium bg-muted/30">{it.l1Name}</TableCell>
                 <TableCell className="text-muted-foreground">{it.l2Name}</TableCell>
                 <TableCell className="font-mono text-xs">{String(it.sortIndex).padStart(2, "0")}</TableCell>
@@ -214,8 +233,10 @@ export default function OutboundDetailPage() {
                 <TableCell className="text-right text-muted-foreground">{formatWeight(it.requiredQty)}</TableCell>
                 <TableCell className="text-right font-semibold">{formatPortionsCount(it.shippedPortions)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatWeight(it.shippedQty)}</TableCell>
-                <TableCell className="text-right font-medium">{it.pricePerJin != null ? "¥" + it.amount.toFixed(2) : "价缺失"}</TableCell>
-                <TableCell>{prepBadge(it.prepStatus)}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {it.pricePerJin != null ? "¥" + it.amount.toFixed(2) : "价缺失"}
+                </TableCell>
+                <TableCell>{outboundBadge(it.requiredPortions, it.shippedPortions)}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -223,7 +244,7 @@ export default function OutboundDetailPage() {
       </div>
 
       {voided && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">
+        <div className="rounded-lg border border-danger/30 bg-danger-muted p-4 text-sm text-danger">
           本单已作废，{formatPortionsCount(data.totalPortions)}（¥{data.totalAmount.toFixed(2)}）已回滚至库存（见台账「作废回滚」）。
           {data.voidReason && <span className="block mt-1">作废原因：{data.voidReason} · {data.voidedAt ? new Date(data.voidedAt).toLocaleString("zh-CN") : ""}</span>}
         </div>
