@@ -90,7 +90,9 @@ async function main() {
     data: { isActive: false },
   });
 
-  // 4. 单位（重量类必须带 gramsPerUnit；upsert 保证老库回填系数与启用状态）
+  // 4. 单位（重量类必须带 gramsPerUnit）
+  //    只补缺失，不覆盖：运营在生产上调整过的换算系数（如「斤」改 490g）必须原样保留，
+  //    否则每次部署都会被静默改回字典基线。仅当单位已存在但系数为空时才补齐。
   // 中英文别名均收录：规格文本里 g/kg 与 克/千克 同样常见，缺别名会导致换算中断
   const units = [
     { name: "斤", category: "weight", gramsPerUnit: 500 },
@@ -114,11 +116,18 @@ async function main() {
     { name: "把", category: "count", gramsPerUnit: null },
   ];
   for (const u of units) {
-    await prisma.unit.upsert({
-      where: { name: u.name },
-      create: u,
-      update: { category: u.category, gramsPerUnit: u.gramsPerUnit },
-    });
+    const existing = await prisma.unit.findUnique({ where: { name: u.name } });
+    if (!existing) {
+      await prisma.unit.create({ data: u });
+      continue;
+    }
+    // 老库遗留：单位存在但换算系数为空时补齐；已有值一律以生产为准
+    if (existing.gramsPerUnit == null && u.gramsPerUnit != null) {
+      await prisma.unit.update({
+        where: { name: u.name },
+        data: { category: u.category, gramsPerUnit: u.gramsPerUnit },
+      });
+    }
   }
 
   // 5. 门店（工作台多门店切换；预置两家）
@@ -127,15 +136,25 @@ async function main() {
     { code: "ST-0002", name: "明天吃啥首店", isSystem: true },
   ];
   for (const s of stores) {
-    await prisma.store.upsert({ where: { name: s.name }, create: s, update: { code: s.code, isSystem: s.isSystem } });
+    // 只在缺失时创建，不覆盖运营调整过的门店编码、系统标记与启用状态
+    // （code 与 name 都有唯一约束，按两者任一命中即视为已存在）
+    const existing = await prisma.store.findFirst({
+      where: { OR: [{ name: s.name }, { code: s.code }] },
+    });
+    if (!existing) {
+      await prisma.store.create({ data: s });
+    }
   }
 
   // 6. 净菜包装基线：录入/转化净料时可直接选用
-  await prisma.netPackaging.upsert({
-    where: { name_size: { name: "密封袋", size: "50cm×40cm" } },
-    create: { name: "密封袋", size: "50cm×40cm", isActive: true },
-    update: { isActive: true, deletedAt: null },
+  //    只在缺失时创建；不复活运营主动停用或软删除的包装。
+  const basePackaging = { name: "密封袋", size: "50cm×40cm" };
+  const existingPackaging = await prisma.netPackaging.findUnique({
+    where: { name_size: basePackaging },
   });
+  if (!existingPackaging) {
+    await prisma.netPackaging.create({ data: { ...basePackaging, isActive: true } });
+  }
 
   // 7. 首次管理员：只在空库创建，绝不覆盖现网已有账号、密码或角色。
   const existingUserCount = await prisma.user.count({ where: { deletedAt: null } });
