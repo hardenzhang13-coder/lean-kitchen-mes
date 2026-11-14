@@ -20,6 +20,7 @@ export const createIngredientSchema = z.object({
 export const updateIngredientSchema = createIngredientSchema.partial();
 
 export const ingredientQuerySchema = z.object({
+  l1Code: z.string().optional(),
   l2Code: z.string().optional(),
   // 模块边界：raw = 仅原料（排除调味品体系）；seasoning = 仅调料；缺省返回全部（采购识别等跨体系场景）
   kind: z.enum(["raw", "seasoning"]).optional(),

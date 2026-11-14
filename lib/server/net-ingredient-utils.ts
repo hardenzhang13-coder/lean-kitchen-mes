@@ -12,19 +12,13 @@ import {
 
 /**
  * 计算净料单价（元/斤）。
- * - 若调用方已提供 unitPrice（providedUnitPrice），直接采用；
- * - 否则按「原料每斤单价 ÷ (出成率/100)」自动推算；
- * - 缺少原料每斤单价或出成率无效时返回 null（由用户手动填写）。
+ * 净料单价始终按「来源原料当前每斤单价 ÷ (出成率/100)」派生。
+ * 缺少来源价格或出成率无效时返回 null。
  */
 export async function calculateUnitPrice(
   sourceIngredientId: number,
-  yieldRate: number,
-  providedUnitPrice?: number | null
+  yieldRate: number
 ): Promise<number | null> {
-  if (providedUnitPrice != null && !Number.isNaN(providedUnitPrice)) {
-    return providedUnitPrice;
-  }
-
   if (!sourceIngredientId || !yieldRate) return null;
 
   const ingredient = await prisma.ingredient.findUnique({
@@ -38,6 +32,54 @@ export async function calculateUnitPrice(
   });
 }
 
+export interface NetIngredientPriceInput {
+  yieldRate?: unknown;
+  processingFeePerJin?: unknown;
+  grossMarginRate?: unknown;
+  packageSpec?: unknown;
+  sourceIngredient?: {
+    pricePerJin?: unknown;
+  } | null;
+}
+
+export interface DerivedNetIngredientPrices {
+  unitPrice: number | null;
+  grossMarginRate: number;
+  costPricePerJin: number | null;
+  outPricePerJin: number | null;
+  standardPackagePrice: number | null;
+}
+
+/** 前后端价格链路统一入口：净料单价永远取当前来源原料价格。 */
+export function deriveNetIngredientPrices(
+  row: NetIngredientPriceInput
+): DerivedNetIngredientPrices {
+  const unitPrice = calcNetUnitPrice({
+    pricePerJin: row.sourceIngredient?.pricePerJin,
+    yieldRate: Number(row.yieldRate),
+  });
+  const grossMarginRate =
+    row.grossMarginRate == null || row.grossMarginRate === ""
+      ? 0
+      : Number(row.grossMarginRate);
+  const costPrice = calcCostPricePerJin(
+    unitPrice,
+    row.processingFeePerJin
+  );
+  const outPrice = calcOutPricePerJin(costPrice, grossMarginRate);
+
+  return {
+    unitPrice,
+    grossMarginRate: Number.isFinite(grossMarginRate) ? grossMarginRate : 0,
+    costPricePerJin: costPrice,
+    outPricePerJin: outPrice,
+    standardPackagePrice:
+      outPrice != null
+        ? calcStandardPackagePrice(outPrice, row.packageSpec)
+        : null,
+  };
+}
+
 /**
  * 净料行序列化：附加价格体系的计算字段（不落库，实时计算）。
  * - costPricePerJin        成本价（元/斤）= 净料单价 + 封装加工费
@@ -46,20 +88,25 @@ export async function calculateUnitPrice(
  */
 export function serializeNetIngredient<T extends {
   unitPrice: unknown;
+  yieldRate?: unknown;
   processingFeePerJin?: unknown;
   grossMarginRate?: unknown;
   packageSpec?: unknown;
-}>(row: T): T & {
+  sourceIngredient?: {
+    pricePerJin?: unknown;
+  } | null;
+}>(
+  row: T
+): Omit<T, "unitPrice" | "grossMarginRate"> & {
+  unitPrice: number | null;
+  grossMarginRate: number;
   costPricePerJin: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
 } {
-  const costPrice = calcCostPricePerJin(row.unitPrice, row.processingFeePerJin);
-  const outPrice = calcOutPricePerJin(costPrice, row.grossMarginRate);
+  const prices = deriveNetIngredientPrices(row);
   return {
     ...row,
-    costPricePerJin: costPrice,
-    outPricePerJin: outPrice,
-    standardPackagePrice: outPrice != null ? calcStandardPackagePrice(outPrice, row.packageSpec) : null,
+    ...prices,
   };
 }

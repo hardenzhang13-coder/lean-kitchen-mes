@@ -18,16 +18,29 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(ingredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { l2Code, kind, q, page, pageSize } = validation.data;
+    const { l1Code, l2Code, kind, q, page, pageSize } = validation.data;
     const where: Prisma.IngredientWhereInput = { deletedAt: null };
+    const categoryFilters: Prisma.IngredientWhereInput[] = [];
     if (l2Code) {
-      where.l2Code = l2Code;
+      categoryFilters.push({ l2Code });
+    }
+    if (l1Code) {
+      const children = await prisma.ingredientCategoryL2.findMany({
+        where: { parentCode: l1Code },
+        select: { code: true },
+      });
+      categoryFilters.push({ l2Code: { in: children.map((c) => c.code) } });
     }
     // 模块边界过滤：原料清单不得混入调料（SEA 体系），反之亦然
     if (kind) {
       const seasoningL2Codes = await getSeasoningL2Codes();
-      where.l2Code =
-        kind === "raw" ? { notIn: seasoningL2Codes } : { in: seasoningL2Codes };
+      categoryFilters.push({
+        l2Code:
+          kind === "raw" ? { notIn: seasoningL2Codes } : { in: seasoningL2Codes },
+      });
+    }
+    if (categoryFilters.length > 0) {
+      where.AND = categoryFilters;
     }
     if (q?.trim()) {
       const term = q.trim();

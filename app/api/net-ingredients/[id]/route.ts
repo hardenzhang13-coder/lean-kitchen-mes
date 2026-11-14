@@ -11,7 +11,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const { id } = await params;
     const row = await prisma.netIngredient.findFirst({
       where: { id: Number(id), deletedAt: null },
-      include: { sourceIngredient: { select: { id: true, name: true } } },
+      include: {
+        sourceIngredient: {
+          select: { id: true, name: true, pricePerJin: true },
+        },
+      },
     });
     if (!row) return notFound("净料不存在或已删除");
     return success(serializeNetIngredient(row));
@@ -35,10 +39,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       packageSize,
       processingFeePerJin,
       yieldRate,
-      unitPrice,
       grossMarginRate,
       l2Code,
-      autoCalculate,
     } = validation.data;
 
     const existing = await prisma.netIngredient.findFirst({
@@ -78,11 +80,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const calculated = await calculateUnitPrice(
       finalSourceIngredientId,
-      yieldRateNum,
-      autoCalculate || unitPrice == null ? null : Number(unitPrice)
+      yieldRateNum
     );
     if (calculated == null) {
-      return badRequest("来源原料缺少每斤单价，请先在原料中填写价格，或手动填写净料单价");
+      return badRequest("来源原料缺少每斤单价，无法计算净料单价");
     }
 
     const row = await prisma.netIngredient.update({
@@ -99,10 +100,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         yieldRate: yieldRateNum,
         unitPrice: calculated,
         // undefined = 未传该字段（保持原值）；显式 null = 用户清空毛利率
-        grossMarginRate: grossMarginRate === undefined ? (existing.grossMarginRate ?? null) : grossMarginRate,
+        grossMarginRate:
+          grossMarginRate === undefined
+            ? Number(existing.grossMarginRate ?? 0)
+            : grossMarginRate ?? 0,
         unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",
+      },
+      include: {
+        sourceIngredient: {
+          select: { id: true, name: true, pricePerJin: true },
+        },
       },
     });
 

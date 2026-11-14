@@ -66,6 +66,7 @@ export function canAccessApi(
     "/api/dish-categories",
     "/api/ingredient-categories",
     "/api/units",
+    "/api/net-packagings",
     "/api/stores",
     "/api/suppliers",
   ];

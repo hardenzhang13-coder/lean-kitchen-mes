@@ -1,8 +1,8 @@
 // 出库单行构建（创建出库单与报价预览共用）：以排程切配工单为计划口径，联查净菜档案出库价与当前库存。
 
 import type { Prisma } from "@prisma/client";
-import { calcCostPricePerJin, calcOutPricePerJin } from "@/lib/shared/net-price";
 import { round2 } from "@/lib/shared/prepped-stock";
+import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 
 export interface OutboundLine {
   key: string; // sourceType:sourceId
@@ -36,7 +36,16 @@ export async function getOutboundLines(
   const [nets, stockRows, l2Cats, l1Cats] = await Promise.all([
     tx.netIngredient.findMany({
       where: { id: { in: netIds } },
-      select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true },
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        unitPrice: true,
+        yieldRate: true,
+        processingFeePerJin: true,
+        grossMarginRate: true,
+        sourceIngredient: { select: { pricePerJin: true } },
+      },
     }),
     tx.preppedStock.findMany({ where: { sourceId: { in: netIds } } }),
     tx.ingredientCategoryL2.findMany({
@@ -57,8 +66,9 @@ export async function getOutboundLines(
     const available = round2(stockMap.get(key) ?? 0);
 
     const net = netMap.get(c.sourceId);
-    const cost = net ? calcCostPricePerJin(net.unitPrice, net.processingFeePerJin) : null;
-    const price = cost != null ? calcOutPricePerJin(cost, net?.grossMarginRate) : null;
+    const price = net
+      ? deriveNetIngredientPrices(net).outPricePerJin
+      : null;
 
     const prepStatus: OutboundLine["prepStatus"] =
       c.status !== "completed" ? "unfinished" : available < requiredPortions ? "insufficient" : "normal";

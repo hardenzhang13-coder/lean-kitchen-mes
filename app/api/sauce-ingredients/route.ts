@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         purchaseUnit: purchaseUnit?.trim() || null,
         latestRefPrice: latestRefPrice ?? null,
         pricePerJin: finalPricePerJin,
-        grossMarginRate: grossMarginRate ?? null,
+        grossMarginRate: grossMarginRate ?? 0,
         processingFeePerJin: processingFeePerJin ?? null,
         packageSpec: packageSpec ?? null,
         storage: storage?.trim() || "常温",

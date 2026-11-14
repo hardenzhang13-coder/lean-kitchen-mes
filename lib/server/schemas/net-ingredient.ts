@@ -17,9 +17,10 @@ export const createNetIngredientSchema = z.object({
   grossMarginRate: z.number().min(0).max(95).nullish(),
   // 出成率（%）：必填。可超过 100——上浆/挂糊类食材出成率会大于 100（如 120 = 出 1.2 斤成品）
   yieldRate: z.number().min(0.01).max(500),
-  // 净料单价（元/斤）：缺省时服务端按 原料每斤单价 ÷ 出成率 自动计算
+  // 兼容旧客户端，服务端会忽略并始终按来源原料实时价格派生
   unitPrice: z.number().nonnegative().nullish(),
   l2Code: z.string().min(1).max(20),
+  /** 兼容旧客户端；净料单价现已强制自动计算 */
   autoCalculate: z.boolean().default(true),
 });
 

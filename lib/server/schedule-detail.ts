@@ -1,6 +1,7 @@
 import { formatPortions } from "@/lib/shared/weight-format";
 import { prisma } from "@/lib/server/prisma";
 import { resolveUsernameToName } from "@/lib/server/user-resolve";
+import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 
 /**
  * 排程详情数据组装（API 与打印页共用）。
@@ -49,6 +50,9 @@ export async function getScheduleDetail(scheduleId: number) {
   });
 
   if (!schedule) return null;
+  const dishCosts = await getCurrentDishCostMap(
+    schedule.items.map((item) => item.dishId)
+  );
 
   const operatorName = await resolveUsernameToName(schedule.operator);
 
@@ -106,7 +110,10 @@ export async function getScheduleDetail(scheduleId: number) {
       soldQty: it.actualSoldQty != null ? Number(it.actualSoldQty) : null,
       soldRecordedAt: it.soldRecordedAt ? it.soldRecordedAt.toISOString() : null,
       soldRecordedBy: it.soldRecordedBy,
-      dish: it.dish,
+      dish: {
+        ...it.dish,
+        cost: dishCosts.get(it.dishId) ?? 0,
+      },
     })),
     cuttingOrders: schedule.cuttingOrders.map((c) => ({
       id: c.id,

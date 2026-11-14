@@ -7,6 +7,7 @@ import { updateIngredientSchema } from "@/lib/server/schemas/ingredient";
 import { validateBody } from "@/lib/server/validate";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
 import { getJinFactors } from "@/lib/server/unit-factors";
+import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -15,17 +16,32 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const row = await prisma.ingredient.findFirst({
     where: { id: Number(id), deletedAt: null },
-    include: includeNetIngredients
-      ? {
-          netIngredients: {
-            where: { deletedAt: null },
-            orderBy: { id: "asc" },
-          },
-        }
-      : undefined,
+    include: {
+      defaultSupplier: {
+        select: { id: true, name: true },
+      },
+      ...(includeNetIngredients
+        ? {
+            netIngredients: {
+              where: { deletedAt: null },
+              orderBy: { id: "asc" as const },
+            },
+          }
+        : {}),
+    },
   });
   if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return success(row);
+  if (!includeNetIngredients) return success(row);
+
+  return success({
+    ...row,
+    netIngredients: row.netIngredients.map((item) =>
+      serializeNetIngredient({
+        ...item,
+        sourceIngredient: { pricePerJin: row.pricePerJin },
+      })
+    ),
+  });
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

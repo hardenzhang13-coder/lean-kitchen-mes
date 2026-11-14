@@ -136,6 +136,22 @@ model NetIngredient {
   @@map("net_ingredients")
 }
 
+model NetPackaging {
+  id        Int       @id @default(autoincrement())
+  // 包装名称，如 密封袋
+  name      String    @db.VarChar(50)
+  // 包装尺寸，如 50cm×40cm
+  size      String    @db.VarChar(100)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  @@unique([name, size])
+  @@index([deletedAt])
+  @@map("net_packagings")
+}
+
 model SauceIngredient {
   id        Int      @id @default(autoincrement())
   code      String   @unique

@@ -8,6 +8,7 @@ import { createDishSchema, dishQuerySchema } from "@/lib/server/schemas/dish";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { nextCode } from "@/lib/shared/code-gen";
+import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 
 export async function GET(req: NextRequest) {
   try {
@@ -60,7 +61,13 @@ export async function GET(req: NextRequest) {
       prisma.dish.count({ where }),
     ]);
 
-    const enriched = await enrichOperatorNames(rows);
+    const costMap = await getCurrentDishCostMap(rows.map((row) => row.id));
+    const enriched = await enrichOperatorNames(
+      rows.map((row) => ({
+        ...row,
+        cost: costMap.get(row.id) ?? 0,
+      }))
+    );
     const totalPages = Math.ceil(totalItems / pageSize);
 
     return paginated(enriched, { page, pageSize, totalItems, totalPages });

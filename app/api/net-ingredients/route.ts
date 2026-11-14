@@ -61,7 +61,11 @@ export async function GET(req: NextRequest) {
         orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip,
         take: pageSize,
-        include: { sourceIngredient: { select: { id: true, name: true } } },
+        include: {
+          sourceIngredient: {
+            select: { id: true, name: true, pricePerJin: true },
+          },
+        },
       }),
       prisma.netIngredient.count({ where }),
     ]);
@@ -87,10 +91,8 @@ export async function POST(req: NextRequest) {
       packageSize,
       processingFeePerJin,
       yieldRate,
-      unitPrice,
       grossMarginRate,
       l2Code,
-      autoCalculate,
     } = validation.data;
 
     if (!name?.trim() || !l2Code?.trim()) {
@@ -124,11 +126,10 @@ export async function POST(req: NextRequest) {
 
     const calculated = await calculateUnitPrice(
       finalSourceIngredientId,
-      yieldRateNum,
-      autoCalculate || unitPrice == null ? null : Number(unitPrice)
+      yieldRateNum
     );
     if (calculated == null) {
-      return badRequest("来源原料缺少每斤单价，请先在原料中填写价格，或手动填写净料单价");
+      return badRequest("来源原料缺少每斤单价，无法计算净料单价");
     }
 
     const last = await prisma.netIngredient.findFirst({
@@ -148,10 +149,15 @@ export async function POST(req: NextRequest) {
         processingFeePerJin: processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
         unitPrice: calculated,
-        grossMarginRate: grossMarginRate ?? null,
+        grossMarginRate: grossMarginRate ?? 0,
         unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",
+      },
+      include: {
+        sourceIngredient: {
+          select: { id: true, name: true, pricePerJin: true },
+        },
       },
     });
 

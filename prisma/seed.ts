@@ -130,7 +130,14 @@ async function main() {
     await prisma.store.upsert({ where: { name: s.name }, create: s, update: { code: s.code, isSystem: s.isSystem } });
   }
 
-  // 5. 首次管理员：只在空库创建，绝不覆盖现网已有账号、密码或角色。
+  // 6. 净菜包装基线：录入/转化净料时可直接选用
+  await prisma.netPackaging.upsert({
+    where: { name_size: { name: "密封袋", size: "50cm×40cm" } },
+    create: { name: "密封袋", size: "50cm×40cm", isActive: true },
+    update: { isActive: true, deletedAt: null },
+  });
+
+  // 7. 首次管理员：只在空库创建，绝不覆盖现网已有账号、密码或角色。
   const existingUserCount = await prisma.user.count({ where: { deletedAt: null } });
   if (existingUserCount === 0) {
     const username = process.env.INITIAL_ADMIN_USERNAME?.trim() || "admin";

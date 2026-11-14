@@ -130,7 +130,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         purchaseUnit: pick(purchaseUnit?.trim() || null, existing.purchaseUnit),
         latestRefPrice: pick(latestRefPrice ?? null, existing.latestRefPrice != null ? Number(existing.latestRefPrice) : null),
         pricePerJin: finalPricePerJin,
-        grossMarginRate: pick(grossMarginRate ?? null, existing.grossMarginRate != null ? Number(existing.grossMarginRate) : null),
+        grossMarginRate:
+          grossMarginRate === undefined
+            ? Number(existing.grossMarginRate ?? 0)
+            : grossMarginRate ?? 0,
         processingFeePerJin: pick(
           processingFeePerJin ?? null,
           existing.processingFeePerJin != null ? Number(existing.processingFeePerJin) : null

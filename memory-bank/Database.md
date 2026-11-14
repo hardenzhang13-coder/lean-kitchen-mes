@@ -4,7 +4,7 @@
 
 ---
 
-## 总表清单（23张）
+## 总表清单（24张）
 
 | 分组 | 表名 | 说明 | 状态 |
 |------|------|------|------|
@@ -14,6 +14,7 @@
 | | `units` | 单位字典 | ✅ |
 | | `suppliers` | 供应商 | ✅ |
 | | `stores` | 门店 | ✅ |
+| | `net_packagings` | 净菜包装字典 | ✅ |
 | **食材库** | `ingredients` | 原料表 | ✅ |
 | | `net_ingredients` | 净料表 | ✅ |
 | | `minor_ingredients` | 小料表 | ✅ |
@@ -140,6 +141,22 @@
 
 ---
 
+### 1.7 `net_packagings` — 净菜包装字典
+
+净料/小料录入、编辑、转化时使用的包装选项。同一包装名称可配置多个尺寸。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | serial PK | |
+| name | varchar(50) | 包装名称，如 密封袋 |
+| size | varchar(100) | 包装尺寸，如 50cm×40cm |
+| is_active | bool | 启用状态，停用后新增净料不可选 |
+| created_at / updated_at / deleted_at | timestamp | 软删除 |
+
+唯一约束：`(name, size)`。被净料/小料引用时不可删除或修改名称/尺寸，只能停用。
+
+---
+
 ## 二、食材库
 
 ### 2.1 `ingredients` — 原料表
@@ -177,6 +194,8 @@
 | processing_fee_per_jin | decimal(10,2) | 封装加工费（元/斤），空 = 0 |
 | gross_margin_rate | decimal(5,2) | 毛利率（%），空 = 0；真毛利率口径（2026-11-04 新增，迁移 20261104151627） |
 | package_spec | int | 封装规格（g），标准封装单位克数 |
+| package_material | varchar(100) | 包装名称快照，如 密封袋 |
+| package_size | varchar(100) | 包装尺寸快照，如 50cm×40cm |
 | unit | varchar(20) | 计量单位，统一 g |
 | l2_code | varchar(20) | 所属二级分类，关联 l2.code |
 | storage | varchar(10) | 储存方式：冷藏、常温、冷冻 |

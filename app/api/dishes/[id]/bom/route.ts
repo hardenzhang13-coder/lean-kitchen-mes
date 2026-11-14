@@ -4,8 +4,9 @@ import { logOperation } from "@/lib/server/api-auth";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { dishBomSchema } from "@/lib/server/schemas/dish-bom";
 import { validateBody } from "@/lib/server/validate";
-import { calcCostPricePerJin, calcOutPricePerJin } from "@/lib/shared/net-price";
+import { calcOutPricePerJin } from "@/lib/shared/net-price";
 import { computeCostPricePerJin, resolveRecipeLines } from "@/lib/server/sauce-utils";
+import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -55,8 +56,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       : [];
 
       const [netIngs, minors, seasonings] = await Promise.all([
-        tx.netIngredient.findMany({ where: { id: { in: netIngIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
-        tx.netIngredient.findMany({ where: { id: { in: minorIds } }, select: { id: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true } }),
+        tx.netIngredient.findMany({
+          where: { id: { in: netIngIds } },
+          select: {
+            id: true,
+            unitPrice: true,
+            yieldRate: true,
+            processingFeePerJin: true,
+            grossMarginRate: true,
+            sourceIngredient: { select: { pricePerJin: true } },
+          },
+        }),
+        tx.netIngredient.findMany({
+          where: { id: { in: minorIds } },
+          select: {
+            id: true,
+            unitPrice: true,
+            yieldRate: true,
+            processingFeePerJin: true,
+            grossMarginRate: true,
+            sourceIngredient: { select: { pricePerJin: true } },
+          },
+        }),
         tx.ingredient.findMany({
           where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
           // 调料为标准化采购（元/瓶、元/箱），BOM 成本按每斤单价（元/斤）口径折算
@@ -67,14 +88,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // 净料与小料同口径：均按出库价计成本（成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)）
       const netPriceMap = new Map(
         netIngs.map((i) => {
-          const cost = calcCostPricePerJin(i.unitPrice, i.processingFeePerJin);
-          return [i.id, calcOutPricePerJin(cost, i.grossMarginRate)] as const;
+          const prices = deriveNetIngredientPrices(i);
+          return [i.id, prices.outPricePerJin] as const;
         })
       );
       const minorPriceMap = new Map(
         minors.map((i) => {
-          const cost = calcCostPricePerJin(i.unitPrice, i.processingFeePerJin);
-          return [i.id, calcOutPricePerJin(cost, i.grossMarginRate)] as const;
+          const prices = deriveNetIngredientPrices(i);
+          return [i.id, prices.outPricePerJin] as const;
         })
       );
       // 调料成本价 = 每斤单价（元/斤，由采购规格自动换算维护）；缺失时成本为 null

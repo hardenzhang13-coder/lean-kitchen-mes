@@ -1,7 +1,6 @@
 import { prisma } from "@/lib/server/prisma";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import {
-  calcCostPricePerJin,
   calcOutPricePerJin,
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
@@ -10,6 +9,7 @@ import {
   calcRecipeLineCost,
   calcSauceCostPricePerJin,
 } from "@/lib/shared/sauce-price";
+import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 
 // 酱料价格体系（服务端唯一真源）。
 // 自制：配方行（净料/小料按出库价、调料按每斤单价）→ 成本价 → 出库价
@@ -44,7 +44,15 @@ export async function resolveRecipeLines(
   const [nets, seasonings] = await Promise.all([
     prisma.netIngredient.findMany({
       where: { id: { in: netIds }, deletedAt: null },
-      select: { id: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true },
+      select: {
+        id: true,
+        name: true,
+        unitPrice: true,
+        yieldRate: true,
+        processingFeePerJin: true,
+        grossMarginRate: true,
+        sourceIngredient: { select: { pricePerJin: true } },
+      },
     }),
     prisma.ingredient.findMany({
       where: { id: { in: seasoningIds } },
@@ -54,9 +62,8 @@ export async function resolveRecipeLines(
 
   const netMap = new Map(
     nets.map((n) => {
-      const cost = calcCostPricePerJin(n.unitPrice, n.processingFeePerJin);
-      const out = calcOutPricePerJin(cost, n.grossMarginRate);
-      return [n.id, { name: n.name, price: out }] as const;
+      const prices = deriveNetIngredientPrices(n);
+      return [n.id, { name: n.name, price: prices.outPricePerJin }] as const;
     })
   );
   const seasoningMap = new Map(
@@ -111,9 +118,14 @@ export function serializeSauce<
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
 } {
-  const outPrice = calcOutPricePerJin(costPricePerJin, row.grossMarginRate);
+  const grossMarginRate =
+    row.grossMarginRate == null || row.grossMarginRate === ""
+      ? 0
+      : Number(row.grossMarginRate);
+  const outPrice = calcOutPricePerJin(costPricePerJin, grossMarginRate);
   return {
     ...row,
+    grossMarginRate: Number.isFinite(grossMarginRate) ? grossMarginRate : 0,
     costPricePerJin,
     outPricePerJin: outPrice,
     standardPackagePrice:

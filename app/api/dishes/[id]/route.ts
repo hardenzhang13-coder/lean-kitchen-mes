@@ -7,6 +7,7 @@ import { updateDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
+import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 import {
   computeCostPricePerJin,
   resolveRecipeLines,
@@ -21,13 +22,39 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       category: { select: { id: true, code: true, name: true } },
       netDetails: {
         include: {
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true, packageSpec: true, unit: true } },
+          netIngredient: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              unitPrice: true,
+              yieldRate: true,
+              processingFeePerJin: true,
+              grossMarginRate: true,
+              packageSpec: true,
+              unit: true,
+              sourceIngredient: { select: { pricePerJin: true } },
+            },
+          },
         },
       },
       minorDetails: {
         include: {
           // 与主料/辅料同口径：附封装规格与加工费，供 serializeNetIngredient 计算价格体系
-          netIngredient: { select: { id: true, code: true, name: true, unitPrice: true, processingFeePerJin: true, grossMarginRate: true, packageSpec: true, unit: true } },
+          netIngredient: {
+            select: {
+              id: true,
+              code: true,
+              name: true,
+              unitPrice: true,
+              yieldRate: true,
+              processingFeePerJin: true,
+              grossMarginRate: true,
+              packageSpec: true,
+              unit: true,
+              sourceIngredient: { select: { pricePerJin: true } },
+            },
+          },
         },
       },
       seasoningDetails: true,
@@ -57,8 +84,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     select: { id: true, name: true, alias: true, latestRefPrice: true, pricePerJin: true, purchaseUnit: true, purchaseSpec: true },
   });
 
+  const currentCost =
+    (await getCurrentDishCostMap([row.id])).get(row.id) ?? 0;
   const enriched = {
     ...row,
+    cost: currentCost,
     // 主料/辅料/小料统一附价格体系（净料单价/成本价/标准规格价），前端展示口径一致
     netDetails: row.netDetails.map((d) => ({
       ...d,
