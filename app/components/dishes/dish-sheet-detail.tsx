@@ -9,9 +9,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/app/components/ui/data-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { CategoryTag } from "@/app/components/ui/category-tag";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText, calcCost } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface DishSheetDetailProps {
   dish: DishDetail;
@@ -304,7 +305,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       </div>
 
       <Dialog open={confirmAction != null} onOpenChange={() => setConfirmAction(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+<AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {confirmAction === "delete"
@@ -339,7 +340,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
               {confirmAction === "delete" ? "删除" : confirmAction === "publish" ? "确认发布" : "确认下架"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </SheetContent>
   );

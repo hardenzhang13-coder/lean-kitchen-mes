@@ -53,7 +53,6 @@ async function auditSchedule(scheduleId: number) {
   }
 
   // 采购计划比对（原料毛需求）
-  const srcIds = [...new Set([...netNeed.values(), ...minorNeed.values()].map((v) => v.srcId).filter((x): x is number => x != null))];
   const yieldOf = new Map<number, number>();
   for (const b of [...netBom, ...minorBom]) yieldOf.set(b.netIngredient.id, Number(b.netIngredient.yieldRate));
   const grossBySrc = new Map<number, number>();

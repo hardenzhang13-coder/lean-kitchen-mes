@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ClipboardPaste, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -13,6 +12,7 @@ import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Input } from "@/app/components/ui/form-controls";
 import { toast } from "sonner";
 import { parseCSV, downloadCSV } from "@/lib/client/csv";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 /** 排程明细行（含回录字段，与 /api/schedules/[id] items 一致） */
 export interface SalesRecordItem {
@@ -340,7 +340,7 @@ export function SalesRecordDialog({
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[880px] max-h-[90vh] flex flex-col">
+<AppDialogContent size="wide" className="max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>销售回录</DialogTitle>
           <p className="text-xs text-muted-foreground">
@@ -429,9 +429,9 @@ export function SalesRecordDialog({
                                 onChange={(e) => onQtyInput(it.id, e.target.value)}
                               />
                               {err ? (
-                                <span className="text-[11px] text-destructive">{err}</span>
+                                <span className="text-xs text-destructive">{err}</span>
                               ) : over ? (
-                                <span className="text-[11px] text-destructive font-medium">
+                                <span className="text-xs text-destructive font-medium">
                                   超售 +{num - it.quantity}
                                 </span>
                               ) : null}
@@ -509,7 +509,7 @@ export function SalesRecordDialog({
                           <td className="py-2 px-3 text-right tabular-nums">
                             <b>{r.qty || "—"}</b>
                             {r.merged > 1 && (
-                              <div className="text-[11px] text-muted-foreground">合并 {r.merged} 行</div>
+                              <div className="text-xs text-muted-foreground">合并 {r.merged} 行</div>
                             )}
                           </td>
                           <td className="py-2 px-3">
@@ -594,7 +594,7 @@ export function SalesRecordDialog({
             )}
           </div>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </FormDialog>
   );
 }

@@ -624,7 +624,7 @@ export default function NewOutboundPage() {
                         </TableCell>
                         <TableCell className="font-medium">
                           {line.itemName}
-                          <span className="block font-mono text-[11px] text-muted-foreground">
+                          <span className="block font-mono text-xs text-muted-foreground">
                             {line.itemCode}
                           </span>
                         </TableCell>

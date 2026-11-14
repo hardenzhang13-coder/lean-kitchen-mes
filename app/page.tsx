@@ -244,7 +244,7 @@ export default function HomePage() {
                 <div className="text-base font-bold">
                   {d.getMonth() + 1}/{d.getDate()}
                 </div>
-                <div className="text-[11px] h-4">{isToday ? "今天" : ""}</div>
+                <div className="text-xs h-4">{isToday ? "今天" : ""}</div>
               </button>
             );
           })}

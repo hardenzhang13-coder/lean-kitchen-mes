@@ -134,7 +134,7 @@ export function LedgerTab() {
                   <TableCell>{r.l1Name}</TableCell>
                   <TableCell className="font-medium">
                     {r.name}
-                    {r.code && <span className="block font-mono text-[11px] text-muted-foreground">{r.code}</span>}
+                    {r.code && <span className="block font-mono text-xs text-muted-foreground">{r.code}</span>}
                   </TableCell>
                   <TableCell
                     className={

@@ -5,7 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/app/components/ui/form-controls";
 import {
@@ -19,6 +19,7 @@ import {
   OUTBOUND_STATUS_LABEL,
 } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface OutboundDetail {
   id: number;
@@ -227,7 +228,7 @@ export default function OutboundDetailPage() {
                 <TableCell className="font-medium bg-muted/30">{it.l1Name}</TableCell>
                 <TableCell className="text-muted-foreground">{it.l2Name}</TableCell>
                 <TableCell className="font-mono text-xs">{String(it.sortIndex).padStart(2, "0")}</TableCell>
-                <TableCell className="font-medium">{it.name}<span className="block font-mono text-[11px] text-muted-foreground">{it.code}</span></TableCell>
+                <TableCell className="font-medium">{it.name}<span className="block font-mono text-xs text-muted-foreground">{it.code}</span></TableCell>
                 <TableCell className="text-muted-foreground">{it.packageSpec} g/份</TableCell>
                 <TableCell className="text-right font-medium">{formatPortionsCount(it.requiredPortions)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatWeight(it.requiredQty)}</TableCell>
@@ -251,7 +252,7 @@ export default function OutboundDetailPage() {
       )}
 
       <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
-        <DialogContent className="sm:max-w-[460px]">
+<AppDialogContent size="form">
           <DialogHeader>
             <DialogTitle className="text-lg">作废出库单</DialogTitle>
           </DialogHeader>
@@ -270,7 +271,7 @@ export default function OutboundDetailPage() {
               确认作废并回滚库存
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

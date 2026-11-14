@@ -324,9 +324,9 @@ type ScheduleForEdit = {
                   <div className="font-medium text-sm truncate pr-5">{dish.name}</div>
                   <div className="text-xs text-muted-foreground mt-0.5">{dish.code}</div>
                   <div className="flex items-center gap-1 mt-2">
-                    <Badge variant="secondary" className="text-[10px]">{dish.category?.name}</Badge>
+                    <Badge variant="secondary" className="text-xs">{dish.category?.name}</Badge>
                     {selectedItem && (
-                      <Badge className="text-[10px] bg-primary text-primary-foreground">{selectedItem.quantity} 份</Badge>
+                      <Badge className="text-xs bg-primary text-primary-foreground">{selectedItem.quantity} 份</Badge>
                     )}
                   </div>
                 </div>

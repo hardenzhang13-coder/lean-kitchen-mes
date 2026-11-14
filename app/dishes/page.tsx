@@ -9,7 +9,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -28,6 +27,7 @@ import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 const techniqueOptions = [
   { value: "爆炒", label: "爆炒" },
@@ -556,7 +556,7 @@ export default function DishesPage() {
       </Sheet>
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="sm:max-w-[400px]">
+<AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -575,11 +575,11 @@ export default function DishesPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={scaleTarget !== null} onOpenChange={() => setScaleTarget(null)}>
-        <DialogContent className="sm:max-w-[480px]">
+<AppDialogContent size="form">
           <DialogHeader>
             <DialogTitle className="text-lg">菜品转化</DialogTitle>
           </DialogHeader>
@@ -639,7 +639,7 @@ export default function DishesPage() {
               {scaling ? "转化中..." : "确认转化"}
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

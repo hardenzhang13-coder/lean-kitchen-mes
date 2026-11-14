@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/table";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -31,6 +30,7 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { toast } from "sonner";
 import { cn } from "@/lib/shared/utils";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface ReceiptItem {
   id: number;
@@ -368,7 +368,7 @@ export default function PurchasesPage() {
         open={!!detailReceipt}
         onOpenChange={(open) => !open && setDetailReceipt(null)}
       >
-        <DialogContent className="sm:max-w-[1100px] w-full max-w-[calc(100%-2rem)] h-[calc(100vh-2rem)] max-h-[900px] p-0 flex flex-col overflow-hidden [&>button]:cursor-pointer">
+<AppDialogContent size="workbench" className="w-full max-w-[calc(100%-2rem)] h-[calc(100vh-2rem)] max-h-[900px] p-0 flex flex-col overflow-hidden [&>button]:cursor-pointer">
           <DialogHeader className="px-6 pt-5 pb-3 border-b shrink-0">
             <div className="flex items-center justify-between">
               <DialogTitle className="flex items-center gap-2 text-base">
@@ -533,12 +533,12 @@ export default function PurchasesPage() {
               </div>
             </div>
           )}
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       {/* 作废确认弹窗 */}
       <Dialog open={voidId !== null} onOpenChange={() => setVoidId(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+<AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle>确认作废</DialogTitle>
           </DialogHeader>
@@ -556,7 +556,7 @@ export default function PurchasesPage() {
               确认作废
             </Button>
           </div>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       {/* 彻底删除确认弹窗 */}
@@ -564,7 +564,7 @@ export default function PurchasesPage() {
         open={forceDeleteId !== null}
         onOpenChange={() => setForceDeleteId(null)}
       >
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+<AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle>确认彻底删除</DialogTitle>
           </DialogHeader>
@@ -582,7 +582,7 @@ export default function PurchasesPage() {
               确认删除
             </Button>
           </div>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <ImagePreviewModal

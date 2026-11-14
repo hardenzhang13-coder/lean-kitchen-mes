@@ -16,7 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -29,6 +28,7 @@ import { ScheduleMenuTable } from "@/app/components/schedule/schedule-menu-table
 import { SalesRecordPanel } from "@/app/components/schedule/sales-record-panel";
 import { SalesRecordDialog, type SalesRecordItem } from "@/app/components/schedule/sales-record-dialog";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface ScheduleData {
   id: number;
@@ -377,7 +377,7 @@ export default function ScheduleDetailPage() {
       {/* 删除二次确认 */}
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+<AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -392,11 +392,11 @@ export default function ScheduleDetailPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
-        <DialogContent className="sm:max-w-[440px]">
+<AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认生产计划</DialogTitle>
           </DialogHeader>
@@ -411,7 +411,7 @@ export default function ScheduleDetailPage() {
               确认并进入生产
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

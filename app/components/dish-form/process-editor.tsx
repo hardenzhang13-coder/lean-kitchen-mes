@@ -5,7 +5,6 @@ import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -20,6 +19,7 @@ import { ProcessStepForm } from "./process-step-form";
 import { ProcessStepCard } from "./process-step-card";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface ProcessEditorProps {
   processes: ProcessStep[];
@@ -304,7 +304,7 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
       </CardContent>
 
       <FormDialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-[600px]">
+<AppDialogContent size="form">
           <DialogHeader>
             <DialogTitle className="text-lg">添加加工步骤</DialogTitle>
           </DialogHeader>
@@ -380,7 +380,7 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
               确认
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </FormDialog>
     </Card>
   );

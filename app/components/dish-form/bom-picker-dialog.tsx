@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import {
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -18,6 +17,7 @@ import { useDebounce } from "@/lib/client/hooks";
 import { BomType, IngredientOption, IngredientCategory } from "./types";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface BomPickerDialogProps {
   open: boolean;
@@ -315,7 +315,7 @@ export function BomPickerDialog({
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[960px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+<AppDialogContent size="workbench" className="max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">{title ?? TYPE_TITLES[type]}</DialogTitle>
         </DialogHeader>
@@ -447,7 +447,7 @@ export function BomPickerDialog({
             取消
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </FormDialog>
   );
 }

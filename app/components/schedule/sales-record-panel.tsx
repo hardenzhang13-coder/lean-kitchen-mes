@@ -137,7 +137,7 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
                     <div className="font-medium">
                       {it.dish.name}
                       {low && (
-                        <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-[var(--status-warning)] text-white">
+                        <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded bg-[var(--status-warning)] text-white">
                           滞销
                         </span>
                       )}
@@ -168,7 +168,7 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
                           <b className="text-foreground">{sold}</b> / {it.quantity} · {fmtPct(rate)}
                         </span>
                         {over && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--status-danger-bg)] text-[var(--status-danger)] font-medium whitespace-nowrap">
+                          <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--status-danger-bg)] text-[var(--status-danger)] font-medium whitespace-nowrap">
                             超售 +{sold - it.quantity}
                           </span>
                         )}
@@ -205,7 +205,7 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
         </table>
       </div>
       {allRecorded && (
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           * 按售出率降序排列：卖得好的在上，滞销菜（售出率 &lt; 60%）沉底标黄
         </p>
       )}

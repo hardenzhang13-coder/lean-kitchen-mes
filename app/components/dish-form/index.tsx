@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -35,6 +34,7 @@ import {
   normalizeSauces,
 } from "./types";
 import { toast } from "sonner";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface DishFormProps {
   mode: "new" | "edit" | "view";
@@ -397,7 +397,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       </div>
 
       <Dialog open={confirmPublishOpen} onOpenChange={setConfirmPublishOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+<AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认发布</DialogTitle>
           </DialogHeader>
@@ -412,7 +412,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
               确认发布
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

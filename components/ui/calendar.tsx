@@ -1,5 +1,12 @@
 "use client"
 
+/* eslint-disable @typescript-eslint/no-explicit-any --
+ * shadcn/ui 官方模板在透传 react-day-picker 的 classNames 时使用了 `as any`，
+ * 因为该库的类名映射类型无法用结构化方式完整表达。
+ * 本目录由 `shadcn add` CLI 管理（重新生成会覆盖本文件），因此保留原写法，
+ * 不做类型重构；改写会在 CLI 更新时被冲掉。
+ */
+
 import * as React from "react"
 import {
   DayPicker,
