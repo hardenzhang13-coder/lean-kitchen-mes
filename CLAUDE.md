@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) { /* ... */ }
 | `docs/interaction-visual-baseline-v1.md` | **当前交互视觉唯一基线** |
 | `docs/interaction-visual-baseline-v1-rollout-plan.md` | 交互基线落地批次计划 + 62 条 lint 清理专项 |
 | `docs/production-data-package-spec-plan.md` | 生产数据「封装规格」补齐方案（分阶段、含回滚） |
+| `docs/协作错误清单.md` | **重大协作错误清单**：记录协作中的重大失误与改正动作 |
 | `memory-bank/progress.md` | 项目推进日志 |
 | `docs/` | 产品需求文档（PRD） |
 | `design/` | 设计文档 |
