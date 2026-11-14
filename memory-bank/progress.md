@@ -4,6 +4,39 @@
 
 ---
 ---
+## 2026-11-15（续 2）— 旧原料库存表下线：代码层清理完成，删表待排期
+
+### 背景
+生产库 `inventory` / `inventory_ledger` **各 0 行**，是 v002 净菜库存改版后遗留的空表。清理前先做引用扫描，发现**两表仍被活跃代码引用**，直接 DROP 会导致运行时崩溃。
+
+### 已完成（提交 7c79754，4 文件，-118 行）
+| 位置 | 处理 |
+|---|---|
+| `app/api/purchase-receipts/[id]/route.ts` | 作废 / 编辑 / 保存三处旧库存读写全部移除；**保留**原料参考价（`latestRefPrice` / `pricePerJin`）维护 |
+| `app/api/purchase-reimbursements/route.ts` | 移除报销结算对旧台账结算状态的标记 |
+| `lib/server/unit-references.ts` | 移除「库存 / 库存流水」两个引用维度 —— 这项**必须做**：`/api/units` 的引用校验是活路径，删表后不清理会 500 |
+| `lib/server/__tests__/schedule-utils.test.ts` | 清理 `inventory` mock（`schedule-utils` 本身已不访问库存） |
+
+验证：tsc 0 错误 · eslint 0 错误 · jest 31 套件 171 用例全通过。
+
+### 未完成：删表（schema + 迁移）—— 待排期
+**原因**：删表必须与 `prisma/schema.prisma` 严格同步（零差异校验要求迁移历史与 schema 一致）。当前另一会话正在同一工作区迭代「净料份量」，正在修改 `schema.prisma`（`NetIngredient.portion` 新增 + `Dish.portion` 默认值调整）且尚未提交。此时改 schema 存在「最后写入覆盖」风险——它随后保存会覆盖掉删除，而迁移已 DROP 表，将造成 schema 与库不一致。
+
+**执行步骤（届时约 5 分钟）**：
+1. 删除 `prisma/schema.prisma` 中的 `model Inventory` 与 `model InventoryLedger` 两个块
+2. 新建迁移 `prisma/migrations/<ts>_drop_legacy_inventory_tables/migration.sql`：
+   ```sql
+   DROP TABLE IF EXISTS `inventory_ledger`;
+   DROP TABLE IF EXISTS `inventory`;
+   ```
+3. 同步 `memory-bank/Database.md` 的总表清单（24 → 22 张）与 5.3 / 5.4 两节
+4. 验证：`npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` 必须输出空迁移；`npx tsc --noEmit`；`npm test`
+5. 提交并部署（migrate 服务自动应用）
+
+**风险评估**：两表 0 行，采购单表亦为 0 行，采购链路在试运行期间被 `TRIAL_FEATURES.purchases` 锁定不可达 → 删表无数据风险。
+
+---
+---
 ## 2026-11-15（续）— 交互基线批次 1 / 3 / 4①② 落地
 
 > 与「食材模块新一轮迭代」并行推进，**范围刻意排除 `app/ingredients/**` 与 `app/settings/**`**，避免与另一会话抢同一批文件。

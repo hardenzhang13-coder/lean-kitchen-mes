@@ -31,8 +31,8 @@
 | | `cutting_orders` | 切配工单 | ✅ |
 | **采购库存** | `purchase_receipts` | 采购入库单主表 | ✅ |
 | | `purchase_receipt_items` | 采购入库单明细 | ✅ |
-| | ~~`inventory`~~ | 旧原料库存表 | ⚠️ 已下线停用（v002 净菜库存改版，表保留不再写入） |
-| | ~~`inventory_ledger`~~ | 旧原料库存台账 | ⚠️ 已下线停用 |
+| | ~~`inventory`~~ | 旧原料库存表 | ⚠️ 已停用，**代码引用已全部移除，待删表**（2026-11-15） |
+| | ~~`inventory_ledger`~~ | 旧原料库存台账 | ⚠️ 已停用，**代码引用已全部移除，待删表**（2026-11-15） |
 | | `prepped_stock` | 净菜库存表（份+g 双单位） | ✅ v002 |
 | | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
 | | `outbound_orders` | 净菜出库单主表 | ✅ v002 |
@@ -196,6 +196,7 @@
 | package_spec | int | 封装规格（g），标准封装单位克数 |
 | package_material | varchar(100) | 包装名称快照，如 密封袋 |
 | package_size | varchar(100) | 包装尺寸快照，如 50cm×40cm |
+| portion | varchar(50) | 份量（小碗菜 / 社区口径），与菜品份量共用同一套枚举；新建必填、存量留空（2026-11-15 新增，迁移 20261115100000） |
 | unit | varchar(20) | 计量单位，统一 g |
 | l2_code | varchar(20) | 所属二级分类，关联 l2.code |
 | storage | varchar(10) | 储存方式：冷藏、常温、冷冻 |
