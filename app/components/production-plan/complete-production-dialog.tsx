@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -39,19 +39,26 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
   const [workRows, setWorkRows] = useState<WorkRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (!open) return;
-    const pendings = rows.filter((r) => rowConfirmStatus(r) === "pending");
-    setWorkRows(
-      pendings.map((r) => ({
-        key: `${r.sourceType}:${r.sourceId}`,
-        row: r,
-        status: "completed",
-        portions: r.portions ?? 0,
-        remark: "",
-      }))
-    );
-  }, [open, rows]);
+  // props 变化时重置本地状态：按 React 官方建议在渲染期调整，
+  // 避免在 effect 中同步 setState 造成级联渲染。
+  const [syncedOpen, setSyncedOpen] = useState(open);
+  const [syncedRows, setSyncedRows] = useState(rows);
+  if (open !== syncedOpen || rows !== syncedRows) {
+    setSyncedOpen(open);
+    setSyncedRows(rows);
+    if (open) {
+      const pendings = rows.filter((r) => rowConfirmStatus(r) === "pending");
+      setWorkRows(
+        pendings.map((r) => ({
+          key: `${r.sourceType}:${r.sourceId}`,
+          row: r,
+          status: "completed",
+          portions: r.portions ?? 0,
+          remark: "",
+        }))
+      );
+    }
+  }
 
   const doneRows = useMemo(() => rows.filter((r) => rowConfirmStatus(r) !== "pending"), [rows]);
 

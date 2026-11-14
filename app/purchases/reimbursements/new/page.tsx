@@ -45,9 +45,12 @@ export default function NewReimbursementPage() {
     }
   }, [startDate, endDate]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
   useEffect(() => {
     fetchReceipts();
   }, [fetchReceipts]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
 
   const toggleSelect = (id: number) => {
     setSelectedIds((prev) => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Download, ClipboardPaste, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -86,18 +86,24 @@ export function SalesRecordDialog({
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // 打开时重置草稿（预填已有回录值）
-  useEffect(() => {
-    if (!open) return;
-    setMode("manual");
-    setCsvText("");
-    setImportRows([]);
-    const next: DraftMap = {};
-    items.forEach((it) => {
-      next[it.id] = it.soldQty == null ? "" : String(it.soldQty);
-    });
-    setDraft(next);
-  }, [open, items]);
+  // 打开时重置草稿（预填已有回录值）：按 React 官方建议在渲染期调整，
+  // 避免在 effect 中同步 setState 造成级联渲染。
+  const [syncedOpen, setSyncedOpen] = useState(open);
+  const [syncedItems, setSyncedItems] = useState(items);
+  if (open !== syncedOpen || items !== syncedItems) {
+    setSyncedOpen(open);
+    setSyncedItems(items);
+    if (open) {
+      setMode("manual");
+      setCsvText("");
+      setImportRows([]);
+      const next: DraftMap = {};
+      items.forEach((it) => {
+        next[it.id] = it.soldQty == null ? "" : String(it.soldQty);
+      });
+      setDraft(next);
+    }
+  }
 
   const summary = useMemo(() => {
     const entries = Object.values(draft).filter((v) => v !== "");

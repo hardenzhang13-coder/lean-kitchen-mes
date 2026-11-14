@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { Plus, Eye, CalendarDays, ChefHat, FileStack, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -215,7 +215,9 @@ export default function SchedulesPage() {
   }, [planSearch]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("tab") === "plans") setModule("plans");
+    if (new URLSearchParams(window.location.search).get("tab") !== "plans") return;
+    // 以 transition 更新，避免该 effect 同步触发级联渲染
+    startTransition(() => setModule("plans"));
   }, []);
 
   useEffect(() => {

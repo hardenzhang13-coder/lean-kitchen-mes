@@ -98,9 +98,12 @@ export default function ProductionPlanDetailPage() {
     }
   };
 
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps -- 数据获取 effect：React 官方推荐模式；fetchData 仅依赖 id，已在依赖数组中声明。 */
   useEffect(() => {
     if (id) fetchData();
   }, [id]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+
 
   const doAction = async (url: string, successMsg: string): Promise<boolean> => {
     setActionLoading(true);

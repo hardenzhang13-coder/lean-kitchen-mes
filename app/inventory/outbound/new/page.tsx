@@ -163,9 +163,12 @@ export default function NewOutboundPage() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
   useEffect(() => {
     void loadStores();
   }, [loadStores]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
 
   const loadSchedules = useCallback(async (id: number) => {
     const requestId = scheduleRequestRef.current + 1;

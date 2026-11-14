@@ -36,10 +36,6 @@ export default function ReimbursementsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     try {
       const res = await fetch("/api/purchase-reimbursements");
@@ -51,6 +47,12 @@ export default function ReimbursementsPage() {
       setLoading(false);
     }
   };
+
+  /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
+  useEffect(() => {
+    fetchData();
+  }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const filtered = rows.filter((r) => {
     if (!search) return true;
