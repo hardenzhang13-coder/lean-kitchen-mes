@@ -74,8 +74,8 @@ export function ScheduleMenuTable({ items, meta }: ScheduleMenuTableProps) {
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <h4 className="font-medium text-sm">排程菜单</h4>
           <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
@@ -96,7 +96,7 @@ export function ScheduleMenuTable({ items, meta }: ScheduleMenuTableProps) {
           下载 CSV
         </Button>
       </div>
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

@@ -4,13 +4,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Download, ClipboardPaste, CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { FormDialog } from "@/app/components/ui/form-dialog";
+import { Input } from "@/app/components/ui/form-controls";
 import { toast } from "sonner";
 import { parseCSV, downloadCSV } from "@/lib/client/csv";
 
@@ -339,7 +339,7 @@ export function SalesRecordDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <FormDialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[880px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>销售回录</DialogTitle>
@@ -595,6 +595,6 @@ export function SalesRecordDialog({
           </div>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </FormDialog>
   );
 }

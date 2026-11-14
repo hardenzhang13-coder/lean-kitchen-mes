@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/app/components/ui/form-controls";
+import { Textarea } from "@/app/components/ui/form-controls";
+import { IngredientNumberInput } from "@/app/components/ingredients/ingredient-number-input";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -29,13 +31,14 @@ import {
   normalizeNetIngredients,
 } from "@/app/components/dish-form/types";
 import { calcOutPricePerJin, calcStandardPackagePrice } from "@/lib/shared/net-price";
+import { formatMoney, formatPercent } from "@/lib/shared/display-format";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
 import {
   applyProcessingFee,
   calcRecipeLineCost,
   calcSauceCostPricePerJin,
 } from "@/lib/shared/sauce-price";
-import { usePagination } from "@/lib/client/use-pagination";
+import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Sauce = {
@@ -103,7 +106,7 @@ const emptyForm = {
   latestRefPrice: "",
   pricePerJin: "",
   defaultSupplierId: "",
-  grossMarginRate: "",
+  grossMarginRate: "0",
   processingFeePerJin: "",
   packageSpec: "",
 };
@@ -113,6 +116,12 @@ export default function SauceIngredientsPage() {
   const [categories, setCategories] = useState<IngredientCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pagination, setPagination] = useState<{
+    totalItems: number;
+    totalPages: number;
+  } | null>(null);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Sauce | null>(null);
@@ -125,46 +134,42 @@ export default function SauceIngredientsPage() {
   const [deleteRow, setDeleteRow] = useState<Sauce | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return data;
-    const s = search.trim().toLowerCase();
-    return data.filter(
-      (d) =>
-        d.name.toLowerCase().includes(s) ||
-        d.code.toLowerCase().includes(s) ||
-        (d.brand || "").toLowerCase().includes(s)
-    );
-  }, [data, search]);
-
-  const {
-    currentPage,
-    setCurrentPage,
-    pageItems,
-    totalPages,
-    totalItems,
-  } = usePagination(filtered, 20);
+  const fetchMeta = useCallback(async () => {
+    try {
+      const catRes = await fetch("/api/ingredient-categories?page=1&pageSize=100");
+      const catJson = await catRes.json();
+      setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
+    } catch {
+      toast.error("获取分类失败");
+    }
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [res, catRes] = await Promise.all([
-        fetch("/api/sauce-ingredients?page=1&pageSize=100"),
-        fetch("/api/ingredient-categories?page=1&pageSize=100"),
-      ]);
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (search.trim()) params.set("q", search.trim());
+      const res = await fetch(`/api/sauce-ingredients?${params.toString()}`);
       const json = await res.json();
       setData(json.data || []);
-      const catJson = await catRes.json();
-      setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
+      setPagination(json.pagination || null);
     } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, search]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    fetchData();
+    fetchMeta();
+  }, [fetchMeta]);
+  useEffect(() => {
+    const timer = setTimeout(fetchData, 300);
+    return () => clearTimeout(timer);
   }, [fetchData]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -192,7 +197,10 @@ export default function SauceIngredientsPage() {
         purchaseUnit: detail.purchaseUnit || "",
         latestRefPrice: detail.latestRefPrice != null ? String(detail.latestRefPrice) : "",
         pricePerJin: detail.pricePerJin != null ? String(detail.pricePerJin) : "",
-        grossMarginRate: detail.grossMarginRate != null ? String(detail.grossMarginRate) : "",
+        grossMarginRate:
+          detail.grossMarginRate != null
+            ? String(detail.grossMarginRate)
+            : "0",
         defaultSupplierId: detail.defaultSupplierId != null ? String(detail.defaultSupplierId) : "",
         processingFeePerJin:
           detail.processingFeePerJin != null ? String(detail.processingFeePerJin) : "",
@@ -326,7 +334,7 @@ export default function SauceIngredientsPage() {
         Number(form.grossMarginRate) < 0 ||
         Number(form.grossMarginRate) >= 100)
     ) {
-      return "毛利率必须在 0-95 之间，留空 = 0";
+      return "毛利率必须在 0-95 之间";
     }
     if (form.processingFeePerJin !== "" && Number(form.processingFeePerJin) < 0) {
       return "加工费不能为负数";
@@ -364,7 +372,8 @@ export default function SauceIngredientsPage() {
         storage: form.storage,
         remark: form.remark.trim() || null,
         defaultSupplierId: form.defaultSupplierId ? Number(form.defaultSupplierId) : null,
-        grossMarginRate: form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null,
+        grossMarginRate:
+          form.grossMarginRate !== "" ? Number(form.grossMarginRate) : 0,
         processingFeePerJin:
           form.type === "自制"
             ? form.processingFeePerJin !== ""
@@ -435,7 +444,7 @@ export default function SauceIngredientsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
+    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <PageHeader showBack title="酱料清单" description="复合调味半成品：自制酱料由配方明细自动核算成本" />
         <Button onClick={openCreate}>
@@ -444,82 +453,103 @@ export default function SauceIngredientsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
               setSearch(v);
-              setCurrentPage(1);
+              setPage(1);
             }}
             searchPlaceholder="搜索编号、名称或品牌..."
             onReset={() => {
               setSearch("");
-              setCurrentPage(1);
+              setPage(1);
             }}
           />
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
           {loading ? (
-            <SkeletonTable cols={9} rows={20} />
+            <SkeletonTable cols={10} rows={pageSize} />
           ) : (
             <DataTable<Sauce>
-              data={pageItems}
+              data={data}
               loading={loading}
+              onRowClick={openEdit}
+              fillHeight
+              density="dense"
+              tableClassName="min-w-max"
               columns={[
                 {
                   header: "序号",
+                  className: "w-[48px]",
                   cell: (_, rowIdx) => (
                     <span className="text-muted-foreground">
-                      {(currentPage - 1) * 20 + rowIdx + 1}
+                      {(page - 1) * pageSize + rowIdx + 1}
                     </span>
                   ),
                 },
                 {
                   header: "编号",
+                  className: "w-[85px]",
                   cell: (row) => <span className="font-medium">{row.code}</span>,
                 },
-                { header: "名称", accessorKey: "name" },
-                { header: "类型", cell: (row) => typeBadge(row.type) },
+                {
+                  header: "名称",
+                  className: "w-[150px]",
+                  cell: (row) => <span className="font-medium">{row.name}</span>,
+                },
+                {
+                  header: "类型",
+                  className: "w-[70px]",
+                  cell: (row) => typeBadge(row.type),
+                },
                 {
                   header: "封装规格",
+                  className: "w-[80px]",
                   cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
                 },
                 {
-                  header: "成本价（元/斤）",
+                  header: "成本价",
+                  className: "w-[120px]",
                   cell: (row) =>
-                    row.costPricePerJin != null ? `¥${Number(row.costPricePerJin).toFixed(2)}` : "—",
+                    formatMoney(row.costPricePerJin, "斤"),
                 },
                 {
                   header: "毛利率",
-                  cell: (row) =>
-                    row.grossMarginRate != null ? `${row.grossMarginRate}%` : "—",
+                  className: "w-[70px]",
+                  cell: (row) => formatPercent(row.grossMarginRate),
                 },
                 {
-                  header: "出库价（元/斤）",
+                  header: "出库价",
+                  className: "w-[120px]",
                   cell: (row) =>
-                    row.outPricePerJin != null ? `¥${Number(row.outPricePerJin).toFixed(2)}` : "—",
+                    formatMoney(row.outPricePerJin, "斤"),
                 },
                 {
-                  header: "标准规格价（元/份）",
+                  header: "标准规格价",
+                  className: "w-[120px]",
                   cell: (row) =>
-                    row.standardPackagePrice != null
-                      ? `¥${Number(row.standardPackagePrice).toFixed(2)}`
-                      : "—",
+                    formatMoney(row.standardPackagePrice, "份"),
                 },
                 {
                   header: "更新时间",
+                  className: "w-[90px]",
                   cell: (row) => (row.updatedAt ? String(row.updatedAt).slice(0, 10) : "—"),
                 },
               ]}
               pagination={
-                totalItems > 0
+                pagination && pagination.totalItems > 0
                   ? {
-                      currentPage,
-                      totalPages,
-                      totalItems,
-                      pageSize: 20,
-                      onPageChange: setCurrentPage,
+                      currentPage: page,
+                      totalPages: pagination.totalPages,
+                      totalItems: pagination.totalItems,
+                      pageSize,
+                      onPageChange: setPage,
+                      onPageSizeChange: (size) => {
+                        setPageSize(size);
+                        setPage(1);
+                      },
                     }
                   : undefined
               }
@@ -529,16 +559,22 @@ export default function SauceIngredientsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label="编辑酱料"
-                    onClick={() => openEdit(row)}
+                    aria-label={`编辑酱料 ${row.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEdit(row);
+                    }}
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    aria-label="删除酱料"
-                    onClick={() => setDeleteRow(row)}
+                    aria-label={`删除酱料 ${row.name}`}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeleteRow(row);
+                    }}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
@@ -550,7 +586,7 @@ export default function SauceIngredientsPage() {
       </Card>
 
       {/* 新增/编辑弹窗 */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <FormDialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-[1000px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
@@ -585,8 +621,7 @@ export default function SauceIngredientsPage() {
                 label="封装规格（g）"
                 hint="标准封装单位的克数，如 250g/份填 250；留空 = 不启用标准规格价"
               >
-                <Input
-                  type="number"
+                <IngredientNumberInput
                   min={1}
                   step="1"
                   value={form.packageSpec}
@@ -675,8 +710,7 @@ export default function SauceIngredientsPage() {
                                   : "—"}
                               </td>
                               <td className="px-4 py-2">
-                                <Input
-                                  type="number"
+                                <IngredientNumberInput
                                   min={0}
                                   step="1"
                                   value={line.amountG}
@@ -746,8 +780,7 @@ export default function SauceIngredientsPage() {
                   />
                 </FormField>
                 <FormField label="零售参考价（元/采购单位）">
-                  <Input
-                    type="number"
+                  <IngredientNumberInput
                     min={0}
                     step="0.01"
                     value={form.latestRefPrice}
@@ -761,8 +794,7 @@ export default function SauceIngredientsPage() {
                   required
                   hint="由参考价 + 规格自动换算，可手动修改"
                 >
-                  <Input
-                    type="number"
+                  <IngredientNumberInput
                     min={0}
                     step="0.0001"
                     value={form.pricePerJin}
@@ -780,8 +812,7 @@ export default function SauceIngredientsPage() {
                   label="加工费（元/斤）"
                   hint="加工环节每斤成本，计入成本价；留空 = 0"
                 >
-                  <Input
-                    type="number"
+                  <IngredientNumberInput
                     min={0}
                     step="0.01"
                     value={form.processingFeePerJin}
@@ -793,16 +824,20 @@ export default function SauceIngredientsPage() {
               )}
               <FormField
                 label="毛利率（%）"
-                hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；留空 = 0"
+                hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
               >
-                <Input
-                  type="number"
+                <IngredientNumberInput
                   min={0}
                   max={95}
                   step="0.01"
                   value={form.grossMarginRate}
                   onChange={(e) => setForm({ ...form, grossMarginRate: e.target.value })}
-                  placeholder="留空 = 0"
+                  onBlur={() => {
+                    if (form.grossMarginRate === "") {
+                      setForm({ ...form, grossMarginRate: "0" });
+                    }
+                  }}
+                  placeholder="0"
                   className="h-11 text-base px-4"
                 />
               </FormField>
@@ -850,7 +885,7 @@ export default function SauceIngredientsPage() {
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </FormDialog>
 
       {/* 配方食材选择器（复用菜品 BOM Picker） */}
       {pickerMode && (

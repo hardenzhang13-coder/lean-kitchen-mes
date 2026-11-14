@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, Search } from "lucide-react";
 import {
-  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { DataTable } from "@/app/components/ui/data-table";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -314,7 +314,7 @@ export function BomPickerDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <FormDialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[960px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">{title ?? TYPE_TITLES[type]}</DialogTitle>
@@ -448,6 +448,6 @@ export function BomPickerDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </FormDialog>
   );
 }

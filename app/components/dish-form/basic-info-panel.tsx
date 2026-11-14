@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/app/components/ui/form-controls";
+import { Textarea } from "@/app/components/ui/form-controls";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DishFormData, calcPriceByMargin } from "./types";

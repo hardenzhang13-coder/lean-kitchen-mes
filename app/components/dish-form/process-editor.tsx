@@ -5,14 +5,14 @@ import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { FormDialog } from "@/app/components/ui/form-dialog";
+import { Input } from "@/app/components/ui/form-controls";
+import { Textarea } from "@/app/components/ui/form-controls";
 import { FormField } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, STAGE_COLORS, TOOL_OPTIONS } from "./types";
@@ -303,7 +303,7 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
         })}
       </CardContent>
 
-      <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
+      <FormDialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="text-lg">添加加工步骤</DialogTitle>
@@ -381,7 +381,7 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
             </Button>
           </DialogFooter>
         </DialogContent>
-      </Dialog>
+      </FormDialog>
     </Card>
   );
 }

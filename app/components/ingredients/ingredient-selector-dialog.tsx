@@ -3,16 +3,17 @@
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { DataTable } from "@/app/components/ui/data-table";
-import { cn } from "@/lib/shared/utils";
+import { CategoryTag } from "@/app/components/ui/category-tag";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import {
+  RecordActions,
+  RecordSheet,
+} from "@/app/components/ui/record-sheet";
+import { formatMoney } from "@/lib/shared/display-format";
+import {
+  DEFAULT_PAGE_SIZE,
+} from "@/lib/client/use-pagination";
 
 export type CategoryL1 = {
   code: string;
@@ -37,8 +38,6 @@ interface IngredientSelectorDialogProps {
   onOpenChange: (open: boolean) => void;
   categories: CategoryL1[];
   ingredients: IngredientForSelector[];
-  initialL1Code?: string;
-  initialL2Code?: string;
   initialIngredientId?: string;
   onConfirm: (value: {
     l1Code: string;
@@ -52,35 +51,13 @@ export function IngredientSelectorDialog({
   onOpenChange,
   categories,
   ingredients,
-  initialL1Code,
-  initialL2Code,
   initialIngredientId,
   onConfirm,
 }: IngredientSelectorDialogProps) {
-  const [selectedL1Code, setSelectedL1Code] = useState<string>("");
-  const [selectedL2Code, setSelectedL2Code] = useState<string>("");
   const [selectedIngredientId, setSelectedIngredientId] = useState<string>("");
   const [search, setSearch] = useState("");
-
-  // 弹窗打开/初始值变化时在渲染期同步选中状态（react.dev 推荐的 prev-props 派生范式，避免 effect 内级联 setState）
-  const [prevInit, setPrevInit] = useState({
-    open,
-    initialL1Code,
-    initialL2Code,
-    initialIngredientId,
-  });
-  if (
-    prevInit.open !== open ||
-    prevInit.initialL1Code !== initialL1Code ||
-    prevInit.initialL2Code !== initialL2Code ||
-    prevInit.initialIngredientId !== initialIngredientId
-  ) {
-    setPrevInit({ open, initialL1Code, initialL2Code, initialIngredientId });
-    setSelectedL1Code(initialL1Code || "");
-    setSelectedL2Code(initialL2Code || "");
-    setSelectedIngredientId(initialIngredientId || "");
-    setSearch("");
-  }
+  const [page, setPage] = useState(1);
+  const [pageSize] = useState(DEFAULT_PAGE_SIZE);
 
   // 来源必须为原料：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
   const rawCategories = useMemo(
@@ -98,71 +75,66 @@ export function IngredientSelectorDialog({
     return ingredients.filter((i) => !i.l2Code || !excludedL2.has(i.l2Code));
   }, [ingredients, categories]);
 
-  const l1Options = useMemo(
-    () => rawCategories.map((c) => ({ value: c.code, label: c.name })),
-    [rawCategories]
-  );
-
-  const l2Options = useMemo(() => {
-    if (selectedL1Code) {
-      const l1 = rawCategories.find((c) => c.code === selectedL1Code);
-      return l1?.children || [];
-    }
-    return rawCategories.flatMap((c) => c.children);
-  }, [selectedL1Code, rawCategories]);
+  const l2Map = useMemo(() => {
+    const map: Record<string, { name: string; parentName: string }> = {};
+    rawCategories.forEach((l1) => {
+      l1.children.forEach((l2) => {
+        map[l2.code] = { name: l2.name, parentName: l1.name };
+      });
+    });
+    return map;
+  }, [rawCategories]);
 
   const filteredIngredients = useMemo(() => {
     let list = rawIngredients;
-    if (selectedL2Code) {
-      list = list.filter((i) => i.l2Code === selectedL2Code);
-    } else if (selectedL1Code) {
-      const l1 = rawCategories.find((c) => c.code === selectedL1Code);
-      const l2Codes = new Set((l1?.children || []).map((c) => c.code));
-      list = list.filter((i) => i.l2Code && l2Codes.has(i.l2Code));
-    }
     const s = search.trim().toLowerCase();
     if (s) {
-      list = list.filter(
-        (i) =>
-          i.name.toLowerCase().includes(s) ||
-          i.code.toLowerCase().includes(s) ||
-          (i.alias && i.alias.toLowerCase().includes(s))
-      );
+      list = list.filter((i) => i.name.toLowerCase().includes(s));
     }
     return list;
-  }, [rawIngredients, selectedL1Code, selectedL2Code, rawCategories, search]);
+  }, [rawIngredients, search]);
+
+  const totalItems = filteredIngredients.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const pageItems = useMemo(
+    () =>
+      filteredIngredients.slice(
+        (safePage - 1) * pageSize,
+        safePage * pageSize
+      ),
+    [filteredIngredients, pageSize, safePage]
+  );
+
+  // 抽屉打开/初始值变化时在渲染期同步选中状态与分页，避免 effect 内级联 setState。
+  const [prevInit, setPrevInit] = useState({
+    open,
+    initialIngredientId,
+  });
+  if (
+    prevInit.open !== open ||
+    prevInit.initialIngredientId !== initialIngredientId
+  ) {
+    setPrevInit({ open, initialIngredientId });
+    setSelectedIngredientId(initialIngredientId || "");
+    setSearch("");
+    setPage(1);
+  }
 
   const selectedIngredient = useMemo(
     () => rawIngredients.find((i) => String(i.id) === selectedIngredientId),
     [rawIngredients, selectedIngredientId]
   );
 
-  const handleL1Click = (code: string) => {
-    if (selectedL1Code === code) {
-      setSelectedL1Code("");
-      setSelectedL2Code("");
-    } else {
-      setSelectedL1Code(code);
-      setSelectedL2Code("");
-    }
-  };
-
-  const handleL2Click = (code: string) => {
-    if (selectedL2Code === code) {
-      setSelectedL2Code("");
-    } else {
-      setSelectedL2Code(code);
-    }
-  };
-
   const handleConfirm = () => {
     if (!selectedIngredientId) return;
     const ingredient = rawIngredients.find((i) => String(i.id) === selectedIngredientId);
     if (!ingredient) return;
-    const l2Code = ingredient.l2Code || selectedL2Code || "";
+    const l2Code = ingredient.l2Code || "";
     const l1Code = l2Code
-      ? rawCategories.find((c) => c.children.some((l2) => l2.code === l2Code))?.code || selectedL1Code || ""
-      : selectedL1Code || "";
+      ? rawCategories.find((c) => c.children.some((l2) => l2.code === l2Code))
+          ?.code || ""
+      : "";
     onConfirm({
       l1Code,
       l2Code,
@@ -172,170 +144,142 @@ export function IngredientSelectorDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[960px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
-        <DialogHeader className="px-6 pt-6 pb-0">
-          <DialogTitle className="text-lg">选择来源原料</DialogTitle>
-        </DialogHeader>
-
-        <div className="flex flex-col lg:flex-row gap-6 py-4 px-6 overflow-y-auto flex-1 min-h-0">
-          <div className="lg:w-[320px] flex flex-col gap-4 min-h-0">
-            <div className="rounded-lg border bg-muted/20 p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                一级分类
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                {l1Options.map((l1) => {
-                  const active = selectedL1Code === l1.value;
-                  return (
-                    <button
-                      key={l1.value}
-                      type="button"
-                      onClick={() => handleL1Click(l1.value)}
-                      className={cn(
-                        "rounded-md border px-3 py-2 text-sm text-left transition-colors",
-                        active
-                          ? "bg-primary/10 border-primary text-primary"
-                          : "border-input bg-background text-foreground hover:bg-muted/60"
-                      )}
-                    >
-                      {l1.label}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="rounded-lg border bg-muted/20 p-4 space-y-3 flex-1 min-h-0">
-              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                二级分类
-              </h4>
-              <div className="grid grid-cols-2 gap-2">
-                {l2Options.map((l2) => {
-                  const active = selectedL2Code === l2.code;
-                  return (
-                    <button
-                      key={l2.code}
-                      type="button"
-                      onClick={() => handleL2Click(l2.code)}
-                      className={cn(
-                        "rounded-md border px-3 py-2 text-sm text-left transition-colors",
-                        active
-                          ? "bg-primary/10 border-primary text-primary"
-                          : "border-input bg-background text-foreground hover:bg-muted/60"
-                      )}
-                    >
-                      {l2.name}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex-1 flex flex-col min-h-0 space-y-4">
-            <div className="relative shrink-0">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="搜索编号、名称或商品名称..."
-                className="h-11 pl-9 text-base"
-              />
-            </div>
-
-            <div className="flex-1 min-h-0 overflow-auto rounded-md border">
-              <DataTable<IngredientForSelector>
-                data={filteredIngredients}
-                columns={[
-                  {
-                    header: "序号",
-                    cell: (_, rowIdx) => (
-                      <span className="text-muted-foreground">
-                        {rowIdx + 1}
-                      </span>
-                    ),
-                  },
-                  {
-                    header: "编号",
-                    cell: (row) => (
-                      <span className="font-medium">{row.code}</span>
-                    ),
-                  },
-                  { header: "食材名称", accessorKey: "name" },
-                  {
-                    header: "商品名称",
-                    cell: (row) => row.alias || "—",
-                  },
-                  {
-                    header: "采购规格",
-                    cell: (row) => row.purchaseSpec || "—",
-                  },
-                  {
-                    header: "采购单位",
-                    cell: (row) => row.purchaseUnit || "—",
-                  },
-                  {
-                    header: "最新参照单价",
-                    cell: (row) =>
-                      row.latestRefPrice != null
-                        ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                        : "—",
-                    className: "text-right",
-                  },
-                ]}
-                onRowClick={(row) => setSelectedIngredientId(String(row.id))}
-                isRowSelected={(row) =>
-                  String(row.id) === selectedIngredientId
-                }
-                emptyState={{
-                  icon: Search,
-                  title: "暂无匹配原料",
-                  description:
-                    selectedL2Code
-                      ? "该分类下暂无原料"
-                      : "请选择分类或调整搜索条件",
-                }}
-              />
-            </div>
-
-            <div className="shrink-0 flex items-center justify-between gap-4 pt-2">
-              <div className="text-sm text-muted-foreground min-h-[1.5rem]">
-                {selectedIngredient ? (
-                  <span className="text-foreground">
-                    已选择：
-                    <span className="font-medium">
-                      {selectedIngredient.name}
-                    </span>
-                    <span className="text-muted-foreground ml-1">
-                      ({selectedIngredient.code})
-                    </span>
-                  </span>
-                ) : (
-                  "请点击右侧表格选择原料"
-                )}
-              </div>
-              <Button
-                onClick={handleConfirm}
-                disabled={!selectedIngredientId}
-                className="h-11 px-6"
-              >
-                确认选择
-              </Button>
-            </div>
-          </div>
-        </div>
-
-        <DialogFooter className="px-6 pt-0 pb-6">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
-          >
-            取消
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <RecordSheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title="选择来源原料"
+      meta={
+        selectedIngredient ? (
+          <span>
+            已选择：
+            <span className="font-medium text-foreground">
+              {selectedIngredient.name}
+            </span>
+            <span className="ml-1 font-mono">{selectedIngredient.code}</span>
+          </span>
+        ) : (
+          <span>选择原料后会带出分类与当前每斤单价</span>
+        )
+      }
+      bodyClassName="overflow-hidden"
+      footer={
+        <RecordActions
+          secondary={
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+          }
+          primary={
+            <Button
+              onClick={handleConfirm}
+              disabled={!selectedIngredientId}
+            >
+              确认选择
+            </Button>
+          }
+        />
+      }
+    >
+      <DataTable<IngredientForSelector>
+        data={pageItems}
+        fillHeight
+        density="compact"
+        tableClassName="min-w-max"
+        filters={
+          <ListToolbar
+            searchValue={search}
+            onSearchChange={(value) => {
+              setSearch(value);
+              setSelectedIngredientId("");
+              setPage(1);
+            }}
+            searchPlaceholder="搜索食材名称..."
+            onReset={() => {
+              setSearch("");
+              setSelectedIngredientId("");
+              setPage(1);
+            }}
+          />
+        }
+        columns={[
+          {
+            header: "序号",
+            className: "w-[48px]",
+            cell: (_, rowIdx) => (
+              <span className="text-muted-foreground">
+                {(safePage - 1) * pageSize + rowIdx + 1}
+              </span>
+            ),
+          },
+          {
+            header: "食材名称",
+            className: "w-[150px]",
+            cell: (row) => (
+              <span className="font-semibold text-primary">{row.name}</span>
+            ),
+          },
+          {
+            header: "一级分类",
+            className: "w-[85px]",
+            cell: (row) =>
+              row.l2Code ? l2Map[row.l2Code]?.parentName || "—" : "—",
+          },
+          {
+            header: "二级分类",
+            className: "w-[90px]",
+            cell: (row) =>
+              row.l2Code ? (
+                <CategoryTag
+                  l2Code={row.l2Code}
+                  name={l2Map[row.l2Code]?.name || row.l2Code}
+                />
+              ) : (
+                "—"
+              ),
+          },
+          {
+            header: "采购规格",
+            className: "w-[110px]",
+            cell: (row) => row.purchaseSpec || "—",
+          },
+          {
+            header: "最新参照单价",
+            className: "w-[115px] text-right tabular-nums",
+            cell: (row) =>
+              formatMoney(row.latestRefPrice, row.purchaseUnit),
+          },
+          {
+            header: "每斤单价",
+            className: "w-[110px] text-right",
+            cell: (row) =>
+              row.pricePerJin != null ? (
+                <span className="font-semibold tabular-nums text-primary">
+                  {formatMoney(row.pricePerJin, "斤")}
+                </span>
+              ) : (
+                "—"
+              ),
+          },
+        ]}
+        onRowClick={(row) => setSelectedIngredientId(String(row.id))}
+        isRowSelected={(row) => String(row.id) === selectedIngredientId}
+        emptyState={{
+          icon: Search,
+          title: "暂无匹配原料",
+          description: "请调整搜索条件后重试",
+        }}
+        pagination={
+          totalItems > 0
+            ? {
+                currentPage: safePage,
+                totalPages,
+                totalItems,
+                pageSize,
+                onPageChange: setPage,
+              }
+            : undefined
+        }
+      />
+    </RecordSheet>
   );
 }

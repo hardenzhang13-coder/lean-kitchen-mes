@@ -7,7 +7,6 @@ import type { ProductionPlanSourceSnapshot } from "@/lib/shared/production-plan"
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
-  ArrowLeft,
   Play,
   CheckCircle2,
   Trash2,
@@ -20,10 +19,17 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  Dialog, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { InfoTile } from "@/app/components/ui/info-tile";
+import { LoadingState } from "@/app/components/ui/loading-state";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SectionTabs } from "@/app/components/ui/section-tabs";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
   ScheduleCuttingTable, type CuttingOrderRow, type ScheduleDocMeta,
@@ -145,17 +151,24 @@ export default function ProductionPlanDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-6 p-8">
-        <div className="h-[200px] bg-muted rounded animate-pulse" />
-        <div className="h-[300px] bg-muted rounded animate-pulse" />
-      </div>
+      <PageShell>
+        <LoadingState type="page" />
+      </PageShell>
     );
   }
   if (!data) {
     return (
-      <div className="flex flex-col gap-6 p-8">
-        <p className="text-muted-foreground">生产计划单不存在</p>
-      </div>
+      <PageShell>
+        <EmptyState
+          icon={FileStack}
+          title="生产计划单不存在"
+          description="该计划单可能已删除，或当前链接已失效。"
+          action={{
+            label: "返回生产计划单列表",
+            onClick: () => router.push("/schedules?tab=plans"),
+          }}
+        />
+      </PageShell>
     );
   }
 
@@ -177,114 +190,118 @@ export default function ProductionPlanDetailPage() {
   const pendingCount = cuttingRows.length - completedCount - unfinishedCount;
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push("/schedules?tab=plans")}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">{data.title}</h1>
-            <p className="text-sm text-muted-foreground flex items-center gap-2">
-              {data.code ?? "生产计划 #" + data.id} · 制单人：{data.operatorName || data.operator || "—"} <StatusBadge status={data.status} />
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => window.open(`/production-plans/${id}/labels`, "_blank", "noopener,noreferrer")}
-            disabled={data.cuttingOrders.length === 0}
-            title={data.cuttingOrders.length === 0 ? "当前计划单没有净菜标签" : "打印本生产计划单的全部净菜标签"}
-          >
-            <Tags className="mr-2 h-4 w-4" />
-            打印净菜标签
-          </Button>
-          {data.status === "待生效" && (
-            <>
-              <Button variant="outline" onClick={() => router.push(`/production-plans/${id}/edit`)} disabled={actionLoading}>
-                <Pencil className="mr-2 h-4 w-4" />
-                修改
-              </Button>
-              <Button variant="destructive" onClick={() => setDeleteOpen(true)} disabled={actionLoading}>
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-              <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
-                <Play className="mr-2 h-4 w-4" />
-                确认生产计划
-              </Button>
-            </>
-          )}
-          {data.status === "进行中" && (
-            <Button onClick={() => setCompleteOpen(true)} disabled={actionLoading}>
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              完成生产
-            </Button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><CalendarDays className="h-4 w-4" />生产日期</div>
-          <div className="font-medium">{new Date(data.planDate).toLocaleDateString("zh-CN")}</div>
-          <div className="text-sm text-muted-foreground">{getWeekDay(data.planDate)}</div>
-        </div>
-        <div className="rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><Clock className="h-4 w-4" />制单信息</div>
-          <div className="font-medium">{data.operatorName || data.operator || "—"}</div>
-          <div className="text-sm text-muted-foreground">{new Date(data.createdAt).toLocaleString("zh-CN")}</div>
-        </div>
-        <div className="rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><FileStack className="h-4 w-4" />汇总排程单</div>
-          <div className="font-medium">{data.sourceSchedules.length} 张</div>
-          <div className="text-sm text-muted-foreground truncate">
-            {data.sourceSchedules.map((s) => s.code ?? "#" + s.id).join("、")}
-          </div>
-          <div className="text-xs text-muted-foreground mt-1">
-            来源日期：
-            {[...new Set(data.sourceSchedules.map((s) => s.scheduleDate.slice(0, 10)))]
-              .map((date) => new Date(date).toLocaleDateString("zh-CN"))
-              .join("、") || "—"}
-          </div>
-        </div>
-        <div className="rounded-lg border p-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1"><ChefHat className="h-4 w-4" />计划份数合计</div>
-          <div className="font-medium">{data.sourceSchedules.reduce((s, x) => s + x.totalQuantity, 0)} 份</div>
-          <div className="text-sm text-muted-foreground">
-            切配 {data.cuttingOrders.length} 项 / 采购 {data.purchasePlans.length} 项
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <div className="flex items-center gap-1 border-b">
-          {([
-            ["cutting", "切配工单明细", data.cuttingOrders.length],
-            ["purchase", "采购计划明细", data.purchasePlans.length],
-            ["stores", "门店排程", data.sourceSchedules.length],
-          ] as const).map(([key, label, count]) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={
-                "px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors " +
-                (activeTab === key
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground hover:text-foreground")
+    <PageShell>
+      <PageHeader
+        showBack
+        backHref="/schedules?tab=plans"
+        backLabel="返回生产计划单列表"
+        title={data.title}
+        meta={<StatusBadge status={data.status} />}
+        description={
+          <>
+            {data.code ?? "生产计划 #" + data.id} · 制单人：
+            {data.operatorName || data.operator || "—"}
+          </>
+        }
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() =>
+                window.open(
+                  `/production-plans/${id}/labels`,
+                  "_blank",
+                  "noopener,noreferrer"
+                )
+              }
+              disabled={data.cuttingOrders.length === 0}
+              title={
+                data.cuttingOrders.length === 0
+                  ? "当前计划单没有净菜标签"
+                  : "打印本生产计划单的全部净菜标签"
               }
             >
-              {label}
-              <span className={"ml-1.5 text-xs rounded-full px-1.5 py-0.5 " + (activeTab === key ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
-                {count}
-              </span>
-            </button>
-          ))}
-        </div>
-        <div className="pt-4">
+              <Tags className="mr-2 h-4 w-4" />
+              打印净菜标签
+            </Button>
+            {data.status === "待生效" && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => router.push(`/production-plans/${id}/edit`)}
+                  disabled={actionLoading}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  修改
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => setDeleteOpen(true)}
+                  disabled={actionLoading}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  删除
+                </Button>
+                <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
+                  <Play className="mr-2 h-4 w-4" />
+                  确认生产计划
+                </Button>
+              </>
+            )}
+            {data.status === "进行中" && (
+              <Button onClick={() => setCompleteOpen(true)} disabled={actionLoading}>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                完成生产
+              </Button>
+            )}
+          </>
+        }
+      />
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <InfoTile
+          icon={CalendarDays}
+          label="生产日期"
+          value={new Date(data.planDate).toLocaleDateString("zh-CN")}
+          helper={getWeekDay(data.planDate)}
+        />
+        <InfoTile
+          icon={Clock}
+          label="制单信息"
+          value={data.operatorName || data.operator || "—"}
+          helper={new Date(data.createdAt).toLocaleString("zh-CN")}
+        />
+        <InfoTile
+          icon={FileStack}
+          label="汇总排程单"
+          value={`${data.sourceSchedules.length} 张`}
+          helper={
+            data.sourceSchedules.map((s) => s.code ?? "#" + s.id).join("、") ||
+            "—"
+          }
+        />
+        <InfoTile
+          icon={ChefHat}
+          label="计划份数合计"
+          value={`${data.sourceSchedules.reduce((s, x) => s + x.totalQuantity, 0)} 份`}
+          helper={`切配 ${data.cuttingOrders.length} 项 / 采购 ${data.purchasePlans.length} 项`}
+        />
+      </div>
+
+      <div className="min-w-0">
+        <SectionTabs
+          ariaLabel="生产计划单内容"
+          value={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { value: "cutting", label: "切配工单明细", count: data.cuttingOrders.length },
+            { value: "purchase", label: "采购计划明细", count: data.purchasePlans.length },
+            { value: "stores", label: "门店排程", count: data.sourceSchedules.length },
+          ]}
+        />
+        <div className="min-w-0 pt-4">
           {activeTab === "cutting" && (
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <span>
                   已完成 <b className="text-foreground">{completedCount}</b> 项
@@ -322,7 +339,7 @@ export default function ProductionPlanDetailPage() {
         onCompleted={fetchData}
       />
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -333,11 +350,11 @@ export default function ProductionPlanDetailPage() {
             <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">取消</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={actionLoading} className="h-11 px-6">删除</Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
-        <DialogContent className="sm:max-w-[440px]">
+        <AppDialogContent size="form">
           <DialogHeader>
             <DialogTitle className="text-lg">确认生产计划</DialogTitle>
           </DialogHeader>
@@ -352,8 +369,8 @@ export default function ProductionPlanDetailPage() {
               确认并进入生产
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

@@ -1,77 +1,31 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Maximize2, PackageOpen } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  IngredientFormFields,
-  IngredientFormData,
   CategoryL1,
+  IngredientFormFields,
   Unit,
 } from "@/app/components/ingredients/ingredient-form-fields";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { LoadingState } from "@/app/components/ui/loading-state";
-import { TablePreviewDialog } from "@/app/components/ui/table-preview-dialog";
-import { parseList } from "@/lib/client/api";
-import { getDefaultSpec, calcPricePerJin } from "@/lib/shared/spec-parser";
-import { buildJinFactors } from "@/lib/shared/unit-conversion";
-import { toast } from "sonner";
+import {
+  IngredientFormInitialData,
+  SavedIngredientRecord,
+  useIngredientForm,
+} from "@/app/components/ingredients/use-ingredient-form";
 
-export type CreatedIngredient = {
-  id: number;
-  name: string;
-  alias?: string | null;
-  l2Code: string;
-  stockUnit?: string | null;
-  purchaseUnit?: string | null;
-  purchaseSpec?: string | null;
-};
-
-type ListItem = {
-  id: number;
-  code?: string | null;
-  name: string;
-  alias?: string | null;
-  purchaseSpec?: string | null;
-  purchaseUnit?: string | null;
-  stockUnit?: string | null;
-  unitsPerPurchase?: number | string | null;
-  latestRefPrice?: number | string | null;
-  pricePerJin?: number | string | null;
-};
+export type CreatedIngredient = SavedIngredientRecord;
 
 interface IngredientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  initialData?: {
-    id?: number;
-    code?: string;
-    name?: string;
-    l2Code?: string;
-    alias?: string | null;
-    purchaseSpec?: string | null;
-    purchaseUnit?: string | null;
-    stockUnit?: string | null;
-    unitsPerPurchase?: number | null;
-    latestRefPrice?: number | null;
-    pricePerJin?: number | null;
-    defaultSupplierId?: number | null;
-  };
+  initialData?: IngredientFormInitialData;
   categories: CategoryL1[];
   units: Unit[];
   mode?: "ingredient" | "seasoning" | "auto";
@@ -90,248 +44,33 @@ export function IngredientFormDialog({
   view = false,
   onSuccess,
 }: IngredientFormDialogProps) {
-  const [form, setForm] = useState<IngredientFormData>({
-    name: "",
-    l1Code: "",
-    l2Code: "",
-    alias: "",
-    purchaseSpec: "",
-    purchaseUnit: "",
-    unitsPerPurchase: "1",
-    latestRefPrice: "",
-    pricePerJin: "",
-    stockUnit: "",
-    defaultSupplierId: "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [l2Open, setL2Open] = useState(false);
-  /** 每斤单价被用户手动编辑过后，规格/单价变化不再自动覆盖 */
-  const [pricePerJinDirty, setPricePerJinDirty] = useState(false);
-
-  const [rightList, setRightList] = useState<ListItem[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const findParentL1 = useCallback(
-    (l2Code?: string) => {
-      if (!l2Code) return undefined;
-      return categories.find((cat) =>
-        cat.children.some((child) => child.code === l2Code)
-      );
-    },
-    [categories]
-  );
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!open) return;
-    const parentL1 = findParentL1(initialData?.l2Code);
-    // 新增原料：采购与入库给最常用的默认值（散称 / 斤 / 斤），减少重复填写；调料表单除外
-    const isCreate = !initialData?.id && mode !== "seasoning";
-    setForm({
-      name: initialData?.name || "",
-      l1Code: parentL1?.code || "",
-      l2Code: initialData?.l2Code || "",
-      alias: initialData?.alias || "",
-      purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
-      purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
-      unitsPerPurchase:
-        initialData?.unitsPerPurchase != null ? String(initialData.unitsPerPurchase) : "1",
-      latestRefPrice:
-        initialData?.latestRefPrice != null
-          ? String(initialData.latestRefPrice)
-          : "",
-      pricePerJin:
-        initialData?.pricePerJin != null
-          ? String(initialData.pricePerJin)
-          : "",
-      stockUnit: initialData?.stockUnit || (isCreate ? "斤" : ""),
-      defaultSupplierId:
-        initialData?.defaultSupplierId != null ? String(initialData.defaultSupplierId) : "",
-    });
-    setErrors({});
-    setL2Open(false);
-    setPricePerJinDirty(false);
-  }, [open, initialData, findParentL1, mode]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  // 采购规格或最新参照单价变化时，自动计算每斤单价（无法换算则保留用户手动值）
-  // 用户手动编辑过每斤单价后（pricePerJinDirty）不再自动覆盖
-  // 换算系数来自单位字典（buildJinFactors）；字典为空（未加载/全停用）时回退内置兜底值
-  const jinFactors = useMemo(() => {
-    const factors = buildJinFactors(units);
-    return Object.keys(factors).length > 0 ? factors : undefined;
-  }, [units]);
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!open || pricePerJinDirty) return;
-    const jin = calcPricePerJin(
-      form.latestRefPrice ? Number(form.latestRefPrice) : null,
-      form.purchaseSpec,
-      jinFactors,
-      form.purchaseUnit
-    );
-    if (jin != null && String(jin) !== form.pricePerJin) {
-      setForm((prev) => ({ ...prev, pricePerJin: String(jin) }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, form.purchaseSpec, form.latestRefPrice, form.purchaseUnit, jinFactors, pricePerJinDirty]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!open || !form.l2Code) {
-      setRightList([]);
-      return;
-    }
-    const fetchList = async () => {
-      setLoadingList(true);
-      try {
-        const res = await fetch(
-          `/api/ingredients?l2Code=${encodeURIComponent(form.l2Code)}`
-        );
-        if (res.ok) {
-          const list = await parseList<ListItem>(res);
-          setRightList(list);
-        }
-      } catch {
-        // ignore
-      } finally {
-        setLoadingList(false);
-      }
-    };
-    fetchList();
-  }, [open, form.l2Code]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const selectedL2 = (() => {
-    if (!form.l2Code) return undefined;
-    for (const l1 of categories) {
-      const l2 = l1.children.find((c) => c.code === form.l2Code);
-      if (l2) return { ...l2, parentName: l1.name, parentCode: l1.code };
-    }
-    return undefined;
-  })();
-
-  // 调料体系按编码识别（SEA 一级分类），不受分类改名影响
-  const isSeasoning =
-    mode === "seasoning" || (mode === "auto" && selectedL2?.parentCode === "SEA");
-
-  const validate = () => {
-    const next: Record<string, string> = {};
-    if (!form.name.trim()) next.name = "名称不能为空";
-    if (!form.l2Code) next.l2Code = "请选择二级分类";
-    if (isSeasoning && !form.alias.trim())
-      next.alias = "调料必须填写商品名称";
-    if (!form.purchaseSpec.trim()) next.purchaseSpec = "采购规格不能为空";
-    if (!form.purchaseUnit.trim()) next.purchaseUnit = "请选择采购单位";
-    if (!form.stockUnit.trim()) next.stockUnit = "请选择入库单位";
-    const units = Number(form.unitsPerPurchase);
-    if (!form.unitsPerPurchase || !Number.isInteger(units) || units < 1) {
-      next.unitsPerPurchase = "请填写有效的入库数量（正整数）";
-    }
-    if (form.latestRefPrice && Number(form.latestRefPrice) < 0)
-      next.latestRefPrice = "最新参照单价不能为负数";
-    if (form.pricePerJin && Number(form.pricePerJin) < 0)
-      next.pricePerJin = "每斤单价不能为负数";
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const ensureDefaultSpec = (spec: string, stockUnit: string) => {
-    if (spec.trim()) return spec.trim();
-    return getDefaultSpec(stockUnit);
-  };
-
-  const handleChange = (field: keyof IngredientFormData, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-    if (field === "pricePerJin") setPricePerJinDirty(true);
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!validate()) return;
-
-    let nameExists = false;
-    try {
-      const dupRes = await fetch(
-        `/api/ingredients/check-name?name=${encodeURIComponent(form.name.trim())}` +
-          (initialData?.id ? `&excludeId=${initialData.id}` : "")
-      );
-      // 401 已由 lib/client/api.ts 统一跳转登录页
-      if (dupRes.status !== 401) {
-        const dupData = await dupRes.json();
-        nameExists = Boolean(dupData?.exists);
-      }
-    } catch {
-      toast.error("网络异常，请检查网络后重试");
-      return;
-    }
-    if (nameExists) {
-      toast.error("食材名称已存在");
-      return;
-    }
-
-    setSubmitting(true);
-    try {
-      const price = form.latestRefPrice ? Number(form.latestRefPrice) : null;
-      const jinPrice = form.pricePerJin ? Number(form.pricePerJin) : null;
-      const spec = ensureDefaultSpec(form.purchaseSpec, form.stockUnit);
-      const payload = {
-        name: form.name.trim(),
-        alias: form.alias.trim() || undefined,
-        l2Code: form.l2Code,
-        purchaseSpec: spec,
-        purchaseUnit: form.purchaseUnit,
-        stockUnit: form.stockUnit,
-        unitsPerPurchase: Number(form.unitsPerPurchase) || 1,
-        ...(price != null && { latestRefPrice: price }),
-        ...(jinPrice != null && { pricePerJin: jinPrice }),
-        defaultSupplierId: form.defaultSupplierId ? Number(form.defaultSupplierId) : null,
-      };
-
-      const res = await fetch(
-        initialData?.id
-          ? `/api/ingredients/${initialData.id}`
-          : "/api/ingredients",
-        {
-          method: initialData?.id ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || data.message || "保存失败");
-        return;
-      }
-
-      const result = data.data || data || {};
-      toast.success(initialData?.id ? "更新成功" : "创建成功");
-      onSuccess({
-        id: result.id,
-        name: result.name,
-        alias: result.alias,
-        l2Code: result.l2Code,
-        stockUnit: result.stockUnit,
-        purchaseUnit: result.purchaseUnit,
-        purchaseSpec: result.purchaseSpec,
-      });
+  const {
+    form,
+    errors,
+    l2Open,
+    setL2Open,
+    submitting,
+    handleChange,
+    submit,
+  } = useIngredientForm({
+    active: open,
+    autoCalculate: !view,
+    initialData,
+    categories,
+    units,
+    mode,
+    onSaved: (data) => {
+      onSuccess(data);
       onOpenChange(false);
-    } catch {
-      toast.error("保存出错");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1200px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+    <FormDialog open={open} onOpenChange={onOpenChange}>
+      <AppDialogContent
+        size="workbench"
+        className="[&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
+      >
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
             {view
@@ -342,94 +81,19 @@ export function IngredientFormDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex flex-col lg:flex-row gap-6 py-4 px-6 overflow-y-auto flex-1 min-h-0">
-          <div className="flex-1 space-y-4 min-w-0">
-            <IngredientFormFields
-              form={form}
-              onChange={handleChange}
-              errors={errors}
-              categories={categories}
-              units={units}
-              mode={mode}
-              l2Open={l2Open}
-              onL2OpenChange={setL2Open}
-              viewMode={view}
-            />
-          </div>
-
-          {!view && (
-          <div className="lg:w-[520px] flex flex-col min-h-0 rounded-lg border bg-card">
-            <div className="px-4 py-3 border-b flex items-center justify-between">
-              <h4 className="text-sm font-semibold text-muted-foreground">
-                该分类下已添加的食材
-              </h4>
-              <Button
-                variant="ghost"
-                size="icon"
-                title="完整预览"
-                onClick={() => setPreviewOpen(true)}
-              >
-                <Maximize2 className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex-1 overflow-auto">
-              {loadingList ? (
-                <LoadingState type="table" rows={5} cols={6} />
-              ) : rightList.length === 0 ? (
-                <EmptyState
-                  icon={PackageOpen}
-                  title="暂无数据"
-                  description="该分类下尚未添加食材"
-                />
-              ) : (
-                <Table>
-                  <TableHeader className="sticky top-0 bg-background z-10">
-                    <TableRow>
-                      <TableHead className="whitespace-nowrap">名称</TableHead>
-                      <TableHead className="whitespace-nowrap">采购规格</TableHead>
-                      <TableHead className="whitespace-nowrap">采购单位</TableHead>
-                      <TableHead className="whitespace-nowrap">入库单位</TableHead>
-                      <TableHead className="whitespace-nowrap">入库数量</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">最新参照单价</TableHead>
-                      <TableHead className="whitespace-nowrap text-right">每斤单价</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rightList.map((row: ListItem) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium text-sm whitespace-nowrap">
-                          {row.name}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {row.purchaseSpec || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {row.purchaseUnit || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {row.stockUnit || "—"}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {row.unitsPerPurchase ?? 1}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap text-right">
-                          {row.latestRefPrice != null
-                            ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                            : "—"}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap text-right">
-                          {row.pricePerJin != null
-                            ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
-                            : "—"}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </div>
-          )}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+          <IngredientFormFields
+            form={form}
+            onChange={handleChange}
+            errors={errors}
+            categories={categories}
+            units={units}
+            mode={mode}
+            l2Open={l2Open}
+            onL2OpenChange={setL2Open}
+            viewMode={view}
+            layout="workbench"
+          />
         </div>
 
         <DialogFooter className="px-6 pt-0 pb-6">
@@ -451,54 +115,23 @@ export function IngredientFormDialog({
                 取消
               </Button>
               <Button
-                onClick={handleSubmit}
+                onClick={() => {
+                  void submit();
+                }}
                 disabled={submitting}
                 className="h-11 px-6"
               >
                 <span aria-live="polite" className="inline-flex items-center">
-                  {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {submitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   保存
                 </span>
               </Button>
             </>
           )}
         </DialogFooter>
-      </DialogContent>
-
-      <TablePreviewDialog<ListItem>
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        title="该分类下已添加的食材"
-        description={rightList.length > 0 ? `共 ${rightList.length} 条` : undefined}
-        emptyTitle="该分类下尚未添加食材"
-        columns={[
-          { header: "名称", accessorKey: "name" },
-          { header: "采购规格", accessorKey: "purchaseSpec" },
-          { header: "采购单位", accessorKey: "purchaseUnit" },
-          { header: "入库单位", accessorKey: "stockUnit" },
-          {
-            header: "入库数量",
-            cell: (row) => row.unitsPerPurchase ?? 1,
-          },
-          {
-            header: "最新参照单价",
-            className: "text-right",
-            cell: (row) =>
-              row.latestRefPrice != null
-                ? `¥${Number(row.latestRefPrice).toFixed(2)}`
-                : "—",
-          },
-          {
-            header: "每斤单价",
-            className: "text-right",
-            cell: (row) =>
-              row.pricePerJin != null
-                ? `¥${Number(row.pricePerJin).toFixed(2)}/斤`
-                : "—",
-          },
-        ]}
-        data={rightList}
-      />
-    </Dialog>
+      </AppDialogContent>
+    </FormDialog>
   );
 }

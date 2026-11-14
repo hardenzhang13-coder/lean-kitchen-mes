@@ -5,12 +5,12 @@ import { Download, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { Input } from "@/app/components/ui/form-controls";
 import {
   Table,
   TableBody,
@@ -149,8 +149,8 @@ export function ScheduleCuttingTable({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-medium text-sm">切配工单明细</h4>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleDownload}>
@@ -163,7 +163,7 @@ export function ScheduleCuttingTable({
           </Button>
         </div>
       </div>
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -275,7 +275,7 @@ export function ScheduleCuttingTable({
       </div>
 
       <Dialog open={printRow !== null} onOpenChange={(open) => !open && setPrintRow(null)}>
-        <DialogContent className="sm:max-w-[420px]">
+        <AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">打印净菜标签</DialogTitle>
           </DialogHeader>
@@ -325,7 +325,7 @@ export function ScheduleCuttingTable({
               进入打印
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

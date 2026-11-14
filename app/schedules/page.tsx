@@ -14,7 +14,10 @@ import {
 } from "@/components/ui/sheet";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SectionTabs } from "@/app/components/ui/section-tabs";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { Pagination } from "@/app/components/ui/pagination";
@@ -308,34 +311,43 @@ export default function SchedulesPage() {
     : null;
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader title="排程管理" description="设定生产计划，系统自动拆解切配工单与采购计划" />
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1 bg-muted rounded-md p-1">
-            {(["schedules", "plans"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setModule(m)}
-                className={"px-4 py-1.5 rounded-md text-sm font-medium transition-colors " + (module === m ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground")}
-              >
-                {m === "schedules" ? "门店排程单" : "生产计划单"}
-              </button>
-            ))}
-          </div>
-          {module === "schedules" ? (
-          <Button onClick={() => router.push("/schedules/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            新建排程
-          </Button>
-        ) : (
-          <Button onClick={() => router.push("/production-plans/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增生产计划单
-          </Button>
-        )}
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="排程管理"
+        description="设定生产计划，系统自动拆解切配工单与采购计划"
+        actions={
+          <>
+            <div className="flex items-center gap-1 rounded-md bg-muted p-1" role="group" aria-label="排程视图">
+              {(["schedules", "plans"] as const).map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  aria-pressed={module === m}
+                  onClick={() => setModule(m)}
+                  className={
+                    "min-h-10 rounded-md px-4 text-sm font-medium transition-colors " +
+                    (module === m
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground")
+                  }
+                >
+                  {m === "schedules" ? "门店排程单" : "生产计划单"}
+                </button>
+              ))}
+            </div>
+            <Button
+              onClick={() =>
+                router.push(
+                  module === "schedules" ? "/schedules/new" : "/production-plans/new"
+                )
+              }
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {module === "schedules" ? "新建排程" : "新增生产计划单"}
+            </Button>
+          </>
+        }
+      />
 
       {module === "plans" && (
         <>
@@ -391,9 +403,17 @@ export default function SchedulesPage() {
         </ListToolbar>
         <div className="space-y-3">
           {plansLoading ? (
-            <div className="space-y-3">{[1, 2].map((i) => <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />)}</div>
+            <LoadingState type="list" rows={2} />
           ) : plans.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center text-muted-foreground">暂无生产计划单，点击右上角「新增生产计划单」汇总各门店进行中的排程单</div>
+            <EmptyState
+              icon={FileStack}
+              title="暂无生产计划单"
+              description="新增生产计划单后，可集中确认切配并完成入库。"
+              action={{
+                label: "查看门店排程单",
+                onClick: () => setModule("schedules"),
+              }}
+            />
           ) : (
             plans.map((p) => (
               <Card
@@ -401,7 +421,7 @@ export default function SchedulesPage() {
                 className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
                 onClick={() => openPlanPreview(p.id)}
               >
-                <CardContent className="p-5 flex items-stretch gap-6">
+                <CardContent className="flex flex-col items-stretch gap-4 p-5 md:flex-row md:items-stretch md:gap-6">
                   <div className="flex-1 min-w-0 flex flex-col justify-between">
                     <h3 className="font-semibold text-base truncate mb-2">{p.title}</h3>
                     <div className="flex items-center gap-5 text-sm text-muted-foreground flex-wrap">
@@ -409,9 +429,9 @@ export default function SchedulesPage() {
                       <span className="flex items-center gap-1.5"><FileStack className="h-3.5 w-3.5" />汇总 {p.scheduleCount} 张排程单</span>
                     </div>
                   </div>
-                  <div className="flex flex-col items-end justify-between shrink-0 gap-2">
+                  <div className="flex shrink-0 flex-row items-center justify-between gap-2 md:flex-col md:items-end md:justify-between">
                     <StatusBadge status={p.status} className="text-sm font-semibold px-3 py-1" />
-                    <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-wrap items-center justify-end gap-2 md:gap-3" onClick={(e) => e.stopPropagation()}>
                       <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">制单人:{p.operatorName || p.operator || "—"}</span>
                       <Button variant="outline" size="sm" onClick={() => openPlanPreview(p.id)}>
                         <Eye className="mr-1 h-4 w-4" />
@@ -503,11 +523,7 @@ export default function SchedulesPage() {
 
       {/* 列表：卡片式，信息分区清晰 */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-24 bg-muted rounded-xl animate-pulse" />
-          ))}
-        </div>
+        <LoadingState type="list" rows={3} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={Plus}
@@ -525,7 +541,7 @@ export default function SchedulesPage() {
               className="cursor-pointer transition-colors hover:border-primary/40 hover:bg-muted/30"
               onClick={() => openQuickView(row.id)}
             >
-              <CardContent className="p-5 flex items-stretch gap-6">
+              <CardContent className="flex flex-col items-stretch gap-4 p-5 md:flex-row md:items-stretch md:gap-6">
                 {/* 左：标题 + 元信息 */}
                 <div className="flex-1 min-w-0 flex flex-col justify-between">
                   <h3
@@ -562,10 +578,10 @@ export default function SchedulesPage() {
                 </div>
 
                 {/* 右：状态右上（与标题同字号） + 制单人/操作右下 */}
-                <div className="flex flex-col items-end justify-between shrink-0 gap-2">
+                <div className="flex shrink-0 flex-row items-center justify-between gap-2 md:flex-col md:items-end md:justify-between">
                   <StatusBadge status={row.status} className="text-sm font-semibold px-3 py-1" />
                   <div
-                    className="flex items-center gap-3"
+                    className="flex flex-wrap items-center justify-end gap-2 md:gap-3"
                     onClick={(e) => e.stopPropagation()}
                   >
                     <span className="hidden md:inline text-sm text-muted-foreground whitespace-nowrap">制单人：{row.operatorName || row.operator || "—"}</span>
@@ -603,8 +619,7 @@ export default function SchedulesPage() {
           {quickViewLoading || !quickView || !quickMeta ? (
             <div className="p-6 space-y-3">
               <SheetTitle className="sr-only">排程预览</SheetTitle>
-              <div className="h-8 bg-muted rounded animate-pulse" />
-              <div className="h-64 bg-muted rounded animate-pulse" />
+              <LoadingState type="page" />
             </div>
           ) : (
             <>
@@ -636,23 +651,17 @@ export default function SchedulesPage() {
                 </div>
               </SheetHeader>
 
-              <div className="flex items-center gap-1 border-b px-4">
-                {([["menu", "排程菜单", quickView.items.length], ["cutting", "切配工单明细", quickView.cuttingOrders.length], ["purchase", "采购计划明细", quickView.purchasePlans.length]] as const).map(([key, label, count]) => (
-                  <button
-                    key={key}
-                    onClick={() => setQuickTab(key)}
-                    className={
-                      "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px " +
-                      (quickTab === key
-                        ? "border-primary text-primary"
-                        : "border-transparent text-muted-foreground hover:text-foreground")
-                    }
-                  >
-                    {label}
-                    <span className="ml-1 text-xs rounded-full bg-muted px-1.5 py-0.5">{count}</span>
-                  </button>
-                ))}
-              </div>
+              <SectionTabs
+                ariaLabel="排程预览内容"
+                value={quickTab}
+                onChange={setQuickTab}
+                className="px-4"
+                tabs={[
+                  { value: "menu", label: "排程菜单", count: quickView.items.length },
+                  { value: "cutting", label: "切配工单明细", count: quickView.cuttingOrders.length },
+                  { value: "purchase", label: "采购计划明细", count: quickView.purchasePlans.length },
+                ]}
+              />
 
               <div className="flex-1 overflow-y-auto p-4">
                 {quickTab === "menu" && <ScheduleMenuTable items={quickView.items} meta={quickMeta} />}
@@ -672,8 +681,7 @@ export default function SchedulesPage() {
           {planPreviewLoading || !planPreview || !planPreviewMeta ? (
             <div className="p-6 space-y-3">
               <SheetTitle className="sr-only">生产计划单预览</SheetTitle>
-              <div className="h-8 bg-muted rounded animate-pulse" />
-              <div className="h-64 bg-muted rounded animate-pulse" />
+              <LoadingState type="page" />
             </div>
           ) : (
             <>
@@ -714,26 +722,16 @@ export default function SchedulesPage() {
                 </div>
               </SheetHeader>
 
-              <div className="flex items-center gap-1 border-b px-4">
-                {([
-                  ["cutting", "切配工单明细", planPreview.cuttingOrders.length],
-                  ["purchase", "采购计划明细", planPreview.purchasePlans.length],
-                ] as const).map(([key, label, count]) => (
-                  <button
-                    key={key}
-                    onClick={() => setPlanPreviewTab(key)}
-                    className={
-                      "px-3 py-2.5 text-sm font-medium border-b-2 -mb-px " +
-                      (planPreviewTab === key
-                        ? "border-primary text-primary"
-                        : "border-transparent text-muted-foreground hover:text-foreground")
-                    }
-                  >
-                    {label}
-                    <span className="ml-1 text-xs rounded-full bg-muted px-1.5 py-0.5">{count}</span>
-                  </button>
-                ))}
-              </div>
+              <SectionTabs
+                ariaLabel="生产计划单预览内容"
+                value={planPreviewTab}
+                onChange={setPlanPreviewTab}
+                className="px-4"
+                tabs={[
+                  { value: "cutting", label: "切配工单明细", count: planPreview.cuttingOrders.length },
+                  { value: "purchase", label: "采购计划明细", count: planPreview.purchasePlans.length },
+                ]}
+              />
 
               <div className="flex-1 overflow-y-auto p-4">
                 {planPreviewTab === "cutting" && (
@@ -751,6 +749,6 @@ export default function SchedulesPage() {
           )}
         </SheetContent>
       </Sheet>
-    </div>
+    </PageShell>
   );
 }

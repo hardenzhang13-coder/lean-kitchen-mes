@@ -2,20 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import {
+  BusinessFieldInput,
+  BusinessNumberInput,
+  Input,
+  ReadOnlyValue,
+} from "@/app/components/ui/form-controls";
+import { IngredientNumberInput } from "@/app/components/ingredients/ingredient-number-input";
 import { Button } from "@/components/ui/button";
-import { FormField, FormSection } from "@/app/components/ui/form-field";
+import {
+  FormField,
+  FormLayout,
+  FormSection,
+} from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import {
   IngredientSelectorDialog,
   CategoryL1 as SelectorCategoryL1,
   IngredientForSelector,
 } from "@/app/components/ingredients/ingredient-selector-dialog";
+import { NetPackagingSelect } from "@/app/components/ingredients/net-packaging-select";
 import {
   calcCostPricePerJin,
   calcOutPricePerJin,
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
+import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
+import { formatPercent } from "@/lib/shared/display-format";
 
 export type CategoryL1 = SelectorCategoryL1;
 
@@ -35,9 +48,9 @@ export interface NetIngredientFormData {
   /** 封装加工费（元/斤），留空 = 0；净料/小料使用 */
   processingFeePerJin: string;
   yieldRate: string;
-  /** 净料单价（元/斤，原料每斤单价 ÷ 出成率）；净料/小料同口径 */
+  /** 净料单价（元/斤）：只读派生，仅保留表单兼容字段 */
   unitPrice: string;
-  /** 毛利率（%）：留空 = 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100) */
+  /** 毛利率（%）：默认 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100) */
   grossMarginRate: string;
 }
 
@@ -46,6 +59,8 @@ export interface NetIngredientFormFieldsProps {
   onChange: (field: keyof NetIngredientFormData, value: string) => void;
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
+  /** 编辑详情时直接传入来源原料当前价格，不依赖分页列表是否包含来源行 */
+  sourcePricePerJin?: number | null;
   mode?: "net" | "minor";
   readOnly?: {
     l1Code?: boolean;
@@ -55,6 +70,7 @@ export interface NetIngredientFormFieldsProps {
   /** 查看模式：所有输入控件只读，仅用于展示 */
   viewMode?: boolean;
   errors?: Record<string, string>;
+  layout?: "legacy" | "net-dialog" | "sheet";
 }
 
 export function NetIngredientFormFields({
@@ -62,10 +78,12 @@ export function NetIngredientFormFields({
   onChange,
   categories,
   rawIngredients,
+  sourcePricePerJin,
   mode = "net",
   readOnly,
   viewMode = false,
   errors,
+  layout = "legacy",
 }: NetIngredientFormFieldsProps) {
   const [l2Open, setL2Open] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -96,6 +114,20 @@ export function NetIngredientFormFields({
       ),
     [rawIngredients, form.sourceIngredientId]
   );
+  const currentSourcePricePerJin =
+    sourcePricePerJin != null
+      ? sourcePricePerJin
+      : selectedSource?.pricePerJin != null
+        ? Number(selectedSource.pricePerJin)
+        : null;
+  const derivedUnitPrice = useMemo(
+    () =>
+      calcNetUnitPrice({
+        pricePerJin: currentSourcePricePerJin,
+        yieldRate: Number(form.yieldRate),
+      }),
+    [currentSourcePricePerJin, form.yieldRate]
+  );
 
   // 净料编辑：分类与来源锁定（分类继承自来源原料）
   const sourceLocked = readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
@@ -104,10 +136,10 @@ export function NetIngredientFormFields({
   const costPricePerJin = useMemo(
     () =>
       calcCostPricePerJin(
-        form.unitPrice !== "" ? Number(form.unitPrice) : null,
+        derivedUnitPrice,
         form.processingFeePerJin !== "" ? Number(form.processingFeePerJin) : null
       ),
-    [form.unitPrice, form.processingFeePerJin]
+    [derivedUnitPrice, form.processingFeePerJin]
   );
   const outPricePerJin = useMemo(
     () =>
@@ -142,6 +174,265 @@ export function NetIngredientFormFields({
     onChange("l2Code", value.l2Code);
     onChange("sourceIngredientId", value.ingredientId);
   };
+
+  if ((layout === "net-dialog" || layout === "sheet") && !isMinor) {
+    const isSheet = layout === "sheet";
+    const sectionCols = isSheet ? 3 : 1;
+    const fieldGridClassName = isSheet
+      ? "p-4 sm:p-4 [&>div:last-child]:gap-4"
+      : "p-4 sm:p-4 [&>div:last-child]:gap-3";
+
+    const sections = (
+      <>
+        <FormSection
+          title="规格指标"
+          cols={sectionCols}
+          className={fieldGridClassName}
+        >
+          <FormField
+            label="包装规格（g）"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.packageSpec}
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={form.packageSpec || null} numeric />
+            ) : (
+              <BusinessNumberInput
+                min={1}
+                step="1"
+                value={form.packageSpec}
+                onChange={(event) =>
+                  onChange("packageSpec", event.target.value)
+                }
+                placeholder="如 500"
+                className="h-11 text-base px-4"
+              />
+            )}
+          </FormField>
+
+          <NetPackagingSelect
+            variant="split"
+            viewMode={viewMode}
+            packageMaterial={form.packageMaterial}
+            packageSize={form.packageSize}
+            onChange={(name, size) => {
+              onChange("packageMaterial", name);
+              onChange("packageSize", size);
+            }}
+            nameError={errors?.packageMaterial}
+            sizeError={errors?.packageSize}
+          />
+        </FormSection>
+
+        <FormSection
+          title="加工指标"
+          cols={sectionCols}
+          className={fieldGridClassName}
+        >
+          <FormField
+            label="出成率（%）"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.yieldRate}
+            hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
+          >
+            {viewMode ? (
+              <ReadOnlyValue
+                value={
+                  form.yieldRate !== "" ? `${form.yieldRate}%` : null
+                }
+                numeric
+              />
+            ) : (
+              <BusinessNumberInput
+                min={0.01}
+                max={500}
+                step="0.01"
+                value={form.yieldRate}
+                onChange={(event) =>
+                  onChange("yieldRate", event.target.value)
+                }
+                placeholder="如 85"
+                className="h-11 text-base px-4"
+              />
+            )}
+          </FormField>
+
+          <FormField
+            label="净料单价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.unitPrice}
+            hint="根据来源原料当前每斤单价和出成率自动计算"
+          >
+            <ReadOnlyValue
+              value={
+                derivedUnitPrice != null
+                  ? `¥${derivedUnitPrice.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emptyText="自动计算得出"
+            />
+          </FormField>
+
+          <FormField
+            label="封装加工费（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.processingFeePerJin}
+            hint="封装环节每斤的加工成本，计入成本价；留空 = 0"
+          >
+            {viewMode ? (
+              <ReadOnlyValue
+                value={
+                  form.processingFeePerJin !== ""
+                    ? `¥${Number(form.processingFeePerJin).toFixed(2)}`
+                    : null
+                }
+                numeric
+              />
+            ) : (
+              <BusinessNumberInput
+                min={0}
+                step="0.01"
+                value={form.processingFeePerJin}
+                onChange={(event) =>
+                  onChange("processingFeePerJin", event.target.value)
+                }
+                placeholder="留空 = 0"
+                className="h-11 text-base px-4"
+              />
+            )}
+          </FormField>
+
+          <FormField
+            label="毛利率（%）"
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.grossMarginRate}
+            hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
+          >
+            {viewMode ? (
+              <ReadOnlyValue
+                value={formatPercent(form.grossMarginRate)}
+                numeric
+              />
+            ) : (
+              <BusinessNumberInput
+                min={0}
+                max={95}
+                step="0.01"
+                value={form.grossMarginRate}
+                onChange={(event) =>
+                  onChange("grossMarginRate", event.target.value)
+                }
+                placeholder="0"
+                className="h-11 text-base px-4"
+                onBlur={() => {
+                  if (form.grossMarginRate === "") {
+                    onChange("grossMarginRate", "0");
+                  }
+                }}
+              />
+            )}
+          </FormField>
+        </FormSection>
+
+        <FormSection
+          title="价格指标"
+          cols={sectionCols}
+          className={fieldGridClassName}
+        >
+          <FormField
+            label="成本价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 净料单价 + 封装加工费"
+          >
+            <ReadOnlyValue
+              value={
+                costPricePerJin != null
+                  ? `¥${costPricePerJin.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emptyText="自动计算得出"
+            />
+          </FormField>
+          <FormField
+            label="出库价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 成本价 ÷ (1 - 毛利率/100)，真毛利率口径"
+          >
+            <ReadOnlyValue
+              value={
+                outPricePerJin != null
+                  ? `¥${outPricePerJin.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emptyText="自动计算得出"
+            />
+          </FormField>
+          <FormField
+            label="标准规格价（元/份）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 出库价 × 包装规格 ÷ 500，即每包装单位的出库价"
+          >
+            <ReadOnlyValue
+              value={
+                standardPackagePrice != null
+                  ? `¥${standardPackagePrice.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emphasis
+              emptyText="自动计算得出"
+            />
+          </FormField>
+        </FormSection>
+      </>
+    );
+
+    return (
+      <div className="space-y-4">
+        <FormSection
+          cols={1}
+          className="p-4 sm:p-4 [&>div:last-child]:gap-3"
+        >
+          <FormField
+            label="净料名称"
+            required
+            readOnly={viewMode}
+            error={errors?.name}
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={form.name} emphasis />
+            ) : (
+              <BusinessFieldInput
+                value={form.name}
+                onChange={(event) => onChange("name", event.target.value)}
+                placeholder="如 平包菜•称重•500g"
+                className="h-11 text-base px-4"
+              />
+            )}
+          </FormField>
+        </FormSection>
+
+        {isSheet ? (
+          <div className="space-y-4">{sections}</div>
+        ) : (
+          <FormLayout variant="workbench">{sections}</FormLayout>
+        )}
+      </div>
+    );
+  }
 
   const renderSourceInfo = () => {
     if (!form.sourceIngredientId) {
@@ -247,7 +538,10 @@ export function NetIngredientFormFields({
         </FormSection>
       )}
 
-      <FormSection title={isMinor ? "小料信息" : "净料信息"} cols={2}>
+      <FormSection
+        title={isMinor ? "小料信息" : "净料信息"}
+        cols={2}
+      >
         <FormField label={isMinor ? "小料名称" : "净料名称"} required error={errors?.name}>
           <Input
             value={form.name}
@@ -265,8 +559,7 @@ export function NetIngredientFormFields({
           error={errors?.packageSpec}
           hint="标准包装单位的克数，如 500g/袋填 500"
         >
-          <Input
-            type="number"
+          <IngredientNumberInput
             min={1}
             step="1"
             value={form.packageSpec}
@@ -277,35 +570,16 @@ export function NetIngredientFormFields({
           />
         </FormField>
 
-        <FormField
-          label="包装物料"
+        <NetPackagingSelect
+          packageMaterial={form.packageMaterial}
+          packageSize={form.packageSize}
+          onChange={(name, size) => {
+            onChange("packageMaterial", name);
+            onChange("packageSize", size);
+          }}
+          viewMode={viewMode}
           error={errors?.packageMaterial}
-          hint="包装所用的物料，如 密封袋"
-        >
-          <Input
-            value={form.packageMaterial}
-            onChange={(e) => onChange("packageMaterial", e.target.value)}
-            placeholder="如 密封袋"
-            maxLength={100}
-            className="h-11 text-base px-4"
-            disabled={viewMode}
-          />
-        </FormField>
-
-        <FormField
-          label="包装尺寸"
-          error={errors?.packageSize}
-          hint="包装物料的实际尺寸，如 35cm×30cm"
-        >
-          <Input
-            value={form.packageSize}
-            onChange={(e) => onChange("packageSize", e.target.value)}
-            placeholder="如 35cm×30cm"
-            maxLength={100}
-            className="h-11 text-base px-4"
-            disabled={viewMode}
-          />
-        </FormField>
+        />
 
         <FormField
           label="出成率 (%)"
@@ -314,8 +588,7 @@ export function NetIngredientFormFields({
           error={errors?.yieldRate}
           hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
         >
-          <Input
-            type="number"
+          <IngredientNumberInput
             min={0.01}
             max={500}
             step="0.01"
@@ -329,19 +602,18 @@ export function NetIngredientFormFields({
 
         <FormField
           label={isMinor ? "小料单价（元/斤）" : "净料单价（元/斤）"}
-          required
           optionalHint={false}
           error={errors?.unitPrice}
-          hint="= 原料每斤单价 ÷（出成率% ÷ 100）。出成率 60 即 ÷0.6：每出 1 斤消耗更多原料，单价高于原料价；手动修改后不再自动覆盖"
+          hint="根据来源原料当前每斤单价和出成率自动计算"
         >
-          <Input
-            type="number"
-            step="0.01"
-            value={form.unitPrice}
-            onChange={(e) => onChange("unitPrice", e.target.value)}
-            placeholder="如 2.50"
-            className="h-11 text-base px-4"
-            disabled={viewMode}
+          <ReadOnlyValue
+            value={
+              derivedUnitPrice != null
+                ? `¥${derivedUnitPrice.toFixed(2)}`
+                : null
+            }
+            numeric
+            emptyText="自动计算得出"
           />
         </FormField>
 
@@ -351,8 +623,7 @@ export function NetIngredientFormFields({
           error={errors?.processingFeePerJin}
           hint="封装环节每斤的加工成本，计入成本价；留空 = 0"
         >
-          <Input
-            type="number"
+          <IngredientNumberInput
             min={0}
             step="0.01"
             value={form.processingFeePerJin}
@@ -367,18 +638,22 @@ export function NetIngredientFormFields({
           label="毛利率（%）"
           optionalHint={false}
           error={errors?.grossMarginRate}
-          hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；留空 = 0"
+          hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
         >
-          <Input
-            type="number"
+          <IngredientNumberInput
             min={0}
             max={95}
             step="0.01"
             value={form.grossMarginRate}
             onChange={(e) => onChange("grossMarginRate", e.target.value)}
-            placeholder="留空 = 0"
+            placeholder="0"
             className="h-11 text-base px-4"
             disabled={viewMode}
+            onBlur={() => {
+              if (form.grossMarginRate === "") {
+                onChange("grossMarginRate", "0");
+              }
+            }}
           />
         </FormField>
 
@@ -416,8 +691,6 @@ export function NetIngredientFormFields({
         onOpenChange={setSelectorOpen}
         categories={categories}
         ingredients={rawIngredients}
-        initialL1Code={form.l1Code}
-        initialL2Code={form.l2Code}
         initialIngredientId={form.sourceIngredientId}
         onConfirm={handleSelectorConfirm}
       />

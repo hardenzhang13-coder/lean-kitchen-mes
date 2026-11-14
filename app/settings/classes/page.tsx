@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,

@@ -4,12 +4,12 @@ import { useMemo, useRef, useState } from "react";
 import { Download, FileUp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import {
   Table,
   TableBody,
@@ -124,7 +124,7 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <FormDialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto [&>button]:cursor-pointer">
         <DialogHeader>
           <DialogTitle className="text-lg">{title}</DialogTitle>
@@ -261,6 +261,6 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
           </Button>
         </DialogFooter>
       </DialogContent>
-    </Dialog>
+    </FormDialog>
   );
 }

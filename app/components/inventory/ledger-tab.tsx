@@ -111,10 +111,10 @@ export function LedgerTab() {
                 <TableHead>类型</TableHead>
                 <TableHead>一级分类</TableHead>
                 <TableHead>名称</TableHead>
-                <TableHead className="text-right">变动（份）</TableHead>
-                <TableHead className="text-right">变动（量）</TableHead>
-                <TableHead className="text-right">结存（份）</TableHead>
-                <TableHead className="text-right">结存（量）</TableHead>
+                <TableHead className="text-right">变动份数</TableHead>
+                <TableHead className="text-right">变动量</TableHead>
+                <TableHead className="text-right">结存份数</TableHead>
+                <TableHead className="text-right">结存量</TableHead>
                 <TableHead>来源单据</TableHead>
                 <TableHead>操作人</TableHead>
               </TableRow>

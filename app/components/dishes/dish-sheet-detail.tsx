@@ -10,7 +10,7 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText } from "@/app/components/dish-form/types";
+import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText, calcCost } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
 
 interface DishSheetDetailProps {
@@ -87,7 +87,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
 
   const statusLabel = dish.status === "published" ? "已发布" : "草稿";
 
-  // 成本以服务端存储值为准（保存 BOM 时已按食材模块口径重算），前端不再重算
+  // 成本按当前食材价格实时重算，避免原料调价后展示历史 BOM 行成本
   const bomRows: BomTableRow[] = [
     ...(dish.netDetails?.filter((d) => d.role === "main").map((d, idx) => ({
       id: `main-${idx}`,
@@ -96,7 +96,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
-      cost: d.cost != null ? Number(d.cost) : null,
+      cost: calcCost("main", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.netDetails?.filter((d) => d.role === "support").map((d, idx) => ({
       id: `support-${idx}`,
@@ -105,7 +105,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
-      cost: d.cost != null ? Number(d.cost) : null,
+      cost: calcCost("support", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.minorDetails?.map((d, idx) => ({
       id: `minor-${idx}`,
@@ -114,7 +114,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, null),
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      cost: d.cost != null ? Number(d.cost) : null,
+      cost: calcCost("minor", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.seasoningDetails?.map((d, idx) => ({
       id: `seasoning-${idx}`,
@@ -123,7 +123,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: d.spec ?? null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      cost: d.cost != null ? Number(d.cost) : null,
+      cost: calcCost("seasoning", d.pricePerJin, d.amountG),
     })) ?? []),
     ...(dish.sauceDetails?.map((d, idx) => ({
       id: `sauce-${idx}`,
@@ -132,7 +132,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
-      cost: d.cost != null ? Number(d.cost) : null,
+      cost: calcCost("sauce", d.sauce?.outPricePerJin, d.amountG),
     })) ?? []),
   ];
 

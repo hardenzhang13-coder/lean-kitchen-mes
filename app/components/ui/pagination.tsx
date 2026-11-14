@@ -1,24 +1,16 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PAGE_SIZE_OPTIONS } from "@/lib/client/use-pagination";
 
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
-  totalItems: number;
-  start: number;
-  end: number;
   onPageChange: (page: number) => void;
-  /** 传入后显示「每页显示数」选择器 */
+  /** 以下字段保留用于兼容既有列表调用，不再在底部分页栏展示。 */
+  totalItems?: number;
+  start?: number;
+  end?: number;
   pageSize?: number;
   onPageSizeChange?: (size: number) => void;
   pageSizeOptions?: readonly number[];
@@ -28,90 +20,34 @@ export function Pagination({
   currentPage,
   totalPages,
   totalItems,
-  start,
-  end,
   onPageChange,
-  pageSize,
-  onPageSizeChange,
-  pageSizeOptions = PAGE_SIZE_OPTIONS,
 }: PaginationProps) {
   if (totalItems === 0) return null;
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t">
-      <div className="flex items-center gap-3">
-        <p className="text-sm text-muted-foreground">
-          第 <span className="font-medium text-foreground">{start}</span>-
-          <span className="font-medium text-foreground">{end}</span> 条，共{" "}
-          <span className="font-medium text-foreground">{totalItems}</span> 条
-        </p>
-        {onPageSizeChange && pageSize != null && (
-          <Select
-            value={pageSize}
-            onValueChange={(v) => onPageSizeChange(Number(v))}
-          >
-            <SelectTrigger
-              className="h-8 w-[104px] text-sm"
-              aria-label="每页显示条数"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizeOptions.map((opt) => (
-                <SelectItem key={opt} value={opt}>
-                  {opt} 条/页
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(1)}
-          disabled={currentPage <= 1}
-          title="首页"
-        >
-          <ChevronsLeft className="h-4 w-4 mr-1" />
-          首页
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage - 1)}
-          disabled={currentPage <= 1}
-          title="上一页"
-        >
-          <ChevronLeft className="h-4 w-4 mr-1" />
-          上一页
-        </Button>
-        <span className="text-sm text-muted-foreground px-2">
-          <span className="font-medium text-foreground">{currentPage}</span> /{" "}
-          {totalPages}
-        </span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(currentPage + 1)}
-          disabled={currentPage >= totalPages}
-          title="下一页"
-        >
-          下一页
-          <ChevronRight className="h-4 w-4 ml-1" />
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => onPageChange(totalPages)}
-          disabled={currentPage >= totalPages}
-          title="尾页"
-        >
-          尾页
-          <ChevronsRight className="h-4 w-4 ml-1" />
-        </Button>
-      </div>
+    <div className="flex h-12 items-center justify-end gap-2 border-t pt-4">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage <= 1}
+      >
+        <ChevronLeft className="mr-1 h-4 w-4" />
+        上一页
+      </Button>
+      <span className="min-w-12 text-center text-sm text-muted-foreground">
+        <span className="font-medium text-foreground">{currentPage}</span> /{" "}
+        {totalPages}
+      </span>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage >= totalPages}
+      >
+        下一页
+        <ChevronRight className="ml-1 h-4 w-4" />
+      </Button>
     </div>
   );
 }

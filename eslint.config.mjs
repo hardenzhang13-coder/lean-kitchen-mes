@@ -24,6 +24,29 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // 交互视觉基线 v1：迁移期先告警，试点验收后改为 error。
+  // 业务页面使用 AppDialogContent 的语义尺寸，并避免新增 9–11px 字号。
+  {
+    files: ["app/**/*.tsx"],
+    ignores: ["app/components/ui/**/*.tsx", "app/ui-kit/**/*.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "warn",
+        {
+          selector:
+            "JSXOpeningElement[name.name='DialogContent'] > JSXAttribute[name.name='className'] > Literal[value=/max-w-/]",
+          message:
+            "请使用 AppDialogContent 的 compact/form/wide/workbench 语义尺寸，不在业务页面声明弹窗像素宽度。",
+        },
+        {
+          selector:
+            "JSXAttribute[name.name='className'] > Literal[value=/(?:text-\\[9px\\]|text-\\[10px\\]|text-\\[11px\\])/]",
+          message:
+            "交互视觉基线 v1 要求正文与辅助信息不小于 12px，请使用 text-xs。",
+        },
+      ],
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

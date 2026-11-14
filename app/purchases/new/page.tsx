@@ -3,7 +3,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  ArrowLeft,
   Upload,
   ImageIcon,
   Loader2,
@@ -14,15 +13,15 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import {
   Table,
   TableBody,
@@ -37,6 +36,10 @@ import { CategoryTag } from "@/app/components/ui/category-tag";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import {
@@ -823,44 +826,34 @@ export default function NewPurchasePage() {
     .toFixed(2);
 
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col p-8 gap-6 overflow-hidden">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-none">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="返回采购列表"
-            onClick={() => router.push("/purchases")}
-          >
-            <ArrowLeft className="h-5 w-5" />
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        backHref="/purchases"
+        backLabel="返回采购列表"
+        title={isEdit ? "编辑采购单" : "录入采购单"}
+        description={
+          isEdit
+            ? "修改待结算采购单信息"
+            : "上传采购单图片，AI 自动识别并入库"
+        }
+        actions={
+          <Button onClick={handleSubmit} disabled={submitting}>
+            <span aria-live="polite" className="inline-flex items-center">
+              {submitting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              {isEdit ? "保存修改" : "确认录入"}
+            </span>
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              {isEdit ? "编辑采购单" : "录入采购单"}
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {isEdit
-                ? "修改待结算采购单信息"
-                : "上传采购单图片，AI 自动识别并入库"}
-            </p>
-          </div>
-        </div>
-        <Button onClick={handleSubmit} disabled={submitting}>
-          <span aria-live="polite" className="inline-flex items-center">
-            {submitting ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="mr-2 h-4 w-4" />
-            )}
-            {isEdit ? "保存修改" : "确认录入"}
-          </span>
-        </Button>
-      </div>
+        }
+      />
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         {/* 左侧 */}
-        <div className="flex flex-col gap-3 h-full overflow-y-auto">
+        <div className="flex flex-col gap-3 lg:h-full lg:overflow-y-auto">
           {/* 图片上传区 */}
           <div
             className={cn(
@@ -943,7 +936,7 @@ export default function NewPurchasePage() {
           )}
 
           {/* 基础信息 */}
-          <div className="flex-none rounded-md border p-4 space-y-2">
+          <div className="flex-none space-y-3 rounded-lg border bg-card p-4 shadow-sm">
             <h3 className="font-medium flex-none">基础信息</h3>
             <div className="space-y-2 flex-none">
               <Label>
@@ -1011,7 +1004,7 @@ export default function NewPurchasePage() {
         </div>
 
         {/* 右侧明细 */}
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex min-h-0 flex-col lg:h-full lg:overflow-hidden">
           <div className="flex items-center justify-between flex-none mb-3">
             <h3 className="font-medium">采购明细 ({items.length} 项)</h3>
             <Button
@@ -1024,15 +1017,14 @@ export default function NewPurchasePage() {
           </div>
 
           {items.length === 0 ? (
-            <div className="flex-1 rounded-md border border-dashed flex flex-col items-center justify-center text-center">
-              <Upload className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground">暂无明细</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                上传采购单图片并点击「AI 识别」自动提取
-              </p>
-            </div>
+            <EmptyState
+              icon={Upload}
+              title="暂无明细"
+              description="上传采购单图片并点击「AI 识别」自动提取。"
+              className="min-h-64 flex-1 rounded-md border border-dashed"
+            />
           ) : (
-            <div className="flex-1 min-h-0 rounded-md border overflow-auto">
+            <div className="min-h-0 max-h-[65dvh] flex-1 overflow-auto rounded-md border lg:max-h-none">
               <Table>
                 <TableHeader className="sticky top-0 bg-background z-10">
                   <TableRow>
@@ -1215,8 +1207,8 @@ export default function NewPurchasePage() {
         </div>
       </div>
 
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-[1000px] [&>button]:cursor-pointer">
+      <FormDialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <AppDialogContent size="workbench" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">编辑采购明细</DialogTitle>
           </DialogHeader>
@@ -1359,12 +1351,12 @@ export default function NewPurchasePage() {
               保存
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </AppDialogContent>
+      </FormDialog>
 
       {/* 清空数据确认弹窗 */}
       <Dialog open={clearDialogOpen} onOpenChange={setClearDialogOpen}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle>确认清空数据</DialogTitle>
           </DialogHeader>
@@ -1387,7 +1379,7 @@ export default function NewPurchasePage() {
               确认清空
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       {/* 重复识别提示弹窗 */}
@@ -1400,7 +1392,7 @@ export default function NewPurchasePage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[460px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle>检测到重复采购单</DialogTitle>
           </DialogHeader>
@@ -1443,7 +1435,7 @@ export default function NewPurchasePage() {
               继续识别
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <ImagePreviewModal
@@ -1472,6 +1464,6 @@ export default function NewPurchasePage() {
         units={units}
         onSuccess={handleIngredientSuccess}
       />
-    </div>
+    </PageShell>
   );
 }

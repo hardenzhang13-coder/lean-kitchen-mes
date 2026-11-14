@@ -85,8 +85,8 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
+    <div className="min-w-0 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-medium text-sm">采购计划明细</h4>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={handleDownload}>
@@ -103,7 +103,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
           </Button>
         </div>
       </div>
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
         <Table>
           <TableHeader>
             <TableRow>

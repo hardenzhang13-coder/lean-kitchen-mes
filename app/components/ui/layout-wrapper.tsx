@@ -19,7 +19,7 @@ export function LayoutWrapper({
       {!isLogin && <Sidebar user={user} />}
       <main
         className={cn(
-          "flex-1 flex flex-col min-h-screen",
+          "flex min-h-screen min-w-0 flex-1 flex-col",
           !isLogin && "ml-20"
         )}
       >

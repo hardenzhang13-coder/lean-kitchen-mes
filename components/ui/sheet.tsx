@@ -27,6 +27,7 @@ function SheetOverlay({ className, ...props }: SheetPrimitive.Backdrop.Props) {
   return (
     <SheetPrimitive.Backdrop
       data-slot="sheet-overlay"
+      forceRender
       className={cn(
         "fixed inset-0 z-50 bg-black/30 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-sm",
         className
@@ -41,14 +42,16 @@ function SheetContent({
   children,
   side = "right",
   showCloseButton = true,
+  onBackdropClick,
   ...props
 }: SheetPrimitive.Popup.Props & {
   side?: "top" | "right" | "bottom" | "left"
   showCloseButton?: boolean
+  onBackdropClick?: () => void
 }) {
   return (
     <SheetPortal>
-      <SheetOverlay />
+      <SheetOverlay onPointerDown={onBackdropClick} />
       <SheetPrimitive.Popup
         data-slot="sheet-content"
         data-side={side}

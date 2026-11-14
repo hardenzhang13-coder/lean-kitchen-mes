@@ -2,16 +2,19 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+  DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { formatPortionsCount, round2, rowConfirmStatus, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { EmptyState } from "@/app/components/ui/empty-state";
 
 type RowStatus = "completed" | "unfinished" | "hold";
 
@@ -116,8 +119,8 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[1200px] max-h-[90vh] overflow-y-auto">
+    <FormDialog open={open} onOpenChange={onOpenChange}>
+      <AppDialogContent size="workbench" className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-lg">完成生产确认</DialogTitle>
         </DialogHeader>
@@ -128,7 +131,11 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
         </p>
 
         {workRows.length === 0 ? (
-          <p className="text-muted-foreground py-6 text-center">本计划单没有待确认的切配行</p>
+          <EmptyState
+            title="没有待确认的切配行"
+            description="当前计划单的切配行均已确认，无需重复提交。"
+            className="py-10"
+          />
         ) : (
           <div className="rounded-lg border overflow-x-auto">
             <Table>
@@ -148,7 +155,7 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
               </TableHeader>
               <TableBody>
                 {workRows.map((w) => (
-                  <TableRow key={w.key} className={"transition-colors " + (w.status === "unfinished" ? "bg-red-50 hover:bg-red-100/60" : "hover:bg-muted/40")}>
+                  <TableRow key={w.key} className={"transition-colors " + (w.status === "unfinished" ? "bg-danger-muted hover:bg-danger-muted/80" : "hover:bg-muted/40")}>
                     <TableCell className="font-medium bg-muted/30">{w.row.l1Name}</TableCell>
                     <TableCell className="text-muted-foreground">{w.row.l2Name}</TableCell>
                     <TableCell className="font-mono text-xs">{w.row.sourceCode}</TableCell>
@@ -237,7 +244,7 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
             {submitting ? "提交中…" : "提交并入库"}
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </AppDialogContent>
+    </FormDialog>
   );
 }

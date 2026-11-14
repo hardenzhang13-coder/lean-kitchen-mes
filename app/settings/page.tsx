@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Store, Tags, FolderTree, Ruler, Truck, Users } from "lucide-react";
+import { Store, Tags, FolderTree, Ruler, Truck, Users, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getCurrentUser } from "@/lib/server/session";
 import { isAdmin } from "@/lib/shared/roles";
@@ -18,6 +18,13 @@ const settingsItems = [
     desc: "管理菜品分类，如猪肉类、牛肉类、蔬菜类等",
     icon: Tags,
     color: "text-rose-500 dark:text-rose-400",
+  },
+  {
+    href: "/settings/net-packagings",
+    label: "净菜包装",
+    desc: "管理净料封装使用的包装名称与尺寸",
+    icon: Package,
+    color: "text-cyan-500 dark:text-cyan-400",
   },
   {
     href: "/settings/units",
@@ -61,7 +68,7 @@ export default async function SettingsPage() {
         <p className="text-muted-foreground">管理系统基础数据与用户账号</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-4 gap-4">
         {items.map((item) => {
           const Icon = item.icon;
           return (

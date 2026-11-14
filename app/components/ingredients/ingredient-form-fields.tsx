@@ -1,12 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Input } from "@/components/ui/input";
-import { FormField, FormSection } from "@/app/components/ui/form-field";
+import {
+  FormField,
+  FormLayout,
+  FormSection,
+} from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
+import { IngredientFieldInput } from "@/app/components/ingredients/ingredient-field-input";
+import { ReadOnlyValue } from "@/app/components/ui/form-controls";
 
 export type CategoryL1 = {
   code: string;
@@ -49,6 +54,10 @@ export interface IngredientFormFieldsProps {
   onL2OpenChange: (open: boolean) => void;
   /** 查看模式：所有输入控件只读，仅用于展示 */
   viewMode?: boolean;
+  /** 新增弹窗使用三列工作台布局，详情抽屉使用纵向布局 */
+  layout?: "workbench" | "sheet";
+  /** 原料查看态直接展示供应商名称，避免额外拉取供应商列表 */
+  supplierName?: string | null;
 }
 
 export function IngredientFormFields({
@@ -61,6 +70,8 @@ export function IngredientFormFields({
   l2Open,
   onL2OpenChange,
   viewMode = false,
+  layout = "workbench",
+  supplierName,
 }: IngredientFormFieldsProps) {
   const [l1Open, setL1Open] = useState(false);
   const unitOptions = useMemo(
@@ -100,7 +111,12 @@ export function IngredientFormFields({
 
   const isSeasoning =
     mode === "seasoning" || (mode === "auto" && selectedL2?.parentCode === "SEA");
-  const aliasLabel = "商品名称";
+  const aliasLabel = mode === "ingredient" ? "品牌名称" : "商品名称";
+  const hidePlaceholderOnFocus = mode === "ingredient";
+
+  const selectedL1 = filteredCategories.find(
+    (category) => category.code === form.l1Code
+  );
 
   const l1Options = useMemo(
     () => filteredCategories.map((c) => ({ value: c.code, label: c.name })),
@@ -122,6 +138,281 @@ export function IngredientFormFields({
       ? jinFactors[form.purchaseUnit]
       : null;
   const convertible = jinPerUnit != null || weightJinPerUnit != null;
+
+  if (mode === "ingredient") {
+    const groupCols = layout === "sheet" ? 3 : 1;
+
+    return (
+      <div className="space-y-4">
+        <FormSection cols={1}>
+          <FormField
+            label="食材名称"
+            required
+            readOnly={viewMode}
+            error={errors.name}
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={form.name} emphasis />
+            ) : (
+              <IngredientFieldInput
+                value={form.name}
+                onChange={(event) => onChange("name", event.target.value)}
+                placeholder="如 带皮五花肉"
+                className="h-11 text-base px-4"
+                hidePlaceholderOnFocus={hidePlaceholderOnFocus}
+              />
+            )}
+          </FormField>
+        </FormSection>
+
+        <FormLayout variant={layout}>
+          <FormSection title="基础信息" cols={groupCols} className="h-full">
+            <FormField
+              label="一级分类"
+              required
+              readOnly={viewMode}
+              error={errors.l1Code}
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={selectedL1?.name} />
+              ) : (
+                <SelectTileMode
+                  options={l1Options}
+                  value={form.l1Code}
+                  onChange={(value) => {
+                    onChange("l1Code", value);
+                    onChange("l2Code", "");
+                    setL1Open(false);
+                    onL2OpenChange(true);
+                  }}
+                  placeholder="请选择"
+                  title="选择一级分类"
+                  searchable={false}
+                  required
+                  open={l1Open}
+                  onOpenChange={setL1Open}
+                  cascade={{
+                    enabled: true,
+                    onLevelSelected: () => onL2OpenChange(true),
+                  }}
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="二级分类"
+              required
+              readOnly={viewMode}
+              error={errors.l2Code}
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={selectedL2?.name} />
+              ) : (
+                <SelectTileMode
+                  options={l2Options}
+                  value={form.l2Code}
+                  onChange={(value) => {
+                    onChange("l2Code", value);
+                    onL2OpenChange(false);
+                  }}
+                  placeholder="请选择"
+                  title="选择二级分类"
+                  open={l2Open}
+                  onOpenChange={onL2OpenChange}
+                  disabled={!form.l1Code}
+                  searchable={false}
+                  required
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="品牌名称"
+              readOnly={viewMode}
+              error={errors.alias}
+              hint="采购包装或标签上的品牌名称，用于采购识别与检索"
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={form.alias} />
+              ) : (
+                <IngredientFieldInput
+                  value={form.alias}
+                  onChange={(event) => onChange("alias", event.target.value)}
+                  placeholder="如 双汇"
+                  className="h-11 text-base px-4"
+                  hidePlaceholderOnFocus={hidePlaceholderOnFocus}
+                />
+              )}
+            </FormField>
+          </FormSection>
+
+          <FormSection title="采购与计量" cols={groupCols} className="h-full">
+            <FormField
+              label="采购规格"
+              required
+              readOnly={viewMode}
+              optionalHint={false}
+              error={errors.purchaseSpec}
+              hint={
+                jinPerUnit != null
+                  ? `可自动换算：1${form.purchaseUnit || "个采购单位"} ≈ ${jinPerUnit} 斤`
+                  : weightJinPerUnit != null
+                    ? `按重直采：1${form.purchaseUnit} = ${weightJinPerUnit} 斤，按参照单价直接换算每斤单价`
+                    : "当前规格无法换算为重量，每斤单价需手动填写"
+              }
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={form.purchaseSpec} />
+              ) : (
+                <IngredientFieldInput
+                  value={form.purchaseSpec}
+                  onChange={(event) =>
+                    onChange("purchaseSpec", event.target.value)
+                  }
+                  placeholder="如 1千克*10袋、5斤/袋、散装称斤"
+                  className="h-11 text-base px-4"
+                  hidePlaceholderOnFocus={hidePlaceholderOnFocus}
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="采购单位"
+              required
+              readOnly={viewMode}
+              error={errors.purchaseUnit}
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={form.purchaseUnit} />
+              ) : (
+                <SelectTileMode
+                  options={unitOptions}
+                  value={form.purchaseUnit}
+                  onChange={(value) => onChange("purchaseUnit", value)}
+                  placeholder="选择采购单位"
+                  title="选择采购单位"
+                  searchable={false}
+                  cols={3}
+                  required
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="入库单位"
+              required
+              readOnly={viewMode}
+              error={errors.stockUnit}
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={form.stockUnit} />
+              ) : (
+                <SelectTileMode
+                  options={unitOptions}
+                  value={form.stockUnit}
+                  onChange={(value) => onChange("stockUnit", value)}
+                  placeholder="选择入库单位"
+                  title="选择入库单位"
+                  searchable={false}
+                  cols={3}
+                  required
+                />
+              )}
+            </FormField>
+          </FormSection>
+
+          <FormSection title="价格与供应商" cols={groupCols} className="h-full">
+            <FormField
+              label="最新参照单价"
+              readOnly={viewMode}
+              optionalHint={false}
+              error={errors.latestRefPrice}
+            >
+              {viewMode ? (
+                <ReadOnlyValue
+                  value={form.latestRefPrice}
+                  numeric
+                />
+              ) : (
+                <IngredientFieldInput
+                  numeric
+                  step="0.01"
+                  value={form.latestRefPrice}
+                  onChange={(event) =>
+                    onChange("latestRefPrice", event.target.value)
+                  }
+                  placeholder="可选"
+                  className="h-11 text-base px-4"
+                  hidePlaceholderOnFocus={hidePlaceholderOnFocus}
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="每斤单价（元/斤）"
+              readOnly={viewMode}
+              optionalHint={false}
+              error={errors.pricePerJin}
+              hint={
+                convertible
+                  ? "= 最新参照单价 ÷ 每采购单位斤数；手动修改后不再自动覆盖"
+                  : "建议格式：5斤/袋、1千克*10袋（含重量单位才可自动换算），或采购单位直接用斤/公斤"
+              }
+            >
+              {viewMode ? (
+                <ReadOnlyValue
+                  value={form.pricePerJin}
+                  numeric
+                  emphasis
+                />
+              ) : (
+                <IngredientFieldInput
+                  numeric
+                  step="0.0001"
+                  value={form.pricePerJin}
+                  onChange={(event) =>
+                    onChange("pricePerJin", event.target.value)
+                  }
+                  placeholder={
+                    convertible
+                      ? "按采购规格自动计算，可手动修改"
+                      : "规格无法换算，请手动填写"
+                  }
+                  className="h-11 text-base px-4"
+                  hidePlaceholderOnFocus={hidePlaceholderOnFocus}
+                />
+              )}
+            </FormField>
+
+            <FormField
+              label="供应商名称"
+              readOnly={viewMode}
+              hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={supplierName} />
+              ) : (
+                <SupplierSelect
+                  value={
+                    form.defaultSupplierId
+                      ? Number(form.defaultSupplierId)
+                      : ""
+                  }
+                  onChange={(value) =>
+                    onChange(
+                      "defaultSupplierId",
+                      value === "" ? "" : String(value)
+                    )
+                  }
+                  placeholder="不设置默认供应商"
+                />
+              )}
+            </FormField>
+          </FormSection>
+        </FormLayout>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -181,7 +472,7 @@ export function IngredientFormFields({
           )}
         </FormField>
         <FormField label="食材名称" required error={errors.name}>
-          <Input
+          <IngredientFieldInput
             value={form.name}
             onChange={(e) => onChange("name", e.target.value)}
             placeholder="如 带皮五花肉"
@@ -190,7 +481,7 @@ export function IngredientFormFields({
           />
         </FormField>
         <FormField label={aliasLabel} required={isSeasoning} error={errors.alias}>
-          <Input
+          <IngredientFieldInput
             value={form.alias}
             onChange={(e) => onChange("alias", e.target.value)}
             placeholder={isSeasoning ? "如 海天金标生抽" : "如 五花肉"}
@@ -214,7 +505,7 @@ export function IngredientFormFields({
                 : "当前规格无法换算为重量，每斤单价需手动填写"
           }
         >
-          <Input
+          <IngredientFieldInput
             value={form.purchaseSpec}
             onChange={(e) => onChange("purchaseSpec", e.target.value)}
             placeholder="如 1千克*10袋、5斤/袋、散装称斤"
@@ -258,8 +549,6 @@ export function IngredientFormFields({
             />
           )}
         </FormField>
-        {/* 入库数量仅调料使用：标准化采购按箱/件入库需知道每采购单位的入库数量；原料散称恒为 1 */}
-        {mode !== "ingredient" && (
         <FormField
           label="入库数量"
           required
@@ -267,8 +556,8 @@ export function IngredientFormFields({
           error={errors.unitsPerPurchase}
           hint="每 1 个采购单位对应的入库数量，如 200g/袋*10袋 填 10；散称填 1"
         >
-          <Input
-            type="number"
+          <IngredientFieldInput
+            numeric
             min={1}
             step="1"
             value={form.unitsPerPurchase}
@@ -278,14 +567,13 @@ export function IngredientFormFields({
             disabled={viewMode}
           />
         </FormField>
-        )}
         <FormField
           label="最新参照单价"
           optionalHint={false}
           error={errors.latestRefPrice}
         >
-          <Input
-            type="number"
+          <IngredientFieldInput
+            numeric
             step="0.01"
             value={form.latestRefPrice}
             onChange={(e) => onChange("latestRefPrice", e.target.value)}
@@ -304,8 +592,8 @@ export function IngredientFormFields({
               : "建议格式：5斤/袋、1千克*10袋（含重量单位才可自动换算），或采购单位直接用斤/公斤"
           }
         >
-          <Input
-            type="number"
+          <IngredientFieldInput
+            numeric
             step="0.0001"
             value={form.pricePerJin}
             onChange={(e) => onChange("pricePerJin", e.target.value)}

@@ -1,22 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import {
   NetIngredientFormFields,
-  NetIngredientFormData,
   CategoryL1,
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
-import { toast } from "sonner";
+import { useNetIngredientForm } from "@/app/components/ingredients/use-net-ingredient-form";
 
 export type NetIngredientEditItem = {
   id: number;
@@ -26,7 +24,7 @@ export type NetIngredientEditItem = {
   packageSize: string | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
-  unitPrice: number;
+  unitPrice: number | null;
   grossMarginRate: number | null;
   sourceIngredientId: number | null;
   l2Code: string;
@@ -55,153 +53,30 @@ export function NetIngredientEditDialog({
   onSuccess,
 }: NetIngredientEditDialogProps) {
   const isMinor = mode === "minor";
-
-  const [form, setForm] = useState<NetIngredientFormData>({
-    name: "",
-    l1Code: isMinor ? "MIN" : "",
-    l2Code: "",
-    sourceIngredientId: "",
-    packageSpec: "",
-    packageMaterial: "密封袋",
-    packageSize: "50cm×40cm",
-    processingFeePerJin: "",
-    yieldRate: "",
-    unitPrice: "",
-    grossMarginRate: "",
-  });
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-
-  const findParentL1 = useCallback(
-    (l2Code?: string) => {
-      if (!l2Code) return undefined;
-      return categories.find((cat) =>
-        cat.children.some((child) => child.code === l2Code)
-      );
-    },
-    [categories]
-  );
-
-  /* eslint-disable react-hooks/set-state-in-effect */
-  useEffect(() => {
-    if (!open || !initialData) return;
-    const parentL1 = findParentL1(initialData.l2Code);
-    setForm({
-      name: initialData.name || "",
-      l1Code: isMinor ? "MIN" : parentL1?.code || "",
-      l2Code: initialData.l2Code || "",
-      sourceIngredientId: initialData.sourceIngredientId
-        ? String(initialData.sourceIngredientId)
-        : "",
-      packageSpec: initialData.packageSpec != null ? String(initialData.packageSpec) : "",
-      packageMaterial: initialData.packageMaterial || "",
-      packageSize: initialData.packageSize || "",
-      processingFeePerJin:
-        initialData.processingFeePerJin != null ? String(initialData.processingFeePerJin) : "",
-      yieldRate: initialData.yieldRate != null ? String(initialData.yieldRate) : "",
-      unitPrice: String(initialData.unitPrice),
-      grossMarginRate:
-        initialData.grossMarginRate != null ? String(initialData.grossMarginRate) : "",
-    });
-    setErrors({});
-  }, [open, initialData, findParentL1, isMinor]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  const handleChange = (field: keyof NetIngredientFormData, value: string) => {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === "l1Code" && !isMinor) {
-        next.l2Code = "";
-      }
-      return next;
-    });
-
-    if (errors[field]) {
-      setErrors((prev) => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const validate = () => {
-    const next: Record<string, string> = {};
-    if (!form.name.trim()) next.name = `${isMinor ? "小料" : "净料"}名称不能为空`;
-    if (!form.l2Code) next.l2Code = "请选择二级分类";
-    if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
-
-    const yieldRate = Number(form.yieldRate);
-    if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
-      next.yieldRate = "出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）";
-    }
-    // 包装规格（g）必填
-    const pkg = Number(form.packageSpec);
-    if (!form.packageSpec || !Number.isInteger(pkg) || pkg < 1) {
-      next.packageSpec = "请填写有效的包装规格（g）";
-    }
-    if (form.processingFeePerJin && Number(form.processingFeePerJin) < 0) {
-      next.processingFeePerJin = "封装加工费不能为负数";
-    }
-
-    if (
-      form.grossMarginRate !== "" &&
-      (Number.isNaN(Number(form.grossMarginRate)) ||
-        Number(form.grossMarginRate) < 0 ||
-        Number(form.grossMarginRate) >= 100)
-    ) {
-      next.grossMarginRate = "毛利率必须在 0-95 之间，留空 = 0";
-    }
-
-    if (form.unitPrice === "" || Number(form.unitPrice) < 0) {
-      next.unitPrice = "请输入有效的单价";
-    }
-    setErrors(next);
-    return Object.keys(next).length === 0;
-  };
-
-  const handleSubmit = async () => {
-    if (!validate() || !initialData) return;
-
-    setSubmitting(true);
-    try {
-      const payload: Record<string, unknown> = {
-        name: form.name.trim(),
-        unitPrice: Number(form.unitPrice),
-        l2Code: form.l2Code,
-        sourceIngredientId: Number(form.sourceIngredientId),
-        yieldRate: Number(form.yieldRate),
-        packageSpec: Number(form.packageSpec),
-        packageMaterial: form.packageMaterial.trim() || null,
-        packageSize: form.packageSize.trim() || null,
-        processingFeePerJin: form.processingFeePerJin
-          ? Number(form.processingFeePerJin)
-          : null,
-        grossMarginRate: form.grossMarginRate !== "" ? Number(form.grossMarginRate) : null,
-        autoCalculate: false,
-      };
-
-      const res = await fetch(`/api/net-ingredients/${initialData.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        toast.error(data.error || "更新失败");
-        return;
-      }
-
-      toast.success("更新成功");
+  const {
+    form,
+    errors,
+    submitting,
+    handleChange,
+    submit,
+  } = useNetIngredientForm({
+    active: open && initialData !== null,
+    initialData,
+    categories,
+    rawIngredients,
+    mode,
+    onSaved: () => {
       onOpenChange(false);
       onSuccess?.();
-    } catch {
-      toast.error("更新出错");
-    } finally {
-      setSubmitting(false);
-    }
-  };
+    },
+  });
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+    <FormDialog open={open} onOpenChange={onOpenChange}>
+      <AppDialogContent
+        size="wide"
+        className="[&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
+      >
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
             {view ? `查看${isMinor ? "小料" : "净料"}` : isMinor ? "编辑小料" : "编辑净料"}
@@ -246,7 +121,9 @@ export function NetIngredientEditDialog({
                 取消
               </Button>
               <Button
-                onClick={handleSubmit}
+                onClick={() => {
+                  void submit();
+                }}
                 disabled={submitting}
                 className="h-11 px-6"
               >
@@ -260,7 +137,7 @@ export function NetIngredientEditDialog({
             </>
           )}
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </AppDialogContent>
+    </FormDialog>
   );
 }

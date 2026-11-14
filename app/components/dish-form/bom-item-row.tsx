@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { BomItem, BomType, calcCost, formatCost } from "./types";

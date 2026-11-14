@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -35,6 +35,7 @@ import { Pagination } from "@/app/components/ui/pagination";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { toast } from "sonner";
+import { formatUnitValue } from "@/lib/shared/display-format";
 
 type Unit = {
   id: number;
@@ -294,7 +295,7 @@ export default function UnitsPage() {
                       <TableHead className="w-[60px]">序号</TableHead>
                       <TableHead>名称</TableHead>
                       <TableHead>分类</TableHead>
-                      <TableHead>换算（克/单位）</TableHead>
+                      <TableHead>换算值</TableHead>
                       <TableHead>状态</TableHead>
                       <TableHead className="w-[160px] text-right">操作</TableHead>
                     </TableRow>
@@ -321,7 +322,12 @@ export default function UnitsPage() {
                           <TableCell className="text-muted-foreground">
                             {row.category === "weight"
                               ? row.gramsPerUnit != null
-                                ? `${Number(row.gramsPerUnit)} g`
+                                ? formatUnitValue(
+                                    row.gramsPerUnit,
+                                    "g/单位",
+                                    "未设置",
+                                    " "
+                                  )
                                 : "未设置"
                               : "—"}
                           </TableCell>

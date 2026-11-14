@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, CircleAlert } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/app/components/ui/logo";
 import { cn } from "@/lib/shared/utils";

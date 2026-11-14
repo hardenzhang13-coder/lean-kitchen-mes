@@ -3,7 +3,7 @@
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 
 interface LoadingStateProps {
-  type?: "table" | "card-grid" | "page" | "inline";
+  type?: "table" | "list" | "card-grid" | "page" | "inline";
   rows?: number;
   cols?: number;
   cardCount?: number;
@@ -19,6 +19,19 @@ export function LoadingState({
 }: LoadingStateProps) {
   if (type === "table") {
     return <SkeletonTable rows={rows} cols={cols} className={className} />;
+  }
+
+  if (type === "list") {
+    return (
+      <div className={`space-y-3 ${className || ""}`} aria-busy="true" aria-label="正在加载">
+        {Array.from({ length: rows }).map((_, index) => (
+          <div
+            key={index}
+            className="h-24 animate-pulse rounded-lg border bg-card"
+          />
+        ))}
+      </div>
+    );
   }
 
   if (type === "card-grid") {

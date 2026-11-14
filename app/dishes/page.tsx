@@ -27,6 +27,7 @@ import { DishDetail, calcGrossMarginPercent } from "@/app/components/dish-form/t
 import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/shared/display-format";
 
 const techniqueOptions = [
   { value: "爆炒", label: "爆炒" },
@@ -57,8 +58,7 @@ const portionOptions = [
 
 const formatDateTime = (dateStr: string | Date | null | undefined) => {
   if (!dateStr) return "—";
-  const d = new Date(dateStr);
-  return d.toLocaleString("zh-CN", {
+  return new Date(dateStr).toLocaleString("zh-CN", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -312,7 +312,7 @@ export default function DishesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
+    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <PageHeader title="菜品库" description="管理所有菜品及其 BOM 与工艺" />
         <Button onClick={() => router.push("/dishes/new")}>
@@ -321,8 +321,8 @@ export default function DishesPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -368,16 +368,19 @@ export default function DishesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
           {loading ? (
-            <SkeletonTable cols={10} rows={10} />
+            <SkeletonTable cols={11} rows={10} />
           ) : (
             <DataTable<DishDetail>
               data={dishes}
               onRowClick={openSheet}
+              fillHeight
+              tableClassName="table-fixed"
               columns={[
                 {
                   header: "序号",
+                  className: "w-[48px]",
                   cell: (_, rowIdx) => (
                     <span className="text-muted-foreground">
                       {(page - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}
@@ -386,47 +389,52 @@ export default function DishesPage() {
                 },
                 {
                   header: "编号",
+                  className: "w-[85px] truncate",
                   cell: (row) => <span className="font-medium">{row.code}</span>,
                 },
                 {
                   header: "菜品名称",
+                  className: "w-[160px] truncate",
                   cell: (row) => <span className="font-medium">{row.name}</span>,
                 },
                 {
                   header: "份量",
+                  className: "w-[100px]",
                   cell: (row) => <PortionBadge portion={row.portion} />,
                 },
                 {
                   header: "类别",
+                  className: "w-[90px] truncate",
                   cell: (row) => (
                     <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
                   ),
                 },
                 {
                   header: "荤素",
+                  className: "w-[70px]",
                   cell: (row) => <MeatTypeBadge type={row.meatType} />,
                 },
                 {
                   header: "成本价",
-                  className: "text-right",
+                  className: "w-[80px] text-right",
                   cell: (row) => (
                     <span className="font-medium">
-                      {row.cost != null ? `¥${Number(row.cost).toFixed(2)}` : "—"}
+                      {formatMoney(row.cost, "份")}
                     </span>
                   ),
                 },
                 {
                   header: "售价",
-                  className: "text-right",
+                  className: "w-[80px] text-right",
                   cell: (row) => (
                     <span className="font-medium">
-                      {row.price != null ? `¥${Number(row.price).toFixed(2)}` : "—"}
+                      {formatMoney(row.price, "份")}
                     </span>
                   ),
                 },
                 {
                   header: "毛利率",
-                  className: "text-right",
+                  className: "w-[80px] text-right",
                   cell: (row) => {
                     const margin = calcGrossMarginPercent(row.cost, row.price);
                     return (
@@ -438,12 +446,14 @@ export default function DishesPage() {
                 },
                 {
                   header: "状态",
+                  className: "w-[80px]",
                   cell: (row) => (
                     <StatusBadge status={row.status === "published" ? "已发布" : "草稿"} />
                   ),
                 },
                 {
                   header: "创建时间",
+                  className: "w-[110px] truncate",
                   cell: (row) => (
                     <span className="text-muted-foreground">
                       {formatDateTime(row.createdAt)}
@@ -456,6 +466,7 @@ export default function DishesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`查看菜品 ${row.name}`}
                     title="查看"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -468,6 +479,7 @@ export default function DishesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`转化菜品 ${row.name}`}
                       title="菜品转化"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -481,6 +493,7 @@ export default function DishesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`编辑菜品 ${row.name}`}
                     title="编辑"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -493,6 +506,7 @@ export default function DishesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
+                      aria-label={`删除菜品 ${row.name}`}
                       title="删除"
                       onClick={(e) => {
                         e.stopPropagation();

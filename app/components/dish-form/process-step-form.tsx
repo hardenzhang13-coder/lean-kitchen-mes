@@ -1,8 +1,8 @@
 "use client";
 
 import { X, GripVertical } from "lucide-react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/app/components/ui/form-controls";
+import { Textarea } from "@/app/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";

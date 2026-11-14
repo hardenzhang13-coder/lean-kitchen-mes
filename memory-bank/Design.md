@@ -1,5 +1,7 @@
 # 精益厨房 V3 — 设计规范
 
+> **历史文档（2026-11-14 起）**：当前执行标准已迁移至 [`docs/interaction-visual-baseline-v1.md`](../docs/interaction-visual-baseline-v1.md)。本文仅保留设计演进背景，不再作为页面、组件或交互实现依据；若内容冲突，以交互视觉基线 v1 为准。
+
 > 页面布局及侧边栏为自定制项。UI 组件体系基于 **shadcn/ui v4 + Tailwind CSS v4**，全局颜色/圆角/高度/字体/微交互动画已标准化。组件层使用自建通用组件（DataTable/FormField/EmptyState/LoadingState/SelectDialog 等）。
 >
 > 版本：v2.0 | 2026.06.19

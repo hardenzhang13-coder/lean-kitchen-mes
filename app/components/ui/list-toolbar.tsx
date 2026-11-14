@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { RotateCcw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input } from "@/app/components/ui/form-controls";
 
 // 列表页表头标准工具栏：搜索框 + 筛选项 + 重置按钮。
 // 用法：放在 Card > CardHeader.pb-3 内；其余筛选控件（Select/DatePicker/Tabs 等）作为 children 传入。

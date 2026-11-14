@@ -17,6 +17,7 @@ import {
   NetIngredientEditItem,
 } from "@/app/components/ingredients/net-ingredient-edit-dialog";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/shared/display-format";
 
 type IngredientDetail = {
   id: number;
@@ -230,7 +231,7 @@ export default function RawIngredientDetailPage() {
                 { header: "出成率", cell: (row) => `${row.yieldRate}%` },
                 {
                   header: "净料单价",
-                  cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
+                  cell: (row) => formatMoney(row.unitPrice, "斤"),
                 },
                 { header: "单位", accessorKey: "unit" },
               ]}

@@ -56,7 +56,7 @@ export function StatusBadge({ status, variant, size = "default", className }: St
     <span
       className={cn(
         "inline-flex items-center rounded-md font-medium whitespace-nowrap",
-        size === "sm" ? "px-1.5 py-0.5 text-[10px]" : "px-2 py-0.5 text-xs",
+        size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs",
         variantStyles[resolved],
         className
       )}

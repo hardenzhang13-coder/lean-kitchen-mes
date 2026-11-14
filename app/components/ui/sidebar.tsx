@@ -45,7 +45,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
         <div className="flex h-10 w-10 items-center justify-center transition-all hover:brightness-105">
           <Logo className="h-10 w-10" />
         </div>
-        <span className="text-[10px] font-medium text-muted-foreground tracking-tight">精益厨房</span>
+        <span className="text-xs font-medium tracking-tight text-muted-foreground">精益厨房</span>
       </div>
 
       <nav className="flex flex-1 flex-col gap-2">
@@ -92,7 +92,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
             {user?.name || user?.username || "用户"}
           </span>
           {user?.role && (
-            <Badge className="text-[10px] px-1.5 py-0 h-4 rounded-full font-medium bg-primary/10 text-primary border-0">
+            <Badge className="h-5 rounded-full border-0 bg-primary/10 px-1.5 text-xs font-medium text-primary">
               {user.role}
             </Badge>
           )}

@@ -240,7 +240,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unitPrice,
       unit,
       costPrice,
-      cost: d.cost != null ? Number(d.cost) : calcCost(type, costPrice, d.amountG),
+      cost: calcCost(type, costPrice, d.amountG),
     };
     if (d.role === "support") bom.support.push(item);
     else bom.main.push(item);
@@ -262,7 +262,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unitPrice,
       unit,
       costPrice,
-      cost: d.cost != null ? Number(d.cost) : calcCost("minor", costPrice, d.amountG),
+      cost: calcCost("minor", costPrice, d.amountG),
     });
   });
 
@@ -282,7 +282,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unitPrice,
       unit,
       costPrice,
-      cost: d.cost != null ? Number(d.cost) : calcCost("seasoning", costPrice, d.amountG),
+      cost: calcCost("seasoning", costPrice, d.amountG),
     });
   });
 
@@ -300,7 +300,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unitPrice: 0,
       unit: "斤",
       costPrice,
-      cost: d.cost != null ? Number(d.cost) : calcCost("sauce", costPrice, d.amountG),
+      cost: calcCost("sauce", costPrice, d.amountG),
     });
   });
 

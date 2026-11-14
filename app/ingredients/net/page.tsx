@@ -1,31 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Eye } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Plus, Pencil, Trash2, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
 } from "@/app/components/ingredients/net-ingredient-form-dialog";
+import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import {
-  NetIngredientEditDialog,
-  NetIngredientEditItem,
-} from "@/app/components/ingredients/net-ingredient-edit-dialog";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+  NetLabelPrintDialog,
+  NetLabelTarget,
+} from "@/app/components/ingredients/net-label-print-dialog";
+import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
+import { formatMoney, formatPercent } from "@/lib/shared/display-format";
 
 type NetIngredient = {
   id: number;
@@ -38,7 +39,7 @@ type NetIngredient = {
   packageSize: string | null;
   processingFeePerJin: number | null;
   yieldRate: number | null;
-  unitPrice: number;
+  unitPrice: number | null;
   grossMarginRate: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
@@ -65,6 +66,10 @@ type RawIngredientOption = {
   pricePerJin?: number | null;
 };
 
+function EmptyValue() {
+  return <span className="text-muted-foreground">—</span>;
+}
+
 export default function NetIngredientsPage() {
   const [data, setData] = useState<NetIngredient[]>([]);
   const [rawIngredients, setRawIngredients] = useState<RawIngredientOption[]>(
@@ -75,41 +80,67 @@ export default function NetIngredientsPage() {
   const [search, setSearch] = useState("");
   const [l1Filter, setL1Filter] = useState("");
   const [l2Filter, setL2Filter] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pagination, setPagination] = useState<{
+    totalItems: number;
+    totalPages: number;
+  } | null>(null);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<NetIngredientEditItem | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [viewing, setViewing] = useState<NetIngredientEditItem | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
+  const [labelTarget, setLabelTarget] = useState<NetLabelTarget | null>(null);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchMeta = async () => {
     try {
-      const [netRes, rawRes, catRes] = await Promise.all([
-        fetch("/api/net-ingredients?excludeMinor=true&page=1&pageSize=100"),
+      const [rawRes, catRes] = await Promise.all([
         fetch("/api/ingredients?kind=raw&page=1&pageSize=100"),
         fetch("/api/ingredient-categories?page=1&pageSize=100"),
       ]);
-      const netJson = await netRes.json();
-      setData(netJson.data || []);
       const rawJson = await rawRes.json();
       setRawIngredients(rawJson.data || []);
       const catJson = await catRes.json();
       setCategories(Array.isArray(catJson) ? catJson : catJson.data || []);
     } catch {
+      toast.error("获取筛选数据失败");
+    }
+  };
+
+  const fetchIngredients = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        excludeMinor: "true",
+        page: String(page),
+        pageSize: String(pageSize),
+      });
+      if (search.trim()) params.set("q", search.trim());
+      if (l1Filter) params.set("l1Code", l1Filter);
+      if (l2Filter) params.set("l2Code", l2Filter);
+      const netRes = await fetch(`/api/net-ingredients?${params.toString()}`);
+      const netJson = await netRes.json();
+      setData(netJson.data || []);
+      setPagination(netJson.pagination || null);
+    } catch {
       toast.error("获取数据失败");
     } finally {
       setLoading(false);
     }
-  };
+  }, [l1Filter, l2Filter, page, pageSize, search]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    fetchData();
+    fetchMeta();
   }, []);
+  useEffect(() => {
+    const timer = setTimeout(fetchIngredients, 300);
+    return () => clearTimeout(timer);
+  }, [fetchIngredients]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const l2Map = useMemo(() => {
@@ -122,66 +153,37 @@ export default function NetIngredientsPage() {
     return map;
   }, [categories]);
 
-  const filtered = useMemo(() => {
-    return data.filter((d) => {
-      if (l1Filter) {
-        const parentCode = l2Map[d.l2Code]?.parentCode;
-        if (parentCode !== l1Filter) return false;
-      }
-      if (l2Filter && d.l2Code !== l2Filter) return false;
-      if (!search.trim()) return true;
-      const s = search.trim().toLowerCase();
-      return (
-        d.name.toLowerCase().includes(s) ||
-        d.code.toLowerCase().includes(s) ||
-        (d.sourceIngredient?.name || "").toLowerCase().includes(s)
-      );
+  const l1Map = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((l1) => {
+      map[l1.code] = l1.name;
     });
-  }, [data, search, l1Filter, l2Filter, l2Map]);
+    return map;
+  }, [categories]);
 
-  // 一级分类变化时在渲染期清空二级筛选（prev-props 派生范式，避免 effect 内同步 setState）
-  const [prevL1, setPrevL1] = useState(l1Filter);
-  if (prevL1 !== l1Filter) {
-    setPrevL1(l1Filter);
-    setL2Filter("");
-  }
-
-  const {
-    currentPage,
-    setCurrentPage,
-    pageItems,
-    totalPages,
-    totalItems,
-    pageSize,
-    setPageSize,
-  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+  const l2FilterOptions = useMemo(() => {
+    if (!l1Filter) return [];
+    const l1 = categories.find((category) => category.code === l1Filter);
+    return (l1?.children || []).map((category) => ({
+      value: category.code,
+      label: category.name,
+    }));
+  }, [categories, l1Filter]);
 
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
 
-  const buildEditItem = (row: NetIngredient): NetIngredientEditItem => ({
-    id: row.id,
-    name: row.name,
-    packageSpec: row.packageSpec,
-    packageMaterial: row.packageMaterial,
-    packageSize: row.packageSize,
-    processingFeePerJin: row.processingFeePerJin,
-    yieldRate: row.yieldRate,
-    unitPrice: row.unitPrice,
-    grossMarginRate: row.grossMarginRate,
-    sourceIngredientId: row.sourceIngredientId,
-    l2Code: row.l2Code,
-  });
-
   const openEdit = (row: NetIngredient) => {
-    setEditing(buildEditItem(row));
-    setEditDialogOpen(true);
+    setDetailId(row.id);
+    setDetailStartInEditMode(true);
+    setDetailOpen(true);
   };
 
   const openView = (row: NetIngredient) => {
-    setViewing(buildEditItem(row));
-    setViewDialogOpen(true);
+    setDetailId(row.id);
+    setDetailStartInEditMode(false);
+    setDetailOpen(true);
   };
 
   const handleDelete = async () => {
@@ -197,7 +199,7 @@ export default function NetIngredientsPage() {
       }
       toast.success("删除成功");
       setDeleteRow(null);
-      fetchData();
+      fetchIngredients();
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "删除失败";
       toast.error(message);
@@ -207,7 +209,7 @@ export default function NetIngredientsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
+    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
       <div className="flex items-center justify-between">
         <PageHeader
           showBack
@@ -220,188 +222,235 @@ export default function NetIngredientsPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
               setSearch(v);
-              setCurrentPage(1);
+              setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称或来源原料..."
+            searchPlaceholder="搜索编号或名称..."
             onReset={() => {
               setSearch("");
               setL1Filter("");
               setL2Filter("");
-              setCurrentPage(1);
+              setPage(1);
             }}
             hasFilters={!!(l1Filter || l2Filter)}
           >
-            <SelectTileMode
-              options={categories.map((c) => ({ value: c.code, label: c.name }))}
-              value={l1Filter}
-              onChange={(v) => {
-                setL1Filter(v);
-                setL2Filter("");
-                setCurrentPage(1);
-              }}
-              placeholder="全部一级分类"
-              title="选择一级分类"
-              searchable={false}
-              className="w-[180px]"
-            />
-            <SelectTileMode
-              options={
-                l1Filter
-                  ? (categories.find((c) => c.code === l1Filter)?.children || []).map((c) => ({
-                      value: c.code,
-                      label: c.name,
-                    }))
-                  : categories.flatMap((c) => c.children.map((l2) => ({ value: l2.code, label: l2.name })))
-              }
-              value={l2Filter}
-              onChange={(v) => {
-                setL2Filter(v);
-                setCurrentPage(1);
-              }}
-              placeholder="全部二级分类"
-              title="选择二级分类"
-              searchable={false}
-              disabled={!l1Filter}
-              className="w-[180px]"
-            />
+            <div className="grid grid-cols-2 gap-3 w-[320px]">
+              <SelectTileMode
+                options={categories
+                  // 净料清单不混入小料转化分类与调料分类
+                  .filter((c) => c.code !== "MIN" && c.code !== "SEA")
+                  .map((c) => ({ value: c.code, label: c.name }))}
+                value={l1Filter}
+                onChange={(v) => {
+                  setL1Filter(v);
+                  setL2Filter("");
+                  setPage(1);
+                }}
+                placeholder="全部一级分类"
+                title="选择一级分类"
+                searchable={false}
+              />
+              <SelectTileMode
+                options={l2FilterOptions}
+                value={l2Filter}
+                onChange={(v) => {
+                  setL2Filter(v);
+                  setPage(1);
+                }}
+                placeholder="全部二级分类"
+                title="选择二级分类"
+                searchable={false}
+                disabled={!l1Filter}
+              />
+            </div>
           </ListToolbar>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {loading ? (
-            <SkeletonTable cols={13} rows={20} />
-          ) : (
-            <DataTable<NetIngredient>
-              data={pageItems}
-              loading={loading}
-              columns={[
-                {
-                  header: "序号",
-                  cell: (_, rowIdx) => (
-                    <span className="text-muted-foreground">
-                      {(currentPage - 1) * pageSize + rowIdx + 1}
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<NetIngredient>
+            data={data}
+            loading={loading}
+            onRowClick={openView}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(page - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[85px]",
+                cell: (row) => (
+                  <span className="font-medium">{row.code}</span>
+                ),
+              },
+              {
+                header: "名称",
+                className: "w-[180px]",
+                cell: (row) => (
+                  <span className="font-semibold text-primary">
+                    {row.name}
+                  </span>
+                ),
+              },
+              {
+                header: "一级分类",
+                className: "w-[90px]",
+                cell: (row) => {
+                  const l2Info = l2Map[row.l2Code];
+                  return l2Info ? (
+                    l1Map[l2Info.parentCode] || <EmptyValue />
+                  ) : (
+                    <EmptyValue />
+                  );
+                },
+              },
+              {
+                header: "二级分类",
+                className: "w-[90px]",
+                cell: (row) => {
+                  const l2Info = l2Map[row.l2Code];
+                  return (
+                    <CategoryTag
+                      l2Code={row.l2Code}
+                      name={l2Info?.name || row.l2Code}
+                    />
+                  );
+                },
+              },
+              {
+                header: "来源原料",
+                className: "w-[130px]",
+                cell: (row) =>
+                  row.sourceIngredient?.name || <EmptyValue />,
+              },
+              {
+                header: "包装规格",
+                className: "w-[90px]",
+                cell: (row) =>
+                  row.packageSpec != null ? (
+                    <span className="tabular-nums">{row.packageSpec}g</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "出成率",
+                className: "w-[80px]",
+                cell: (row) =>
+                  row.yieldRate != null ? (
+                    <span className="tabular-nums">{row.yieldRate}%</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "净料单价",
+                className: "w-[125px]",
+                cell: (row) => (
+                  <span className="tabular-nums">
+                    {formatMoney(row.unitPrice, "斤")}
+                  </span>
+                ),
+              },
+              {
+                header: "毛利率",
+                className: "w-[80px]",
+                cell: (row) =>
+                  <span className="tabular-nums">
+                    {formatPercent(row.grossMarginRate)}
+                  </span>
+              },
+              {
+                header: "标准规格价",
+                className: "w-[115px]",
+                cell: (row) =>
+                  row.standardPackagePrice != null ? (
+                    <span className="font-semibold tabular-nums text-primary">
+                      {formatMoney(row.standardPackagePrice, "份")}
                     </span>
+                  ) : (
+                    <EmptyValue />
                   ),
-                },
-                {
-                  header: "二级分类",
-                  cell: (row) => {
-                    const l2Info = l2Map[row.l2Code];
-                    return (
-                      <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
-                    );
-                  },
-                },
-                {
-                  header: "编号",
-                  cell: (row) => (
-                    <span className="font-medium">{row.code}</span>
-                  ),
-                },
-                { header: "名称", accessorKey: "name" },
-                {
-                  header: "包装规格",
-                  cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—"),
-                },
-                {
-                  header: "包装物料",
-                  cell: (row) => row.packageMaterial || "—",
-                },
-                {
-                  header: "包装尺寸",
-                  cell: (row) => row.packageSize || "—",
-                },
-                {
-                  header: "来源原料",
-                  cell: (row) =>
-                    row.sourceIngredient?.name || row.sourceIngredientId || "—",
-                },
-                {
-                  header: "出成率",
-                  cell: (row) =>
-                    row.yieldRate != null ? `${row.yieldRate}%` : "—",
-                },
-                {
-                  header: "净料单价（元/斤）",
-                  cell: (row) => `¥${Number(row.unitPrice).toFixed(2)}`,
-                },
-                {
-                  header: "封装加工费",
-                  cell: (row) =>
-                    row.processingFeePerJin != null
-                      ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
-                      : "—",
-                },
-                {
-                  header: "毛利率",
-                  cell: (row) =>
-                    row.grossMarginRate != null ? `${row.grossMarginRate}%` : "—",
-                },
-                {
-                  header: "出库价（元/斤）",
-                  cell: (row) =>
-                    row.outPricePerJin != null ? (
-                      `¥${Number(row.outPricePerJin).toFixed(2)}`
-                    ) : (
-                      <span title="成本价 ÷ (1 - 毛利率/100)">—</span>
-                    ),
-                },
-                {
-                  header: "标准规格价",
-                  cell: (row) =>
-                    row.standardPackagePrice != null
-                      ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
-                      : "—",
-                },
-              ]}
-              pagination={
-                totalItems > 0
-                  ? {
-                      currentPage,
-                      totalPages,
-                      totalItems,
-                      pageSize,
-                      onPageChange: setCurrentPage,
-                      onPageSizeChange: setPageSize,
-                    }
-                  : undefined
-              }
-              emptyState={{ title: "暂无数据" }}
-              rowActions={(row) => (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="查看净料"
-                    onClick={() => openView(row)}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="编辑净料"
-                    onClick={() => openEdit(row)}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    title="删除净料"
-                    onClick={() => setDeleteRow(row)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </>
-              )}
-            />
-          )}
+              },
+            ]}
+            pagination={
+              pagination && pagination.totalItems > 0
+                ? {
+                    currentPage: page,
+                    totalPages: pagination.totalPages,
+                    totalItems: pagination.totalItems,
+                    pageSize,
+                    onPageChange: setPage,
+                    onPageSizeChange: (size) => {
+                      setPageSize(size);
+                      setPage(1);
+                    },
+                  }
+                : undefined
+            }
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`打印净料标签 ${row.name}`}
+                  title={
+                    row.packageSpec != null && row.packageSpec > 0
+                      ? "打印标签"
+                      : "缺少包装规格，无法打印标签"
+                  }
+                  disabled={row.packageSpec == null || row.packageSpec <= 0}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setLabelTarget({
+                      id: row.id,
+                      name: row.name,
+                      packageSpec: row.packageSpec,
+                    });
+                  }}
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑净料 ${row.name}`}
+                  title="编辑净料"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`删除净料 ${row.name}`}
+                  title="删除净料"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteRow(row);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            )}
+          />
         </CardContent>
       </Card>
 
@@ -413,33 +462,55 @@ export default function NetIngredientsPage() {
         rawIngredients={rawIngredients}
         onSuccess={() => {
           setCreateDialogOpen(false);
-          fetchData();
+          fetchIngredients();
         }}
       />
 
-      <NetIngredientEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        initialData={editing}
+      <IngredientDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        kind="net"
+        ingredientId={detailId}
         categories={categories}
         rawIngredients={rawIngredients}
-        onSuccess={fetchData}
+        inlineEdit
+        startInEditMode={detailStartInEditMode}
+        onUpdated={fetchIngredients}
+        onPrintLabel={(id) => {
+          const row = data.find((item) => item.id === id);
+          if (!row) return;
+          setDetailOpen(false);
+          setLabelTarget({
+            id: row.id,
+            name: row.name,
+            packageSpec: row.packageSpec,
+          });
+        }}
+        categoryName={
+          detailId
+            ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
+            : undefined
+        }
+        onDelete={(id) => {
+          const row = data.find((item) => item.id === id);
+          if (!row) return;
+          setDetailOpen(false);
+          setDeleteRow(row);
+        }}
       />
 
-      <NetIngredientEditDialog
-        open={viewDialogOpen}
-        onOpenChange={setViewDialogOpen}
-        view
-        initialData={viewing}
-        categories={categories}
-        rawIngredients={rawIngredients}
+      <NetLabelPrintDialog
+        target={labelTarget}
+        onOpenChange={(open) => {
+          if (!open) setLabelTarget(null);
+        }}
       />
 
       <Dialog
         open={deleteRow !== null}
         onOpenChange={() => setDeleteRow(null)}
       >
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -464,7 +535,7 @@ export default function NetIngredientsPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );
