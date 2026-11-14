@@ -7,7 +7,8 @@ WORKDIR /app
 ENV PRISMA_ENGINES_MIRROR="https://registry.npmmirror.com/-/binary/prisma"
 COPY package.json package-lock.json* ./
 # 大陆服务器走 npmmirror，npm ci 从 ~15min 降到 ~2min
-RUN npm ci --registry=https://registry.npmmirror.com
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --registry=https://registry.npmmirror.com
 
 # ---- 构建 ----
 FROM node:24-alpine AS builder
@@ -23,10 +24,16 @@ ENV DATABASE_URL="mysql://build:build@localhost:3306/build" \
     QWEN_MODEL="qwen-vl-max" \
     CLOUDINARY_CLOUD_NAME="build-placeholder" \
     CLOUDINARY_UPLOAD_PRESET="build-placeholder"
-RUN npm run build
+RUN --mount=type=cache,target=/app/.next/cache \
+    npm run build
 
-# ---- 数据库迁移/种子（含 prisma CLI 与完整依赖） ----
-FROM builder AS migrate
+# ---- 数据库迁移/种子（只安装依赖并生成 Prisma Client，不构建 Next.js） ----
+FROM deps AS migrate
+WORKDIR /app
+ENV DATABASE_URL="mysql://build:build@localhost:3306/build"
+COPY prisma.config.ts tsconfig.json ./
+COPY prisma ./prisma
+RUN npx prisma generate
 CMD ["sh", "-c", "npx prisma migrate deploy && npx prisma db seed"]
 
 # ---- 运行时（standalone，最小镜像） ----

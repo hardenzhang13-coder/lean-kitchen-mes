@@ -96,7 +96,7 @@ EOF
 docker compose up -d --build
 ```
 
-首次启动约 5-10 分钟（构建镜像）。compose 会自动按顺序完成：
+首次从源码启动约 5-10 分钟（构建镜像）；使用第八节的 ACR 预构建流程时，服务器只拉取现成镜像。compose 会自动按顺序完成：
 
 1. 启动 MySQL 8.4（数据持久化在 docker 卷 `mysqldata`，utf8mb4 编码）
 2. 创建 `lean_app`、`lean_migrate`、`lean_backup` 三个最小权限账号
@@ -118,19 +118,30 @@ docker compose up -d --build
 docker compose ps                 # 查看状态
 docker compose logs -f web        # 看应用日志
 docker compose logs -f db         # 看数据库日志
-docker compose up -d --build web  # 更新代码后重建应用
+docker compose up -d --build web  # 仅回退/本地调试时使用；日常部署见第八节
 ls backups/                       # 查看备份文件
 
 # 备份为加密文件；恢复流程见 docs/trial-security.md
 ls backups/
 ```
 
-## 八、一键/自动部署
+## 八、部署
 
-代码更新到线上有两条等价路径，都执行 `git pull --ff-only && docker compose up -d --build`，
-迁移和种子由 compose 的 `migrate` 服务自动完成。
+默认不需要 ACR，也不需要新增任何密钥。直接使用原来的服务器构建方式即可。
+不想配置 ACR 的话，看到方式 A / B 就够了，下面的 ACR 内容是以后想提速时的可选步骤。
 
-### 方式 A：本地一键脚本（推荐日常使用）
+### 方式 A：GitHub Actions（最简单）
+
+GitHub 仓库 → **Actions → deploy → Run workflow**。
+
+- 没有配置 `ACR_REGISTRY` / `ACR_NAMESPACE` 时：自动在服务器上执行 `docker compose up -d --build`；
+- 配置了这两个 ACR 变量时：自动切换为 CI 预构建镜像模式。
+
+迁移和种子仍由 compose 的 `migrate` 服务自动完成。
+
+### 方式 B：本地一键脚本
+
+默认仍是在服务器现场构建：
 
 ```bash
 DEPLOY_HOST=<公网IP> ./deploy.sh
@@ -138,7 +149,43 @@ DEPLOY_HOST=<公网IP> ./deploy.sh
 
 脚本会 SSH 到服务器拉代码、重建容器，并轮询 `http://<公网IP>/login` 做健康检查。
 
-**首次配置（只需一次）**：
+### 可选：配置 ACR 加速（以后再做）
+
+如果以后觉得服务器构建仍然慢，再按下面步骤配置 ACR。配置完成后，工作流会自动切换到预构建模式，服务器只拉镜像。
+
+1. 在阿里云容器镜像服务 ACR 创建**个人版**实例，地域选择与 ECS 相同的地域。
+2. 创建一个命名空间，例如 `lean-kitchen`。仓库 `lean-kms-web` 和
+   `lean-kms-migrate` 通常会在首次推送镜像时自动创建；若控制台提示仓库不存在，
+   再手动新建这两个私有仓库。
+3. 在服务器上登录 ACR（使用控制台显示的**公网地址**；个人版通常是
+   `crpi-xxxx.cn-hangzhou.personal.cr.aliyuncs.com` 这种形式，不要照抄
+   `registry.cn-hangzhou.aliyuncs.com`）：
+
+   ```bash
+   docker login crpi-xxxx.cn-hangzhou.personal.cr.aliyuncs.com
+   ```
+
+4. 在 GitHub 仓库 → **Settings → Secrets and variables → Actions** 配置：
+
+   | 类型 | 名称 | 值 |
+   |------|------|-----|
+   | 变量 | `ACR_REGISTRY` | 控制台「公网地址」，例如 `crpi-xxxx.cn-hangzhou.personal.cr.aliyuncs.com` |
+   | 变量 | `ACR_NAMESPACE` | 例如 `lean-kitchen` |
+   | 密钥 | `ACR_USERNAME` | ACR 用户名 |
+   | 密钥 | `ACR_PASSWORD` | ACR 密码或访问凭证 |
+
+   `ALIYUN_HOST`、`ALIYUN_USER`、`ALIYUN_SSH_KEY` 继续使用原有配置。
+
+5. 本地预构建模式：
+
+   ```bash
+   DEPLOY_PREBUILT=1 \
+   ACR_REGISTRY=registry.cn-hangzhou.aliyuncs.com \
+   ACR_NAMESPACE=lean-kitchen \
+   DEPLOY_HOST=<公网IP> ./deploy.sh
+   ```
+
+### 首次配置 SSH 密钥（只需一次）
 
 ```bash
 # 1. 本地生成专用部署密钥（不要设密码短语）
@@ -151,26 +198,6 @@ ssh-copy-id -i ~/.ssh/aliyun_deploy.pub root@<公网IP>
 ssh -i ~/.ssh/aliyun_deploy root@<公网IP> "echo ok"
 ```
 
-### 方式 B：手动触发 GitHub Actions
-
-`.github/workflows/deploy.yml` 已随仓库提供。为避免 2C4G 服务器被普通 push
-触发的全量构建拖入长时间高负载，工作流改为人工触发：GitHub 仓库 →
-**Actions → deploy → Run workflow**。
-
-**首次配置（只需一次）**：
-
-1. 把上面生成的私钥内容复制出来：
-   ```bash
-   cat ~/.ssh/aliyun_deploy
-   ```
-2. GitHub 仓库页 → **Settings → Secrets and variables → Actions → New repository secret**，添加三个 secret：
-   | Secret 名 | 值 |
-   |-----------|-----|
-   | `ALIYUN_HOST` | 服务器公网 IP |
-   | `ALIYUN_USER` | `root`（或专用部署用户） |
-   | `ALIYUN_SSH_KEY` | 上面 cat 出的私钥全文 |
-3. 可选：`ALIYUN_PORT`，SSH 非 22 端口时设置。
-
 **安全要求（配置 Actions 前必做）**：GitHub 运行器的出口 IP 不固定，
 安全组放行 22 端口实际上等于对全网开放，因此服务器**必须关闭密码登录、只允许密钥**：
 
@@ -180,12 +207,20 @@ sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd
 systemctl restart sshd
 ```
 
-### 更新流程（两种方式任选）
+### 回退：服务器现场构建
+
+如果 ACR 或 CI 暂时不可用，可以保留原来的服务器构建方式：
 
 ```bash
-# 本地开发机
-git push origin main
-# → 人工到 GitHub Actions 触发 deploy；或手动执行方式 A 的 ./deploy.sh
+DEPLOY_PREBUILT=0 DEPLOY_HOST=<公网IP> ./deploy.sh
+```
+
+也可以 SSH 到服务器手动执行：
+
+```bash
+cd /opt/lean-kms-v3
+git pull --ff-only
+docker compose up -d --build
 ```
 
 仅修改 Compose、环境变量或运行时配置时，优先使用无构建部署：
@@ -194,9 +229,28 @@ git push origin main
 DEPLOY_NO_BUILD=1 DEPLOY_HOST=<公网IP> ./deploy.sh
 ```
 
+### 更新与回滚流程
+
+```bash
+# 本地开发机
+git push origin main
+# → 人工到 GitHub Actions 触发 deploy
+```
+
+镜像 tag 使用 Git 提交 SHA，回滚时可以指定旧提交：
+
+```bash
+DEPLOY_PREBUILT=1 \
+ACR_REGISTRY=registry.cn-hangzhou.aliyuncs.com \
+ACR_NAMESPACE=lean-kitchen \
+DEPLOY_IMAGE_TAG=<旧提交SHA> \
+DEPLOY_HOST=<公网IP> ./deploy.sh
+```
+
 ## 注意事项
 
 - `.env` 已在 `.gitignore` 和 `.dockerignore` 中排除，不会进入镜像或仓库
 - 数据库不对外暴露端口（只在 Docker 内网），无需在防火墙开 3306
 - 服务器代码必须用 **git clone** 管理；后续更新先 push，再人工触发 GitHub Actions 或执行 `./deploy.sh`
+- ACR 镜像地址和登录凭证只放在 GitHub Secrets / Variables 及服务器 Docker 配置中，不要写入仓库
 - 旧 Zeabur 数据已过期无法迁移，系统从 seed 基础数据重新开始

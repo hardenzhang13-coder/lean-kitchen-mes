@@ -39,6 +39,7 @@ services:
 
   # 启动时自动执行迁移和种子（幂等，已有数据不会重复写入）
   migrate:
+    image: ${MIGRATE_IMAGE:-lean-kms-migrate:local}
     build:
       context: .
       target: migrate
@@ -53,6 +54,7 @@ services:
       INITIAL_ADMIN_NAME: ${INITIAL_ADMIN_NAME:-管理员}
 
   web:
+    image: ${WEB_IMAGE:-lean-kms-web:local}
     build:
       context: .
       target: runner

@@ -1,11 +1,11 @@
 name: deploy
 
-# 人工触发后部署到阿里云（与 docs/aliyun-deploy.md 手动流程等价：
-# git pull --ff-only && docker compose up -d --build，迁移由 compose 的 migrate 服务自动执行；
-# 随后灌入 scripts/dictionary-baseline.sql 做字典基线初始化（INSERT IGNORE 只增不覆盖，生产字典修改不会被部署回滚））
+# 默认部署方式：
+# - 未配置 ACR_REGISTRY / ACR_NAMESPACE：沿用原来的服务器现场构建
+# - 已配置 ACR_REGISTRY / ACR_NAMESPACE：构建并推送镜像，服务器只拉取镜像
+#
+# 因此 ACR 是可选的加速方案，不配置也能正常部署。
 
-# 2C4G 服务器现场构建曾多次造成资源饱和。生产构建迁移到独立 CI/镜像仓库前，
-# 默认只允许人工触发，避免普通 push 直接把生产拖入长时间构建。
 on:
   workflow_dispatch:
 
@@ -16,30 +16,128 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  ACR_REGISTRY: ${{ vars.ACR_REGISTRY }}
+  ACR_NAMESPACE: ${{ vars.ACR_NAMESPACE }}
+  WEB_IMAGE: ${{ vars.ACR_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/lean-kms-web:${{ github.sha }}
+  MIGRATE_IMAGE: ${{ vars.ACR_REGISTRY }}/${{ vars.ACR_NAMESPACE }}/lean-kms-migrate:${{ github.sha }}
+
 jobs:
-  deploy:
+  build:
+    if: ${{ vars.ACR_REGISTRY != '' && vars.ACR_NAMESPACE != '' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
-      - name: SSH 到阿里云执行部署
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 登录阿里云 ACR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: 构建并推送 web 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runner
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.WEB_IMAGE }}
+          cache-from: type=gha,scope=lean-kms-web
+          cache-to: type=gha,mode=max,scope=lean-kms-web
+
+      - name: 构建并推送 migrate 镜像
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: migrate
+          platforms: linux/amd64
+          push: true
+          tags: ${{ env.MIGRATE_IMAGE }}
+          cache-from: type=gha,scope=lean-kms-migrate
+          cache-to: type=gha,mode=max,scope=lean-kms-migrate
+
+  deploy-prebuilt:
+    needs: build
+    if: ${{ always() && needs.build.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: SSH 到阿里云拉取镜像并部署
+        uses: appleboy/ssh-action@v1
+        env:
+          ACR_REGISTRY: ${{ env.ACR_REGISTRY }}
+          ACR_USERNAME: ${{ secrets.ACR_USERNAME }}
+          ACR_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+          WEB_IMAGE: ${{ env.WEB_IMAGE }}
+          MIGRATE_IMAGE: ${{ env.MIGRATE_IMAGE }}
+        with:
+          host: ${{ secrets.ALIYUN_HOST }}
+          port: ${{ secrets.ALIYUN_PORT || 22 }}
+          username: ${{ secrets.ALIYUN_USER }}
+          key: ${{ secrets.ALIYUN_SSH_KEY }}
+          envs: ACR_REGISTRY,ACR_USERNAME,ACR_PASSWORD,WEB_IMAGE,MIGRATE_IMAGE
+          command_timeout: 15m
+          script: |
+            set -eu
+            cd /opt/lean-kms-v3
+            git pull --ff-only
+
+            printf '%s' "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
+            export WEB_IMAGE
+            export MIGRATE_IMAGE
+
+            if [ "${{ vars.DEPLOY_DOMAIN_MODE }}" = "1" ]; then
+              COMPOSE="docker compose -f docker-compose.yml -f docker-compose.domain.yml"
+            else
+              COMPOSE="docker compose"
+            fi
+
+            $COMPOSE pull web migrate
+            $COMPOSE up -d --no-build
+            # 字典基线初始化（INSERT IGNORE，只增不覆盖）：仅补缺失字典，不碰生产已有数据
+            $COMPOSE exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms' < scripts/dictionary-baseline.sql
+
+  deploy-server:
+    if: ${{ vars.ACR_REGISTRY == '' || vars.ACR_NAMESPACE == '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: SSH 到阿里云执行服务器构建部署
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.ALIYUN_HOST }}
           port: ${{ secrets.ALIYUN_PORT || 22 }}
           username: ${{ secrets.ALIYUN_USER }}
           key: ${{ secrets.ALIYUN_SSH_KEY }}
-          # 2C4G 服务器全量构建约 5-10 分钟（含首次无缓存），给足超时
           command_timeout: 40m
           script: |
+            set -eu
             cd /opt/lean-kms-v3
             git pull --ff-only
-            if [ "${{ vars.DEPLOY_DOMAIN_MODE }}" = "1" ]; then
-              docker compose -f docker-compose.yml -f docker-compose.domain.yml up -d --build
-            else
-              docker compose up -d --build
-            fi
-            # 字典基线初始化（INSERT IGNORE，只增不覆盖）：仅补缺失字典，不碰生产已有数据
-            docker compose exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms' < scripts/dictionary-baseline.sql
 
+            if [ "${{ vars.DEPLOY_DOMAIN_MODE }}" = "1" ]; then
+              COMPOSE="docker compose -f docker-compose.yml -f docker-compose.domain.yml"
+            else
+              COMPOSE="docker compose"
+            fi
+
+            $COMPOSE up -d --build
+            # 字典基线初始化（INSERT IGNORE，只增不覆盖）：仅补缺失字典，不碰生产已有数据
+            $COMPOSE exec -T db sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" lean_kms' < scripts/dictionary-baseline.sql
+
+  health:
+    needs: [deploy-prebuilt, deploy-server]
+    if: ${{ always() && (needs.deploy-prebuilt.result == 'success' || needs.deploy-server.result == 'success') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
       - name: 健康检查
         env:
           PUBLIC_BASE_URL: ${{ vars.PUBLIC_BASE_URL }}
