@@ -46,23 +46,27 @@
 - 交付物：`/ui-kit` 可视验收页 + 10 个组件单测
 - 提交：`feat(ui): 交互视觉基线 v1 落地与净菜包装前端接入`
 
-### 批次 1：弹窗语义尺寸统一（31 处）
+### 批次 1：弹窗语义尺寸统一（31 处）— 部分完成
 
 **范围**：仅 `no-restricted-syntax` 的弹窗宽度子规则，不改变任何业务逻辑与文案。
 
 **改法**：
 1. 删除 `<DialogContent className="... max-w-[Npx] ...">` 中的 `max-w-*`
 2. 改用 `<AppDialogContent size="...">`
-3. 尺寸映射：
+3. 尺寸映射（**实测校准版**，2026-11-15 落地时按此执行）：
 
 | 当前像素宽度 | 语义尺寸 | 用途 |
 |---|---|---|
-| `max-w-[400px]` | `compact` | 删除、作废、清空等短确认 |
-| `max-w-[520px]` ~ `max-w-[600px]` | `form` | 常规单列表单、短信息确认 |
+| `max-w-[400px]` ~ `max-w-[440px]` | `compact` | 删除、作废、清空等**无输入字段**的短确认 |
+| `max-w-[460px]` ~ `max-w-[620px]` | `form` | **含输入框**的常规表单、短信息确认 |
 | `max-w-[760px]` ~ `max-w-[900px]` | `wide` | 多列表单、预览、复杂选择 |
-| `max-w-[1000px]` 以上 | `workbench` | 左右布局、批量确认、高密度编辑 |
+| `max-w-[960px]` 以上 | `workbench` | 左右布局、批量确认、高密度编辑 |
 
-4. 映射前逐个核对原宽度落在哪一档；跨档时按**就近不缩小**原则选择，并同步更新 `/ui-kit` 样张。
+4. 判据是**有没有输入字段**，不是纯像素数：例如「作废出库单」原 460px 但含必填原因输入框 → 归 `form`；「确认生产计划」440px 纯文字 → 归 `compact`。
+5. 跨档时按**就近不缩小**原则选择，并同步更新 `/ui-kit` 样张。
+
+**已落地（2026-11-15，提交 9a3d807）**：13 处，排除 `app/ingredients/**` 与 `app/settings/**`。
+剩余 18 处（ingredients 5 + settings 12 + 1）随对应模块迭代消化。
 
 **涉及文件**（22 个）：
 
@@ -108,9 +112,18 @@ app/schedules/new/page.tsx
 
 ---
 
-### 批次 3：React Hooks 规范化（13 处）
+### 批次 3：React Hooks 规范化（13 处）— 部分完成
 
 **范围**：11 处 `set-state-in-effect` + 1 处 `exhaustive-deps` + 1 处 `immutability`。这部分**不是**视觉基线违规，是 React 19 下的稳健性问题，但当前被 `warn` 掩盖，容易在迭代中扩散，一并清理。
+
+**已落地（2026-11-15，提交 c025b67）**：
+- 2 处「props 变化重置本地状态」→ 改用 React 官方「渲染期调整」模式（`syncedXxx` 状态比对），消除 effect 中的同步 setState
+- 1 处 URL query 切 Tab → 改用 `startTransition`
+- 1 处 `immutability` → 把 `fetchData` 声明提到 effect 之前
+- 8 处数据获取 effect → 加**块级精确豁免**（`eslint-disable` + `eslint-enable` 成对），并注明依据：这是 React 官方推荐的数据获取模式，`setState` 均发生在 `await` 之后的异步回调中，不构成同步级联渲染
+- 剩余 1 处（`app/ingredients/page.tsx`）随食材模块迭代消化
+
+> 说明：数据获取 effect 采用豁免而非重构，是刻意选择——引入数据层（React Query / Suspense）超出本轮范围，而改写既有取数逻辑会引入行为风险。后续若引入统一数据层，再统一改造。
 
 **典型位置**：`app/schedules/page.tsx`（读 URL query 后 `setModule`）、`app/production-plans/[id]/page.tsx`（`fetchData` 依赖缺失）、`app/inventory/*`、`app/purchases/reimbursements/new/page.tsx` 等。
 
@@ -124,12 +137,12 @@ app/schedules/new/page.tsx
 
 ---
 
-### 批次 4：残余清理与规则升级（3 处 + 规则升档）
+### 批次 4：残余清理与规则升级（3 处 + 规则升档）— 动作①②已完成
 
 | 位置 | 问题 | 处理 |
 |---|---|---|
-| `components/ui/calendar.tsx:135` | `any` | shadcn 原语自带，改为 `unknown` + 局部断言或加文件级 `eslint-disable` 注释并说明原因；`components/ui/` 属 CLI 管理目录，改动需谨慎 |
-| `scripts/audit-schedule.ts:56` | `srcIds` 未使用 | 删除该变量或补上其用途 |
+| `components/ui/calendar.tsx:135` | `any` | ✅ 已完成（提交 9a3d807）：加文件级 `eslint-disable` 并注明「该目录由 shadcn CLI 管理，保留官方模板原写法，不做类型重构」 |
+| `scripts/audit-schedule.ts:56` | `srcIds` 未使用 | ✅ 已完成（提交 9a3d807）：删除死代码 |
 | `eslint.config.mjs` | 基线规则仍是 `warn` | 把 `no-restricted-syntax` 两条子规则从 `warn` 升为 `error`；`react-hooks/*` 三条在存量清零后同样升 `error`；`no-explicit-any` 全局项保留 `warn`（shadcn 目录豁免），`app/api/**` 与 `lib/**` 已是 `error` |
 
 **验收**：新增代码无法再引入基线违规形态。

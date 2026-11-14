@@ -4,6 +4,37 @@
 
 ---
 ---
+## 2026-11-15（续）— 交互基线批次 1 / 3 / 4①② 落地
+
+> 与「食材模块新一轮迭代」并行推进，**范围刻意排除 `app/ingredients/**` 与 `app/settings/**`**，避免与另一会话抢同一批文件。
+
+### 批次 1：弹窗语义尺寸 + 字号下限（提交 9a3d807，17 文件）
+- 13 处业务弹窗改用 `AppDialogContent` 语义尺寸；尺寸映射按**有无输入字段**判定（460px 含输入框 → form，440px 纯文字 → compact），非纯像素数
+- 16 处 `text-[9px]/[10px]/[11px]` → `text-xs`
+- 清理改用 AppDialogContent 后未使用的 `DialogContent` import
+- `components/ui/calendar.tsx`：保留 shadcn 官方模板的 `as any`，加文件级 eslint-disable 说明（该目录由 CLI 管理，不做类型重构）
+- `scripts/audit-schedule.ts`：删除未使用的 `srcIds` 死代码
+
+### 批次 3：React Hooks 规范化（提交 c025b67，11 文件）
+- 2 处「props 变化重置本地状态」→ React 官方「渲染期调整」模式
+- 1 处 URL query 切 Tab → `startTransition`
+- 1 处 `immutability` → `fetchData` 声明提到 effect 之前
+- 8 处数据获取 effect → 成对 `eslint-disable/enable` 精确豁免 + 注明依据（React 官方推荐模式，setState 均在 await 之后）
+
+### 批次 4 动作①②
+- `calendar.tsx` 的 any、`audit-schedule.ts` 死代码 —— 已随批次 1 一并完成
+- 动作③（规则 warn → error 升档）待批次 1/3 存量清零后执行
+
+### 结果
+- **lint 62 → 21 警告，0 错误**；剩余 21 处全部在 `app/ingredients/**`(9) 与 `app/settings/**`(12)，随对应模块迭代消化
+- tsc 0 错误；jest 157/158（唯一失败为 `ingredients/__tests__/net-ingredient-form-dialog.test.tsx`，属并行迭代的净料表单改动，与本次无关）
+
+### 协作要点（已验证有效）
+- 与另一会话同工作区并行时，**一律用精确路径 `git add`，禁止 `git add -A`**，否则会把他人的中间态一并提交
+- 另一会话的中间态会让全局 tsc/jest 短暂失败，验证时按「错误是否涉及我的文件」判定，而非直接采信全局结果
+
+---
+---
 ## 2026-11-15 — 首次生产部署与数据安全验证
 
 ### 部署前审计（回应「不要动食材和菜品数据」）
