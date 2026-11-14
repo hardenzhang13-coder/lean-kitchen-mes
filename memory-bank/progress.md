@@ -4,6 +4,77 @@
 
 ---
 ---
+## 2026-11-14 — 净菜包装字典、交互视觉基线落地与文档校正
+
+> 本次为试运行上线后的第一轮整理：把两周内积累的两条并行工作线（净菜包装字典 / 交互视觉基线落地）拆分提交，并校正全部过时文档。
+
+### 提交拆分
+
+工作区累计 84 个改动文件 + 38 个新增文件，按语义拆成 3 次提交，便于回溯与回滚：
+
+| 提交 | 内容 | 文件数 |
+|---|---|---|
+| `feat(ingredients): 净菜包装字典与净料价格口径统一` | schema + 迁移 + `net_packagings` 接口 + 价格口径统一 + 菜品成本实时重算 | 25 |
+| `feat(ui): 交互视觉基线 v1 落地与净菜包装前端接入` | 业务组件层、食材模块重构、页面骨架、包装字典前端、`/ui-kit` | 94 |
+| `docs: 校正项目文档过时内容并补充改造计划` | `CLAUDE.md` / `README.md` / `Router.md` / `progress.md` + 两份新计划 | 6 |
+
+### 净菜包装字典（提交一、二）
+
+- 新增 `net_packagings` 字典表（包装名称 + 尺寸，唯一约束 `(name, size)`）与 `/api/net-packagings`
+- 设置模块新增「净菜包装」页，位于单位之前；设置首页固定四列（仅 Web 桌面端）
+- 支持新增、编辑、启停、软删除；被净料/小料引用时删除与改名/改尺寸被拦截
+- 净料、小料、转净料表单用「包装」下拉替换原包装物料/尺寸自由文本；停用包装不可新选，但编辑存量档案时仍可显示并保留
+- `packageSpec(g)` 仍单独填写，不纳入包装字典
+- 迁移 `20261114090000_add_net_packagings` 已应用，存量包装组合已回填
+
+### 价格口径统一（提交一）
+
+- 净料单价**强制**由来源原料实时价格派生（服务端忽略客户端传入的 `unitPrice` / `autoCalculate`）
+- 净料/小料/酱料毛利率空值统一按 0 处理
+- 新增 `lib/server/dish-costing.ts`：菜品成本按当前食材价格实时重算，替代 `Dish.cost` 历史快照；菜品列表、菜品详情、排程详情均已接入
+- 出库价、酱料配方成本、BOM 成本全部改为走同一价格派生函数，消除多份重复实现
+
+### 交互视觉基线 v1 落地（提交二）
+
+- 抽取业务组件层：`PageShell` / `PageHeader` / `AppDialogContent` / `FormField` / `FormSection` / `ListToolbar` / `DataTable` / `StatusBadge` / `InfoTile` / `SectionTabs` / `EmptyState` / `LoadingState` / `RecordSheet` / `FormControls` / `useRecordForm`
+- 食材模块重构：5 类清单 + 半屏详情抽屉（50vw）+ 表单 Hook 化（`use-ingredient-form` / `use-net-ingredient-form`）
+- 列表分页统一为「上一页 / 当前页 / 下一页」，去除每页条数选择与数据区间展示
+- 新增 `/ui-kit` 可视验收页 + 10 个组件单测
+- ESLint 增加交互基线规则（弹窗语义尺寸、正文不小于 12px）
+- 基线文档：`docs/interaction-visual-baseline-v1.md`（历史规范文档一律作废）
+
+### 文档校正（提交三）
+
+| 文档 | 修正内容 |
+|---|---|
+| `CLAUDE.md` | `middleware.ts` → `proxy.ts`（Next 16 更名）；删除「SESSION_SECRET 硬编码兜底」错误警告（实际为启动即强制校验）；Prisma 适配器改为 `PrismaMariaDb`；删除「无 zod 校验」「where 用 any」等过时技术债；库存章节改为 v002 净菜库存；补充菜品成本口径与命令表 |
+| `README.md` | 表数量 25 → 34；模块状态表补生产计划单 / 净菜库存 / 包装字典 / 交互基线；命令表改为 `migrate dev / deploy` 并补零差异校验；补两份新文档索引 |
+| `memory-bank/Router.md` | 按当前 `page.tsx` 全量重写：7 模块 40 页面、生产计划单与 v002 库存补齐、设置模块 7 子页、采购锁定标注、侧边栏 7 项 |
+| `memory-bank/progress.md` | 本条 |
+
+### 新增计划文档
+
+- `docs/interaction-visual-baseline-v1-rollout-plan.md`：交互基线落地批次 1–4 与 62 条 lint 清理专项（弹窗像素宽度 31 / 字号 16 / React Hooks 13 / any 与未使用变量 2）
+- `docs/production-data-package-spec-plan.md`：存量净料小料「封装规格」补齐方案（只读盘点 → 人工确认 → 幂等回填 → 校验 → 回滚）
+
+### 验证
+
+- `npx tsc --noEmit` 0 错误
+- `npm run lint` 0 error / 62 warning（基线改造前的存量告警，已分批纳入计划）
+- `npm test` 28 套件 / 158 用例全通过
+- `npm run build` 通过（含 `prisma generate`）
+- `npx prisma migrate status` 29 个迁移已应用，库结构最新
+- `npx prisma migrate diff --from-migrations ... --to-schema ...` 输出空迁移（零差异）
+
+### 遗留待办
+
+1. **生产数据**：存量净料/小料 `package_spec` 未回填 → 完成生产抛错整单回滚、出库金额算成 0。方案见 `docs/production-data-package-spec-plan.md`，待执行
+2. **交互基线**：剩余 62 条 lint warning 与未迁移页面，按批次计划推进
+3. **旧库存表**：`inventory` / `inventory_ledger` 已停用未清理
+4. **采购模块**：试运行锁定，尚未在生产验证完整链路
+
+---
+---
 ## 2026-11-12 — 排程到库存流程细节优化
 
 ### 状态与完成规则

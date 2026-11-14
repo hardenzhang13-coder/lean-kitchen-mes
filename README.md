@@ -2,22 +2,26 @@
 
 > 面向炒菜机器人生产模式的智能后厨管理系统。核心是对菜品做数字化 BOM 分解，驱动精准采购与切配，实现人机协同下的高效后厨管理。
 
-## 项目状态：功能开发中
+## 项目状态：试运行中
 
-本项目在 **11 天内快速迭代** 交付了核心功能，以下模块已可用：
+2026-11 起进入试运行，核心链路「排程 → 生产计划 → 切配完成 → 净菜入库 → 出库」已跑通：
 
 | 模块 | 状态 |
 |------|------|
-| 数据库设计 | ✅ 完成（25 张表） |
-| 基础字典 | ✅ 完成 |
-| 食材库 | ✅ 完成（5 类食材 + 批量导入） |
-| 菜品库 | ✅ 完成（BOM + 工艺） |
+| 数据库设计 | ✅ 完成（34 张表 / 29 个迁移） |
+| 基础字典 | ✅ 完成（分类、类别、单位、门店、供应商、**净菜包装**） |
+| 食材库 | ✅ 完成（5 类食材 + 批量导入 + 转化流程图） |
+| 菜品库 | ✅ 完成（BOM + 工艺 + 成本实时重算） |
 | 工作台 | ✅ 完成 |
-| 排程管理 | ✅ 完成（自动拆解切配工单 + 采购计划） |
-| 采购管理 | ⏸ 试运行暂未开放（入口保留，接口锁定） |
-| 库存管理 | ✅ 完成（实时库存 + 台账） |
-| 用户权限 | ✅ 基础完成（4 角色） |
+| 排程管理 | ✅ 完成（自动拆解切配工单 + 采购计划 + 销售回录） |
+| 生产计划单 | ✅ 完成（跨店合并 + 按份三态确认 + 标签打印） |
+| 库存管理 | ✅ 完成（v002 净菜库存：份/g 双单位 + 出库单 + 台账） |
+| 采购管理 | ⏸ 试运行暂未开放（入口保留，接口锁定，`TRIAL_FEATURES.purchases = false`） |
+| 用户权限 | ✅ 基础完成（4 角色 + 集中权限表） |
 | 系统设置 | ✅ 完成 |
+| 交互视觉基线 | 🔄 分批落地中（组件层已完成，批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`） |
+
+> ⚠️ **生产数据待办**：存量净料/小料的「封装规格」未回填，会阻断完成生产并导致出库金额算成 0。处理方案见 `docs/production-data-package-spec-plan.md`。
 
 ## 技术栈
 
@@ -78,7 +82,10 @@ npm run build
 | `npm run dev` | 开发服务器 |
 | `npm run build` | 生产构建（含 prisma generate） |
 | `npm run lint` | ESLint 检查 |
-| `npx prisma db push` | 推送 schema 变更到数据库 |
+| `npm test` | Jest 测试（28 套件 / 158 用例） |
+| `npx prisma migrate dev` | 本地生成迁移文件（**禁止对生产使用**） |
+| `npx prisma migrate deploy` | 应用已有迁移 |
+| `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` | 提交前零差异校验，必须输出空迁移 |
 | `npx prisma db seed` | 运行种子脚本 |
 | `npx prisma generate` | 重新生成 Prisma Client |
 
@@ -95,6 +102,9 @@ npm run build
 | `memory-bank/Database.md` | 数据库设计、25 张表、字段说明 | ✅ |
 | `memory-bank/Router.md` | 页面路由、交互设计 | ✅ |
 | `memory-bank/progress.md` | 项目推进日志、技术决策 | ✅ |
+| `docs/interaction-visual-baseline-v1.md` | **当前交互视觉唯一基线** | ✅ |
+| `docs/interaction-visual-baseline-v1-rollout-plan.md` | 交互基线落地批次计划 + lint 清理专项 | ✅ |
+| `docs/production-data-package-spec-plan.md` | 生产数据「封装规格」补齐方案 | ✅ |
 | `docs/trial-security.md` | 试运行账号、备份、HTTPS 与回滚流程 | ✅ |
 | `CLAUDE.md` | Claude Code 项目指南 | ✅ |
 | `AGENTS.md` | AI Agent 工作区指令 | ✅ |
@@ -105,4 +115,4 @@ npm run build
 
 ---
 
-> 项目初始化于 2026-06-04，当前活跃开发中。
+> 项目初始化于 2026-06-04，2026-11 进入试运行，当前活跃开发中。
