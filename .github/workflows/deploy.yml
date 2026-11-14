@@ -49,6 +49,9 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.WEB_IMAGE }}
+          build-args: |
+            NPM_REGISTRY=https://registry.npmjs.org
+            PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
           cache-from: type=gha,scope=lean-kms-web
           cache-to: type=gha,mode=max,scope=lean-kms-web
 
@@ -60,6 +63,9 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: ${{ env.MIGRATE_IMAGE }}
+          build-args: |
+            NPM_REGISTRY=https://registry.npmjs.org
+            PRISMA_ENGINES_MIRROR=https://binaries.prisma.sh
           cache-from: type=gha,scope=lean-kms-migrate
           cache-to: type=gha,mode=max,scope=lean-kms-migrate
 
