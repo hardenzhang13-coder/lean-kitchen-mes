@@ -48,6 +48,8 @@ jobs:
           target: runner
           platforms: linux/amd64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ env.WEB_IMAGE }}
           build-args: |
             NPM_REGISTRY=https://registry.npmjs.org
@@ -62,6 +64,8 @@ jobs:
           target: migrate
           platforms: linux/amd64
           push: true
+          provenance: false
+          sbom: false
           tags: ${{ env.MIGRATE_IMAGE }}
           build-args: |
             NPM_REGISTRY=https://registry.npmjs.org
