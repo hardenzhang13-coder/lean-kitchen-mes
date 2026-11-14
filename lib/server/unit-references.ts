@@ -48,16 +48,6 @@ const UNIT_REFERENCE_TARGETS: Array<{
         },
       }),
   },
-  {
-    entity: "库存",
-    fields: ["unit"],
-    count: (name) => prisma.inventory.count({ where: { unit: name } }),
-  },
-  {
-    entity: "库存流水",
-    fields: ["unit"],
-    count: (name) => prisma.inventoryLedger.count({ where: { unit: name } }),
-  },
 ];
 
 export interface UnitReferenceResult {

@@ -73,19 +73,6 @@ export async function POST(req: NextRequest) {
         data: { reimbursementId: reimbursement.id, status: "已结算" },
       });
 
-      // 将关联采购单产生的入库 ledger 标记为已结算
-      for (const receiptId of receiptIds) {
-        await tx.inventoryLedger.updateMany({
-          where: {
-            source: `采购入库/${receiptId}`,
-            settlementStatus: "待结算",
-          },
-          data: {
-            settlementStatus: "已结算",
-          },
-        });
-      }
-
       return reimbursement;
     });
 

@@ -18,7 +18,6 @@ function makePrismaMock(overrides: {
   seasoningDetails?: unknown[];
   seasonings?: unknown[];
   sauces?: unknown[];
-  inventories?: unknown[];
   l2Cats?: unknown[];
   l1Cats?: unknown[];
 }) {
@@ -30,7 +29,6 @@ function makePrismaMock(overrides: {
     dishSeasoningDetail: { findMany: jest.fn(async () => overrides.seasoningDetails ?? []) },
     ingredient: { findMany: jest.fn(async () => overrides.seasonings ?? []) },
     sauceIngredient: { findMany: jest.fn(async () => overrides.sauces ?? []) },
-    inventory: { findMany: jest.fn(async () => overrides.inventories ?? []) },
     dishSauceDetail: { findMany: jest.fn(async () => []) },
   };
   return db as unknown as PrismaClient;
@@ -147,7 +145,6 @@ describe("buildPurchasePlans", () => {
           },
         },
       ],
-      inventories: [{ ingredientId: 102, currentQty: 2 }],
       l2Cats: L2_CATS,
       l1Cats: L1_CATS,
     });
@@ -227,7 +224,6 @@ describe("buildPurchasePlans", () => {
           defaultSupplier: null,
         },
       ],
-      inventories: [{ ingredientId: 30, currentQty: 3 }],
     });
 
     const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 1 }], ["SEA"]);

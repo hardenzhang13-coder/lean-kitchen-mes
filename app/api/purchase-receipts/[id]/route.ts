@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/server/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
+import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
 import { idParamSchema } from "@/lib/server/schemas/common";
 import { createPurchaseReceiptSchema } from "@/lib/server/schemas/purchase";
@@ -119,36 +119,14 @@ export async function DELETE(
     }
 
     await prisma.$transaction(async (tx) => {
-      const receiptWithItems = await tx.purchaseReceipt.findUnique({
+      // 旧原料库存体系（inventory / inventory_ledger）已随 v002 净菜库存下线，
+      // 采购单作废不再回滚旧库存；净菜库存由「完成生产 / 出库单」独立驱动。
+      const receipt = await tx.purchaseReceipt.findUnique({
         where: { id: receiptId },
-        include: { items: true },
       });
 
-      if (!receiptWithItems) {
+      if (!receipt) {
         throw new Error("采购单不存在");
-      }
-
-      for (const item of receiptWithItems.items) {
-        if (item.ingredientId) {
-          const inventory = await tx.inventory.findUnique({
-            where: { ingredientId: item.ingredientId },
-          });
-
-          if (inventory) {
-            const newQty = Math.max(0, Number(inventory.currentQty) - Number(item.stockInQty));
-            await tx.inventory.update({
-              where: { ingredientId: item.ingredientId },
-              data: { currentQty: newQty },
-            });
-          }
-
-          await tx.inventoryLedger.deleteMany({
-            where: {
-              source: `采购入库/${receiptId}`,
-              ingredientId: item.ingredientId,
-            },
-          });
-        }
       }
 
       await tx.purchaseReceipt.update({
@@ -188,12 +166,9 @@ export async function PUT(
     const { receiptDate, supplierId, supplierName, summary, totalAmount, imageUrl, imageHash, purchasingUnit, items } =
       bodyValidation.data;
 
-    const user = getUserFromRequest(req);
-    const operator = user?.username || null;
 
     const existing = await prisma.purchaseReceipt.findUnique({
       where: { id: receiptId },
-      include: { items: true },
     });
 
     if (!existing) {
@@ -208,27 +183,6 @@ export async function PUT(
     const jinFactors = await getJinFactors();
 
     await prisma.$transaction(async (tx) => {
-      for (const oldItem of existing.items) {
-        if (oldItem.ingredientId) {
-          const inventory = await tx.inventory.findUnique({
-            where: { ingredientId: oldItem.ingredientId },
-          });
-          if (inventory) {
-            const newQty = Math.max(0, Number(inventory.currentQty) - Number(oldItem.stockInQty));
-            await tx.inventory.update({
-              where: { ingredientId: oldItem.ingredientId },
-              data: { currentQty: newQty },
-            });
-          }
-          await tx.inventoryLedger.deleteMany({
-            where: {
-              source: `采购入库/${receiptId}`,
-              ingredientId: oldItem.ingredientId,
-            },
-          });
-        }
-      }
-
       await tx.purchaseReceiptItem.deleteMany({
         where: { receiptId },
       });
@@ -283,46 +237,7 @@ export async function PUT(
             },
           });
 
-          const inv = await tx.inventory.findUnique({
-            where: { ingredientId: item.ingredientId },
-          });
-          if (inv) {
-            const newQty = Number(inv.currentQty) + item.stockInQty;
-            await tx.inventory.update({
-              where: { ingredientId: item.ingredientId },
-              data: { currentQty: newQty, unit: item.stockUnit },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                ingredientId: item.ingredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: newQty,
-                source: `采购入库/${receiptId}`,
-                operator,
-              },
-            });
-          } else {
-            await tx.inventory.create({
-              data: {
-                ingredientId: item.ingredientId,
-                currentQty: item.stockInQty,
-                unit: item.stockUnit,
-              },
-            });
-            await tx.inventoryLedger.create({
-              data: {
-                ingredientId: item.ingredientId,
-                changeType: "入库",
-                changeQty: item.stockInQty,
-                unit: item.stockUnit,
-                balance: item.stockInQty,
-                source: `采购入库/${receiptId}`,
-                operator,
-              },
-            });
-          }
+          // 仅维护原料参考价与每斤单价；旧原料库存体系已随 v002 净菜库存下线，不再在此写库存与台账。
         }
       }
     });
