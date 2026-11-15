@@ -459,7 +459,7 @@ export default function SauceIngredientsPage() {
       </div>
 
       <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-3">
+        <CardHeader className="shrink-0 pb-0">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -473,7 +473,7 @@ export default function SauceIngredientsPage() {
             }}
           />
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
           {loading ? (
             <SkeletonTable cols={10} rows={pageSize} />
           ) : (
