@@ -16,6 +16,8 @@ export type RecordSheetProps = {
   onOpenChange: (open: boolean) => void;
   title: string;
   meta?: ReactNode;
+  /** 头部右上角、关闭按钮下方的附加信息（如建档时间） */
+  headerAside?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
@@ -27,6 +29,7 @@ export function RecordSheet({
   onOpenChange,
   title,
   meta,
+  headerAside,
   children,
   footer,
   className,
@@ -45,9 +48,20 @@ export function RecordSheet({
           className
         )}
       >
+        {headerAside && (
+          <div className="absolute right-4 top-14 z-10 max-w-[200px] text-right text-xs leading-5 text-muted-foreground">
+            {headerAside}
+          </div>
+        )}
+
         <SheetHeader className="border-b px-6 py-5">
           <div className="flex items-start justify-between gap-4 pr-8">
-            <div className="min-w-0 space-y-1">
+            <div
+              className={cn(
+                "min-w-0 space-y-1",
+                headerAside && "pr-[220px]"
+              )}
+            >
               <SheetTitle className="break-words text-lg">{title}</SheetTitle>
               {meta && (
                 <SheetDescription className="flex flex-wrap items-center gap-2 pt-1 text-xs">

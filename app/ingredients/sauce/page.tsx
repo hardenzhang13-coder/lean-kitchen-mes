@@ -8,11 +8,11 @@ import { Textarea } from "@/app/components/ui/form-controls";
 import { IngredientNumberInput } from "@/app/components/ingredients/ingredient-number-input";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -31,7 +31,7 @@ import {
   normalizeNetIngredients,
 } from "@/app/components/dish-form/types";
 import { calcOutPricePerJin, calcStandardPackagePrice } from "@/lib/shared/net-price";
-import { formatMoney, formatPercent } from "@/lib/shared/display-format";
+import { formatMoney, formatPercent, formatDateTime } from "@/lib/shared/display-format";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
 import {
   applyProcessingFee,
@@ -63,6 +63,8 @@ type Sauce = {
   costPricePerJin: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
+  /** 建档时间 */
+  createdAt: string;
   updatedAt: string;
   _count?: { dishSauceDetails: number };
 };
@@ -587,7 +589,15 @@ export default function SauceIngredientsPage() {
 
       {/* 新增/编辑弹窗 */}
       <FormDialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[1000px] max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]">
+        <AppDialogContent
+          size="workbench"
+          className="max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
+        >
+          {editing?.createdAt && (
+            <div className="absolute right-4 top-14 z-10 text-right text-xs leading-5 text-muted-foreground">
+              建档 {formatDateTime(editing.createdAt)}
+            </div>
+          )}
           <DialogHeader className="px-6 pt-6 pb-0">
             <DialogTitle className="text-lg">
               {editing ? "编辑酱料" : "新增酱料"}
@@ -897,7 +907,7 @@ export default function SauceIngredientsPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </FormDialog>
 
       {/* 配方食材选择器（复用菜品 BOM Picker） */}
@@ -917,7 +927,7 @@ export default function SauceIngredientsPage() {
 
       {/* 删除确认 */}
       <Dialog open={deleteRow !== null} onOpenChange={() => setDeleteRow(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -942,7 +952,7 @@ export default function SauceIngredientsPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

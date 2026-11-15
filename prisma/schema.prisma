@@ -87,6 +87,7 @@ model Ingredient {
   pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
   season         String                @default("四季") @map("season")
   storage        String                @default("常温") @map("storage")
+  createdAt      DateTime              @default(now()) @map("created_at")
   deletedAt      DateTime?             @map("deleted_at")
   inventory      Inventory?
   defaultSupplierId Int?                @map("default_supplier_id")

@@ -31,3 +31,17 @@ export function formatUnitValue(
   if (!Number.isFinite(number)) return fallback;
   return `${number}${separator}${unit}`;
 }
+
+/**
+ * 日期时间展示：2026-11-15 21:30（本地时区）。
+ * 用于建档时间、更新时间等只在详情页出现的时间字段。
+ */
+export function formatDateTime(value: unknown, fallback = "—"): string {
+  if (value == null || value === "") return fallback;
+  const date = value instanceof Date ? value : new Date(String(value));
+  if (Number.isNaN(date.getTime())) return fallback;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate()
+  )} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}

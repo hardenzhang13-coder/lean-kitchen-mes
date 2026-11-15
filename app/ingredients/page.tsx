@@ -2,6 +2,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Calculator } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 
 // 五类食材节点（颜色 = 全站统一的食材类型色）
@@ -45,10 +53,105 @@ function lineage(id: string): Set<string> {
 
 type Counts = Record<NodeId, number>;
 
+/** 计价规则弹窗：统一链路 + 各类型成本价由来 */
+function PricingRulesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <AppDialogContent size="wide" className="[&>button]:cursor-pointer">
+        <DialogHeader>
+          <DialogTitle className="text-lg">计价规则</DialogTitle>
+        </DialogHeader>
+
+        <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-2.5">
+          <span className="mr-1 text-xs font-semibold text-muted-foreground">
+            统一链路
+          </span>
+          <span className="rounded-lg bg-muted px-3 py-[6px] text-xs font-semibold text-foreground">
+            成本价<span className="ml-1 font-normal text-muted-foreground">元/斤</span>
+          </span>
+          <span className="text-xs font-medium text-muted-foreground">
+            ÷（1 − 毛利率）
+          </span>
+          <span className="rounded-lg bg-muted px-3 py-[6px] text-xs font-semibold text-foreground">
+            出库价<span className="ml-1 font-normal text-muted-foreground">元/斤</span>
+          </span>
+          <span className="text-xs font-medium text-muted-foreground">
+            × 包装规格（g）÷ 500
+          </span>
+          <span className="rounded-lg bg-muted px-3 py-[6px] text-xs font-semibold text-foreground">
+            标准规格价
+            <span className="ml-1 font-normal text-muted-foreground">元/份</span>
+          </span>
+        </div>
+
+        <div className="mt-4 grid gap-x-10 gap-y-3 border-t border-dashed border-border pt-4 sm:grid-cols-2">
+          <div className="flex items-center gap-3 text-xs">
+            <span
+              className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
+              style={{ background: "#f59e0b" }}
+            >
+              原料 · 调料
+            </span>
+            <span className="text-muted-foreground">
+              成本价 = 每斤单价（元/斤）
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span
+              className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
+              style={{ background: "#10b981" }}
+            >
+              净料 · 小料
+            </span>
+            <span className="text-muted-foreground">
+              成本价 = 净料/小料单价 ＋ 封装加工费
+              <span className="ml-1 text-muted-foreground/70">
+                （单价 = 原料每斤单价 ÷ 出成率）
+              </span>
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span
+              className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
+              style={{ background: "#8b5cf6" }}
+            >
+              自制酱料
+            </span>
+            <span className="text-muted-foreground">
+              成本价 = 配方成本小计合计 ÷ 用量合计 × 500 ＋ 加工费
+            </span>
+          </div>
+          <div className="flex items-center gap-3 text-xs">
+            <span
+              className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
+              style={{ background: "#a78bfa" }}
+            >
+              外购酱料
+            </span>
+            <span className="text-muted-foreground">
+              成本价 = 每斤单价（元/斤）
+              <span className="ml-1 text-muted-foreground/70">
+                （零售参考价按采购规格换算）
+              </span>
+            </span>
+          </div>
+        </div>
+      </AppDialogContent>
+    </Dialog>
+  );
+}
+
 export default function IngredientsPage() {
   const router = useRouter();
   const [counts, setCounts] = useState<Counts>({ raw: 0, net: 0, minor: 0, seasoning: 0, sauce: 0 });
   const [hoverId, setHoverId] = useState<NodeId | null>(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
   const [paths, setPaths] = useState<Record<string, string>>({});
   const boardRef = useRef<HTMLDivElement>(null);
   const nodeRefs = useRef<Partial<Record<NodeId, HTMLDivElement | null>>>({});
@@ -64,7 +167,10 @@ export default function IngredientsPage() {
     }
   }, []);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    // React 官方推荐的数据获取模式：setState 均发生在 await 之后的异步回调中，
+    // 不构成同步级联渲染
     fetchCounts();
     const refresh = () => fetchCounts();
     window.addEventListener("focus", refresh);
@@ -74,6 +180,7 @@ export default function IngredientsPage() {
       window.removeEventListener("pageshow", refresh);
     };
   }, [fetchCounts]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   // 转化流连线（节点渲染完成后取坐标，窗口变化重算）
   useEffect(() => {
@@ -122,7 +229,7 @@ export default function IngredientsPage() {
           n.id === "sauce" ? "border-[#ddd6fe] bg-gradient-to-b from-white from-60% to-[#faf8ff]" : "border-[#e2e8f0]"
         } ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
       >
-        <span className="absolute right-4 top-4 text-[11px] font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
+        <span className="absolute right-4 top-4 text-xs font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
           进入清单 →
         </span>
         <div className="flex items-center gap-3.5">
@@ -140,15 +247,15 @@ export default function IngredientsPage() {
             <b className="text-[26px] font-extrabold leading-none" style={{ color: n.color }}>
               {counts[n.id]}
             </b>
-            <span className="ml-0.5 text-[11.5px] text-slate-500">种</span>
+            <span className="ml-0.5 text-xs text-slate-500">种</span>
           </div>
         </div>
         {n.id === "sauce" && (
           <div className="mt-3.5 flex gap-2">
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-[11px] leading-normal text-[#6d28d9]">
+            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
               <b className="mb-px block text-xs">自制</b>由调料与小料配比而成
             </div>
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-[11px] leading-normal text-[#6d28d9]">
+            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
               <b className="mb-px block text-xs">外购</b>成品酱料直接采购
             </div>
           </div>
@@ -158,13 +265,22 @@ export default function IngredientsPage() {
   };
 
   return (
-    <div className="p-8">
+    <div className="flex h-dvh min-h-0 flex-col overflow-hidden p-8">
       <PageHeader
         title="食材库"
         description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
       />
 
-      <div className="mt-12 overflow-x-auto">
+      {/* 左上角：计价规则入口 */}
+      <div className="mt-2 flex items-start">
+        <Button variant="outline" onClick={() => setPricingOpen(true)}>
+          <Calculator className="mr-2 h-4 w-4" />
+          计价规则
+        </Button>
+      </div>
+
+      {/* 五个食材清单：上下居中展示 */}
+      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto py-6">
         <div
           ref={boardRef}
           className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr_110px_1fr]"
@@ -215,77 +331,26 @@ export default function IngredientsPage() {
             })}
           </svg>
 
-          <div className="relative z-[2] flex min-h-[400px] flex-col justify-between">
+          <div className="relative z-[2] flex flex-col justify-center gap-8">
             {nodeCard(NODES[0])}
             {nodeCard(NODES[1])}
           </div>
           <div />
-          <div className="relative z-[2] flex min-h-[400px] flex-col justify-between">
+          <div className="relative z-[2] flex flex-col justify-center gap-8">
             {nodeCard(NODES[2])}
             {nodeCard(NODES[3])}
           </div>
           <div />
-          <div className="relative z-[2] flex min-h-[400px] flex-col justify-center">
+          <div className="relative z-[2] flex flex-col justify-center">
             {nodeCard(NODES[4])}
           </div>
         </div>
       </div>
 
-      {/* 统一计价链路（胶囊术语条） */}
-      {/* 计价规则：统一链路 + 各类型成本价由来 */}
-      <div className="mx-auto mt-12 max-w-[1240px] rounded-2xl border border-[#e2e8f0] bg-white px-8 py-6">
-        <div className="text-sm font-bold text-slate-800">计价规则</div>
-
-        <div className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-2.5">
-          <span className="mr-1 text-xs font-semibold text-slate-500">统一链路</span>
-          <span className="rounded-lg bg-slate-100 px-3 py-[6px] text-xs font-semibold text-slate-800">
-            成本价<span className="ml-1 font-normal text-slate-500">元/斤</span>
-          </span>
-          <span className="text-xs font-medium text-slate-400">÷（1 − 毛利率）</span>
-          <span className="rounded-lg bg-slate-100 px-3 py-[6px] text-xs font-semibold text-slate-800">
-            出库价<span className="ml-1 font-normal text-slate-500">元/斤</span>
-          </span>
-          <span className="text-xs font-medium text-slate-400">× 包装规格（g）÷ 500</span>
-          <span className="rounded-lg bg-slate-100 px-3 py-[6px] text-xs font-semibold text-slate-800">
-            标准规格价<span className="ml-1 font-normal text-slate-500">元/份</span>
-          </span>
-        </div>
-
-        <div className="mt-3 border-t border-dashed border-slate-200" />
-
-        <div className="mt-4 grid gap-x-10 gap-y-3 sm:grid-cols-2">
-          <div className="flex items-center gap-3 text-xs">
-            <span className="shrink-0 rounded-md px-2 py-1 font-semibold text-white" style={{ background: "#f59e0b" }}>
-              原料 · 调料
-            </span>
-            <span className="text-slate-600">成本价 = 每斤单价（元/斤）</span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="shrink-0 rounded-md px-2 py-1 font-semibold text-white" style={{ background: "#10b981" }}>
-              净料 · 小料
-            </span>
-            <span className="text-slate-600">
-              成本价 = 净料/小料单价 ＋ 封装加工费<span className="ml-1 text-slate-400">（单价 = 原料每斤单价 ÷ 出成率）</span>
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="shrink-0 rounded-md px-2 py-1 font-semibold text-white" style={{ background: "#8b5cf6" }}>
-              自制酱料
-            </span>
-            <span className="text-slate-600">
-              成本价 = 配方成本小计合计 ÷ 用量合计 × 500 ＋ 加工费
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span className="shrink-0 rounded-md px-2 py-1 font-semibold text-white" style={{ background: "#a78bfa" }}>
-              外购酱料
-            </span>
-            <span className="text-slate-600">
-              成本价 = 每斤单价（元/斤）<span className="ml-1 text-slate-400">（零售参考价按采购规格换算）</span>
-            </span>
-          </div>
-        </div>
-      </div>
+      <PricingRulesDialog
+        open={pricingOpen}
+        onOpenChange={setPricingOpen}
+      />
     </div>
   );
 }

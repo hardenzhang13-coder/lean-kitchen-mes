@@ -2,6 +2,7 @@ import {
   formatMoney,
   formatPercent,
   formatUnitValue,
+  formatDateTime,
 } from "../display-format";
 
 describe("列表展示格式化", () => {
@@ -26,5 +27,17 @@ describe("列表展示格式化", () => {
   it("普通数值单位支持无空格与有空格格式", () => {
     expect(formatUnitValue(500, "g/单位", "—", " ")).toBe("500 g/单位");
     expect(formatUnitValue(3, "份", "—", " ")).toBe("3 份");
+  });
+
+  it("建档时间按 年-月-日 时:分 展示", () => {
+    const date = new Date(2026, 10, 15, 21, 30, 0);
+    expect(formatDateTime(date)).toBe("2026-11-15 21:30");
+    expect(formatDateTime(date.toISOString())).toBe("2026-11-15 21:30");
+  });
+
+  it("空值与非法时间统一弱化为占位符文本", () => {
+    expect(formatDateTime(null)).toBe("—");
+    expect(formatDateTime(undefined)).toBe("—");
+    expect(formatDateTime("不是时间")).toBe("—");
   });
 });

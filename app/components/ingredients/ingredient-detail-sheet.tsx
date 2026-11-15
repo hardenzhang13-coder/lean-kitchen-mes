@@ -31,7 +31,7 @@ import {
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { useNetIngredientForm } from "@/app/components/ingredients/use-net-ingredient-form";
-import { formatPercent } from "@/lib/shared/display-format";
+import { formatPercent, formatDateTime } from "@/lib/shared/display-format";
 
 export type IngredientDetailKind = "raw" | "seasoning" | "net" | "minor";
 
@@ -49,6 +49,8 @@ export type RawDetail = {
   defaultSupplier?: { id: number; name: string } | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
+  /** 建档时间 */
+  createdAt?: string | null;
 };
 
 export type NetDetail = {
@@ -71,6 +73,8 @@ export type NetDetail = {
   grossMarginRate: number | null;
   /** 份量（小碗菜 / 社区口径） */
   portion?: string | null;
+  /** 建档时间 */
+  createdAt?: string | null;
   costPricePerJin?: number | null;
   outPricePerJin?: number | null;
   standardPackagePrice?: number | null;
@@ -356,6 +360,11 @@ export function IngredientDetailSheet({
         onOpenChange={requestClose}
         title={sheetTitle}
         meta={headerMeta}
+        headerAside={
+          data?.createdAt ? (
+            <span>建档 {formatDateTime(data.createdAt)}</span>
+          ) : null
+        }
         footer={
           data ? (
             canInlineEdit ? (

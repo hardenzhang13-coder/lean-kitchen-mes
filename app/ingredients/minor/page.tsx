@@ -281,16 +281,6 @@ export default function MinorIngredientsPage() {
                   ),
                 },
                 {
-                  header: "二级分类",
-                  className: "w-[90px]",
-                  cell: (row) => {
-                    const l2Info = l2Map[row.l2Code];
-                    return (
-                      <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
-                    );
-                  },
-                },
-                {
                   header: "编号",
                   className: "w-[85px]",
                   cell: (row) => <span className="font-medium">{row.code}</span>,
@@ -299,10 +289,20 @@ export default function MinorIngredientsPage() {
                   header: "名称",
                   className: "w-[170px]",
                   cell: (row) => (
-                    <span className="font-medium">
+                    <span className="font-semibold text-primary">
                       {row.name}
                     </span>
                   ),
+                },
+                {
+                  header: "二级分类",
+                  className: "w-[90px]",
+                  cell: (row) => {
+                    const l2Info = l2Map[row.l2Code];
+                    return (
+                      <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
+                    );
+                  },
                 },
                 {
                   header: "包装规格",
