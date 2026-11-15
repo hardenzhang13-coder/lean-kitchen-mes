@@ -25,8 +25,13 @@ git log --oneline -5
 
 - **精确路径 `git add`**，一次列一个语义组。
 - **禁止** `git add -A` / `git add .`。
+- 需要暂存「全部已跟踪改动但排除某个文件」时，用 pathspec 排除：`git add -u -- . ':!CLAUDE.md'`。
 - 不属于本次的文件：保持原状。不要 `git checkout --`、`git stash`、`git restore` 他人改动。
 - 暂存后用 `git diff --cached --stat` 复核一遍。
+
+## 识别他人改动
+
+提交前把 `git diff --stat` 与十几分钟前的印象对一遍：某个文件的改动量突然变大、出现没见过的文件，说明伙伴在上次查看之后又写了东西。**先读新增部分，再决定是否纳入本次提交**；不要在对方仍可能落盘时提交。
 
 ## 拆分原则
 
