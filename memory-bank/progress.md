@@ -4,6 +4,49 @@
 
 ---
 ---
+## 2026-11-15（续 4）— 食材库迭代总结 + 全系统迭代升级基础
+
+### 背景
+食材库在试运行第一周先行迭代（提交 `c49d17a`），做了份量枚举统一、存量口径迁移、5 个清单收口、档案复制、删除入口收敛、保存并继续添加 6 件事。但这些经验只沉淀在食材模块里：`PortionTag` 被 `dish-form` 跨目录引用、列表页规则写在基线文档的「食材清单」专节、复制与连续录入的编排在各页面重复实现。下一轮改造设置/库存/排程/生产计划时，同一批决策会被重新发明。
+
+### 本轮产出
+**文档**
+- 新建 `docs/ingredient-library-iteration-review-2026-11.md` — 食材库本轮总结（6 件事逐项 + 沉淀通用件 + 踩坑 + 验证结论）
+- 新建 `docs/system-iteration-foundation-v1.md` — 全系统迭代升级基础总纲：六条通用契约（C1 枚举字典 / C2 列表页 / C3 详情抽屉 / C4 档案复制 / C5 连续录入 / C6 存量口径迁移）、通用件唯一入口对照表、通用模块骨架、批次路线、门禁
+- 升级 `docs/interaction-visual-baseline-v1.md`：原「6.2.1 食材清单」拆成通用条款（列表页 / 详情抽屉 / 档案复制 / 连续录入）+ 收窄后的食材专有条款；§5 组件契约表补 5 条；§6.1 补列表页契约；§9 治理规则补 4 条检查点
+- 更新 `docs/interaction-visual-baseline-v1-rollout-plan.md`：批次状态、剩余项归属、新增批次 5 = 设置模块
+
+**代码（通用件提升）**
+- `app/components/ui/portion-tag.tsx` — 从 `app/components/ingredients/` 提升（消除跨业务域引用）
+- `app/components/ui/detail-section.tsx` — `DetailSection` / `InfoCell`，从食材详情抽屉提取
+- `app/components/ui/use-record-guard.ts` + `discard-changes-dialog.tsx` — 未保存改动拦截，从食材详情抽屉提取
+- `lib/client/use-record-copy.ts` — `useRecordCopy`，统一复制编排（回填 + 名称后缀 + 弹窗叠放 + 提交后全关）
+- `app/components/ui/use-record-form.ts` — 新增 `clearOnContinue` / `keepOnContinue` 与 `submitContinue`，连续录入策略从业务 hook 的标志位移到通用层
+- `lib/shared/portion-scale.ts` — 补导出 `PORTION_OPTION_BY_VALUE`
+- 通用层自身违规清理：`select-dialog.tsx` / `import-dialog.tsx` / `select-table-mode.tsx` 三处像素宽度弹窗改 `AppDialogContent` 语义尺寸，`SelectDialog` 增 `size` 属性
+- 原料 / 净料 / 小料 / 调料 4 个清单页改用 `useRecordCopy`
+
+**Skill**
+- 改 `ui-baseline`：新增「详情 / 复制 / 连续录入 / 枚举口径」四节，列表节补字段标题不带单位、整行进详情、操作列不折叠
+- 改 `domain-pricing`：份量段补枚举字典契约与存量迁移套路
+- 新建 `module-iteration`：主数据模块的施工顺序（对齐口径 → 列表页 → 详情抽屉 → 复制 → 连续录入 → API 契约 → 样张验收）+ 反模式表；`.claude/skills/module-iteration` 已建链接
+- `.agents/skills/README.md` 清单表补一行
+
+### 明确不做的抽象
+- 不抽通用列表页骨架组件：5 个清单的差异集中在 columns / rowActions / 附加弹窗，抽成骨架要把差异硬塞进 props；等设置、库存两批改造完再评估
+- 不抽枚举字典工厂函数：目前只有 1 份字典，用目录约定 + 文档契约 + Skill 约束代替
+- 不改任何数据库 schema，零迁移、零生产影响
+
+### 下一批
+设置模块（`app/settings/` 7 页）—— 与食材库同构度最高、是剩余 12 条 lint 告警集中区、纯主数据风险低。采购模块因 `TRIAL_FEATURES.purchases = false` 锁定，不能打头。批次路线：设置 → 库存 → 排程 + 生产计划 → 菜品 → 采购（解锁后）。
+
+### 验证
+- 新增单测：`use-record-copy` / `use-record-form` 连续录入 / `detail-section` / `discard-changes-dialog` / `use-record-guard`
+- `npx tsc --noEmit` 0 错误；`npm run lint` 不新增告警；`npm test` 全绿；`npm run build` 通过；Prisma 零差异
+- 回归：食材 5 清单（筛选 / 分页汇总 / 每页条数 / 复制 / 编辑 / 删除入口 / 保存并继续添加）+ 菜品 BOM 选择器份量列
+
+---
+---
 ## 2026-11-15（续 3）— ACR 镜像部署通路首次实测通过
 
 ### 背景

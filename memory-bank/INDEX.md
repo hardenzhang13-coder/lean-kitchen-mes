@@ -19,6 +19,7 @@
 |------|------|----------|
 | `AGENTS.md` | 工作区安全红线与代码检查流程 | 规则变更时 |
 | `docs/协作错误清单.md` | **重大协作错误清单**（记录事实 + 改正动作，避免重犯） | 出现重大协作错误即追加 |
+| `docs/system-iteration-foundation-v1.md` | **全系统迭代升级基础**：通用契约、通用件清单、模块骨架、批次路线 | 契约变更时 |
 
 ## 使用方式
 
@@ -33,4 +34,7 @@
 - 项目全局指南：`../CLAUDE.md`
 - AI Agent 工作区指令：`../AGENTS.md`
 - 子系统局部指南：`../app/components/dish-form/CLAUDE.md`、`../app/lib/CLAUDE.md`、`../prisma/CLAUDE.md`、`../app/api/*/CLAUDE.md`
+- 交互视觉基线：`../docs/interaction-visual-baseline-v1.md`
+- 全系统迭代基础：`../docs/system-iteration-foundation-v1.md`
+- 食材库迭代总结：`../docs/ingredient-library-iteration-review-2026-11.md`
 

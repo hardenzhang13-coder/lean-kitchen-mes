@@ -161,7 +161,9 @@ export async function POST(req: NextRequest) { /* ... */ }
 - shadcn/ui 组件使用 `base-rhea` 风格变体
 - 字体栈：系统中文无衬线字体（正文与标题）、系统等宽字体（数字与代码）
 - 布局：左侧固定 80px 侧边栏，主内容区通过 `ml-20` 偏移
-- 交互视觉以 `docs/interaction-visual-baseline-v1.md` 为唯一基线
+- 交互视觉以 `docs/interaction-visual-baseline-v1.md` 为唯一基线；工程与架构契约（枚举字典、模块形态、能力复用边界）以 `docs/system-iteration-foundation-v1.md` 为准
+- 跨模块枚举必须落在 `lib/shared/`，并同时提供「枚举值数组 + 选项元数据 + 取值解析 + 合法性判断 + 渲染组件」五件套
+- 跨业务域引用必须走 `app/components/ui/` 或 `lib/shared/`，禁止业务目录之间直接互相 import
 - 页面骨架优先使用 `PageShell` / `PageHeader`；状态、空态、加载态和弹窗优先使用 `app/components/ui/` 下的业务封装
 - 组件可视样张：`/ui-kit`
 
@@ -182,6 +184,8 @@ export async function POST(req: NextRequest) { /* ... */ }
 | `memory-bank/Router.md` | 页面路由树 |
 | `memory-bank/Design.md` | UI 设计规范 |
 | `docs/interaction-visual-baseline-v1.md` | **当前交互视觉唯一基线** |
+| `docs/system-iteration-foundation-v1.md` | **全系统迭代升级基础**：六条通用契约、通用件清单、模块骨架、批次路线 |
+| `docs/ingredient-library-iteration-review-2026-11.md` | 食材库最近一轮迭代总结（通用化的经验来源） |
 | `docs/interaction-visual-baseline-v1-rollout-plan.md` | 交互基线落地批次计划 + 62 条 lint 清理专项 |
 | `docs/production-data-package-spec-plan.md` | 生产数据「封装规格」补齐方案（分阶段、含回滚） |
 | `docs/协作错误清单.md` | **重大协作错误清单**：记录协作中的重大失误与改正动作 |
@@ -201,6 +205,7 @@ export async function POST(req: NextRequest) { /* ... */ }
 | `prisma-migration-guard` | 改 `prisma/schema.prisma`、新增迁移、部署涉库 |
 | `api-endpoint` | 新增或修改 `app/api/**` 路由 |
 | `ui-baseline` | 任何页面 / 组件 / 弹窗 / 表格改动 |
+| `module-iteration` | 新建或改造一个业务模块（主数据 CRUD 清单 / 详情 / 表单 / API） |
 | `domain-pricing` | 价格、成本、出成率、单位、份量、库存份数 |
 | `commit-hygiene` | `git add` / `git commit` |
 
@@ -247,16 +252,16 @@ npm run lint
 
 ## 当前技术债
 
-- **交互基线未全站落地**：62 条 lint warning 待清（弹窗像素宽度 31、正文字号 <12px 16、React Hooks 13、any/未使用变量 2），批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
-- **生产数据待办**：存量净料/小料 `package_spec` 未回填，阻断完成生产与出库金额，方案见 `docs/production-data-package-spec-plan.md`
+- **交互基线未全站落地**：19 条 lint warning 待清（弹窗像素宽度 15、正文字号 <12px 3、React Hooks 1），集中在 `app/ingredients/**`(7) 与 `app/settings/**`(12)，批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
+- **生产数据待办（已复核关闭）**：存量净料/小料 `package_spec` 已全部回填 —— 2026-11-15 生产库只读复核 70 条全部有效（5g~2000g，0 NULL / 0 负值），原方案文档 `docs/production-data-package-spec-plan.md` 保留为备查
 - **旧库存表并存**：`inventory` / `inventory_ledger` 已停用但未清理，待定下线时点
 - **采购模块锁定**：试运行期间 `TRIAL_FEATURES.purchases = false`，采购链路未在生产验证
-- **测试覆盖**：现有 28 套件 / 158 用例，集中在纯函数与工具层；API 路由与 UI 组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
+- **测试覆盖**：现有 37 套件 / 204 用例，集中在纯函数、工具层与通用组件；API 路由与业务组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
 - **客户端组件化**：大量 `"use client"` + `fetch()`，服务端组件化可逐步推进
 
 ## 重要说明
 
 - **Next.js 破坏性变更：** 这是 Next.js 16 配合 React 19。API 和约定可能与旧版本不同。不确定时，请查阅 `node_modules/next/dist/docs/`。详见 `AGENTS.md`。
 - **菜品状态生命周期：** `draft` → `pending` → `published`。向导允许在任意步骤保存为 `draft`，或仅在校验通过后保存为 `published`。
-- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 28 套件 / 158 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
+- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 37 套件 / 204 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
 - **部署：** `next.config.ts` 设置 `output: "standalone"`。构建需要 `DATABASE_URL` 环境变量。

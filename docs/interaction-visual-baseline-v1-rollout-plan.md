@@ -2,8 +2,9 @@
 
 > 制定日期：2026-11-14
 > 依据基线：`docs/interaction-visual-baseline-v1.md`（当前唯一基线，历史规范文档一律作废）
+> 工程契约：见 `docs/system-iteration-foundation-v1.md`（通用契约、通用件清单、模块骨架、批次路线）
 > 适用阶段：试运行期（2026-11 已上线）→ 按批次替换剩余页面
-> 状态：批次 0 已完成（见 `memory-bank/progress.md` 2026-11-14），批次 1–4 待执行
+> 状态：批次 0–4 主体已完成（见 `memory-bank/progress.md` 2026-11-15），剩余项随对应模块迭代消化；下一批模块改造 = 设置模块
 
 ---
 
@@ -66,7 +67,7 @@
 5. 跨档时按**就近不缩小**原则选择，并同步更新 `/ui-kit` 样张。
 
 **已落地（2026-11-15，提交 9a3d807）**：13 处，排除 `app/ingredients/**` 与 `app/settings/**`。
-剩余 18 处（ingredients 5 + settings 12 + 1）随对应模块迭代消化。
+剩余 18 处（ingredients 5 + settings 12 + 1）随对应模块迭代消化 —— 其中 settings 的 12 处由「批次 5：设置模块」承接，ingredients 的 5 处已随食材库迭代完成。
 
 **涉及文件**（22 个）：
 
@@ -110,6 +111,8 @@ app/schedules/new/page.tsx
 
 **验收**：基线第 3.2 条「正文不得小于 12px」全站成立；列表扫读密度不回退。
 
+**剩余（2026-11-15）**：`app/login/page.tsx`（2 处）、`app/components/dish-form/process-step-card.tsx`（1 处）、`app/ingredients/page.tsx`（3 处）随对应模块迭代消化。
+
 ---
 
 ### 批次 3：React Hooks 规范化（13 处）— 部分完成
@@ -149,6 +152,28 @@ app/schedules/new/page.tsx
 
 ---
 
+### 批次 5：设置模块改造（B1 首个模块批次）
+
+**范围**：`app/settings/` 7 个页面 —— units / stores / suppliers / users / classes / categories / net-packagings。
+
+**为什么是设置模块**：与食材库同构度最高（主数据 CRUD + 弹窗表单 + 自建 `<Table>`），是通用契约的最佳验证场；且是剩余 lint 告警集中区（12 条）；纯主数据，不碰排程/生产/库存的状态机，风险低。
+
+**改造内容**（逐条对应 `docs/system-iteration-foundation-v1.md` 的契约）：
+
+| 契约 | 落地动作 |
+|---|---|
+| C2 列表页契约 | 7 个页面的自建 `<Table>` 改用 `DataTable`；底部加 `totalLabel`（数据区间汇总）与 `showPageSize`；字段标题不带单位；点击整行进详情；操作列直接放业务动作图标 |
+| C3 详情抽屉契约 | 详情改用 `RecordSheet` + `RecordActions`；内容用 `DetailSection` / `InfoCell` 分组；未保存改动经 `useRecordGuard` 拦截 |
+| C4 档案复制契约 | 7 个页面统一接 `useRecordCopy`，名称追加「-副本」 |
+| 弹窗语义尺寸 | 清掉 settings 12 处像素宽度 `DialogContent`，改 `AppDialogContent` |
+| 字号下限 | 清掉 settings 剩余字号告警 |
+
+**依赖**：批次 0–4 的通用件（`DataTable` / `RecordSheet` / `AppDialogContent` / `useRecordCopy` / `useRecordGuard`）。
+
+**验收**：settings 12 条 lint 告警清零；7 页在 1280 / 1440 / 1920 三档宽度无横向滚动；`/ui-kit` 补齐对应样张；`npx tsc --noEmit` + `npm run lint` + `npm test` + `npm run build` 全绿。
+
+---
+
 ## 4. 回归清单（每批次必跑）
 
 四条核心链路 + 组件层：
@@ -170,6 +195,7 @@ app/schedules/new/page.tsx
 3. 新增组件变体必须同时提供使用场景、桌面布局表现和状态样张（同步 `/ui-kit`）。
 4. 旧规范文档（`ui-ux-standardization-*.md`、`component-layer-optimization-spec.md`、`table-form-optimization-spec.md`、`dialog-input-table-style-supplement.md`、`ui-audit-report.md`）一律视为历史输入，不得再作为执行依据。
 5. 每轮迭代重点回归上述四条核心链路。
+6. 模块改造的施工顺序、通用契约与通用件清单见 `docs/system-iteration-foundation-v1.md`；本文档只管批次与状态，两份文档同一次提交内更新。
 
 ---
 
