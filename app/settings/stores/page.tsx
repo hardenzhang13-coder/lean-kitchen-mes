@@ -1,33 +1,29 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Store } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Store = {
@@ -41,6 +37,10 @@ type Store = {
   isActive: boolean;
   _count?: { schedules: number };
 };
+
+function EmptyValue() {
+  return <span className="text-muted-foreground">—</span>;
+}
 
 export default function StoresPage() {
   const [data, setData] = useState<Store[]>([]);
@@ -95,8 +95,8 @@ export default function StoresPage() {
     pageItems,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
@@ -179,17 +179,21 @@ export default function StoresPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="门店管理" description="管理门店信息，排程按门店组织生产" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增门店
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="门店管理"
+        description="管理门店信息，排程按门店组织生产"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增门店
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -203,92 +207,103 @@ export default function StoresPage() {
             }}
           />
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={8} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>负责人</TableHead>
-                      <TableHead>电话</TableHead>
-                      <TableHead>地址</TableHead>
-                      <TableHead className="w-[100px]">状态</TableHead>
-                      <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={8} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">{row.code}</TableCell>
-                          <TableCell className="font-medium">
-                            <span className="inline-flex items-center gap-1.5">
-                              <Store className="h-3.5 w-3.5 text-muted-foreground" />
-                              {row.name}
-                            </span>
-                          </TableCell>
-                          <TableCell>{row.manager || "—"}</TableCell>
-                          <TableCell>{row.phone || "—"}</TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                            {row.address || "—"}
-                          </TableCell>
-                          <TableCell>
-                            {row.isActive ? (
-                              <Badge variant="secondary">启用中</Badge>
-                            ) : (
-                              <Badge variant="outline">已停用</Badge>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" aria-label="编辑门店" onClick={() => openEdit(row)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="删除门店"
-                              disabled={row.isSystem}
-                              onClick={() => setDeleteTarget(row)}
-                            >
-                              <Trash2 className={`h-4 w-4 ${row.isSystem ? "text-muted-foreground/40" : "text-destructive"}`} />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<Store>
+            data={pageItems}
+            loading={loading}
+            onRowClick={openEdit}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(currentPage - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[90px]",
+                cell: (row) => (
+                  <span className="font-medium text-muted-foreground">{row.code}</span>
+                ),
+              },
+              {
+                header: "名称",
+                className: "w-[160px]",
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+              },
+              {
+                header: "负责人",
+                className: "w-[100px]",
+                cell: (row) => row.manager || <EmptyValue />,
+              },
+              {
+                header: "电话",
+                className: "w-[130px]",
+                cell: (row) =>
+                  row.phone ? (
+                    <span className="tabular-nums">{row.phone}</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "地址",
+                className: "w-[220px]",
+                cell: (row) =>
+                  row.address ? (
+                    <span className="whitespace-nowrap">{row.address}</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "状态",
+                className: "w-[100px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={row.isActive ? "启用中" : "已停用"}
+                    variant={row.isActive ? "success" : "neutral"}
+                  />
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "门店"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`编辑门店 ${row.name}`}
+                title="编辑门店"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openEdit(row);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑门店" : "新增门店"}</DialogTitle>
           </DialogHeader>
@@ -349,6 +364,21 @@ export default function StoresPage() {
             )}
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                disabled={editing.isSystem}
+                title={editing.isSystem ? "系统门店不可删除" : "删除门店"}
+                onClick={() => {
+                  setDialogOpen(false);
+                  setDeleteTarget(editing);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
@@ -359,11 +389,11 @@ export default function StoresPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -379,8 +409,8 @@ export default function StoresPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

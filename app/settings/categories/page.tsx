@@ -8,25 +8,22 @@ import { Label } from "@/components/ui/label";
 import { SelectField } from "@/app/components/ui/select-field";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Category = {
@@ -45,6 +42,10 @@ const statusFilters = [
   { value: "active", label: "启用中" },
   { value: "inactive", label: "已停用" },
 ];
+
+function EmptyValue() {
+  return <span className="text-muted-foreground">—</span>;
+}
 
 export default function CategoriesPage() {
   const [data, setData] = useState<Category[]>([]);
@@ -107,8 +108,8 @@ export default function CategoriesPage() {
     pageItems,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const moveRow = async (idx: number, dir: -1 | 1) => {
@@ -236,17 +237,21 @@ export default function CategoriesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="菜品类别" description="管理菜品分类字典；被菜品引用的类别不可删除/改编号，可停用使新单据不再可选" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="菜品类别"
+        description="管理菜品分类字典；被菜品引用的类别不可删除/改编号，可停用使新单据不再可选"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -272,112 +277,136 @@ export default function CategoriesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>说明</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead className="w-[200px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<Category>
+            data={pageItems}
+            loading={loading}
+            onRowClick={openEdit}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(currentPage - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[110px]",
+                cell: (row) => <span className="font-medium">{row.code}</span>,
+              },
+              {
+                header: "名称",
+                className: "w-[150px]",
+                cell: (row) => row.name,
+              },
+              {
+                header: "说明",
+                className: "w-[220px]",
+                cell: (row) =>
+                  row.description ? (
+                    <span className="whitespace-nowrap text-muted-foreground">
+                      {row.description}
+                    </span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "状态",
+                className: "w-[100px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={row.isActive ? "启用中" : "已停用"}
+                    variant={row.isActive ? "success" : "neutral"}
+                  />
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "菜品类别"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => {
+              const dataIdx = data.findIndex((d) => d.id === row.id);
+              return (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`上移 ${row.name}`}
+                    title={sortDisabled ? "搜索时不可排序" : "上移"}
+                    disabled={sortDisabled || dataIdx <= 0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveRow(dataIdx, -1);
+                    }}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`下移 ${row.name}`}
+                    title={sortDisabled ? "搜索时不可排序" : "下移"}
+                    disabled={sortDisabled || dataIdx >= data.length - 1 || dataIdx < 0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveRow(dataIdx, 1);
+                    }}
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={row.isActive ? `停用菜品类别 ${row.name}` : `启用菜品类别 ${row.name}`}
+                    title={row.isActive ? "停用" : "启用"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleActive(row);
+                    }}
+                  >
+                    {row.isActive ? (
+                      <Ban className="h-4 w-4 text-amber-500" />
                     ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow key={row.id} className={`transition-colors hover:bg-muted/40 ${!row.isActive ? "opacity-50" : ""}`}>
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">{row.code}</TableCell>
-                          <TableCell>{row.name}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {row.description || "—"}
-                          </TableCell>
-                          <TableCell>
-                            {row.isActive ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
-                                <CheckCircle2 className="h-3 w-3" /> 启用中
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                                <Ban className="h-3 w-3" /> 已停用
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {(() => {
-                              const dataIdx = data.findIndex((d) => d.id === row.id);
-                              return (
-                                <>
-                                  <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || dataIdx <= 0} onClick={() => moveRow(dataIdx, -1)}>
-                                    <ArrowUp className="h-4 w-4" />
-                                  </Button>
-                                  <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || dataIdx >= data.length - 1 || dataIdx < 0} onClick={() => moveRow(dataIdx, 1)}>
-                                    <ArrowDown className="h-4 w-4" />
-                                  </Button>
-                                </>
-                              );
-                            })()}
-                            <Button variant="ghost" size="icon" aria-label={row.isActive ? "停用菜品类别" : "启用菜品类别"} onClick={() => toggleActive(row)}>
-                              {row.isActive ? (
-                                <Ban className="h-4 w-4 text-amber-500" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="编辑菜品类别"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="删除菜品类别"
-                              onClick={() => openDelete(row)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`编辑菜品类别 ${row.name}`}
+                    title="编辑菜品类别"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEdit(row);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </>
+              );
+            }}
+          />
         </CardContent>
       </Card>
 
       {/* Create / Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑菜品类别" : "新增菜品类别"}</DialogTitle>
           </DialogHeader>
@@ -419,6 +448,19 @@ export default function CategoriesPage() {
             </div>
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                onClick={() => {
+                  setDialogOpen(false);
+                  openDelete(editing);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
@@ -429,12 +471,12 @@ export default function CategoriesPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       {/* Delete Confirm */}
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[440px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {deleteError ? "无法删除" : "确认删除"}
@@ -471,8 +513,8 @@ export default function CategoriesPage() {
               </Button>
             )}
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

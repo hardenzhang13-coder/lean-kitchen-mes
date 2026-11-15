@@ -7,11 +7,11 @@ import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import {
   Select,
   SelectContent,
@@ -20,20 +20,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SelectField } from "@/app/components/ui/select-field";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 import { formatUnitValue } from "@/lib/shared/display-format";
 
@@ -132,8 +129,8 @@ export default function UnitsPage() {
     pageItems,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
@@ -247,17 +244,21 @@ export default function UnitsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="单位" description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="单位"
+        description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -283,101 +284,110 @@ export default function UnitsPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>分类</TableHead>
-                      <TableHead>换算值</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead className="w-[160px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow key={row.id} className={`transition-colors hover:bg-muted/40 ${!row.isActive ? "opacity-50" : ""}`}>
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell>
-                            <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                              {categories.find((c) => c.value === row.category)?.label || row.category}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {row.category === "weight"
-                              ? row.gramsPerUnit != null
-                                ? formatUnitValue(
-                                    row.gramsPerUnit,
-                                    "g/单位",
-                                    "未设置",
-                                    " "
-                                  )
-                                : "未设置"
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            {row.isActive ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
-                                <CheckCircle2 className="h-3 w-3" /> 启用中
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                                <Ban className="h-3 w-3" /> 已停用
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" aria-label={row.isActive ? "停用单位" : "启用单位"} onClick={() => toggleActive(row)}>
-                              {row.isActive ? (
-                                <Ban className="h-4 w-4 text-amber-500" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              )}
-                            </Button>
-                            <Button variant="ghost" size="icon" aria-label="编辑单位" onClick={() => openEdit(row)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" aria-label="删除单位" onClick={() => openDelete(row)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<Unit>
+            data={pageItems}
+            loading={loading}
+            onRowClick={openEdit}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(currentPage - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "名称",
+                className: "w-[160px]",
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+              },
+              {
+                header: "分类",
+                className: "w-[100px]",
+                cell: (row) => (
+                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
+                    {categories.find((c) => c.value === row.category)?.label || row.category}
+                  </span>
+                ),
+              },
+              {
+                header: "换算值",
+                className: "w-[130px]",
+                cell: (row) =>
+                  row.category === "weight" ? (
+                    <span className="tabular-nums">
+                      {formatUnitValue(row.gramsPerUnit, "g/单位", "未设置", " ")}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  ),
+              },
+              {
+                header: "状态",
+                className: "w-[100px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={row.isActive ? "启用中" : "已停用"}
+                    variant={row.isActive ? "success" : "neutral"}
+                  />
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "单位"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={row.isActive ? `停用单位 ${row.name}` : `启用单位 ${row.name}`}
+                  title={row.isActive ? "停用单位" : "启用单位"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleActive(row);
+                  }}
+                >
+                  {row.isActive ? (
+                    <Ban className="h-4 w-4 text-amber-500" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑单位 ${row.name}`}
+                  title="编辑单位"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
           </DialogHeader>
@@ -434,6 +444,19 @@ export default function UnitsPage() {
             )}
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                onClick={() => {
+                  setDialogOpen(false);
+                  openDelete(editing);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={closeDialog} className="h-11 px-6">
               取消
             </Button>
@@ -444,11 +467,11 @@ export default function UnitsPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[440px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {deleteError ? "无法删除" : "确认删除"}
@@ -485,8 +508,8 @@ export default function UnitsPage() {
               </Button>
             )}
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

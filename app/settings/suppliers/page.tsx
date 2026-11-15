@@ -7,25 +7,21 @@ import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Supplier = {
@@ -35,6 +31,10 @@ type Supplier = {
   phone: string | null;
   remark: string | null;
 };
+
+function EmptyValue() {
+  return <span className="text-muted-foreground">—</span>;
+}
 
 export default function SuppliersPage() {
   const [data, setData] = useState<Supplier[]>([]);
@@ -88,8 +88,8 @@ export default function SuppliersPage() {
     pageItems,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
@@ -158,17 +158,21 @@ export default function SuppliersPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="供应商" description="管理采购供应商信息" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="供应商"
+        description="管理采购供应商信息"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -182,71 +186,86 @@ export default function SuppliersPage() {
             }}
           />
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>联系人</TableHead>
-                      <TableHead>电话</TableHead>
-                      <TableHead>备注</TableHead>
-                      <TableHead className="w-[120px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, idx) => (
-                        <TableRow key={row.id} className="transition-colors hover:bg-muted/40">
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + idx + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell>{row.contact || "—"}</TableCell>
-                          <TableCell>{row.phone || "—"}</TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                            {row.remark || "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" aria-label="编辑供应商" onClick={() => openEdit(row)}>
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" aria-label="删除供应商" onClick={() => setDeleteId(row.id)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<Supplier>
+            data={pageItems}
+            loading={loading}
+            onRowClick={openEdit}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(currentPage - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "名称",
+                className: "w-[180px]",
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+              },
+              {
+                header: "联系人",
+                className: "w-[100px]",
+                cell: (row) => row.contact || <EmptyValue />,
+              },
+              {
+                header: "电话",
+                className: "w-[130px]",
+                cell: (row) =>
+                  row.phone ? (
+                    <span className="tabular-nums">{row.phone}</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+              {
+                header: "备注",
+                className: "w-[220px]",
+                cell: (row) =>
+                  row.remark ? (
+                    <span className="whitespace-nowrap">{row.remark}</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "供应商"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <Button
+                variant="ghost"
+                size="icon"
+                aria-label={`编辑供应商 ${row.name}`}
+                title="编辑供应商"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openEdit(row);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+              </Button>
+            )}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">{editing ? "编辑供应商" : "新增供应商"}</DialogTitle>
           </DialogHeader>
@@ -293,6 +312,19 @@ export default function SuppliersPage() {
             </div>
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                onClick={() => {
+                  setDialogOpen(false);
+                  setDeleteId(editing.id);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
@@ -303,11 +335,11 @@ export default function SuppliersPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -320,8 +352,8 @@ export default function SuppliersPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

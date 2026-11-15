@@ -7,26 +7,23 @@ import { Input } from "@/app/components/ui/form-controls";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 
@@ -48,6 +45,11 @@ type L2 = {
   isActive: boolean;
 };
 
+/** DataTable 逐行渲染：一级分类 + 展开后的二级分类 */
+type DisplayRow =
+  | { kind: "l1"; l1: L1; l1Idx: number }
+  | { kind: "l2"; l1: L1; l1Idx: number; l2: L2; l2Idx: number };
+
 /** 后端引用检查返回的引用明细 */
 type CategoryReferences = Record<string, number>;
 
@@ -56,18 +58,6 @@ const statusFilters = [
   { value: "active", label: "启用中" },
   { value: "inactive", label: "已停用" },
 ];
-
-function StatusBadge({ isActive }: { isActive: boolean }) {
-  return isActive ? (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
-      <CheckCircle2 className="h-3 w-3" /> 启用中
-    </span>
-  ) : (
-    <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-      <Ban className="h-3 w-3" /> 已停用
-    </span>
-  );
-}
 
 export default function ClassesPage() {
   const [data, setData] = useState<L1[]>([]);
@@ -149,9 +139,22 @@ export default function ClassesPage() {
     pageItems: pageL1Items,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+
+  const displayRows = useMemo(() => {
+    const rows: DisplayRow[] = [];
+    pageL1Items.forEach((l1, l1Idx) => {
+      rows.push({ kind: "l1", l1, l1Idx });
+      if (expanded.has(l1.id)) {
+        l1.children.forEach((l2, l2Idx) => {
+          rows.push({ kind: "l2", l1, l1Idx, l2, l2Idx });
+        });
+      }
+    });
+    return rows;
+  }, [pageL1Items, expanded]);
 
   const l1Options = useMemo(
     () => data.map((d) => ({ value: d.code, label: d.name, description: d.code })),
@@ -352,17 +355,21 @@ export default function ClassesPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="食材分类" description="管理食材一级和二级分类体系；被食材引用的分类不可删除/改编号，可停用使新单据不再可选" />
-        <Button onClick={openCreateL1}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增一级分类
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="食材分类"
+        description="管理食材一级和二级分类体系；被食材引用的分类不可删除/改编号，可停用使新单据不再可选"
+        actions={
+          <Button onClick={openCreateL1}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增一级分类
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -388,75 +395,249 @@ export default function ClassesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={6} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>编号</TableHead>
-                      <TableHead>名称</TableHead>
-                      <TableHead>说明</TableHead>
-                      <TableHead>状态</TableHead>
-                      <TableHead className="w-[240px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageL1Items.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<DisplayRow>
+            data={displayRows}
+            loading={loading}
+            onRowClick={(row) =>
+              row.kind === "l1" ? openEditL1(row.l1) : openEditL2(row.l2)
+            }
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[64px]",
+                cell: (row) => (
+                  <span className="text-muted-foreground">
+                    {row.kind === "l1"
+                      ? (currentPage - 1) * pageSize + row.l1Idx + 1
+                      : `${(currentPage - 1) * pageSize + row.l1Idx + 1}.${row.l2Idx + 1}`}
+                  </span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[150px]",
+                cell: (row) =>
+                  row.kind === "l1" ? (
+                    <span className="inline-flex items-center gap-1 font-medium">
+                      <button
+                        type="button"
+                        aria-label={expanded.has(row.l1.id) ? `收起 ${row.l1.name}` : `展开 ${row.l1.name}`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          toggleExpand(row.l1.id);
+                        }}
+                      >
+                        {expanded.has(row.l1.id) ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      {row.l1.code}
+                    </span>
+                  ) : (
+                    <span className="inline-block pl-6 text-muted-foreground">
+                      {row.l2.code}
+                    </span>
+                  ),
+              },
+              {
+                header: "名称",
+                className: "w-[160px]",
+                cell: (row) =>
+                  row.kind === "l1" ? (
+                    <span className="font-semibold">{row.l1.name}</span>
+                  ) : (
+                    <span className="inline-block pl-6">{row.l2.name}</span>
+                  ),
+              },
+              {
+                header: "说明",
+                className: "w-[220px]",
+                cell: (row) =>
+                  row.kind === "l1" ? (
+                    <span className="whitespace-nowrap text-muted-foreground">
+                      {row.l1.description || "—"}
+                    </span>
+                  ) : (
+                    <span className="inline-block whitespace-nowrap pl-6 text-muted-foreground">
+                      {row.l2.description || "—"}
+                    </span>
+                  ),
+              },
+              {
+                header: "状态",
+                className: "w-[110px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={
+                      (row.kind === "l1" ? row.l1 : row.l2).isActive ? "启用中" : "已停用"
+                    }
+                    variant={
+                      (row.kind === "l1" ? row.l1 : row.l2).isActive ? "success" : "neutral"
+                    }
+                    className={row.kind === "l2" ? "ml-6" : undefined}
+                  />
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "一级分类"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => {
+              if (row.kind === "l1") {
+                const l1 = row.l1;
+                const dataIdx = data.findIndex((d) => d.code === l1.code);
+                return (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`上移 ${l1.name}`}
+                      title={sortDisabled ? "搜索时不可排序" : "上移"}
+                      disabled={sortDisabled || dataIdx <= 0}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveL1(l1, -1);
+                      }}
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`下移 ${l1.name}`}
+                      title={sortDisabled ? "搜索时不可排序" : "下移"}
+                      disabled={sortDisabled || dataIdx >= data.length - 1 || dataIdx < 0}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        moveL1(l1, 1);
+                      }}
+                    >
+                      <ArrowDown className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={l1.isActive ? `停用一级分类 ${l1.name}` : `启用一级分类 ${l1.name}`}
+                      title={l1.isActive ? "停用" : "启用"}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleActive(l1, "l1");
+                      }}
+                    >
+                      {l1.isActive ? (
+                        <Ban className="h-4 w-4 text-amber-500" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`为 ${l1.name} 添加二级分类`}
+                      title="添加二级分类"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openCreateL2(l1.code);
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`编辑一级分类 ${l1.name}`}
+                      title="编辑一级分类"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEditL1(l1);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </>
+                );
+              }
+
+              const l2 = row.l2;
+              return (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`上移 ${l2.name}`}
+                    title={sortDisabled ? "搜索时不可排序" : "上移"}
+                    disabled={sortDisabled || row.l2Idx === 0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveL2(l2, -1);
+                    }}
+                  >
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`下移 ${l2.name}`}
+                    title={sortDisabled ? "搜索时不可排序" : "下移"}
+                    disabled={sortDisabled || row.l2Idx === row.l1.children.length - 1}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      moveL2(l2, 1);
+                    }}
+                  >
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={l2.isActive ? `停用二级分类 ${l2.name}` : `启用二级分类 ${l2.name}`}
+                    title={l2.isActive ? "停用" : "启用"}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleActive(l2, "l2");
+                    }}
+                  >
+                    {l2.isActive ? (
+                      <Ban className="h-4 w-4 text-amber-500" />
                     ) : (
-                      pageL1Items.map((l1, l1Idx) => {
-                        const isExpanded = expanded.has(l1.id);
-                        return (
-                          <L1Rows
-                            key={l1.id}
-                            l1={l1}
-                            l1Idx={l1Idx}
-                            baseIndex={(currentPage - 1) * DEFAULT_PAGE_SIZE}
-                            isExpanded={isExpanded}
-                            onToggleExpand={() => toggleExpand(l1.id)}
-                            onCreateL2={() => openCreateL2(l1.code)}
-                            onEditL1={() => openEditL1(l1)}
-                            onDeleteL1={() => openDelete(l1, "l1")}
-                            onEditL2={openEditL2}
-                            onDeleteL2={(l2) => openDelete(l2, "l2")}
-                            onToggleL1={() => toggleActive(l1, "l1")}
-                            onToggleL2={(l2) => toggleActive(l2, "l2")}
-                            canMoveL1Up={data.findIndex((d) => d.code === l1.code) > 0}
-                            canMoveL1Down={data.findIndex((d) => d.code === l1.code) < data.length - 1}
-                            onMoveL1={(dir) => moveL1(l1, dir)}
-                            onMoveL2={moveL2}
-                            sortDisabled={sortDisabled}
-                          />
-                        );
-                      })
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                     )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`编辑二级分类 ${l2.name}`}
+                    title="编辑二级分类"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEditL2(l2);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                </>
+              );
+            }}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="sm:max-w-[560px] [&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {editing
@@ -518,6 +699,19 @@ export default function ClassesPage() {
             </div>
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                onClick={() => {
+                  setDialogOpen(false);
+                  openDelete(editing, dialogType);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
               取消
             </Button>
@@ -528,11 +722,11 @@ export default function ClassesPage() {
               </span>
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <DialogContent className="sm:max-w-[440px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {deleteError ? "无法删除" : "确认删除"}
@@ -570,168 +764,8 @@ export default function ClassesPage() {
               </Button>
             )}
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-/** 一级分类行 + 展开后的二级分类行 */
-function L1Rows({
-  l1,
-  l1Idx,
-  baseIndex,
-  isExpanded,
-  onToggleExpand,
-  onCreateL2,
-  onEditL1,
-  onDeleteL1,
-  onEditL2,
-  onDeleteL2,
-  onToggleL1,
-  onToggleL2,
-  canMoveL1Up,
-  canMoveL1Down,
-  onMoveL1,
-  onMoveL2,
-  sortDisabled,
-}: {
-  l1: L1;
-  l1Idx: number;
-  baseIndex: number;
-  isExpanded: boolean;
-  onToggleExpand: () => void;
-  onCreateL2: () => void;
-  onEditL1: () => void;
-  onDeleteL1: () => void;
-  onEditL2: (l2: L2) => void;
-  onDeleteL2: (l2: L2) => void;
-  onToggleL1: () => void;
-  onToggleL2: (l2: L2) => void;
-  canMoveL1Up: boolean;
-  canMoveL1Down: boolean;
-  onMoveL1: (dir: -1 | 1) => void;
-  onMoveL2: (l2: L2, dir: -1 | 1) => void;
-  sortDisabled: boolean;
-}) {
-  return (
-    <>
-      <TableRow
-        className={`bg-muted/30 transition-colors hover:bg-muted/50 ${!l1.isActive ? "opacity-50" : ""}`}
-      >
-        <TableCell className="text-muted-foreground">
-          {baseIndex + l1Idx + 1}
-        </TableCell>
-        <TableCell className="font-medium">
-          <button
-            onClick={onToggleExpand}
-            className="inline-flex items-center gap-1 mr-1"
-          >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-          </button>
-          {l1.code}
-        </TableCell>
-        <TableCell className="font-semibold">{l1.name}</TableCell>
-        <TableCell className="text-muted-foreground">
-          {l1.description || "—"}
-        </TableCell>
-        <TableCell>
-          <StatusBadge isActive={l1.isActive} />
-        </TableCell>
-        <TableCell className="text-right">
-          <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || !canMoveL1Up} onClick={() => onMoveL1(-1)}>
-            <ArrowUp className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || !canMoveL1Down} onClick={() => onMoveL1(1)}>
-            <ArrowDown className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={l1.isActive ? "停用一级分类" : "启用一级分类"}
-            onClick={onToggleL1}
-          >
-            {l1.isActive ? (
-              <Ban className="h-4 w-4 text-amber-500" />
-            ) : (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            title="添加二级分类"
-            onClick={onCreateL2}
-          >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="编辑一级分类" onClick={onEditL1}>
-            <Pencil className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="删除一级分类"
-            onClick={onDeleteL1}
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        </TableCell>
-      </TableRow>
-      {isExpanded &&
-        l1.children.map((l2, l2Idx) => (
-          <TableRow
-            key={l2.id}
-            className={`transition-colors hover:bg-muted/30 ${!l2.isActive || !l1.isActive ? "opacity-50" : ""}`}
-          >
-            <TableCell className="pl-10 text-muted-foreground text-sm">
-              {baseIndex + l1Idx + 1}.{l2Idx + 1}
-            </TableCell>
-            <TableCell className="pl-10 text-muted-foreground">{l2.code}</TableCell>
-            <TableCell className="pl-10">{l2.name}</TableCell>
-            <TableCell className="pl-10 text-muted-foreground">
-              {l2.description || "—"}
-            </TableCell>
-            <TableCell className="pl-10">
-              <StatusBadge isActive={l2.isActive} />
-            </TableCell>
-            <TableCell className="text-right">
-              <Button variant="ghost" size="icon" aria-label="上移" title={sortDisabled ? "搜索时不可排序" : "上移"} disabled={sortDisabled || l2Idx === 0} onClick={() => onMoveL2(l2, -1)}>
-                <ArrowUp className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="icon" aria-label="下移" title={sortDisabled ? "搜索时不可排序" : "下移"} disabled={sortDisabled || l2Idx === l1.children.length - 1} onClick={() => onMoveL2(l2, 1)}>
-                <ArrowDown className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={l2.isActive ? "停用二级分类" : "启用二级分类"}
-                onClick={() => onToggleL2(l2)}
-              >
-                {l2.isActive ? (
-                  <Ban className="h-4 w-4 text-amber-500" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                )}
-              </Button>
-              <Button variant="ghost" size="icon" aria-label="编辑二级分类" onClick={() => onEditL2(l2)}>
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="删除二级分类"
-                onClick={() => onDeleteL2(l2)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-              </Button>
-            </TableCell>
-          </TableRow>
-        ))}
-    </>
+    </PageShell>
   );
 }

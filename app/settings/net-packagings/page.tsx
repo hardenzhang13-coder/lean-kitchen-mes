@@ -12,21 +12,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
-import { usePagination, DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  usePagination,
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type NetPackaging = {
@@ -100,8 +97,8 @@ export default function NetPackagingsPage() {
     pageItems,
     totalPages,
     totalItems,
-    start,
-    end,
+    pageSize,
+    setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
   const openCreate = () => {
@@ -200,21 +197,21 @@ export default function NetPackagingsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
-        <PageHeader
-          showBack
-          title="净菜包装"
-          description="管理净料封装使用的包装名称与尺寸；停用后新净料不可再选，历史档案保留原值"
-        />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增包装
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="净菜包装"
+        description="管理净料封装使用的包装名称与尺寸；停用后新净料不可再选，历史档案保留原值"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增包装
+          </Button>
+        }
+      />
 
-      <Card>
-        <CardHeader className="pb-3">
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-3">
           <ListToolbar
             searchValue={search}
             onSearchChange={(value) => {
@@ -240,102 +237,98 @@ export default function NetPackagingsPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent>
-          {loading ? (
-            <SkeletonTable cols={5} rows={DEFAULT_PAGE_SIZE} />
-          ) : (
-            <>
-              <div className="rounded-md border overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[60px]">序号</TableHead>
-                      <TableHead>包装名称</TableHead>
-                      <TableHead>包装尺寸</TableHead>
-                      <TableHead className="w-[120px]">状态</TableHead>
-                      <TableHead className="w-[160px] text-right">操作</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pageItems.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                          暂无数据
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      pageItems.map((row, index) => (
-                        <TableRow
-                          key={row.id}
-                          className={`transition-colors hover:bg-muted/40 ${!row.isActive ? "opacity-50" : ""}`}
-                        >
-                          <TableCell className="text-muted-foreground">
-                            {(currentPage - 1) * DEFAULT_PAGE_SIZE + index + 1}
-                          </TableCell>
-                          <TableCell className="font-medium">{row.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{row.size}</TableCell>
-                          <TableCell>
-                            {row.isActive ? (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs text-emerald-600">
-                                <CheckCircle2 className="h-3 w-3" /> 启用中
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs text-muted-foreground">
-                                <Ban className="h-3 w-3" /> 已停用
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label={row.isActive ? "停用包装" : "启用包装"}
-                              onClick={() => toggleActive(row)}
-                            >
-                              {row.isActive ? (
-                                <Ban className="h-4 w-4 text-amber-500" />
-                              ) : (
-                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="编辑包装"
-                              onClick={() => openEdit(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              aria-label="删除包装"
-                              onClick={() => openDelete(row)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                totalItems={totalItems}
-                start={start}
-                end={end}
-                onPageChange={setCurrentPage}
-              />
-            </>
-          )}
+        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
+          <DataTable<NetPackaging>
+            data={pageItems}
+            loading={loading}
+            onRowClick={openEdit}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(currentPage - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "包装名称",
+                className: "w-[180px]",
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+              },
+              {
+                header: "包装尺寸",
+                className: "w-[180px]",
+                cell: (row) => (
+                  <span className="whitespace-nowrap tabular-nums text-muted-foreground">
+                    {row.size}
+                  </span>
+                ),
+              },
+              {
+                header: "状态",
+                className: "w-[100px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={row.isActive ? "启用中" : "已停用"}
+                    variant={row.isActive ? "success" : "neutral"}
+                  />
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage,
+              totalPages,
+              totalItems,
+              pageSize,
+              onPageChange: setCurrentPage,
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "净菜包装"),
+              showPageSize: true,
+              onPageSizeChange: setPageSize,
+            }}
+            emptyState={{ title: "暂无数据" }}
+            rowActions={(row) => (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={row.isActive ? `停用包装 ${row.name}` : `启用包装 ${row.name}`}
+                  title={row.isActive ? "停用包装" : "启用包装"}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    toggleActive(row);
+                  }}
+                >
+                  {row.isActive ? (
+                    <Ban className="h-4 w-4 text-amber-500" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                  )}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑包装 ${row.name}`}
+                  title="编辑包装"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          />
         </CardContent>
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <AppDialogContent className="[&>button]:cursor-pointer">
+        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">
               {editing ? "编辑净菜包装" : "新增净菜包装"}
@@ -373,6 +366,19 @@ export default function NetPackagingsPage() {
             </div>
           </div>
           <DialogFooter>
+            {editing && (
+              <Button
+                variant="destructive"
+                className="h-11 px-6 sm:mr-auto"
+                onClick={() => {
+                  setDialogOpen(false);
+                  openDelete(editing);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            )}
             <Button variant="outline" onClick={closeDialog} className="h-11 px-6">
               取消
             </Button>
@@ -417,6 +423,6 @@ export default function NetPackagingsPage() {
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }
