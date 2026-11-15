@@ -1,10 +1,19 @@
 "use client";
 
+import { cn } from "@/lib/shared/utils";
 import {
   getScheduleStatusOption,
   scheduleStatusToVariant,
 } from "@/lib/shared/schedule-status";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import type { ScheduleStatusVariant } from "@/lib/shared/schedule-status";
+
+/** 与工作台周历一致的中色系实底色，白字 */
+const SOLID_TONE: Record<ScheduleStatusVariant, string> = {
+  warning: "bg-[var(--status-warning-solid)]",
+  info: "bg-[var(--status-progress-solid)]",
+  success: "bg-[var(--status-done-solid)]",
+  neutral: "bg-[var(--status-neutral-solid)]",
+};
 
 interface ScheduleStatusTagProps {
   status?: string | null;
@@ -22,6 +31,15 @@ export function ScheduleStatusTag({
   const variant = scheduleStatusToVariant(status);
 
   return (
-    <StatusBadge status={label} variant={variant} size={size} className={className} />
+    <span
+      className={cn(
+        "inline-flex items-center whitespace-nowrap rounded-md font-medium text-white",
+        size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs",
+        SOLID_TONE[variant],
+        className
+      )}
+    >
+      {label}
+    </span>
   );
 }

@@ -11,7 +11,7 @@ import { EmptyState } from "@/app/components/ui/empty-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { Pagination } from "@/app/components/ui/pagination";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
 import { formatDate, getWeekDay, dayOffsetInputValue } from "@/lib/shared/date-format";
 import { toast } from "sonner";
 
@@ -258,7 +258,7 @@ export function ProductionPlanForm({
                       <span className="font-mono text-xs text-muted-foreground">
                         {option.code ?? "排程 #" + option.id}
                       </span>
-                      <StatusBadge status={option.status} />
+                      <ScheduleStatusTag status={option.status} />
                     </div>
                     <div className="mt-1 text-sm text-muted-foreground">
                       {formatDate(option.scheduleDate)} {getWeekDay(option.scheduleDate)} ·{" "}

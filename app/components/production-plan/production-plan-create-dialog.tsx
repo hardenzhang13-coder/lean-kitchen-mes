@@ -16,7 +16,7 @@ import { DatePicker } from "@/app/components/ui/date-picker";
 import { SelectField } from "@/app/components/ui/select-field";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { Pagination } from "@/app/components/ui/pagination";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
 import { dayOffsetInputValue, formatDate, getWeekDay } from "@/lib/shared/date-format";
 import { toast } from "sonner";
 
@@ -35,6 +35,8 @@ interface ProductionPlanCreateDialogProps {
   onCreated: (id: number) => void;
   /** 预选一张排程（从排程卡片「纳入生产计划单」进入时使用） */
   presetScheduleId?: number | null;
+  /** 指定进入时的生产日期（工作台按日期新增时使用） */
+  presetDate?: string | null;
 }
 
 const OPTION_PAGE_SIZE = 10;
@@ -47,8 +49,9 @@ export function ProductionPlanCreateDialog({
   onClose,
   onCreated,
   presetScheduleId,
+  presetDate,
 }: ProductionPlanCreateDialogProps) {
-  const [planDate, setPlanDate] = useState(dayOffsetInputValue(1));
+  const [planDate, setPlanDate] = useState(presetDate || dayOffsetInputValue(1));
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeId, setStoreId] = useState("");
   const [options, setOptions] = useState<ScheduleOption[]>([]);
@@ -349,7 +352,7 @@ export function ProductionPlanCreateDialog({
                                   <span className="truncate text-sm font-medium">
                                     {option.title}
                                   </span>
-                                  <StatusBadge status={option.status} size="sm" />
+                                  <ScheduleStatusTag status={option.status} size="sm" />
                                 </div>
                                 <div className="mt-0.5 text-xs text-muted-foreground">
                                   {formatDate(option.scheduleDate)}{" "}

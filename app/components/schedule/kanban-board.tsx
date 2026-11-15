@@ -27,17 +27,17 @@ const COLUMN_STYLES: Record<string, ColumnStyle> = {
   待生效: {
     icon: Clock,
     hint: "待确认，可改可删",
-    text: "text-[var(--status-warning)]",
+    text: "text-[var(--status-warning-solid)]",
   },
   进行中: {
     icon: PlayCircle,
     hint: "已确认，等待切配入库",
-    text: "text-[var(--status-info)]",
+    text: "text-[var(--status-progress-solid)]",
   },
   已完成: {
     icon: CheckCircle2,
     hint: "已入库，仅可查看",
-    text: "text-[var(--status-success)]",
+    text: "text-[var(--status-done-solid)]",
   },
 };
 

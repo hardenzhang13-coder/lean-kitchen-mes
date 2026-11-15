@@ -54,6 +54,8 @@ interface SourceSchedule {
 
 interface ScheduleCreateDialogProps {
   copyFromId?: number | null;
+  /** 指定进入时的售卖日期（工作台按日期新增时使用） */
+  presetDate?: string | null;
   onClose: () => void;
   onCreated: (id: number) => void;
 }
@@ -64,12 +66,13 @@ interface ScheduleCreateDialogProps {
  */
 export function ScheduleCreateDialog({
   copyFromId,
+  presetDate,
   onClose,
   onCreated,
 }: ScheduleCreateDialogProps) {
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeId, setStoreId] = useState("");
-  const [scheduleDate, setScheduleDate] = useState(dayOffsetInputValue(1));
+  const [scheduleDate, setScheduleDate] = useState(presetDate || dayOffsetInputValue(1));
   const [dishes, setDishes] = useState<DishOption[]>([]);
   const [selected, setSelected] = useState<SelectedDish[]>([]);
   const [search, setSearch] = useState("");

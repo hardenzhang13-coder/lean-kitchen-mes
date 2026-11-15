@@ -30,7 +30,7 @@ import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { SectionTabs } from "@/app/components/ui/section-tabs";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
 import {
   ScheduleCuttingTable, type CuttingOrderRow, type ScheduleDocMeta,
 } from "@/app/components/schedule/schedule-cutting-table";
@@ -199,7 +199,7 @@ export default function ProductionPlanDetailPage() {
         backHref="/production-plans"
         backLabel="返回生产计划单列表"
         title={data.title}
-        meta={<StatusBadge status={data.status} />}
+        meta={<ScheduleStatusTag status={data.status} />}
         description={
           <>
             {data.code ?? "生产计划 #" + data.id} · 制单人：

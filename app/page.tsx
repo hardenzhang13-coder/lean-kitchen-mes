@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,7 +13,11 @@ import { Button } from "@/components/ui/button";
 import { statusToVariant } from "@/app/components/ui/status-badge";
 import type { StatusVariant } from "@/app/components/ui/status-badge";
 import { UserMenu } from "@/app/components/ui/user-menu";
+import { ScheduleCreateDialog } from "@/app/components/schedule/schedule-create-dialog";
+import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { parseObject } from "@/lib/client/api";
+import { canAccessApi } from "@/lib/shared/access-control";
+import { useCurrentRole } from "@/lib/client/use-current-role";
 import { SCHEDULE_STATUS_OPTIONS } from "@/lib/shared/schedule-status";
 import { formatPortionsValue } from "@/lib/shared/prepped-stock";
 import { cn } from "@/lib/shared/utils";
@@ -62,14 +67,14 @@ const STATUS_STYLE: Record<
     card: "bg-[var(--status-warning-solid)]",
   },
   info: {
-    dot: "bg-[var(--status-info-solid)]",
-    text: "text-[var(--status-info-solid)]",
-    card: "bg-[var(--status-info-solid)]",
+    dot: "bg-[var(--status-progress-solid)]",
+    text: "text-[var(--status-progress-solid)]",
+    card: "bg-[var(--status-progress-solid)]",
   },
   success: {
-    dot: "bg-[var(--status-success-solid)]",
-    text: "text-[var(--status-success-solid)]",
-    card: "bg-[var(--status-success-solid)]",
+    dot: "bg-[var(--status-done-solid)]",
+    text: "text-[var(--status-done-solid)]",
+    card: "bg-[var(--status-done-solid)]",
   },
   danger: {
     dot: "bg-[var(--status-danger-solid)]",
@@ -119,11 +124,45 @@ function groupByDate<T extends { date: string }>(rows: T[]) {
   return map;
 }
 
+function mondayOf(date: Date): Date {
+  const monday = new Date(date);
+  monday.setHours(0, 0, 0, 0);
+  monday.setDate(date.getDate() - ((date.getDay() + 6) % 7));
+  return monday;
+}
+
+/** URL 上的 week（该周任意一天）→ 相对本周的周偏移 */
+function weekOffsetFromParam(value: string | null): number {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return 0;
+  const target = new Date(`${value}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return 0;
+  const diff = mondayOf(target).getTime() - mondayOf(new Date()).getTime();
+  return Math.round(diff / (7 * 24 * 60 * 60 * 1000));
+}
+
 export default function HomePage() {
+  return (
+    <Suspense fallback={<DashboardSkeleton />}>
+      <HomeContent />
+    </Suspense>
+  );
+}
+
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [weekOffset, setWeekOffset] = useState(0);
+  const [weekOffset, setWeekOffset] = useState(() =>
+    weekOffsetFromParam(searchParams.get("week"))
+  );
   const [data, setData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [scheduleDialogDate, setScheduleDialogDate] = useState<string | null>(null);
+  const [planDialogDate, setPlanDialogDate] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const role = useCurrentRole();
+  const canCreateSchedule = canAccessApi("/api/schedules", "POST", role);
+  const canCreatePlan = canAccessApi("/api/production-plans", "POST", role);
 
   const weekDays = useMemo(() => getWeekDays(weekOffset), [weekOffset]);
   const startDate = formatDate(weekDays[0]);
@@ -171,7 +210,7 @@ export default function HomePage() {
     return () => {
       alive = false;
     };
-  }, [startDate, endDate]);
+  }, [startDate, endDate, refreshKey]);
 
   const schedulesByDate = useMemo(
     () => groupByDate(data?.schedules ?? []),
@@ -183,6 +222,16 @@ export default function HomePage() {
   const greeting =
     hour < 6 ? "凌晨好" : hour < 12 ? "早上好" : hour < 14 ? "中午好" : hour < 18 ? "下午好" : "晚上好";
   const displayName = user?.name || user?.username || "";
+
+  // 切周同时写回 URL（?week=该周周一），刷新或分享链接能回到同一周
+  const applyWeek = (offset: number) => {
+    setWeekOffset(offset);
+    const params = new URLSearchParams(searchParams.toString());
+    if (offset === 0) params.delete("week");
+    else params.set("week", formatDate(getWeekDays(offset)[0]));
+    const query = params.toString();
+    router.replace(query ? `/?${query}` : "/", { scroll: false });
+  };
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -205,23 +254,23 @@ export default function HomePage() {
           variant="outline"
           size="icon-sm"
           aria-label="上一周"
-          onClick={() => setWeekOffset((value) => value - 1)}
+          onClick={() => applyWeek(weekOffset - 1)}
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <div className="text-sm font-medium tabular-nums">
+        <div className="text-sm font-bold tabular-nums">
           {formatCnDate(startDate)} — {formatCnDate(endDate)}
         </div>
         <Button
           variant="outline"
           size="icon-sm"
           aria-label="下一周"
-          onClick={() => setWeekOffset((value) => value + 1)}
+          onClick={() => applyWeek(weekOffset + 1)}
         >
           <ChevronRight className="h-4 w-4" />
         </Button>
         {weekOffset !== 0 && (
-          <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)}>
+          <Button variant="ghost" size="sm" onClick={() => applyWeek(0)}>
             <Undo2 className="mr-1 h-3.5 w-3.5" />
             返回本周
           </Button>
@@ -232,9 +281,9 @@ export default function HomePage() {
             <span key={option.value} className="flex items-center gap-1.5">
               <span
                 aria-hidden="true"
-                className={cn("h-2 w-2 rounded-full", STATUS_STYLE[option.variant].dot)}
+                className={cn("h-2.5 w-2.5 rounded-full", STATUS_STYLE[option.variant].dot)}
               />
-              <span className={cn("text-xs font-medium", STATUS_STYLE[option.variant].text)}>
+              <span className={cn("text-sm font-bold", STATUS_STYLE[option.variant].text)}>
                 {option.label}
               </span>
             </span>
@@ -242,9 +291,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* 表格式周历：左侧单据行名 + 7 个日期列，日期列贯穿两行，保证日期与数据的对应关系 */}
-      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
-        <div className="grid grid-cols-[5rem_repeat(7,minmax(0,1fr))]">
+      {/* 表格式周历：左侧单据行名 + 7 个日期列，日期列贯穿两行；窄屏横向滚动 */}
+      <div className="overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
+        <div className="grid min-w-[840px] grid-cols-[5rem_repeat(7,minmax(0,1fr))]">
           <div className="px-3 py-2.5 text-xs text-muted-foreground">日期</div>
           {weekDays.map((day, index) => {
             const ds = formatDate(day);
@@ -279,8 +328,10 @@ export default function HomePage() {
                 date={ds}
                 loading={loading}
                 itemCount={items.length}
-                createHref="/schedules"
                 createLabel="新增排程"
+                onCreate={
+                  canCreateSchedule ? () => setScheduleDialogDate(ds) : undefined
+                }
               >
                 {loading ? (
                   <ColumnSkeleton />
@@ -302,8 +353,8 @@ export default function HomePage() {
                 date={ds}
                 loading={loading}
                 itemCount={items.length}
-                createHref="/production-plans"
                 createLabel="新增计划"
+                onCreate={canCreatePlan ? () => setPlanDialogDate(ds) : undefined}
               >
                 {loading ? (
                   <ColumnSkeleton />
@@ -315,6 +366,27 @@ export default function HomePage() {
           })}
         </div>
       </div>
+
+      {scheduleDialogDate && (
+        <ScheduleCreateDialog
+          presetDate={scheduleDialogDate}
+          onClose={() => setScheduleDialogDate(null)}
+          onCreated={() => {
+            setScheduleDialogDate(null);
+            setRefreshKey((value) => value + 1);
+          }}
+        />
+      )}
+      {planDialogDate && (
+        <ProductionPlanCreateDialog
+          presetDate={planDialogDate}
+          onClose={() => setPlanDialogDate(null)}
+          onCreated={() => {
+            setPlanDialogDate(null);
+            setRefreshKey((value) => value + 1);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -329,55 +401,63 @@ function RowLabel({ title }: { title: string }) {
   );
 }
 
-/** 一天一列中的一个单据区格子；今天及以后，鼠标移入才淡出新增入口 */
+/** 一天一列中的一个单据区格子；今天及以后，卡片下方的空槽位悬浮才显示新增 */
 function DayCell({
   date,
   today,
   loading,
   itemCount,
-  createHref,
   createLabel,
+  onCreate,
   children,
 }: {
   date: string;
   today: string;
   loading: boolean;
   itemCount: number;
-  createHref: string;
   createLabel: string;
+  onCreate?: () => void;
   children: React.ReactNode;
 }) {
   const isEditable = date >= today && !loading;
   const isToday = date === today;
+  const hasFreeSlot = itemCount < 2;
 
   return (
     <div
       className={cn(
-        "group relative min-h-44 space-y-2 border-l border-t border-border p-2",
+        "group relative min-h-[13.5rem] border-l border-t border-border p-2",
         isToday && "bg-primary/[0.03]"
       )}
     >
-      {children}
+      <div className="space-y-2">
+        {children}
 
-      {isEditable && itemCount === 0 && (
-        <Link
-          href={createHref}
-          className="pointer-events-none absolute inset-1 flex items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:border-primary/40 group-hover:text-primary group-hover:opacity-100"
-        >
-          <Plus className="mr-1 h-3.5 w-3.5" />
-          {createLabel}
-        </Link>
-      )}
-      {isEditable && itemCount > 0 && (
-        <Link
-          href={createHref}
-          aria-label={createLabel}
-          title={createLabel}
-          className="pointer-events-none absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full border border-border bg-background text-muted-foreground opacity-0 shadow-sm transition-opacity hover:text-primary group-hover:pointer-events-auto group-hover:opacity-100"
-        >
-          <Plus className="h-3 w-3" />
-        </Link>
-      )}
+        {isEditable && onCreate && hasFreeSlot && (
+          <button
+            type="button"
+            onClick={onCreate}
+            className="flex h-24 w-full items-center justify-center rounded-md border border-dashed border-transparent text-xs text-muted-foreground opacity-0 transition-opacity hover:border-border hover:bg-muted/30 hover:text-primary hover:opacity-100"
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {createLabel}
+          </button>
+        )}
+
+        {/* 已排满两卡：悬浮整格时下方临时展开一张卡高度的新增槽位 */}
+        {isEditable && onCreate && !hasFreeSlot && (
+          <div className="max-h-0 overflow-hidden opacity-0 transition-all duration-200 group-hover:max-h-28 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={onCreate}
+              className="mt-2 flex h-24 w-full items-center justify-center rounded-md border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              {createLabel}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -388,7 +468,7 @@ function ScheduleCard({ item }: { item: ScheduleCardData }) {
     <Link
       href={`/schedules/${item.id}`}
       className={cn(
-        "block rounded-md p-2 text-white shadow-sm transition-[filter] hover:brightness-105",
+        "block min-h-[6rem] rounded-md p-2 text-white shadow-sm transition-[filter] hover:brightness-105",
         style.card
       )}
     >
@@ -409,7 +489,7 @@ function PlanCard({ item }: { item: PlanCardData }) {
     <Link
       href={`/production-plans/${item.id}`}
       className={cn(
-        "block rounded-md p-2 text-white shadow-sm transition-[filter] hover:brightness-105",
+        "block min-h-[6rem] rounded-md p-2 text-white shadow-sm transition-[filter] hover:brightness-105",
         style.card
       )}
     >
@@ -460,5 +540,15 @@ function CardStats({
 function ColumnSkeleton() {
   return (
     <div className="h-16 animate-pulse rounded-md border border-border bg-card" aria-hidden="true" />
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-6 p-8" aria-busy="true" aria-label="正在加载">
+      <div className="h-14 w-64 animate-pulse rounded-lg bg-muted" />
+      <div className="h-9 w-72 animate-pulse rounded-lg bg-muted" />
+      <div className="h-96 animate-pulse rounded-xl border border-border bg-card" />
+    </div>
   );
 }

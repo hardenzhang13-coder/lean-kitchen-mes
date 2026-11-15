@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
 import type { ProductionPlanSourceSnapshot } from "@/lib/shared/production-plan";
 
 interface SourceScheduleState {
@@ -87,7 +87,7 @@ export function ProductionPlanStoreSchedules({
                           <span className="font-mono text-xs text-muted-foreground">
                             {schedule.code ?? `排程 #${schedule.scheduleId}`}
                           </span>
-                          <StatusBadge
+                          <ScheduleStatusTag
                             status={statusByScheduleId.get(schedule.scheduleId) ?? null}
                           />
                         </div>

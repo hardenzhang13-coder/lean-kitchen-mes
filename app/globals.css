@@ -122,9 +122,9 @@
   --status-primary-bg: #fff7ed;
 
   /* 事件块（工作台周历）：中色系实心底 + 白字，与浅色状态标签区分开 */
-  --status-warning-solid: #b45309;
-  --status-info-solid: #1d4ed8;
-  --status-success-solid: #047857;
+  --status-warning-solid: #b45309; /* 待生效 */
+  --status-progress-solid: #047857; /* 进行中 */
+  --status-done-solid: #6b7280; /* 已完成 */
   --status-danger-solid: #b91c1c;
   --status-neutral-solid: #4b5563;
 
