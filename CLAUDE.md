@@ -10,7 +10,7 @@
 
 | 命令 | 用途 |
 |------|------|
-| `npm run dev` | 启动开发服务器，http://localhost:3000 |
+| `npm run dev` | 启动开发服务器（先 `prisma generate`，保证进程里的 Prisma Client 与 schema 一致），http://localhost:3000 |
 | `npm run build` | 生产构建（执行 `prisma generate && next build`） |
 | `npm run start` | 启动生产服务器（需先构建） |
 | `npm run lint` | 运行 ESLint |

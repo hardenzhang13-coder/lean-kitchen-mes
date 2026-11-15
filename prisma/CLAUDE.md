@@ -141,3 +141,4 @@ npx prisma db seed
 2. 新增实体时同步更新 `lib/schemas/` 下的 zod schema 与对应 API 路由。
 3. 涉及库存、采购单、排程的字段变更，必须同步检查 `schedule-utils.ts`、`lib/spec-parser.ts`、采购单 API 中的事务逻辑。
 4.  Decimal 字段在 TypeScript 中返回为 `Decimal` 对象，计算前通常需要 `Number()` 转换。
+5. **改完 schema 必须重启 dev server**：Next 不监听 `node_modules`，运行中的进程不会换掉 Prisma Client，新增字段在旧实例上查不出来（表现为列表/详情接口少字段）。`npm run dev` 已内置 `prisma generate`，用它启动就不会漏。
