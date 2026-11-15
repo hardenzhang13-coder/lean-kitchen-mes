@@ -139,14 +139,15 @@ export function IngredientFormFields({
       : null;
   const convertible = jinPerUnit != null || weightJinPerUnit != null;
 
-  if (mode === "ingredient") {
+  if (mode === "ingredient" || mode === "seasoning") {
     const groupCols = layout === "sheet" ? 3 : 1;
 
     return (
       <div className="space-y-4">
         <FormSection cols={1}>
           <FormField
-            label="食材名称"
+            id="ingredient-name"
+            label={mode === "seasoning" ? "调料名称" : "食材名称"}
             required
             readOnly={viewMode}
             error={errors.name}
@@ -157,7 +158,9 @@ export function IngredientFormFields({
               <IngredientFieldInput
                 value={form.name}
                 onChange={(event) => onChange("name", event.target.value)}
-                placeholder="如 带皮五花肉"
+                placeholder={
+                  mode === "seasoning" ? "如 海天金标生抽" : "如 带皮五花肉"
+                }
                 className="h-11 text-base px-4"
                 hidePlaceholderOnFocus={hidePlaceholderOnFocus}
               />
@@ -227,7 +230,7 @@ export function IngredientFormFields({
             </FormField>
 
             <FormField
-              label="品牌名称"
+              label={aliasLabel}
               readOnly={viewMode}
               error={errors.alias}
               hint="采购包装或标签上的品牌名称，用于采购识别与检索"
@@ -238,7 +241,9 @@ export function IngredientFormFields({
                 <IngredientFieldInput
                   value={form.alias}
                   onChange={(event) => onChange("alias", event.target.value)}
-                  placeholder="如 双汇"
+                  placeholder={
+                    mode === "seasoning" ? "如 海天金标生抽" : "如 双汇"
+                  }
                   className="h-11 text-base px-4"
                   hidePlaceholderOnFocus={hidePlaceholderOnFocus}
                 />
@@ -385,7 +390,7 @@ export function IngredientFormFields({
             </FormField>
 
             <FormField
-              label="供应商名称"
+              label={mode === "seasoning" ? "默认供应商" : "供应商名称"}
               readOnly={viewMode}
               hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
             >

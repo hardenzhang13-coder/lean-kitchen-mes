@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Plus,
   Pencil,
-  Trash2,
   Upload,
   ArrowRightLeft,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,10 +23,15 @@ import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-fo
 import { NetIngredientFormDialog } from "@/app/components/ingredients/net-ingredient-form-dialog";
 import { ImportDialog, ImportField } from "@/app/components/ui/import-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
+import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
+import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 
@@ -62,7 +67,7 @@ type Unit = {
 
 const importFields: ImportField[] = [
   { key: "name", label: "食材名称", required: true, sample: "带皮五花肉" },
-  { key: "alias", label: "商品名称", sample: "五花肉" },
+  { key: "alias", label: "品牌名称", sample: "五花肉" },
   { key: "l2Code", label: "二级分类编码", required: true, sample: "MEA-POR" },
   { key: "purchaseSpec", label: "采购规格", sample: "散称" },
   { key: "purchaseUnit", label: "采购单位", required: true, sample: "斤" },
@@ -101,6 +106,10 @@ export default function RawIngredientsPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyData, setCopyData] = useState<IngredientFormInitialData | null>(
+    null
+  );
 
   const fetchMeta = async () => {
     try {
@@ -192,6 +201,36 @@ export default function RawIngredientsPage() {
     setDetailOpen(true);
   };
 
+  // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名校验拦截
+  const buildCopyData = (row: {
+    name: string;
+    alias: string | null;
+    l2Code: string;
+    purchaseSpec: string | null;
+    purchaseUnit: string | null;
+    stockUnit: string | null;
+    unitsPerPurchase?: number | null;
+    latestRefPrice: number | null;
+    pricePerJin: number | null;
+    defaultSupplierId: number | null;
+  }): IngredientFormInitialData => ({
+    name: `${row.name}-副本`,
+    alias: row.alias,
+    l2Code: row.l2Code,
+    purchaseSpec: row.purchaseSpec,
+    purchaseUnit: row.purchaseUnit,
+    stockUnit: row.stockUnit,
+    unitsPerPurchase: row.unitsPerPurchase ?? 1,
+    latestRefPrice: row.latestRefPrice,
+    pricePerJin: row.pricePerJin,
+    defaultSupplierId: row.defaultSupplierId,
+  });
+
+  const openCopy = (row: Ingredient) => {
+    setCopyData(buildCopyData(row));
+    setCopyOpen(true);
+  };
+
   const handleDelete = async (id: number) => {
     try {
       const res = await fetch(`/api/ingredients/${id}`, { method: "DELETE" });
@@ -281,7 +320,7 @@ export default function RawIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称或商品名称..."
+            searchPlaceholder="搜索编号、名称或品牌名称..."
             onReset={() => {
               setSearch("");
               setL1Filter("");
@@ -357,7 +396,7 @@ export default function RawIngredientsPage() {
                 ),
               },
               {
-                header: "商品名称",
+                header: "品牌名称",
                 className: "w-[100px]",
                 cell: (row) =>
                   row.alias ? row.alias : <EmptyValue />,
@@ -401,7 +440,7 @@ export default function RawIngredientsPage() {
                 cell: (row) => (
                   row.latestRefPrice != null ? (
                     <span className="tabular-nums">
-                      {formatMoney(row.latestRefPrice, row.purchaseUnit)}
+                      {formatMoney(row.latestRefPrice)}
                     </span>
                   ) : (
                     <EmptyValue />
@@ -435,6 +474,13 @@ export default function RawIngredientsPage() {
                     totalItems: pagination.totalItems,
                     pageSize,
                     onPageChange: setPage,
+                    totalLabel: formatPageSummary(
+                      page,
+                      pageSize,
+                      pagination.totalItems,
+                      "原料"
+                    ),
+                    showPageSize: true,
                     onPageSizeChange: (size) => {
                       setPageSize(size);
                       setPage(1);
@@ -461,6 +507,18 @@ export default function RawIngredientsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`复制原料 ${row.name}`}
+                  title="复制原料"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openCopy(row);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   aria-label={`编辑原料 ${row.name}`}
                   title="编辑原料"
                   onClick={(event) => {
@@ -469,18 +527,6 @@ export default function RawIngredientsPage() {
                   }}
                 >
                   <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`删除原料 ${row.name}`}
-                  title="删除原料"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteId(row.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </>
             )}
@@ -503,6 +549,11 @@ export default function RawIngredientsPage() {
             : undefined
         }
         onUpdated={fetchData}
+        onCopy={(record) => {
+          const detail = record as RawDetail;
+          setCopyData(buildCopyData(detail));
+          setCopyOpen(true);
+        }}
         onConvert={(id) => {
           setDetailOpen(false);
           setConvertSourceId(id);
@@ -520,8 +571,27 @@ export default function RawIngredientsPage() {
         categories={categories}
         units={units}
         mode="ingredient"
+        allowContinue
         onSuccess={() => {
-          setDialogOpen(false);
+          fetchData();
+        }}
+      />
+
+      <IngredientFormDialog
+        open={copyOpen}
+        onOpenChange={(open) => {
+          setCopyOpen(open);
+          if (!open) setCopyData(null);
+        }}
+        initialData={copyData ?? undefined}
+        categories={categories}
+        units={units}
+        mode="ingredient"
+        title="复制原料"
+        onSuccess={() => {
+          setCopyOpen(false);
+          setCopyData(null);
+          setDetailOpen(false);
           fetchData();
         }}
       />

@@ -9,7 +9,7 @@ export const createDishSchema = z.object({
   cuisine: z.string().max(50).optional(),
   technique: z.string().max(50).optional(),
   taste: z.string().max(50).optional(),
-  portion: z.string().max(50).default("单人份"),
+  portion: z.string().max(50).default("小碗菜"),
   season: z.string().max(50).default("四季"),
   meatType: z.string().max(50).optional(),
   cost: z.number().nonnegative().optional(),

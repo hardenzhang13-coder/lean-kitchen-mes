@@ -9,8 +9,8 @@ import { nextCode } from "@/lib/shared/code-gen";
 import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { logger } from "@/lib/server/logger";
 
-/** 可被转化的源份量规格 */
-const SOURCE_PORTION = "单人份";
+/** 可被转化的源份量规格（与净料/小料份量枚举同步） */
+const SOURCE_PORTION = "小碗菜";
 
 async function generateDishCode(tx: Prisma.TransactionClient, categoryCode: string): Promise<string> {
   const prefix = `DSH-${categoryCode}`;
@@ -28,8 +28,8 @@ function scaleValue(value: Prisma.Decimal | number | null | undefined, factor: n
 }
 
 /**
- * 菜品转化：以「单人份」档案为源，按目标份量规格自动推导倍率
- * （如 单人份 → 一锅10份 = ×10），生成新规格独立草稿档案，不影响源档案。
+ * 菜品转化：以「小碗菜」档案为源，按目标份量规格自动推导倍率
+ * （如 小碗菜 → 小碗菜·10份 = ×10，社区·2份 = ×4），生成新规格独立草稿档案，不影响源档案。
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }
 
-  // 倍率由份量规格自动推导：目标份数 ÷ 源份数（单人份 = 1，一锅10份 = 10）
+  // 倍率由份量规格自动推导：目标小碗菜等价份数 ÷ 源小碗菜等价份数
   const factor = portionScaleFactor(source.portion, portion);
   if (factor == null || factor <= 0) {
     return badRequest("无法从目标份量规格推导转化倍率");

@@ -243,6 +243,57 @@ describe("原料详情抽屉", () => {
   });
 });
 
+describe("调料详情抽屉", () => {
+  beforeEach(() => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ data: { ...rawDetail, alias: "海天金标生抽" } }),
+    } as Response) as jest.MockedFunction<typeof fetch>;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("查看态在抽屉内切换为调料编辑态", async () => {
+    render(
+      <IngredientDetailSheet
+        open
+        onOpenChange={jest.fn()}
+        kind="seasoning"
+        ingredientId={11}
+        categories={[
+          {
+            code: "SEA",
+            name: "调味品",
+            children: [{ code: "MEA-POR", name: "酱油" }],
+          },
+        ]}
+        units={[{ id: 1, name: "斤", category: "weight" }]}
+        inlineEdit
+        onDelete={jest.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "调料详情" })
+    ).toBeInTheDocument();
+    const editButton = screen.getByRole("button", { name: "编辑" });
+    expect(editButton).toHaveClass("bg-primary");
+    expect(
+      screen.queryByRole("button", { name: "转净料" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(editButton);
+
+    expect(
+      screen.getByRole("heading", { name: "编辑调料" })
+    ).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
+  });
+});
+
 describe("净料详情抽屉", () => {
   beforeEach(() => {
     global.fetch = jest.fn(async (input, init) => {
@@ -358,6 +409,41 @@ describe("净料详情抽屉", () => {
         screen.getByRole("heading", { name: "净料详情" })
       ).toBeInTheDocument();
     });
+  });
+
+  it("小料在同一抽屉内查看、编辑并保留打印主操作", async () => {
+    render(
+      <IngredientDetailSheet
+        open
+        onOpenChange={jest.fn()}
+        kind="minor"
+        ingredientId={21}
+        categories={[
+          {
+            code: "MIN",
+            name: "小料",
+            children: [{ code: "VEG-LEF", name: "香辛料" }],
+          },
+        ]}
+        rawIngredients={[]}
+        inlineEdit
+        onPrintLabel={jest.fn()}
+        onDelete={jest.fn()}
+      />
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "小料详情" })
+    ).toBeInTheDocument();
+    const printButton = await screen.findByRole("button", { name: "打印标签" });
+    const editButton = screen.getByRole("button", { name: "编辑" });
+    expect(printButton).toHaveClass("bg-primary");
+    expect(editButton).not.toHaveClass("bg-primary");
+
+    fireEvent.click(editButton);
+    expect(
+      screen.getByRole("heading", { name: "编辑小料" })
+    ).toBeInTheDocument();
   });
 
   it("列表编辑入口直接进入同一抽屉编辑态，保存后回到只读态", async () => {

@@ -2,8 +2,15 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { Pagination } from "../pagination";
+import { formatPageSummary } from "@/lib/client/use-pagination";
 
 describe("统一分页", () => {
+  it("生成完整区间汇总", () => {
+    expect(formatPageSummary(2, 10, 48, "原料")).toBe(
+      "第 11-20 条，共 48 条 原料"
+    );
+  });
+
   it("统一只保留上一页、页码和下一页", () => {
     const onPageChange = jest.fn();
     const { container } = render(
@@ -28,6 +35,29 @@ describe("统一分页", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /下一页/ }));
     expect(onPageChange).toHaveBeenCalledWith(2);
+  });
+
+  it("可选展示汇总文案与每页条数选择器", () => {
+    const onPageSizeChange = jest.fn();
+    render(
+      <Pagination
+        currentPage={1}
+        totalPages={3}
+        totalItems={48}
+        onPageChange={jest.fn()}
+        totalLabel="共 48 条原料"
+        showPageSize
+        pageSize={20}
+        onPageSizeChange={onPageSizeChange}
+      />
+    );
+
+    expect(screen.getByText("共 48 条原料")).toBeInTheDocument();
+    expect(screen.getByText("每页显示")).toBeInTheDocument();
+    expect(screen.getByText("20")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /下一页/ })
+    ).toBeInTheDocument();
   });
 
   it("无数据时不渲染分页底栏", () => {

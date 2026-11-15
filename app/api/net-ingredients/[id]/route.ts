@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
-import { createNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
+import { updateNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
 import { validateBody } from "@/lib/server/validate";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
@@ -28,7 +28,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   try {
     const { id } = await params;
     const body = await req.json();
-    const validation = validateBody(createNetIngredientSchema.partial(), body);
+    const validation = validateBody(updateNetIngredientSchema, body);
     if (!validation.success) return validation.response;
 
     const {
@@ -41,6 +41,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       yieldRate,
       grossMarginRate,
       l2Code,
+      portion,
     } = validation.data;
 
     const existing = await prisma.netIngredient.findFirst({
@@ -98,6 +99,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           packageSize === undefined ? existing.packageSize : packageSize?.trim() || "50cm×40cm",
         processingFeePerJin: processingFeePerJin ?? existing.processingFeePerJin ?? null,
         yieldRate: yieldRateNum,
+        // 份量：undefined = 保持原值；显式 null = 清空
+        ...(portion !== undefined ? { portion } : {}),
         unitPrice: calculated,
         // undefined = 未传该字段（保持原值）；显式 null = 用户清空毛利率
         grossMarginRate:

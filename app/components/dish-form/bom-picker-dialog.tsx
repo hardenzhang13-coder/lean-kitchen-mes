@@ -15,6 +15,7 @@ import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { useDebounce } from "@/lib/client/hooks";
 import { BomType, IngredientOption, IngredientCategory } from "./types";
+import { PortionTag } from "@/app/components/ingredients/portion-tag";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -237,6 +238,14 @@ export function BomPickerDialog({
             {
               header: "规格",
               cell: (row: IngredientOption) => row.spec || "—",
+            },
+          ]),
+      ...(isSeasoningOrSauce
+        ? []
+        : [
+            {
+              header: "份量",
+              cell: (row: IngredientOption) => <PortionTag portion={row.portion} />,
             },
           ]),
       {

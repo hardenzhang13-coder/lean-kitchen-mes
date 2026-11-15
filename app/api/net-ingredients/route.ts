@@ -79,7 +79,15 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: unknown = await req.json();
+    // 份量：新建必填，先给出可读提示，再交由 zod 校验枚举合法性
+    const rawPortion =
+      typeof body === "object" && body !== null && "portion" in body
+        ? (body as { portion?: unknown }).portion
+        : undefined;
+    if (!rawPortion) {
+      return badRequest("请选择份量");
+    }
     const validation = validateBody(createNetIngredientSchema, body);
     if (!validation.success) return validation.response;
 
@@ -93,6 +101,7 @@ export async function POST(req: NextRequest) {
       yieldRate,
       grossMarginRate,
       l2Code,
+      portion,
     } = validation.data;
 
     if (!name?.trim() || !l2Code?.trim()) {
@@ -150,6 +159,7 @@ export async function POST(req: NextRequest) {
         yieldRate: yieldRateNum,
         unitPrice: calculated,
         grossMarginRate: grossMarginRate ?? 0,
+        portion,
         unit: "g",
         l2Code: l2Code.trim(),
         storage: "冷藏",

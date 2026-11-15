@@ -7,6 +7,7 @@ import { Textarea } from "@/app/components/ui/form-controls";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DishFormData, calcPriceByMargin } from "./types";
+import { PORTION_OPTIONS } from "@/lib/shared/portion-scale";
 
 interface BasicInfoPanelProps {
   data: DishFormData;
@@ -68,10 +69,12 @@ const meatTypeOptions = [
 ];
 
 const seasonOptions = ["四季", "春", "夏", "秋", "冬"].map((s) => ({ value: s, label: s }));
-const portionOptions = [
-  { value: "单人份", label: "单人份" },
-  { value: "一锅10份", label: "一锅10份" },
-];
+// 份量与净料/小料档案共用同一套枚举（lib/shared/portion-scale.ts），避免建档时填错口径
+const portionOptions = PORTION_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+  description: option.description,
+}));
 
 export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: BasicInfoPanelProps) {
   const categoryOptions = categories.map((c) => ({ value: String(c.id), label: c.name }));
@@ -185,7 +188,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
       <FormField id="portion" label="份量" required readOnly={readOnly}>
         <SelectTileMode
           options={portionOptions}
-          value={data.portion || "单人份"}
+          value={data.portion || "小碗菜"}
           onChange={(v) => update({ portion: v })}
           placeholder="请选择份量"
           title="选择份量"

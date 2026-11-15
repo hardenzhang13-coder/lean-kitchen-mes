@@ -53,6 +53,8 @@ export interface IngredientOption {
   costPrice?: number | null;
   /** 净料/小料封装规格（g） */
   packageSpec?: number | null;
+  /** 份量（小碗菜 / 社区口径）：净料/小料档案的份量口径 */
+  portion?: string | null;
   /** 价格口径单位：净料/小料/调料为「斤」 */
   unit: string | null;
   l1Code?: string;
@@ -438,6 +440,8 @@ export function normalizeNetIngredients(items: unknown[]): IngredientOption[] {
         // 出库价（元/斤，含加工费与毛利），BOM 成本口径
         costPrice: outPrice,
         packageSpec,
+        // 份量：净料/小料档案的份量口径（小碗菜 / 社区）
+        portion: record.portion != null ? String(record.portion) : null,
         // 价格口径单位（BOM 用量仍按 g 录入）
         unit: "斤",
         l2Code: String(record.l2Code || ""),

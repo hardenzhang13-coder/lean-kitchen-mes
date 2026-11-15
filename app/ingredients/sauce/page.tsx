@@ -38,7 +38,10 @@ import {
   calcRecipeLineCost,
   calcSauceCostPricePerJin,
 } from "@/lib/shared/sauce-price";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Sauce = {
@@ -546,6 +549,13 @@ export default function SauceIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
+                      totalLabel: formatPageSummary(
+                        page,
+                        pageSize,
+                        pagination.totalItems,
+                        "酱料"
+                      ),
+                      showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
                         setPage(1);
@@ -567,17 +577,7 @@ export default function SauceIngredientsPage() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`删除酱料 ${row.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeleteRow(row);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+
                 </>
               )}
             />
@@ -870,6 +870,19 @@ export default function SauceIngredientsPage() {
             </FormSection>
           </div>
           <DialogFooter className="px-6 pt-0 pb-6">
+            {editing ? (
+              <Button
+                variant="ghost"
+                className="mr-auto text-destructive hover:text-destructive"
+                onClick={() => {
+                  setDeleteRow(editing);
+                  setDialogOpen(false);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               onClick={() => setDialogOpen(false)}

@@ -113,6 +113,8 @@ model NetIngredient {
   packageMaterial    String            @default("密封袋") @map("package_material")
   // 包装尺寸，如 35cm×30cm
   packageSize        String            @default("50cm×40cm") @map("package_size")
+  // 份量（小碗菜 / 社区口径）：净料、小料与菜品共用同一套枚举，新建必填，存量可空
+  portion            String?           @map("portion") @db.VarChar(50)
   // 封装加工费（元/斤），空 = 0；净料/小料使用
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
   // 毛利率（%）：空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100)，真毛利率口径
@@ -225,7 +227,7 @@ model Dish {
   cuisine          String?
   technique        String?
   taste            String?
-  portion          String                @default("单人份")
+  portion          String                @default("小碗菜")
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)

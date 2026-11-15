@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRightLeft,
+  Copy,
   Loader2,
   Pencil,
   Printer,
@@ -36,9 +37,9 @@ import {
 import { useNetIngredientForm } from "@/app/components/ingredients/use-net-ingredient-form";
 import { formatPercent } from "@/lib/shared/display-format";
 
-export type IngredientDetailKind = "raw" | "net" | "minor";
+export type IngredientDetailKind = "raw" | "seasoning" | "net" | "minor";
 
-type RawDetail = {
+export type RawDetail = {
   id: number;
   code: string;
   name: string;
@@ -47,13 +48,14 @@ type RawDetail = {
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
+  unitsPerPurchase?: number | null;
   defaultSupplierId: number | null;
   defaultSupplier?: { id: number; name: string } | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
 };
 
-type NetDetail = {
+export type NetDetail = {
   id: number;
   code: string;
   name: string;
@@ -71,6 +73,8 @@ type NetDetail = {
   yieldRate: number | null;
   unitPrice: number | null;
   grossMarginRate: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   costPricePerJin?: number | null;
   outPricePerJin?: number | null;
   standardPackagePrice?: number | null;
@@ -94,6 +98,8 @@ interface IngredientDetailSheetProps {
   onConvert?: (id: number) => void;
   onPrintLabel?: (id: number) => void;
   onDelete?: (id: number) => void;
+  /** 复制：以当前记录为模板新建一条数据 */
+  onCopy?: (record: RawDetail | NetDetail) => void;
 }
 
 function formatMoney(value: number | null | undefined) {
@@ -161,6 +167,7 @@ export function IngredientDetailSheet({
   onConvert,
   onPrintLabel,
   onDelete,
+  onCopy,
 }: IngredientDetailSheetProps) {
   const [raw, setRaw] = useState<RawDetail | null>(null);
   const [net, setNet] = useState<NetDetail | null>(null);
@@ -201,12 +208,16 @@ export function IngredientDetailSheet({
     submit: submitRaw,
     resetForm: resetRawForm,
   } = useIngredientForm({
-    active: open && inlineEdit && kind === "raw" && raw != null,
+    active:
+      open &&
+      inlineEdit &&
+      (kind === "raw" || kind === "seasoning") &&
+      raw != null,
     autoCalculate: editing,
     initialData: rawInitialData,
     categories,
     units,
-    mode: "ingredient",
+    mode: kind === "seasoning" ? "seasoning" : "ingredient",
     onSaved: () => {
       setEditing(false);
       setRefreshKey((value) => value + 1);
@@ -223,12 +234,16 @@ export function IngredientDetailSheet({
     submit: submitNet,
     resetForm: resetNetForm,
   } = useNetIngredientForm({
-    active: open && inlineEdit && kind === "net" && net != null,
+    active:
+      open &&
+      inlineEdit &&
+      (kind === "net" || kind === "minor") &&
+      net != null,
     initialData: net,
     categories,
     rawIngredients,
     sourcePricePerJin: net?.sourceIngredient?.pricePerJin,
-    mode: "net",
+    mode: kind === "minor" ? "minor" : "net",
     onSaved: () => {
       setEditing(false);
       setRefreshKey((value) => value + 1);
@@ -258,7 +273,7 @@ export function IngredientDetailSheet({
       setNet(null);
       try {
         const url =
-          kind === "raw"
+          kind === "raw" || kind === "seasoning"
             ? `/api/ingredients/${ingredientId}`
             : `/api/net-ingredients/${ingredientId}`;
         const response = await fetch(url, { signal: controller.signal });
@@ -272,7 +287,7 @@ export function IngredientDetailSheet({
           json.data !== null
             ? json.data
             : json;
-        if (kind === "raw") setRaw(data as RawDetail);
+        if (kind === "raw" || kind === "seasoning") setRaw(data as RawDetail);
         else setNet(data as NetDetail);
       } catch {
         if (!controller.signal.aborted) setFailed(true);
@@ -285,9 +300,15 @@ export function IngredientDetailSheet({
   }, [open, ingredientId, kind, refreshKey]);
 
   const title =
-    kind === "raw" ? "原料详情" : kind === "minor" ? "小料详情" : "净料详情";
-  const data = kind === "raw" ? raw : net;
-  const canInlineEdit = inlineEdit && (kind === "raw" || kind === "net");
+    kind === "raw"
+      ? "原料详情"
+      : kind === "seasoning"
+        ? "调料详情"
+        : kind === "minor"
+          ? "小料详情"
+          : "净料详情";
+  const data = kind === "raw" || kind === "seasoning" ? raw : net;
+  const canInlineEdit = inlineEdit;
   const parentCategory = data
     ? categories.find((category) =>
         category.children.some((child) => child.code === data.l2Code)
@@ -300,15 +321,25 @@ export function IngredientDetailSheet({
   const headerL1 = parentCategory?.name || "";
   const headerL2 = childCategory?.name || categoryName || "";
   const headerSource =
-    kind === "net" ? net?.sourceIngredient?.name || "" : "";
+    kind === "net" || kind === "minor"
+      ? net?.sourceIngredient?.name || ""
+      : "";
   const sheetTitle = canInlineEdit
     ? editing
       ? kind === "raw"
         ? "编辑原料"
-        : "编辑净料"
+          : kind === "seasoning"
+            ? "编辑调料"
+            : kind === "minor"
+              ? "编辑小料"
+              : "编辑净料"
       : kind === "raw"
         ? "原料详情"
-        : "净料详情"
+        : kind === "seasoning"
+          ? "调料详情"
+          : kind === "minor"
+            ? "小料详情"
+            : "净料详情"
     : data?.name || title;
   const headerMeta = canInlineEdit ? (
     <>
@@ -342,10 +373,13 @@ export function IngredientDetailSheet({
   );
 
   const activeSubmitting =
-    kind === "raw" ? rawSubmitting : netSubmitting;
-  const activeIsDirty = kind === "raw" ? rawIsDirty : netIsDirty;
-  const activeSubmit = kind === "raw" ? submitRaw : submitNet;
-  const activeResetForm = kind === "raw" ? resetRawForm : resetNetForm;
+    kind === "raw" || kind === "seasoning" ? rawSubmitting : netSubmitting;
+  const activeIsDirty =
+    kind === "raw" || kind === "seasoning" ? rawIsDirty : netIsDirty;
+  const activeSubmit =
+    kind === "raw" || kind === "seasoning" ? submitRaw : submitNet;
+  const activeResetForm =
+    kind === "raw" || kind === "seasoning" ? resetRawForm : resetNetForm;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (!nextOpen && canInlineEdit && editing && activeIsDirty) {
@@ -418,23 +452,35 @@ export function IngredientDetailSheet({
                     ) : undefined
                   }
                   secondary={
-                    kind === "raw" ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditing(true)}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        编辑
-                      </Button>
-                    ) : kind === "net" && onPrintLabel ? (
-                      <Button
-                        variant="outline"
-                        onClick={() => setEditing(true)}
-                      >
-                        <Pencil className="mr-2 h-4 w-4" />
-                        编辑
-                      </Button>
-                    ) : undefined
+                    <>
+                      {onCopy ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => onCopy(data)}
+                        >
+                          <Copy className="mr-2 h-4 w-4" />
+                          复制
+                        </Button>
+                      ) : null}
+                      {kind === "raw" ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditing(true)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          编辑
+                        </Button>
+                      ) : (kind === "net" || kind === "minor") &&
+                        onPrintLabel ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setEditing(true)}
+                        >
+                          <Pencil className="mr-2 h-4 w-4" />
+                          编辑
+                        </Button>
+                      ) : null}
+                    </>
                   }
                   primary={
                     onConvert ? (
@@ -442,7 +488,8 @@ export function IngredientDetailSheet({
                         <ArrowRightLeft className="mr-2 h-4 w-4" />
                         转净料
                       </Button>
-                    ) : kind === "net" && onPrintLabel ? (
+                    ) : (kind === "net" || kind === "minor") &&
+                      onPrintLabel ? (
                       <Button
                         onClick={() => onPrintLabel(data.id)}
                         disabled={
@@ -458,7 +505,9 @@ export function IngredientDetailSheet({
                         <Printer className="mr-2 h-4 w-4" />
                         打印标签
                       </Button>
-                    ) : kind === "net" ? (
+                    ) : kind === "net" ||
+                      kind === "minor" ||
+                      kind === "seasoning" ? (
                       <Button onClick={() => setEditing(true)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         编辑
@@ -482,15 +531,26 @@ export function IngredientDetailSheet({
                   ) : undefined
                 }
                 secondary={
-                  onEdit ? (
-                    <Button
-                      variant="outline"
-                      onClick={() => onEdit(data.id)}
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      编辑
-                    </Button>
-                  ) : undefined
+                  <>
+                    {onCopy ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => onCopy(data)}
+                      >
+                        <Copy className="mr-2 h-4 w-4" />
+                        复制
+                      </Button>
+                    ) : null}
+                    {onEdit ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => onEdit(data.id)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        编辑
+                      </Button>
+                    ) : null}
+                  </>
                 }
                 primary={
                   kind === "raw" && onConvert ? (
@@ -519,21 +579,22 @@ export function IngredientDetailSheet({
             title="详情加载失败"
             description="请关闭后重试，或检查该食材是否已被删除"
           />
-        ) : canInlineEdit && kind === "raw" ? (
+        ) : canInlineEdit &&
+          (kind === "raw" || kind === "seasoning") ? (
           <IngredientFormFields
             form={rawForm}
             onChange={handleRawChange}
             errors={rawErrors}
             categories={categories}
             units={units}
-            mode="ingredient"
+            mode={kind === "seasoning" ? "seasoning" : "ingredient"}
             l2Open={l2Open}
             onL2OpenChange={setL2Open}
             viewMode={!editing}
             layout="sheet"
             supplierName={raw?.defaultSupplier?.name}
           />
-        ) : canInlineEdit && kind === "net" ? (
+        ) : canInlineEdit && (kind === "net" || kind === "minor") ? (
           <NetIngredientFormFields
             form={netForm}
             onChange={handleNetChange}
@@ -541,7 +602,7 @@ export function IngredientDetailSheet({
             categories={categories}
             rawIngredients={rawIngredients}
             sourcePricePerJin={net?.sourceIngredient?.pricePerJin}
-            mode="net"
+            mode={kind === "minor" ? "minor" : "net"}
             viewMode={!editing}
             readOnly={{
               l1Code: true,
@@ -550,10 +611,11 @@ export function IngredientDetailSheet({
             }}
             layout="sheet"
           />
-        ) : kind === "raw" ? (
+        ) : kind === "raw" || kind === "seasoning" ? (
           <RawDetailContent
             data={raw as RawDetail}
             categoryName={categoryName}
+            kind={kind}
           />
         ) : (
           <NetDetailContent
@@ -570,7 +632,14 @@ export function IngredientDetailSheet({
             <DialogTitle className="text-lg">放弃未保存的修改？</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            当前{kind === "raw" ? "原料" : "净料"}
+            当前
+            {kind === "raw"
+              ? "原料"
+              : kind === "seasoning"
+                ? "调料"
+                : kind === "minor"
+                  ? "小料"
+                  : "净料"}
             有尚未保存的修改，关闭后这些内容将丢失。
           </p>
           <DialogFooter>
@@ -593,16 +662,21 @@ export function IngredientDetailSheet({
 function RawDetailContent({
   data,
   categoryName,
+  kind,
 }: {
   data: RawDetail;
   categoryName?: string;
+  kind: IngredientDetailKind;
 }) {
   return (
     <div className="space-y-4">
       <DetailSection title="基础信息">
         <InfoCell label="编号" value={data.code} />
         <InfoCell label="名称" value={data.name} emphasis />
-        <InfoCell label="品牌名称" value={data.alias || "—"} />
+        <InfoCell
+          label={kind === "seasoning" ? "商品名称" : "品牌名称"}
+          value={data.alias || "—"}
+        />
         <InfoCell label="分类" value={categoryName || data.l2Code} />
       </DetailSection>
       <DetailSection title="采购与计量">
@@ -620,7 +694,7 @@ function RawDetailContent({
           emphasis
         />
         <InfoCell
-          label="供应商名称"
+          label={kind === "seasoning" ? "默认供应商" : "供应商名称"}
           value={data.defaultSupplier?.name || "—"}
         />
       </DetailSection>
@@ -659,6 +733,7 @@ function NetDetailContent({
           label="出成率"
           value={data.yieldRate != null ? `${data.yieldRate}%` : "—"}
         />
+        <InfoCell label="份量" value={data.portion || "—"} />
       </DetailSection>
       <DetailSection title="价格与成本">
         <InfoCell

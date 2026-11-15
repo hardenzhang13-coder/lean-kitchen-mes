@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode } from "react";
-import { RotateCcw, Search } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 
@@ -36,7 +36,6 @@ export function ListToolbar({
   return (
     <div className={`flex items-center gap-2 flex-wrap ${className}`}>
       <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
-        <Search className="h-4 w-4 text-muted-foreground shrink-0" />
         <Input
           placeholder={searchPlaceholder}
           value={searchValue}

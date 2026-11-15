@@ -28,6 +28,7 @@ import {
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
+import { PORTION_OPTIONS } from "@/lib/shared/portion-scale";
 import { formatPercent } from "@/lib/shared/display-format";
 
 export type CategoryL1 = SelectorCategoryL1;
@@ -52,6 +53,8 @@ export interface NetIngredientFormData {
   unitPrice: string;
   /** 毛利率（%）：默认 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100) */
   grossMarginRate: string;
+  /** 份量（小碗菜 / 社区口径）：与菜品份量共用同一套枚举 */
+  portion: string;
 }
 
 export interface NetIngredientFormFieldsProps {
@@ -93,6 +96,16 @@ export function NetIngredientFormFields({
   const l1Options = useMemo(
     () => categories.map((c) => ({ value: c.code, label: c.name })),
     [categories]
+  );
+
+  const portionOptions = useMemo(
+    () =>
+      PORTION_OPTIONS.map((option) => ({
+        value: option.value,
+        label: option.label,
+        description: option.description,
+      })),
+    []
   );
 
   const l2Options = useMemo(() => {
@@ -175,7 +188,7 @@ export function NetIngredientFormFields({
     onChange("sourceIngredientId", value.ingredientId);
   };
 
-  if ((layout === "net-dialog" || layout === "sheet") && !isMinor) {
+  if (layout === "net-dialog" || layout === "sheet") {
     const isSheet = layout === "sheet";
     const sectionCols = isSheet ? 3 : 1;
     const fieldGridClassName = isSheet
@@ -224,6 +237,30 @@ export function NetIngredientFormFields({
             nameError={errors?.packageMaterial}
             sizeError={errors?.packageSize}
           />
+
+          <FormField
+            label="份量"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.portion}
+            hint="净料档案的份量口径，与菜品份量共用同一套枚举"
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={form.portion || null} />
+            ) : (
+              <SelectTileMode
+                options={portionOptions}
+                value={form.portion}
+                onChange={(v) => onChange("portion", v)}
+                placeholder="请选择份量"
+                title="选择份量"
+                searchable={false}
+                cols={2}
+                required
+              />
+            )}
+          </FormField>
         </FormSection>
 
         <FormSection
@@ -262,7 +299,7 @@ export function NetIngredientFormFields({
           </FormField>
 
           <FormField
-            label="净料单价（元/斤）"
+            label={isMinor ? "小料单价（元/斤）" : "净料单价（元/斤）"}
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.unitPrice}
@@ -403,11 +440,11 @@ export function NetIngredientFormFields({
     return (
       <div className="space-y-4">
         <FormSection
-          cols={1}
+          cols={isMinor ? 2 : 1}
           className="p-4 sm:p-4 [&>div:last-child]:gap-3"
         >
           <FormField
-            label="净料名称"
+            label={isMinor ? "小料名称" : "净料名称"}
             required
             readOnly={viewMode}
             error={errors?.name}
@@ -423,6 +460,30 @@ export function NetIngredientFormFields({
               />
             )}
           </FormField>
+          {isMinor && (
+            <FormField
+              label="二级分类"
+              required
+              readOnly={viewMode}
+              error={errors?.l2Code}
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={selectedL2?.label || null} />
+              ) : (
+                <SelectTileMode
+                  options={l2Options}
+                  value={form.l2Code}
+                  onChange={(value) => onChange("l2Code", value)}
+                  placeholder="请选择"
+                  title="选择二级分类"
+                  open={l2Open}
+                  onOpenChange={setL2Open}
+                  searchable={false}
+                  required
+                />
+              )}
+            </FormField>
+          )}
         </FormSection>
 
         {isSheet ? (
@@ -580,6 +641,30 @@ export function NetIngredientFormFields({
           viewMode={viewMode}
           error={errors?.packageMaterial}
         />
+
+        <FormField
+          label="份量"
+          required
+          readOnly={viewMode}
+          optionalHint={false}
+          error={errors?.portion}
+          hint="净料档案的份量口径，与菜品份量共用同一套枚举"
+        >
+          {viewMode ? (
+            <ReadOnlyValue value={form.portion || null} />
+          ) : (
+            <SelectTileMode
+              options={portionOptions}
+              value={form.portion}
+              onChange={(v) => onChange("portion", v)}
+              placeholder="请选择份量"
+              title="选择份量"
+              searchable={false}
+              cols={2}
+              required
+            />
+          )}
+        </FormField>
 
         <FormField
           label="出成率 (%)"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Printer } from "lucide-react";
+import { Plus, Pencil, Printer, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,12 +18,17 @@ import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
 } from "@/app/components/ingredients/net-ingredient-form-dialog";
+import type { NetIngredientFormItem } from "@/app/components/ingredients/net-ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
+import type { NetDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import {
   NetLabelPrintDialog,
   NetLabelTarget,
 } from "@/app/components/ingredients/net-label-print-dialog";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 import { formatMoney, formatPercent } from "@/lib/shared/display-format";
@@ -41,6 +46,8 @@ type NetIngredient = {
   yieldRate: number | null;
   unitPrice: number | null;
   grossMarginRate: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
   unit: string;
@@ -95,6 +102,9 @@ export default function NetIngredientsPage() {
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyData, setCopyData] = useState<NetIngredientFormItem | null>(null);
 
   const fetchMeta = async () => {
     try {
@@ -184,6 +194,36 @@ export default function NetIngredientsPage() {
     setDetailId(row.id);
     setDetailStartInEditMode(false);
     setDetailOpen(true);
+  };
+
+  // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名
+  const buildCopyData = (row: {
+    name: string;
+    sourceIngredientId: number | null;
+    packageSpec: number | null;
+    packageMaterial: string | null;
+    packageSize: string | null;
+    processingFeePerJin: number | null;
+    yieldRate: number | null;
+    grossMarginRate: number | null;
+    portion?: string | null;
+    l2Code: string;
+  }): NetIngredientFormItem => ({
+    name: `${row.name}-副本`,
+    sourceIngredientId: row.sourceIngredientId,
+    packageSpec: row.packageSpec,
+    packageMaterial: row.packageMaterial,
+    packageSize: row.packageSize,
+    processingFeePerJin: row.processingFeePerJin,
+    yieldRate: row.yieldRate,
+    grossMarginRate: row.grossMarginRate,
+    portion: row.portion ?? null,
+    l2Code: row.l2Code,
+  });
+
+  const openCopy = (row: NetIngredient) => {
+    setCopyData(buildCopyData(row));
+    setCopyOpen(true);
   };
 
   const handleDelete = async () => {
@@ -393,6 +433,13 @@ export default function NetIngredientsPage() {
                     totalItems: pagination.totalItems,
                     pageSize,
                     onPageChange: setPage,
+                    totalLabel: formatPageSummary(
+                      page,
+                      pageSize,
+                      pagination.totalItems,
+                      "净料"
+                    ),
+                    showPageSize: true,
                     onPageSizeChange: (size) => {
                       setPageSize(size);
                       setPage(1);
@@ -427,6 +474,18 @@ export default function NetIngredientsPage() {
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label={`复制净料 ${row.name}`}
+                  title="复制净料"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openCopy(row);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
                   aria-label={`编辑净料 ${row.name}`}
                   title="编辑净料"
                   onClick={(event) => {
@@ -435,18 +494,6 @@ export default function NetIngredientsPage() {
                   }}
                 >
                   <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`删除净料 ${row.name}`}
-                  title="删除净料"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteRow(row);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
               </>
             )}
@@ -462,6 +509,25 @@ export default function NetIngredientsPage() {
         rawIngredients={rawIngredients}
         onSuccess={() => {
           setCreateDialogOpen(false);
+          fetchIngredients();
+        }}
+      />
+
+      <NetIngredientFormDialog
+        open={copyOpen}
+        onOpenChange={(open) => {
+          setCopyOpen(open);
+          if (!open) setCopyData(null);
+        }}
+        mode="net"
+        initialData={copyData ?? undefined}
+        categories={categories}
+        rawIngredients={rawIngredients}
+        title="复制净料"
+        onSuccess={() => {
+          setCopyOpen(false);
+          setCopyData(null);
+          setDetailOpen(false);
           fetchIngredients();
         }}
       />
@@ -485,6 +551,11 @@ export default function NetIngredientsPage() {
             name: row.name,
             packageSpec: row.packageSpec,
           });
+        }}
+        onCopy={(record) => {
+          const detail = record as NetDetail;
+          setCopyData(buildCopyData(detail));
+          setCopyOpen(true);
         }}
         categoryName={
           detailId

@@ -38,7 +38,6 @@ import {
   CategoryL1,
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
-import { parseList } from "@/lib/client/api";
 import { toast } from "sonner";
 
 export type NetIngredientItem = {
@@ -55,9 +54,29 @@ export type NetIngredientItem = {
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
   grossMarginRate: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   unit: string;
   sourceIngredientId: number | null;
   l2Code: string;
+};
+
+/** 净料/小料表单回填数据：复制场景下不带 id，提交时按新建处理 */
+export type NetIngredientFormItem = {
+  id?: number;
+  code?: string;
+  name?: string;
+  packageSpec?: number | null;
+  packageMaterial?: string | null;
+  packageSize?: string | null;
+  processingFeePerJin?: number | null;
+  yieldRate?: number | null;
+  unitPrice?: number | null;
+  grossMarginRate?: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
+  sourceIngredientId?: number | null;
+  l2Code?: string | null;
 };
 
 interface NetIngredientFormDialogProps {
@@ -65,10 +84,12 @@ interface NetIngredientFormDialogProps {
   onOpenChange: (open: boolean) => void;
   mode?: "net" | "minor" | "convert";
   sourceIngredientId?: number;
-  initialData?: NetIngredientItem;
+  initialData?: NetIngredientFormItem;
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
   onSuccess?: () => void;
+  /** 自定义弹窗标题（复制场景：复制净料 / 复制小料） */
+  title?: string;
 }
 
 const RIGHT_LIST_PAGE_SIZE = 20;
@@ -85,6 +106,7 @@ const emptyForm: NetIngredientFormData = {
   yieldRate: "",
   unitPrice: "",
   grossMarginRate: "0",
+  portion: "",
 };
 
 function formatPackageSpec(value: number | null) {
@@ -108,6 +130,7 @@ export function NetIngredientFormDialog({
   categories,
   rawIngredients,
   onSuccess,
+  title,
 }: NetIngredientFormDialogProps) {
   const [form, setForm] = useState<NetIngredientFormData>(emptyForm);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -128,10 +151,11 @@ export function NetIngredientFormDialog({
 
   const isMinor = mode === "minor";
   const isConvert = mode === "convert";
-  const usesNetLayout = !isMinor;
+  const usesNetLayout =
+    mode === "net" || mode === "convert" || mode === "minor";
 
   const findParentL1 = useCallback(
-    (l2Code?: string) => {
+    (l2Code?: string | null) => {
       if (!l2Code) return undefined;
       return categories.find((category) =>
         category.children.some((child) => child.code === l2Code)
@@ -190,6 +214,7 @@ export function NetIngredientFormDialog({
           initialData.grossMarginRate != null
             ? String(initialData.grossMarginRate)
             : "0",
+        portion: initialData.portion || "",
       });
       return;
     }
@@ -236,9 +261,8 @@ export function NetIngredientFormDialog({
     if (!open) return;
 
     const seq = ++listRequestSeq.current;
-    const sourceId = Number(form.sourceIngredientId);
     const l2Code = form.l2Code;
-    if ((isMinor && !sourceId) || (!isMinor && !l2Code)) {
+    if (!l2Code) {
       setRightList([]);
       setListPagination(null);
       setLoadingList(false);
@@ -252,42 +276,32 @@ export function NetIngredientFormDialog({
       setRightList([]);
       setListPagination(null);
       try {
-        const url = isMinor
-          ? `/api/net-ingredients?sourceIngredientId=${sourceId}`
-          : `/api/net-ingredients?l2Code=${encodeURIComponent(l2Code)}&page=${listPage}&pageSize=${RIGHT_LIST_PAGE_SIZE}`;
+        const url = `/api/net-ingredients?l2Code=${encodeURIComponent(l2Code)}&page=${listPage}&pageSize=${RIGHT_LIST_PAGE_SIZE}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error("加载右侧列表失败");
 
-        if (isMinor) {
-          const list = await parseList<NetIngredientItem>(response);
-          if (listRequestSeq.current === seq) {
-            setRightList(list);
-            setListPagination(null);
-          }
-        } else {
-          const json: unknown = await response.json();
-          const data =
-            typeof json === "object" &&
-            json !== null &&
-            "data" in json &&
-            Array.isArray(json.data)
-              ? (json.data as NetIngredientItem[])
-              : [];
-          const pagination =
-            typeof json === "object" &&
-            json !== null &&
-            "pagination" in json &&
-            typeof json.pagination === "object" &&
-            json.pagination !== null
-              ? (json.pagination as {
-                  totalItems: number;
-                  totalPages: number;
-                })
-              : null;
-          if (listRequestSeq.current === seq) {
-            setRightList(data);
-            setListPagination(pagination);
-          }
+        const json: unknown = await response.json();
+        const data =
+          typeof json === "object" &&
+          json !== null &&
+          "data" in json &&
+          Array.isArray(json.data)
+            ? (json.data as NetIngredientItem[])
+            : [];
+        const pagination =
+          typeof json === "object" &&
+          json !== null &&
+          "pagination" in json &&
+          typeof json.pagination === "object" &&
+          json.pagination !== null
+            ? (json.pagination as {
+                totalItems: number;
+                totalPages: number;
+              })
+            : null;
+        if (listRequestSeq.current === seq) {
+          setRightList(data);
+          setListPagination(pagination);
         }
       } catch {
         if (listRequestSeq.current === seq) setListFailed(true);
@@ -299,8 +313,6 @@ export function NetIngredientFormDialog({
     load();
   }, [
     open,
-    isMinor,
-    form.sourceIngredientId,
     form.l2Code,
     listPage,
     listRefreshKey,
@@ -327,6 +339,14 @@ export function NetIngredientFormDialog({
     l2Code: string;
     ingredientId: string;
   }) => {
+    if (isMinor) {
+      setForm((previous) => ({
+        ...previous,
+        sourceIngredientId: value.ingredientId,
+      }));
+      setSourceSelectorOpen(false);
+      return;
+    }
     setForm((previous) => ({
       ...previous,
       l1Code: value.l1Code,
@@ -339,7 +359,9 @@ export function NetIngredientFormDialog({
 
   const validate = () => {
     const next: Record<string, string> = {};
-    if (!form.name.trim()) next.name = "净料名称不能为空";
+    if (!form.name.trim()) {
+      next.name = isMinor ? "小料名称不能为空" : "净料名称不能为空";
+    }
     if (!form.l2Code) next.l2Code = "请选择来源原料";
     if (!form.sourceIngredientId) {
       next.sourceIngredientId = "请选择来源原料";
@@ -389,6 +411,11 @@ export function NetIngredientFormDialog({
       next.grossMarginRate = "毛利率必须在 0-95 之间";
     }
 
+    // 份量：新建必填，与菜品份量共用同一套枚举
+    if (!form.portion) {
+      next.portion = "请选择份量";
+    }
+
     const sourcePricePerJin =
       selectedSource?.pricePerJin != null
         ? Number(selectedSource.pricePerJin)
@@ -425,6 +452,7 @@ export function NetIngredientFormDialog({
           form.grossMarginRate !== ""
             ? Number(form.grossMarginRate)
             : 0,
+        portion: form.portion,
       };
 
       const url = initialData?.id
@@ -484,16 +512,18 @@ export function NetIngredientFormDialog({
         row.grossMarginRate != null
           ? String(row.grossMarginRate)
           : "0",
+      portion: row.portion || "",
     });
   };
 
   const dialogTitle = useMemo(() => {
+    if (title) return title;
     if (isMinor && initialData?.id) return "编辑小料";
     if (isMinor) return "新增小料";
     if (initialData?.id) return "编辑净料";
     if (isConvert) return "转净料";
     return "新增净料";
-  }, [isMinor, initialData, isConvert]);
+  }, [title, isMinor, initialData, isConvert]);
 
   const existingCount = listPagination?.totalItems;
   const sourceSummary = (
@@ -553,7 +583,7 @@ export function NetIngredientFormDialog({
         onClick={() => setListOpen(true)}
       >
         <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
-        查看已有净料
+        {isMinor ? "查看已有小料" : "查看已有净料"}
         {existingCount != null ? `（${existingCount}）` : ""}
       </Button>
     </div>
@@ -732,7 +762,11 @@ export function NetIngredientFormDialog({
         <RecordSheet
           open={listOpen}
           onOpenChange={setListOpen}
-          title="该食材分类下已录入系统的净料"
+          title={
+            isMinor
+              ? "该食材分类下已录入系统的小料"
+              : "该食材分类下已录入系统的净料"
+          }
           meta={
             <span>
               {selectedL1?.name || ""}
@@ -842,7 +876,9 @@ export function NetIngredientFormDialog({
                   }
                 : {
                     icon: PackageOpen,
-                    title: "该分类下暂无净料",
+                    title: isMinor
+                      ? "该分类下暂无小料"
+                      : "该分类下暂无净料",
                     description: "保存后会自动进入当前分类",
                   }
             }

@@ -35,6 +35,10 @@ interface DataTableProps<T> {
     /** 兼容现有调用方；列表底部统一不显示每页条数选择器 */
     onPageSizeChange?: (size: number) => void;
     pageSizeOptions?: readonly number[];
+    /** 底部左侧汇总文案，如「共 48 条原料」 */
+    totalLabel?: string;
+    /** 是否展示每页条数选择器（默认不展示） */
+    showPageSize?: boolean;
   };
   filters?: React.ReactNode;
   emptyState?: EmptyStateProps;
@@ -205,6 +209,12 @@ export function DataTable<T extends object>({
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
             onPageChange={pagination.onPageChange}
+            totalItems={pagination.totalItems}
+            pageSize={pagination.pageSize}
+            onPageSizeChange={pagination.onPageSizeChange}
+            pageSizeOptions={pagination.pageSizeOptions}
+            totalLabel={pagination.totalLabel}
+            showPageSize={pagination.showPageSize}
           />
         </div>
       )}

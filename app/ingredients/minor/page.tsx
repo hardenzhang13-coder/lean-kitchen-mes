@@ -1,30 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Printer, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import {
   NetIngredientFormDialog,
 } from "@/app/components/ingredients/net-ingredient-form-dialog";
-import {
-  NetIngredientEditDialog,
-  NetIngredientEditItem,
-} from "@/app/components/ingredients/net-ingredient-edit-dialog";
+import type { NetIngredientFormItem } from "@/app/components/ingredients/net-ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import type { NetDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
+import {
+  NetLabelPrintDialog,
+  NetLabelTarget,
+} from "@/app/components/ingredients/net-label-print-dialog";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 import { formatMoney, formatPercent } from "@/lib/shared/display-format";
@@ -41,6 +45,8 @@ type NetIngredient = {
   yieldRate: number | null;
   unitPrice: number | null;
   grossMarginRate: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
   unit: string | null;
@@ -81,12 +87,14 @@ export default function MinorIngredientsPage() {
   } | null>(null);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<NetIngredientEditItem | null>(null);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
+  const [labelTarget, setLabelTarget] = useState<NetLabelTarget | null>(null);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyData, setCopyData] = useState<NetIngredientFormItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchMeta = async () => {
@@ -149,28 +157,46 @@ export default function MinorIngredientsPage() {
     setCreateDialogOpen(true);
   };
 
-  const buildEditItem = (row: NetIngredient): NetIngredientEditItem => ({
-    id: row.id,
-    name: row.name,
-    packageSpec: row.packageSpec ?? null,
-    packageMaterial: row.packageMaterial ?? null,
-    packageSize: row.packageSize ?? null,
-    processingFeePerJin: row.processingFeePerJin ?? null,
-    yieldRate: row.yieldRate,
-    unitPrice: row.unitPrice,
-    grossMarginRate: row.grossMarginRate,
-    sourceIngredientId: row.sourceIngredientId,
-    l2Code: row.l2Code,
-  });
-
   const openEdit = (row: NetIngredient) => {
-    setEditing(buildEditItem(row));
-    setEditDialogOpen(true);
+    setDetailId(row.id);
+    setDetailStartInEditMode(true);
+    setDetailOpen(true);
   };
 
   const openView = (row: NetIngredient) => {
     setDetailId(row.id);
+    setDetailStartInEditMode(false);
     setDetailOpen(true);
+  };
+
+  // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名
+  const buildCopyData = (row: {
+    name: string;
+    sourceIngredientId: number | null;
+    packageSpec: number | null;
+    packageMaterial: string | null;
+    packageSize: string | null;
+    processingFeePerJin: number | null;
+    yieldRate: number | null;
+    grossMarginRate: number | null;
+    portion?: string | null;
+    l2Code: string;
+  }): NetIngredientFormItem => ({
+    name: `${row.name}-副本`,
+    sourceIngredientId: row.sourceIngredientId,
+    packageSpec: row.packageSpec,
+    packageMaterial: row.packageMaterial,
+    packageSize: row.packageSize,
+    processingFeePerJin: row.processingFeePerJin,
+    yieldRate: row.yieldRate,
+    grossMarginRate: row.grossMarginRate,
+    portion: row.portion ?? null,
+    l2Code: row.l2Code,
+  });
+
+  const openCopy = (row: NetIngredient) => {
+    setCopyData(buildCopyData(row));
+    setCopyOpen(true);
   };
 
   const handleDelete = async () => {
@@ -245,17 +271,14 @@ export default function MinorIngredientsPage() {
           </ListToolbar>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col p-4">
-          {loading ? (
-            <SkeletonTable cols={14} rows={pageSize} />
-          ) : (
-            <DataTable<NetIngredient>
-              data={data}
-              loading={loading}
-              onRowClick={openView}
-              fillHeight
-              density="dense"
-              tableClassName="min-w-max"
-              columns={[
+          <DataTable<NetIngredient>
+            data={data}
+            loading={loading}
+            onRowClick={openView}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
                 {
                   header: "序号",
                   className: "w-[48px]",
@@ -308,7 +331,7 @@ export default function MinorIngredientsPage() {
                     row.yieldRate != null ? `${row.yieldRate}%` : "—",
                 },
                 {
-                  header: "净料单价",
+                  header: "小料单价",
                   className: "w-[120px]",
                   cell: (row) => (
                     <span className="tabular-nums">
@@ -317,28 +340,11 @@ export default function MinorIngredientsPage() {
                   ),
                 },
                 {
-                  header: "封装加工费",
-                  className: "w-[110px]",
-                  cell: (row) =>
-                    row.processingFeePerJin != null
-                      ? `¥${Number(row.processingFeePerJin).toFixed(2)}/斤`
-                      : "—",
-                },
-                {
                   header: "毛利率",
                   className: "w-[70px]",
                   cell: (row) => (
                     <span className="tabular-nums">
                       {formatPercent(row.grossMarginRate)}
-                    </span>
-                  ),
-                },
-                {
-                  header: "出库价",
-                  className: "w-[120px]",
-                  cell: (row) => (
-                    <span className="tabular-nums">
-                      {formatMoney(row.outPricePerJin, "斤")}
                     </span>
                   ),
                 },
@@ -351,7 +357,7 @@ export default function MinorIngredientsPage() {
                     </span>
                   ),
                 },
-              ]}
+            ]}
               pagination={
                 pagination && pagination.totalItems > 0
                   ? {
@@ -360,6 +366,13 @@ export default function MinorIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
+                      totalLabel: formatPageSummary(
+                        page,
+                        pageSize,
+                        pagination.totalItems,
+                        "小料"
+                      ),
+                      showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
                         setPage(1);
@@ -373,6 +386,39 @@ export default function MinorIngredientsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`打印小料标签 ${row.name}`}
+                    title={
+                      row.packageSpec != null && row.packageSpec > 0
+                        ? "打印标签"
+                        : "缺少包装规格，无法打印标签"
+                    }
+                    disabled={row.packageSpec == null || row.packageSpec <= 0}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setLabelTarget({
+                        id: row.id,
+                        name: row.name,
+                        packageSpec: row.packageSpec,
+                      });
+                    }}
+                  >
+                    <Printer className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`复制小料 ${row.name}`}
+                    title="复制小料"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openCopy(row);
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     aria-label={`编辑小料 ${row.name}`}
                     title="编辑小料"
                     onClick={(event) => {
@@ -382,22 +428,9 @@ export default function MinorIngredientsPage() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`删除小料 ${row.name}`}
-                    title="删除小料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeleteRow(row);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
                 </>
               )}
-            />
-          )}
+          />
         </CardContent>
       </Card>
 
@@ -413,14 +446,23 @@ export default function MinorIngredientsPage() {
         }}
       />
 
-      <NetIngredientEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
+      <NetIngredientFormDialog
+        open={copyOpen}
+        onOpenChange={(open) => {
+          setCopyOpen(open);
+          if (!open) setCopyData(null);
+        }}
         mode="minor"
-        initialData={editing}
+        initialData={copyData ?? undefined}
         categories={categories}
         rawIngredients={rawIngredients}
-        onSuccess={fetchIngredients}
+        title="复制小料"
+        onSuccess={() => {
+          setCopyOpen(false);
+          setCopyData(null);
+          setDetailOpen(false);
+          fetchIngredients();
+        }}
       />
 
       <IngredientDetailSheet
@@ -428,16 +470,30 @@ export default function MinorIngredientsPage() {
         onOpenChange={setDetailOpen}
         kind="minor"
         ingredientId={detailId}
+        categories={categories}
+        rawIngredients={rawIngredients}
+        inlineEdit
+        startInEditMode={detailStartInEditMode}
+        onUpdated={fetchIngredients}
         categoryName={
           detailId
             ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
             : undefined
         }
-        onEdit={(id) => {
+        onPrintLabel={(id) => {
           const row = data.find((item) => item.id === id);
           if (!row) return;
           setDetailOpen(false);
-          openEdit(row);
+          setLabelTarget({
+            id: row.id,
+            name: row.name,
+            packageSpec: row.packageSpec,
+          });
+        }}
+        onCopy={(record) => {
+          const detail = record as NetDetail;
+          setCopyData(buildCopyData(detail));
+          setCopyOpen(true);
         }}
         onDelete={(id) => {
           const row = data.find((item) => item.id === id);
@@ -447,11 +503,18 @@ export default function MinorIngredientsPage() {
         }}
       />
 
+      <NetLabelPrintDialog
+        target={labelTarget}
+        onOpenChange={(open) => {
+          if (!open) setLabelTarget(null);
+        }}
+      />
+
       <Dialog
         open={deleteRow !== null}
         onOpenChange={() => setDeleteRow(null)}
       >
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -476,7 +539,7 @@ export default function MinorIngredientsPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

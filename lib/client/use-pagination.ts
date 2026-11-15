@@ -2,6 +2,22 @@ import { useCallback, useMemo, useState } from "react";
 
 export const DEFAULT_PAGE_SIZE = 10;
 
+export function formatPageSummary(
+  currentPage: number,
+  pageSize: number,
+  totalItems: number,
+  itemLabel?: string
+): string {
+  if (totalItems <= 0) {
+    return `共 0 条${itemLabel ? ` ${itemLabel}` : ""}`;
+  }
+  const start = Math.min((currentPage - 1) * pageSize + 1, totalItems);
+  const end = Math.min(currentPage * pageSize, totalItems);
+  return `第 ${start}-${end} 条，共 ${totalItems} 条${
+    itemLabel ? ` ${itemLabel}` : ""
+  }`;
+}
+
 export function usePagination<T>(items: T[], initialPageSize = DEFAULT_PAGE_SIZE) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(initialPageSize);

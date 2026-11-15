@@ -98,7 +98,12 @@ export function FormSection({
   }[cols];
 
   return (
-    <div className={cn("space-y-4 rounded-lg border bg-muted/20 p-4 sm:p-5", className)}>
+    <div
+      className={cn(
+        "space-y-4 rounded-lg border p-4 sm:p-5",
+        className
+      )}
+    >
       {(title || description) && (
         <div>
           {title && (

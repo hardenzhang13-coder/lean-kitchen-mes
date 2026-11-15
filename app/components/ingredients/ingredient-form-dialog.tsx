@@ -31,7 +31,12 @@ interface IngredientFormDialogProps {
   mode?: "ingredient" | "seasoning" | "auto";
   /** 查看模式：字段全部只读，仅提供关闭按钮 */
   view?: boolean;
-  onSuccess: (data: CreatedIngredient) => void;
+  /** 是否提供「保存并继续添加」（新建态批量录入食材） */
+  allowContinue?: boolean;
+  /** 保存成功回调：continued = true 表示走「保存并继续添加」，弹窗保持打开 */
+  onSuccess: (data: CreatedIngredient, continued?: boolean) => void;
+  /** 自定义弹窗标题（复制场景：复制原料 / 复制调料） */
+  title?: string;
 }
 
 export function IngredientFormDialog({
@@ -42,7 +47,9 @@ export function IngredientFormDialog({
   units,
   mode = "auto",
   view = false,
+  allowContinue = false,
   onSuccess,
+  title,
 }: IngredientFormDialogProps) {
   const {
     form,
@@ -52,6 +59,7 @@ export function IngredientFormDialog({
     submitting,
     handleChange,
     submit,
+    submitContinue,
   } = useIngredientForm({
     active: open,
     autoCalculate: !view,
@@ -59,8 +67,15 @@ export function IngredientFormDialog({
     categories,
     units,
     mode,
-    onSaved: (data) => {
-      onSuccess(data);
+    onSaved: (data, continued) => {
+      onSuccess(data, continued);
+      if (continued) {
+        // 连续录入：焦点回到名称输入框，继续录入下一条
+        requestAnimationFrame(() => {
+          document.getElementById("ingredient-name")?.focus();
+        });
+        return;
+      }
       onOpenChange(false);
     },
   });
@@ -73,11 +88,12 @@ export function IngredientFormDialog({
       >
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
-            {view
-              ? `查看${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
-              : initialData?.id
-                ? `编辑${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
-                : `新增${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`}
+            {title ??
+              (view
+                ? `查看${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
+                : initialData?.id
+                  ? `编辑${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`
+                  : `新增${mode === "seasoning" ? "调料" : mode === "ingredient" ? "原料" : "食材"}`)}
           </DialogTitle>
         </DialogHeader>
 
@@ -114,6 +130,18 @@ export function IngredientFormDialog({
               >
                 取消
               </Button>
+              {allowContinue && !initialData?.id && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    void submitContinue();
+                  }}
+                  disabled={submitting}
+                  className="h-11 px-6"
+                >
+                  保存并继续添加
+                </Button>
+              )}
               <Button
                 onClick={() => {
                   void submit();

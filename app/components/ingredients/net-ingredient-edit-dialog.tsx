@@ -26,6 +26,8 @@ export type NetIngredientEditItem = {
   yieldRate: number | null;
   unitPrice: number | null;
   grossMarginRate: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   sourceIngredientId: number | null;
   l2Code: string;
 };

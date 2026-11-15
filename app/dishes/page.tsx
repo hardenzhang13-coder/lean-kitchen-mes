@@ -23,7 +23,7 @@ import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
 import { DishDetail, calcGrossMarginPercent } from "@/app/components/dish-form/types";
-import { portionScaleFactor } from "@/lib/shared/portion-scale";
+import { PORTION_OPTIONS, portionScaleFactor } from "@/lib/shared/portion-scale";
 import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
@@ -51,10 +51,12 @@ const statusOptions = [
   { value: "published", label: "已发布" },
 ];
 
-const portionOptions = [
-  { value: "单人份", label: "单人份" },
-  { value: "一锅10份", label: "一锅10份" },
-];
+// 份量与净料/小料档案共用同一套枚举（lib/shared/portion-scale.ts）
+const portionOptions = PORTION_OPTIONS.map((option) => ({
+  value: option.value,
+  label: option.label,
+  description: option.description,
+}));
 
 const formatDateTime = (dateStr: string | Date | null | undefined) => {
   if (!dateStr) return "—";
@@ -85,8 +87,11 @@ function MeatTypeBadge({ type }: { type?: string | null }) {
 function PortionBadge({ portion }: { portion?: string | null }) {
   if (!portion) return <span className="text-muted-foreground">—</span>;
   const classes: Record<string, string> = {
-    单人份: "bg-sky-100 text-sky-700 hover:bg-sky-100",
-    一锅10份: "bg-orange-100 text-orange-700 hover:bg-orange-100",
+    小碗菜: "bg-sky-100 text-sky-700 hover:bg-sky-100",
+    "小碗菜·10份": "bg-cyan-100 text-cyan-700 hover:bg-cyan-100",
+    "社区·2份": "bg-amber-100 text-amber-700 hover:bg-amber-100",
+    "社区·3份": "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
+    "社区·4份": "bg-violet-100 text-violet-700 hover:bg-violet-100",
   };
   return (
     <Badge className={classes[portion] || "bg-violet-100 text-violet-700 hover:bg-violet-100"}>
@@ -272,7 +277,7 @@ export default function DishesPage() {
     }
   };
 
-  // 转化倍率由源/目标份量规格自动推导（如 单人份 → 一锅10份 = ×10）
+  // 转化倍率由源/目标份量规格自动推导（如 小碗菜 → 小碗菜·10份 = ×10，社区·2份 = ×4）
   const scaleFactorNum =
     scaleTarget != null && scalePortion
       ? portionScaleFactor(scaleTarget.portion, scalePortion)
@@ -475,7 +480,7 @@ export default function DishesPage() {
                   >
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {row.portion === "单人份" && (
+                  {row.portion === "小碗菜" && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -484,7 +489,7 @@ export default function DishesPage() {
                       onClick={(e) => {
                         e.stopPropagation();
                         setScaleTarget(row);
-                        setScalePortion("一锅10份");
+                        setScalePortion("小碗菜·10份");
                       }}
                     >
                       <CopyPlus className="h-4 w-4" />

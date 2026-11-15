@@ -1,24 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
+import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
+import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 
@@ -72,10 +77,14 @@ export default function SeasoningIngredientsPage() {
     totalPages: number;
   } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Ingredient | null>(null);
-  const [viewing, setViewing] = useState<Ingredient | null>(null);
-  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [detailId, setDetailId] = useState<number | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [copyOpen, setCopyOpen] = useState(false);
+  const [copyData, setCopyData] = useState<IngredientFormInitialData | null>(
+    null
+  );
 
   const seasoningL2Code = useMemo(
     () => findDefaultSeasoningL2Code(categories),
@@ -130,18 +139,49 @@ export default function SeasoningIngredientsPage() {
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const openCreate = () => {
-    setEditing(null);
     setDialogOpen(true);
   };
 
   const openEdit = (row: Ingredient) => {
-    setEditing(row);
-    setDialogOpen(true);
+    setDetailId(row.id);
+    setDetailStartInEditMode(true);
+    setDetailOpen(true);
   };
 
   const openView = (row: Ingredient) => {
-    setViewing(row);
-    setViewDialogOpen(true);
+    setDetailId(row.id);
+    setDetailStartInEditMode(false);
+    setDetailOpen(true);
+  };
+
+  // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名校验拦截
+  const buildCopyData = (row: {
+    name: string;
+    alias: string | null;
+    l2Code: string;
+    purchaseSpec: string | null;
+    purchaseUnit: string | null;
+    stockUnit: string | null;
+    unitsPerPurchase?: number | null;
+    latestRefPrice: number | null;
+    pricePerJin: number | null;
+    defaultSupplierId: number | null;
+  }): IngredientFormInitialData => ({
+    name: `${row.name}-副本`,
+    alias: row.alias,
+    l2Code: row.l2Code,
+    purchaseSpec: row.purchaseSpec,
+    purchaseUnit: row.purchaseUnit,
+    stockUnit: row.stockUnit,
+    unitsPerPurchase: row.unitsPerPurchase ?? 1,
+    latestRefPrice: row.latestRefPrice,
+    pricePerJin: row.pricePerJin,
+    defaultSupplierId: row.defaultSupplierId,
+  });
+
+  const openCopy = (row: Ingredient) => {
+    setCopyData(buildCopyData(row));
+    setCopyOpen(true);
   };
 
   // 调料二级分类选项 = SEA（调味品）下的启用子分类
@@ -220,17 +260,14 @@ export default function SeasoningIngredientsPage() {
           </ListToolbar>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col p-4">
-          {loading ? (
-            <SkeletonTable cols={11} rows={pageSize} />
-          ) : (
-            <DataTable<Ingredient>
-              data={data}
-              loading={loading}
-              onRowClick={openView}
-              fillHeight
-              density="dense"
-              tableClassName="min-w-max"
-              columns={[
+          <DataTable<Ingredient>
+            data={data}
+            loading={loading}
+            onRowClick={openView}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
                 {
                   header: "序号",
                   className: "w-[48px]",
@@ -249,7 +286,7 @@ export default function SeasoningIngredientsPage() {
                   header: "食材名称",
                   className: "w-[150px]",
                   cell: (row) => (
-                    <span className="font-medium">
+                    <span className="font-semibold text-primary">
                       {row.name}
                     </span>
                   ),
@@ -284,7 +321,7 @@ export default function SeasoningIngredientsPage() {
                   className: "w-[100px]",
                   cell: (row) =>
                     row.latestRefPrice != null
-                      ? formatMoney(row.latestRefPrice, row.purchaseUnit)
+                      ? formatMoney(row.latestRefPrice)
                       : "—",
                 },
                 {
@@ -302,10 +339,10 @@ export default function SeasoningIngredientsPage() {
                   className: "w-[100px]",
                   cell: (row) =>
                     row.pricePerJin != null
-                      ? <span className="font-medium tabular-nums">{formatMoney(row.pricePerJin, "斤")}</span>
+                      ? <span className="font-semibold tabular-nums text-primary">{formatMoney(row.pricePerJin, "斤")}</span>
                       : "—",
                 },
-              ]}
+            ]}
               pagination={
                 pagination && pagination.totalItems > 0
                   ? {
@@ -314,6 +351,13 @@ export default function SeasoningIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
+                      totalLabel: formatPageSummary(
+                        page,
+                        pageSize,
+                        pagination.totalItems,
+                        "调料"
+                      ),
+                      showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
                         setPage(1);
@@ -327,6 +371,18 @@ export default function SeasoningIngredientsPage() {
                   <Button
                     variant="ghost"
                     size="icon"
+                    aria-label={`复制调料 ${row.name}`}
+                    title="复制调料"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openCopy(row);
+                    }}
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     aria-label={`编辑调料 ${row.name}`}
                     title="编辑调料"
                     onClick={(event) => {
@@ -336,48 +392,16 @@ export default function SeasoningIngredientsPage() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`删除调料 ${row.name}`}
-                    title="删除调料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeleteId(row.id);
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
                 </>
               )}
-            />
-          )}
+          />
         </CardContent>
       </Card>
 
       <IngredientFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        initialData={
-          editing
-            ? {
-                id: editing.id,
-                code: editing.code,
-                name: editing.name,
-                l2Code: editing.l2Code,
-                alias: editing.alias,
-                purchaseSpec: editing.purchaseSpec,
-                purchaseUnit: editing.purchaseUnit || undefined,
-                stockUnit: editing.stockUnit || undefined,
-                unitsPerPurchase: editing.unitsPerPurchase ?? null,
-                latestRefPrice: editing.latestRefPrice ?? null,
-                pricePerJin: editing.pricePerJin ?? null,
-                defaultSupplierId: editing.defaultSupplierId ?? null,
-              }
-            : {
-                l2Code: seasoningL2Code,
-              }
-        }
+        initialData={{ l2Code: seasoningL2Code }}
         categories={categories}
         units={units}
         mode="seasoning"
@@ -388,35 +412,52 @@ export default function SeasoningIngredientsPage() {
       />
 
       <IngredientFormDialog
-        open={viewDialogOpen}
-        onOpenChange={setViewDialogOpen}
-        initialData={
-          viewing
-            ? {
-                id: viewing.id,
-                code: viewing.code,
-                name: viewing.name,
-                l2Code: viewing.l2Code,
-                alias: viewing.alias,
-                purchaseSpec: viewing.purchaseSpec,
-                purchaseUnit: viewing.purchaseUnit || undefined,
-                stockUnit: viewing.stockUnit || undefined,
-                unitsPerPurchase: viewing.unitsPerPurchase ?? null,
-                latestRefPrice: viewing.latestRefPrice ?? null,
-                pricePerJin: viewing.pricePerJin ?? null,
-                defaultSupplierId: viewing.defaultSupplierId ?? null,
-              }
-            : undefined
-        }
+        open={copyOpen}
+        onOpenChange={(open) => {
+          setCopyOpen(open);
+          if (!open) setCopyData(null);
+        }}
+        initialData={copyData ?? undefined}
         categories={categories}
         units={units}
         mode="seasoning"
-        view
-        onSuccess={() => {}}
+        title="复制调料"
+        onSuccess={() => {
+          setCopyOpen(false);
+          setCopyData(null);
+          setDetailOpen(false);
+          fetchData();
+        }}
+      />
+
+      <IngredientDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        kind="seasoning"
+        ingredientId={detailId}
+        categories={categories}
+        units={units}
+        inlineEdit
+        startInEditMode={detailStartInEditMode}
+        categoryName={
+          detailId
+            ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
+            : undefined
+        }
+        onUpdated={fetchData}
+        onCopy={(record) => {
+          const detail = record as RawDetail;
+          setCopyData(buildCopyData(detail));
+          setCopyOpen(true);
+        }}
+        onDelete={(id) => {
+          setDetailOpen(false);
+          setDeleteId(id);
+        }}
       />
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <DialogContent className="sm:max-w-[400px] [&>button]:cursor-pointer">
+        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
@@ -439,7 +480,7 @@ export default function SeasoningIngredientsPage() {
               删除
             </Button>
           </DialogFooter>
-        </DialogContent>
+        </AppDialogContent>
       </Dialog>
     </div>
   );

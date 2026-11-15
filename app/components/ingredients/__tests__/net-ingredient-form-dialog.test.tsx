@@ -357,6 +357,10 @@ describe("转净料与新增净料弹窗", () => {
     await waitFor(() => {
       expect(screen.getAllByText("密封袋").length).toBeGreaterThan(0);
     });
+    // 份量为新建必填：选择「社区·2份」
+    fireEvent.click(screen.getByText("请选择份量"));
+    fireEvent.click(await screen.findByRole("button", { name: /^社区·2份/ }));
+
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() => {
@@ -370,9 +374,10 @@ describe("转净料与新增净料弹窗", () => {
     expect(payload).not.toHaveProperty("unitPrice");
     expect(payload).not.toHaveProperty("autoCalculate");
     expect(payload.grossMarginRate).toBe(0);
+    expect(payload.portion).toBe("社区·2份");
   });
 
-  it("小料模式继续使用原布局", async () => {
+  it("小料模式使用与净料一致的三分组布局", async () => {
     render(
       <NetIngredientFormDialog
         open
@@ -386,9 +391,12 @@ describe("转净料与新增净料弹窗", () => {
     expect(
       await screen.findByRole("heading", { name: "新增小料" })
     ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "规格指标" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "加工指标" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "价格指标" })).toBeInTheDocument();
+    expect(screen.getByText("查看已有小料")).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "小料信息" })
+      screen.getByPlaceholderText("如 平包菜•称重•500g")
     ).toBeInTheDocument();
-    expect(screen.queryByText("包装名称")).not.toBeInTheDocument();
   });
 });

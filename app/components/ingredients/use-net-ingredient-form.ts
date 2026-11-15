@@ -20,6 +20,8 @@ export type NetIngredientFormInitialData = {
   yieldRate?: number | null;
   unitPrice?: number | string | null;
   grossMarginRate?: number | null;
+  /** 份量（小碗菜 / 社区口径） */
+  portion?: string | null;
   sourceIngredientId?: number | null;
   l2Code?: string | null;
 };
@@ -72,6 +74,7 @@ function buildForm(
       initialData?.grossMarginRate != null
         ? String(initialData.grossMarginRate)
         : "0",
+    portion: initialData?.portion || "",
   };
 }
 
@@ -176,6 +179,7 @@ export function useNetIngredientForm({
     initialData?.yieldRate ?? "",
     initialData?.unitPrice ?? "",
     initialData?.grossMarginRate ?? "",
+    initialData?.portion ?? "",
   ].join("\u0001");
 
   const submit = async (form: NetIngredientFormData) => {
@@ -200,6 +204,8 @@ export function useNetIngredientForm({
           form.grossMarginRate !== ""
             ? Number(form.grossMarginRate)
             : 0,
+        // 份量：留空 = 清空（存量档案允许无份量）
+        portion: form.portion || null,
       };
 
       const response = await fetch(
