@@ -209,6 +209,7 @@ lib/server/            服务端 —— 与数据库交互
 | 表单状态 | `useRecordForm` | 初始化、dirty、错误、提交中、重置、连续录入 |
 | 档案复制编排 | `useRecordCopy` | 复制状态与弹窗关系 |
 | 状态语义 | `StatusBadge` / `statusToVariant` | 不手写颜色映射 |
+| 菜品状态 | `DishStatusTag` | 菜品三态的唯一渲染入口，取值来自 `lib/shared/dish-status.ts` |
 | 分类语义 | `CategoryTag` | 不复用状态色 |
 | 空态 / 加载 | `EmptyState` / `LoadingState` / `SkeletonTable` | |
 | 份量标签 | `PortionTag` | 份量枚举唯一渲染入口 |
@@ -266,11 +267,13 @@ lib/server/schemas/<域>.ts              zod：创建、更新、查询参数
 | **B0（本次）** | 基础 | 文档契约 + 通用件提升 + Skill 固化 | — | tsc / lint / jest / build 全绿；食材 5 清单与菜品 BOM 回归通过 |
 | **B1（下一批）** | 设置 | `app/settings/` 7 页（units / stores / suppliers / users / classes / categories / net-packagings） | B0 | 12 条 lint 告警清零；7 页统一到 C2 + C3 + C4；`/ui-kit` 补样张 |
 | B2 | 库存 | `app/components/inventory/` 3 Tab + 出库单详情 | B1（分页与弹窗尺寸模式已定型） | 台账与出库单双单位口径不回归 |
-| B3 | 排程 + 生产计划 | `app/schedules/`、`app/production-plans/` | B1、B2 | 四条核心链路（排程 → 生产计划 → 完成生产 → 出库）端到端 |
+| **B3（进行中）** | 排程 + 生产计划 | `app/schedules/`、`app/production-plans/` | B1、B2 | 四条核心链路（排程 → 生产计划 → 完成生产 → 出库）端到端 |
 | B4 | 菜品 | `app/dishes/`、`app/components/dish-form/` | B1 | 份量口径、BOM、转化倍率不回归 |
 | B5 | 采购 | `app/purchases/` | 解锁 `TRIAL_FEATURES.purchases` | AI 识别与报销链路端到端 |
 
 **批次原则**（沿用基线 §10）：不进行一次性全站重写；每批独立可交付、可验证、可回退。
+
+B3 已因试运行反馈提前启动，B1（设置模块 12 条 lint 告警）与 B2（库存双单位回归）仍欠账。提前启动不改变各批验收口径，B3 内部再按「契约与底座 → 列表 → 详情与表单 → 完成生产与打印 → 业务加固」拆成可独立回退的子批。
 
 ---
 

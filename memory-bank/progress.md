@@ -4,7 +4,192 @@
 
 ---
 ---
-## 2026-11-15（续 5）— 食材库三点反馈落地：建档时间、计价规则弹窗、小料主字段
+## 2026-11-16 — 排程模块整体优化（B3 前移：单据卡片视觉 + 业务加固）
+
+> 同日回退：第 1 条的拟物化视觉层已按用户反馈整体移除，当前为扁平卡片，最终形态见第 8 条。
+
+### 背景
+
+试运行第一周反馈集中在排程：门店排程单与生产计划单共用列表且卡片几乎一样，一线看不出该动哪张；切配中心的「逐行三态确认 + 入库」只藏在计划单详情；排程进入「进行中」后界面无任何出口，不进计划单就永远卡住。本轮以「轻拟物·纸质单据」为视觉语言重做排程交互，并在不改 schema 的前提下补齐业务断点。
+
+### 1. 视觉契约（B3.1）
+
+- 新增通用件 `PaperCard` / `PaperCardHeader` / `PaperCardStat` / `PaperCardDivider`（`app/components/ui/paper-card.tsx`）与 `PaperStamp`（`paper-stamp.tsx`）；印章颜色只取 `statusToVariant`，始终带可见文字。
+- `app/globals.css` 新增 `--doc-paper` / `--doc-paper-subdued` / `--doc-paper-edge` / `--doc-paper-edge-strong` / `--doc-ink` / `--doc-shadow` 与 `.doc-card-shadow`（Tailwind 任意值里的逗号会被截断，投影走显式类）。
+- 基线 §6.1.1 新增「单据卡片」契约（结构六段、允许的视觉手段、禁止项、动效白名单、整卡可点击的可聚焦要求），§5 组件表登记；迭代基础 §3.2 登记通用件、§5 将 B3 标为进行中并说明提前启动；`.agents/skills/ui-baseline` 增加单据卡片条款；`/ui-kit` 补四态样张。
+
+### 2. 列表（B3.2）
+
+- `app/schedules/page.tsx` 从 756 行拆为：页面编排 + `schedule-card.tsx` + `production-plan-card.tsx` + `use-schedule-list.ts`（两套列表取数与筛选）。
+- 卡片主操作按状态唯一：待生效→确认生产；进行中未纳入→纳入生产计划单（`/production-plans/new?scheduleId=`）；进行中已纳入→查看生产计划；计划单进行中→完成生产（列表内直接打开确认弹窗）；已完成→打印标签。
+- 快速预览抽屉由裸 `Sheet`（`sm:max-w-4xl`）改为 `RecordSheet`；计划预览补「门店排程」Tab。
+- 工具栏加日期快捷（今天 / 明天 / 近 7 天）；列表排序改为 `scheduleDate` / `planDate` 倒序（API orderBy）。
+- 新增 `lib/shared/date-format.ts`（`getWeekDay` / `formatDate` / `formatMonthDay` / `dayOffsetInputValue`），替换本轮新增页面里的复制实现。
+
+### 3. 详情与表单（B3.3）
+
+- 排程详情对齐基线：`PageShell + PageHeader + InfoTile×4 + SectionTabs`，加载/空态改 `LoadingState` / `EmptyState`；按状态给 修改 / 删除 / 确认生产 / 纳入生产计划单；新增「打印点菜单」与「复制」。
+- 新建与编辑共用一个 `ScheduleForm`：`PageShell + PageHeader + FormSection`，左侧已选菜品用 `PaperCard` 小票，右侧用 `PortionTag` / `CategoryTag`，搜索框去掉放大镜；**门店改为必选**；支持 `?copyFrom=` 回填（同日后续改为弹窗，标题改由门店+日期生成，见第 7 条）。
+- 生产计划表单改为 `PageShell + PageHeader + FormSection`；来源选择器支持搜索、分页与「全选本页」，选中项用 Map 跨页保留；支持 `?scheduleId=` 预选；同类确认弹窗尺寸统一为 `compact`。
+
+### 4. 完成生产与打印（B3.4）
+
+- `complete-production-dialog`：三态按钮与汇总改 `--status-*` Token（原 `bg-green-50` / `bg-red-50` / `text-green-600`），未完成行底色从无效的 `bg-danger-muted` 改为 `--status-danger-bg`；新增行搜索；清掉 `portions === "" as unknown as number` 类型逃逸。
+- 排程打印补 `?doc=menu`（门店点菜单：菜品编号/名称/份量/荤素/数量/售价/计划销售额 + 合计）。
+
+### 5. 业务加固（B3.5，未改 schema）
+
+- 删除 `PUT /api/schedules/[id]/complete`：该接口无前端调用方，却可绕过净菜入库事务把排程置「已完成」。排程「已完成」只由生产计划单完成后 `syncSourceScheduleStatuses()` 回写。
+- 菜品去重：`createScheduleSchema` / `updateScheduleSchema` 加 `superRefine`；`buildCuttingOrders` / `buildPurchasePlans` 改为 `Map<dishId, qty>` 合并份数，不再只取第一行。
+- `storeId` 去掉 `.default(1)`；创建时校验门店存在且未停用。
+- 新增 `lib/shared/schedule-status.ts`（枚举值 + 选项元数据 + 取值解析 + 合法性判断 + variant）与渲染入口 `app/components/ui/schedule-status-tag.tsx`；zod 与列表筛选项从同一份导入。
+- 排程详情「切配工单」Tab 在缺封装规格时给出警示，避免到完成生产才整单回滚。
+- 业务运营开放 `/schedules`、`/production-plans` 页面读权限；写操作仍限管理员/厨师长，卡片与详情按 `canAccessApi` 隐藏写操作按钮。
+- 新增 `lib/client/use-current-role.ts`。
+
+### 6. 看板化与入口拆分（同日追加）
+
+- 列表改为按状态三列看板：新增 `kanban-board.tsx`（列头状态 + 总张数、列内骨架与空列提示、单列超 100 张时的缩小范围提示）与 `date-preset-group.tsx`（抽出的日期快捷）。
+- 取数改为按状态各取一列（`pageSize=100`），新增 `use-schedule-board.ts` 的 `useScheduleBoard` / `useProductionPlanBoard`；分页版 `use-schedule-list.ts` 删除。
+- 生产计划单升为一级菜单「生产」：新增 `app/production-plans/page.tsx`，与排程页同构；`/schedules` 去掉模块切换，页面标题改为「菜品排程单」。侧边栏新增「生产」（`ClipboardList`）。
+- 状态筛选下线（状态由列直接表达）；门店筛选只保留在菜品排程单。所有 `/schedules?tab=plans` 返回入口改为 `/production-plans`。
+
+### 7. 状态列可视化与新建弹窗（同日再追加）
+
+- 看板列头改为状态色卡头：`--status-*-bg` 底 + 状态图标 + 一句话说明（待生效=待确认可改可删 / 进行中=已确认等待切配入库 / 已完成=已入库仅可查看），列容器按状态色浅底，三列一眼可辨。
+- 筛选按「搜索框 → 日期（单日）→ 门店」固定顺序，移除日期快捷与日期区间；生产计划单为搜索 → 日期。日期控件新增 `showWeekday`，触发器内直接显示星期。
+- 新建菜品排程改为弹窗（`schedule-create-dialog.tsx`）：第一行门店 + 售卖日期，下方 3:7 分「已选菜品 / 菜品库」，完成即创建并跳详情。移除 `/schedules/new` 页面；看板通过 `?create=1` / `?copyFrom=<id>` 打开弹窗，卡片「复制」改为带数据开弹窗。
+- 标题自动生成且不在表单展示，固定格式 `门店名称 · 周二（11月21日）·菜单`（`lib/shared/schedule-title.ts` + 测试）。
+- 按钮文案「新建排程」改为「菜品排程」。
+
+### 8. 视觉回退与弹窗对齐（同日再追加）
+
+- **去掉拟物化**：删除 `app/components/ui/paper-card.tsx`、`paper-stamp.tsx`，移除 `globals.css` 的 `--doc-*` Token 与 `.doc-card-shadow`；基线 §6.1.1「单据卡片」与 §5 两行、迭代基础 §3.2 两行、`.agents/skills/ui-baseline` 的单据卡片章节、`/ui-kit` 四态样张全部同步移除。理由：用户反馈纸面与印章「非常难看且不直观」。
+- 排程/生产计划卡片改用标准 `Card` + `StatusBadge`，信息压成「标题 + 状态 / 菜品·份数·日期 / 制单人·关联计划 / 操作区」四行，`ScheduleStatusTag` 只保留 badge 形态。
+- 看板列的状态辨识改为**列头状态色 + 图标 + 一句话说明**，不依赖卡片材质。
+- 编辑页左侧「已选菜品」同步改为带标题栏的普通面板。
+- **新建弹窗对齐「创建净料」弹窗**：`AppDialogContent size="workbench"` + `p-0 flex flex-col max-h-[calc(100dvh-24px)]`，头部与底部带分隔线；第一行门店与售卖日期按 4:6 与下方两栏对齐，下方分区改为 **4:6**；两个区域各自带标题栏（已选菜品带「N 道 · M 份」，菜品库带搜索、分类与可选数量）。
+- **日期控件**：`Calendar` 的 `locale` 由伪对象 `{ code: "zh-CN" }` 改为 date-fns 的 `zhCN`，弹层星期表头不再出现 `Su/Mo/Tu` 英文缩写；筛选占位文案改为「售卖日期」。
+- 看板卡片不再重复展示状态（状态已由所在列表达）；日期触发器加 `whitespace-nowrap` 与 `shrink-0` 图标，弹窗内售卖日期固定 260px，选中后单行展示。
+
+### 9. 标题派生、卡片收敛与预览弹窗（同日再追加）
+
+- **标题改为派生字段**：`POST/PUT /api/schedules` 一律按 `门店名称 · 周几（月日）·菜单` 重算（`lib/shared/schedule-title.ts`），忽略客户端 `title`；新建弹窗与编辑表单都去掉标题输入项，卡片与打印副标题不再拼接门店名（标题已含门店）。存量标题用 `scripts/backfill-schedule-titles.mjs` 覆盖（本地库 4 条排程、更新 3 条；脚本默认只预览，`--apply` 才写库；生产库上线后需同样跑一次）。
+- **卡片收敛**：去掉复制与编辑按钮、去掉「尚未纳入生产计划单」文案、卡片不再展示状态；底部左侧制单人、右侧只留一个主操作。进行中未纳入生产计划的按钮为禁用的「等待排产」，已纳入为「查看生产计划」。
+- **点击卡片改为弹窗**：预览由 `RecordSheet` 抽屉改为 `AppDialogContent size="workbench"` 弹窗（与创建净料/小料表单同一壳），两张单据列表一致。
+- **口径统一**：排程域内的「生产日期」全部改为「售卖日期」（详情 `InfoTile`、编辑表单、打印单头、切配/采购/菜单导出表头）；生产计划单仍用「生产日期」。
+
+### 10. 生产模块按排程口径对齐（同日再追加）
+
+- **新建改为弹窗**：新增 `production-plan-create-dialog.tsx`（`AppDialogContent size="workbench"`，与菜品排程同壳）：第一行生产日期，下方 **4:6** 分「已选排程单 / 可汇总排程单」，右侧带搜索、全选本页与分页；完成即创建并跳详情。删除 `/production-plans/new` 页面；排程详情「纳入生产计划单」改指向 `/production-plans?scheduleId=`，列表支持 `?create=1` / `?scheduleId=`。
+- **标题改为派生字段**：`切配中心·周几（月日）生产计划`（`lib/shared/production-plan-title.ts` + 测试），创建与修改接口都忽略客户端 `title`；`ProductionPlanForm` 收敛为编辑专用并去掉标题输入。存量 2 张计划单标题用 `scripts/backfill-production-plan-titles.mjs --apply` 覆盖。
+- **列表卡片**：已完成主操作改为「查看详情」，卡片不再放打印标签（收敛到详情页）；点击卡片打开与排程一致的 workbench 预览弹窗。
+- 口径：计划单域仍用「生产日期」，排程域仍用「售卖日期」，两者不互串。
+
+### 11. 生产模块明细调整（同日再追加）
+
+- 计划单标题格式改为 `切配中心·周二（11月21日）生产计划`，存量 2 张按新格式再次覆盖。
+- 新建弹窗第一行在「生产日期」右侧加「选择门店」（默认「所有门店」），只作为可汇总排程单的筛选条件，不改变计划单跨店汇总的属性。
+- 列表卡片去掉计划编号（`PPL-日期-序号`），详情页与打印仍保留。
+- 看板三列去掉状态底色：列容器统一为中性 `bg-muted/20`，状态只由列头的彩色图标、文字与一句话说明表达。
+
+### 验证
+
+- `npx tsc --noEmit` 0；`npm run lint` 0；`npm test` 49 套件 / 253 用例全绿（新增 schedule-status、schedule-schema、重复菜品聚合三组用例）。
+- 未做浏览器实机目视：预览窗口没有登录态，已与用户确认先跳过。
+- 未做（延后，需补测试后再动）：`buildProductionPlanData` 改用排程快照口径（G5）、生产入库台账按门店拆分写 `scheduleId/storeId`（G6）。两者都会改变既有口径，当前无 UI 验证且 `buildProductionPlanData` 无测试覆盖。
+
+### 环境备忘
+
+- 同目录只允许一个 `next dev`：接管预览前需先停掉既有 dev server（本轮停过 PID 19820，之后 3000 由预览进程托管）。
+- 删除 `app/api/**/route.ts` 后，`.next/types/validator.ts` 会残留旧路由引用导致 tsc 报错；清理 `.next/types` 后重启 dev 即恢复。
+- 工作区另有并行会话的「菜品状态短值化」改动（`dish-status.ts`、`dish-enums.ts`、迁移 `20261115233000`），与本轮无文件冲突。
+
+---
+---
+## 2026-11-16 — 菜品库基本点交互优化
+
+### 1. 列表主字段
+
+- 菜品名称、售价改为与食材库一致的强调样式：`font-semibold text-primary`，售价保持 `tabular-nums`。
+
+### 2. 创建完成落点
+
+- 新建菜品保存草稿或发布成功后统一跳转 `/dishes`，不再落到旧查看页。
+
+### 3. 菜品复制
+
+- 新增 `POST /api/dishes/[id]/copy`：完整复制主档、四层 BOM 与工序，生成独立草稿；默认名称「源名称-副本」，重名自动追加序号。
+- 列表操作列新增复制入口，弹窗可编辑新名称；提交后刷新列表。
+- 复制与转化共用 `lib/server/dish-variant.ts` 的 `createDishVariant()`，复制倍率为 1。
+
+### 4. 新建表单分组与估算成本
+
+- 左侧保持原底层结构，拆为两个 `FormSection`：
+  - 「基本信息」：菜品名称 + 份量（第一行）、售价 + 毛利（第二行）
+  - 「菜品描述」：荤素类型置首，菜品类别/菜系/做法/口味/季节居中，菜品描述置尾
+- 菜品描述改为单行输入框。
+- 左侧信息区不再显示滚动条：保留滚动能力，用 `scrollbar-width:none` 与 `::-webkit-scrollbar` 隐藏，同时压缩左栏留白。
+- 估算成本不在基本信息区单独展示，改为「菜品用量」模块标题处的主题色加粗数值。
+
+### 5. BOM 用量口径
+
+- 菜品 BOM 选择器隐藏「用量」输入；净料/小料直接采用档案封装规格 `packageSpec` 作为 `amountG`，其余类型回退 100g。
+- BOM 行移除用量输入框，改为展示所选食材的份量标签（`PortionTag`）；调料/酱料无份量时显示占位符。
+- `BomPickerDialog` 新增 `showAmountInput`（默认 true）与 `singleSelect`（默认 false）；菜品 BOM 传 `showAmountInput={false} singleSelect`，酱料配方编辑器保持原多选与用量输入。
+- 选择弹窗去掉「取消」按钮，已选摘要 / 用量输入 / 确认选择统一收进底部操作行。
+- 详情接口补 `netIngredient.portion`，编辑已有菜品时份量可正确回显。
+
+### 6. 详情抽屉查看优化
+
+- 抽屉宽度由 45% 调整为 2/3，基础信息改用 `DetailSection cols={4}` + `InfoCell`，一行 4 个标准字段。
+- 菜品描述使用 `col-span-2 lg:col-span-4` 独占整行；`DetailSection` 新增 `cols`、`InfoCell` 新增 `className` 支持跨列。
+- 售价与用料成本价使用 `emphasis` 主题色强调。
+
+### 校验
+
+- `npx tsc --noEmit`、`npm run lint`、`npm test`（48 套件 / 251 用例）、`npm run build` 全部通过。
+- 最后一轮单行描述与隐藏滚动条改动后，菜品相关文件 eslint 通过、5 套件 15 用例通过；全量门禁因另一会话正在改造 `production-plans/new` 暂时不可用，待并行改动收口后重跑。
+- 尝试启动预览服务实机验证，因无登录态停在登录页；表单与 BOM 行行为已由组件测试覆盖。
+
+
+
+### 背景
+
+菜品库进入功能与交互迭代。本轮先只推进数据与接口逻辑，页面布局与视觉交互单独处理，因此列表/详情的外观未改。
+
+### 1. 状态机收敛为三态
+
+- `Dish.status` 取值统一为 `draft / published / inactive`，`pending` 废弃；迁移 `20261115233000_normalize_dish_status_pending` 将存量 `pending` 归一到 `draft`（显式映射，零结构差异）。
+- 新增 `lib/shared/dish-status.ts`：枚举值、选项元数据、解析/校验、动作迁移表（publish / unpublish / deactivate / restore）。
+- 新增 `POST /api/dishes/[id]/status`：服务端校验发布完整性，事务内按当前状态条件更新，重复调用幂等，并发变更返回 409。
+- 只有草稿可编辑；`PUT /api/dishes/[id]`、BOM、工序接口对已发布/已停用统一拒绝。
+- 发布校验抽到 `lib/shared/dish-publish.ts`，前端 `validateDishDetailForPublish` 与服务端共用；新建接口强制 `draft`。
+
+### 2. 上下游保护
+
+- 删除菜品前检查 `ScheduleItem` 引用，被引用返回 409 并提示改为停用。
+- 新建排程只允许已发布菜品；编辑排程允许保留原排程中的已停用菜品，但不可新增。
+- 排程详情补 `dish.status`；编辑页菜品下拉改为 `status=published&pageSize=100`。
+- 工作台日报成本改用 `getCurrentDishCostMap()`，与列表/详情同一实时口径。
+
+### 3. 详情聚合与成本拆分
+
+- `lib/server/dish-costing.ts` 新增 `getCurrentDishCostBreakdownMap()`，返回主料/辅料/小料/调料/酱料五类小计与合计；`getCurrentDishCostMap()` 变为取 total 的包装。
+- `GET /api/dishes/[id]` 增加 `costBreakdown`、`bomSummary`、`scheduleRefCount`、最近 5 条 `scheduleRefs`，供后续详情抽屉直接消费。
+
+### 4. 菜品转化通用化
+
+- 移除「仅小碗菜可转化」限制，任意份量档案可作为源；目标份量必须来自 `PORTION_VALUES` 且与源不同。
+- 新档案默认命名「源基础名称·目标份量」，由 `stripPortionSuffix` / `buildPortionName` 避免后缀叠加；支持入参覆盖。
+- 成本按当前食材价重算后缩放；同类别、同名、同份量已存在返回 409。
+
+### 5. 校验与遗留
+
+- `npx tsc --noEmit`、`npm run lint`、`npm test`（40 套件 / 219 用例）、`npm run build`、Prisma 零差异校验全部通过。
+- 页面级交互与视觉（列表筛选、详情抽屉重构、转化弹窗信息结构、`/dishes/[id]` 重定向）留到交互专项，不在本轮改动。
+
+
 
 ### 背景
 试运行反馈对食材库提三点要求：档案要有创建时间（不进列表，放详情页顶部）；首页计价规则收进弹窗、5 个清单上下居中；小料清单主字段显示不符合规范。

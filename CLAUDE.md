@@ -262,6 +262,6 @@ npm run lint
 ## 重要说明
 
 - **Next.js 破坏性变更：** 这是 Next.js 16 配合 React 19。API 和约定可能与旧版本不同。不确定时，请查阅 `node_modules/next/dist/docs/`。详见 `AGENTS.md`。
-- **菜品状态生命周期：** `draft` → `pending` → `published`。向导允许在任意步骤保存为 `draft`，或仅在校验通过后保存为 `published`。
+- **菜品状态生命周期：** `draft` 草稿 → `published` 已发布 → `inactive` 已停用（`pending` 已废弃）。只有草稿可编辑；发布与恢复发布必须通过 `POST /api/dishes/[id]/status` 的服务端校验；停用只影响新建排程，历史排程与生产计划保留。
 - **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 37 套件 / 204 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
 - **部署：** `next.config.ts` 设置 `output: "standalone"`。构建需要 `DATABASE_URL` 环境变量。

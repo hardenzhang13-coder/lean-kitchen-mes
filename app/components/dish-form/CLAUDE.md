@@ -47,7 +47,7 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 - `dishToProcesses(dish)` — 服务端工序 → 客户端工序状态
 - `bomToPayload(bom)` — 客户端 BOM 状态 → API 提交载荷
 - `validatePublish(form, bom)` / `validateDishDetailForPublish(dish)` — 发布前校验
-- `calcCost(unitPrice, amountG)` — 按 `unitPrice * amountG / 1000` 计算单条成本
+- `calcCost(type, pricePerJin, amountG)` — 按 `pricePerJin * amountG / 500` 计算单条成本（元/斤口径，1 斤 = 500g）
 - `totalBomCost(bom)` — 汇总 BOM 总成本
 
 ## 保存/发布流程
@@ -60,24 +60,24 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
 ### 新建菜品
 
-- 先以 `status: "draft"` 创建菜品
+- 先以草稿（服务端强制 `status: "draft"`）创建菜品
 - 再保存 BOM 和工序
-- 如果选择"发布"，最后再 `PUT /api/dishes/[id]` 将 `status` 改为 `"published"`
+- 如果选择"发布"，最后调用 `POST /api/dishes/[id]/status`，action 为 `"publish"`
 
 ### 编辑菜品
 
 - 直接保存 BOM 和工序，再更新基础信息
-- 已发布菜品在 `PUT /api/dishes/[id]` 中会被拒绝修改基础信息/BOM/工序，只能先"下架"回 `draft`
+- 只有草稿可编辑；已发布/已停用菜品会被拒绝修改基础信息/BOM/工序，必须先"下架"回 `draft`
 
 ### 查看模式发布
 
 - 在 `view` 模式下，用户可以先浏览，再点击"发布"
-- 此时会重新拉取详情做服务端校验（`validateDishDetailForPublish`），通过后再改状态
+- 发布走 `POST /api/dishes/[id]/status`，完整性校验由服务端执行
 
 ## 发布校验规则
 
 基础信息必填：名称、类别、菜系、做法、口味、荤素类型。  
-BOM 必填：主料、辅料、调料均至少 1 项。小料和酱料不强制。
+BOM 必填：主料、辅料均至少 1 项。小料、调料和酱料不强制。
 
 > 提示：发布后会锁定菜品，前端 `isReadOnly = localStatus === "published" || mode === "view"` 控制表单只读。
 
@@ -90,6 +90,14 @@ BOM 必填：主料、辅料、调料均至少 1 项。小料和酱料不强制�
 - `sauce` → `/api/sauce-ingredients`
 
 返回数据通过 `normalizeNetIngredients` / `normalizeIngredients` / `normalizeSauces` 统一成 `IngredientOption`。
+
+### BOM 用量口径（2026-11）
+
+- 菜品 BOM 选择后**不手填用量**：净料/小料直接采用档案的封装规格 `packageSpec` 作为 `amountG`，其余类型回退 100g。
+- BOM 行展示所选食材的**份量**（`PortionTag`），不再提供用量输入框。
+- 菜品 BOM 添加为**单选**，选择弹窗不提供「取消」按钮，已选摘要与「确认选择」统一放在底部操作行。
+- 估算成本在「菜品用量」模块标题处以主题色加粗展示。
+- `BomPickerDialog` 的 `showAmountInput` 默认 `true`、`singleSelect` 默认 `false`，供酱料配方编辑器复用；菜品 BOM 传 `showAmountInput={false} singleSelect`。
 
 ## 工序编辑
 
@@ -105,6 +113,7 @@ BOM 必填：主料、辅料、调料均至少 1 项。小料和酱料不强制�
 
 ## 注意事项
 
-- 不要在前端直接修改 `status === "published"` 菜品的数据状态，所有写操作都会走 API 校验。
+- 不要在前端直接修改菜品状态，所有状态流转走 `POST /api/dishes/[id]/status`。
+- `isReadOnly = localStatus !== "draft" || mode === "view"`：已发布/已停用均不可编辑。
 - BOM 成本在前端即时估算，真实成本以服务端 `PUT /api/dishes/[id]/bom` 重新计算为准。
 - 服务端 `DELETE /api/dishes/[id]` 也会拒绝删除已发布菜品。

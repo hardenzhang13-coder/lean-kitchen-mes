@@ -10,6 +10,9 @@
 | `[id]/route.ts` | `GET /api/dishes/[id]` / `PUT /api/dishes/[id]` / `DELETE /api/dishes/[id]` | 详情、更新、删除 |
 | `[id]/bom/route.ts` | `PUT /api/dishes/[id]/bom` | 保存 BOM 并重新计算菜品成本 |
 | `[id]/processes/route.ts` | `PUT /api/dishes/[id]/processes` | 保存加工工艺 |
+| `[id]/status/route.ts` | `POST /api/dishes/[id]/status` | 发布 / 下架 / 停用 / 恢复发布 |
+| `[id]/scale/route.ts` | `POST /api/dishes/[id]/scale` | 按目标份量转化生成独立草稿档案 |
+| `[id]/copy/route.ts` | `POST /api/dishes/[id]/copy` | 复制现有菜品为独立草稿档案 |
 
 ## 列表查询
 
@@ -17,8 +20,10 @@
 
 - `categoryId` — 菜品分类
 - `cuisine` — 菜系
+- `technique` — 做法
 - `meatType` — 荤素类型
-- `status` — 状态（draft / pending / published）
+- `portion` — 份量规格
+- `status` — 状态（draft / published / inactive）
 - `q` — 按名称或编码模糊搜索
 - `page` / `pageSize` — 分页
 
@@ -57,15 +62,16 @@ DSH-{categoryCode}-{0001}
 
 `PUT /api/dishes/[id]` 限制：
 
-- 已发布（`published`）菜品不允许修改基础信息、成本或再次发布
-- 只能将已发布菜品的状态改为 `draft`（即"下架"）
-- 下架后可重新编辑 BOM 和工序
+- 只有草稿（`draft`）可编辑；已发布（`published`）与已停用（`inactive`）均锁定，需先下架为草稿
+- 不接受 `status` 写入；状态流转统一走 `POST /api/dishes/[id]/status`
+- 成本不接受客户端写入，由 BOM 保存时重新计算
 
 ## 删除菜品
 
 `DELETE /api/dishes/[id]` 限制：
 
 - 已发布菜品不可删除
+- 被排程引用（`ScheduleItem`）时返回 409，并提示改为停用
 - 删除为物理删除，会级联删除 `DishNetDetail`、`DishMinorDetail`、`DishSeasoningDetail`、`DishSauceDetail`、`DishProcess`
 
 ## 保存 BOM
@@ -89,23 +95,45 @@ BOM 数据包含四层：
 
 `PUT /api/dishes/[id]/processes`
 
-1. 校验已发布状态，拒绝修改
+1. 校验非草稿状态（已发布/已停用），拒绝修改
 2. 事务内删除旧工序，批量创建新工序
 3. 工序字段：`stage`（初加工/预处理/上灶加工/出锅成品）、`stepNo`、`object`、`action`、`description`、`tool`、`standard`
+
+## 菜品转化
+
+`POST /api/dishes/[id]/scale`，body `{ portion, name? }`
+
+1. 任意份量档案都可作为源；目标份量必须来自 `PORTION_VALUES` 且与源不同
+2. 倍率由 `lib/shared/portion-scale.ts` 的 `portionScaleFactor` 推导（目标等价份数 ÷ 源等价份数）
+3. 名称默认「源基础名称·目标份量」，可由 `name` 覆盖；同类别、同名、同份量已存在时返回 409
+4. 复制四层 BOM 与工序，用量/成本/售价按倍率缩放；成本以当前食材价重算后再缩放
+5. 生成独立草稿档案，不建立来源关联，源档案不受影响
+
+## 菜品复制
+
+`POST /api/dishes/[id]/copy`，body `{ name? }`
+
+1. 复制是新建动作：BOM、工序、售价原样保留，`factor = 1`
+2. 默认名称「源名称-副本」，重名时依次追加 2、3…
+3. 指定名称与同类别、同份量档案重名时返回 409
+4. 生成独立草稿档案，源档案不受影响
 
 ## 状态生命周期
 
 ```
-draft ──发布──> published
-   ^              │
-   └────下架──────┘
+draft ──发布──> published ──停用──> inactive
+  ^                │                 │
+  └────下架────────┴────恢复发布─────┘
 ```
 
-`pending` 状态在 schema 中存在，但当前业务流主要使用 `draft` 与 `published`。
+- 只有草稿可编辑；发布与恢复发布由服务端校验（名称、类别、菜系、做法、口味、荤素、主料、辅料）
+- 停用后不出现在新建排程的可选菜品中；历史排程、生产计划快照与销售回录保留
+- 状态流转接口：`POST /api/dishes/[id]/status`，body `{ action: "publish" | "unpublish" | "deactivate" | "restore" }`
+- `pending` 状态已废弃，存量由迁移 `20261115233000_normalize_dish_status_pending` 归一到 `draft`
 
 ## 校验 Schema
 
-- `createDishSchema` / `updateDishSchema`：`lib/schemas/dish.ts`
+- `createDishSchema` / `updateDishSchema` / `dishQuerySchema` / `scaleDishSchema`：`lib/server/schemas/dish.ts`
 - `dishBomSchema`：`lib/schemas/dish-bom.ts`
 - `dishProcessSchema`：`lib/schemas/dish-process.ts`
 

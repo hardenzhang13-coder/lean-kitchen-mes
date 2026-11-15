@@ -8,19 +8,22 @@
 |------|------|------|
 | `route.ts` | `GET /api/schedules` / `POST /api/schedules` | 列表查询、创建排程 |
 | `[id]/route.ts` | `GET /api/schedules/[id]` / `PUT /api/schedules/[id]` / `DELETE /api/schedules/[id]` | 详情、修改、删除 |
-| `[id]/activate/route.ts` | `PUT /api/schedules/[id]/activate` | 确认生产计划（待生效 → 进行中） |
-| `[id]/complete/route.ts` | `PUT /api/schedules/[id]/complete` | 完成生产（进行中 → 已完成） |
+| `[id]/activate/route.ts` | `PUT /api/schedules/[id]/activate` | 确认生产（待生效 → 进行中） |
 | `active/route.ts` | `GET /api/schedules/active` | 查询所有"进行中"排程 |
+
+> 完成生产**不在这里**：排程的「进行中 → 已完成」由生产计划单完成时通过
+> `lib/server/production-plan-assignment.ts` 的 `syncSourceScheduleStatuses()` 回写。
+> 旧的 `PUT /api/schedules/[id]/complete` 会绕过净菜入库事务，已于 2026-11-16 删除。
 
 ## 状态机
 
 ```
-待生效 ──确认生产──> 进行中 ──完成生产──> 已完成
+待生效 ──确认生产──> 进行中 ──生产计划单完成生产──> 已完成
 ```
 
 - **待生效** — 可修改、可删除、可确认
-- **进行中** — 不可修改删除，可完成
-- **已完成** — 终态
+- **进行中** — 不可修改删除；可纳入生产计划单（一张进行中排程只能归属一张未删除的计划单）
+- **已完成** — 终态，只能由生产计划单完成后回写
 
 ## 创建排程
 
@@ -42,11 +45,13 @@
 `GET /api/schedules` 支持：
 
 - `status` — 按状态筛选
-- `startDate` / `endDate` — 按创建时间筛选
+- `startDate` / `endDate` — 按**生产日期**（`scheduleDate`）筛选
 - `q` — 按标题搜索
+- `storeId` — 按门店筛选
+- `availableForPlan` / `excludePlanId` — 生产计划单选择来源排程时使用
 - `page` / `pageSize` — 分页
 
-响应会附加 `totalQuantity`（总份数）和 `dishCount`（菜品种数）。
+响应会附加 `totalQuantity`（总份数）和 `dishCount`（菜品种数）；排序为 `scheduleDate` 倒序、`createdAt` 倒序。
 
 ## 详情查询
 
@@ -67,7 +72,7 @@
   2. 重新创建 `ScheduleItem`
   3. 重新调用 `buildCuttingOrders()` 和 `buildPurchasePlans()` 生成新数据
 
-基础信息（标题、日期、范围）可单独更新。
+基础信息（门店、售卖日期）可单独更新；**标题是派生字段**，由服务端按「门店 · 周几（月日）·菜单」重算，客户端传值会被忽略。
 
 ## 删除排程
 
@@ -85,12 +90,12 @@
 - 将 `"待生效"` 改为 `"进行中"`
 - 仅允许待生效状态调用
 
-### 完成生产
+### 确认生产
 
-`PUT /api/schedules/[id]/complete`
+`PUT /api/schedules/[id]/activate`
 
-- 将 `"进行中"` 改为 `"已完成"`
-- 仅允许进行中状态调用
+- 将 `"待生效"` 改为 `"进行中"`，事务内行锁
+- 仅允许待生效状态调用
 
 ### 查询进行中排程
 
@@ -101,7 +106,7 @@
 
 ## 核心算法调用点
 
-本目录是 `app/lib/schedule-utils.ts` 的核心调用方：
+本目录是 `lib/server/schedule-utils.ts` 的核心调用方：
 
 - `buildCuttingOrders(tx, scheduleId, items)` — 按菜品份数汇总净料/小料需求
 - `buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes)` — 汇总原料（含小料按出成率折算）/调料/酱料需求并扣除库存。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行
