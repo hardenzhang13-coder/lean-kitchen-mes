@@ -17,6 +17,7 @@
 | `prisma-migration-guard` | 改 schema、加迁移、部署涉库 | 迁移与 seed 漏审计，改坏生产数据 |
 | `api-endpoint` | 新增/修改 API | 漏 zod、漏日志、漏权限登记、漏分页 |
 | `ui-baseline` | 改任何前端 UI | 弹窗像素尺寸、字号过小、自造状态色 |
+| `module-iteration` | 新建或改造一个业务模块 | 每个模块各发明一套形态；口径散落在业务目录 |
 | `domain-pricing` | 碰价格/成本/单位/份量/库存份数 | 另写一套公式导致口径不一致 |
 | `commit-hygiene` | `git add` / 提交 | 混入他人中间态、临时文件、密钥 |
 

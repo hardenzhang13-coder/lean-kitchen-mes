@@ -48,9 +48,14 @@ description: 涉及净料价格、菜品成本、出成率、单位换算、份�
 `lib/shared/portion-scale.ts` 是唯一真源：
 
 - 枚举：小碗菜 / 小碗菜·10份 / 社区·2份 / 社区·3份 / 社区·4份
-- 小碗菜等价份数：1 / 10 / 4 / 6 / 8
-- 菜品转化倍率 = 目标等价份数 ÷ 源等价份数
+- 小碗菜等价份数（`bowlEquivalent`）：1 / 10 / 4 / 6 / 8
+- 菜品转化倍率 = 目标等价份数 ÷ 源等价份数（`portionScaleFactor`）
 - 净料、小料、菜品共用同一套枚举
+- 落库存短值（如「社区·2份」），描述文案只在前端展示，不进数据库
+
+**枚举字典契约**：跨模块使用的枚举必须落在 `lib/shared/`，并同时提供「枚举值数组 + 选项元数据 + 取值解析 + 合法性判断 + 渲染组件」五件套；服务端 zod enum 与前端选项从同一份导入，不得各写一份字面量。渲染组件放 `app/components/ui/`（份量用 `PortionTag`）。详见 `docs/system-iteration-foundation-v1.md` C1。
+
+**枚举重构时**：存量迁移必须写显式 UPDATE 映射表（不用 `LIKE` 之类的模糊条件），迁移前用只读查询确认存量取值集合全部落在映射表内；代码侧保留旧值解析兼容（`LEGACY_PORTION_COUNTS`），旧数据不得静默变成 `null`。
 
 **当前边界（重要）**：`NetIngredient.portion` 目前只用于展示与菜品转化倍率；生产计划、库存、出库的「份数」仍由 `quantity ÷ packageSpec` 推导。两者尚未打通，属于待产品决策项 —— 实现时**不要**擅自用 `portion` 替代 `packageSpec` 参与计算。
 
