@@ -4,6 +4,46 @@
 
 ---
 ---
+## 2026-11-15（续 5）— 食材库三点反馈落地：建档时间、计价规则弹窗、小料主字段
+
+### 背景
+试运行反馈对食材库提三点要求：档案要有创建时间（不进列表，放详情页顶部）；首页计价规则收进弹窗、5 个清单上下居中；小料清单主字段显示不符合规范。
+
+### 1. 建档时间
+
+- **Schema**：`ingredients` 表新增 `created_at`（原料 + 调料同表）。迁移 `20261115213000_add_created_at_to_ingredients` 三步走：先加可空列 → 存量回填初始建库日 `2026-10-26 11:32:10` → 再改 `NOT NULL DEFAULT CURRENT_TIMESTAMP(3)`。存量行不拿假的建档时间，新建的记真实时间。
+- **净料/小料（`net_ingredients`）与酱料（`sauce_ingredients`）已有 `created_at`**，无需迁移。
+- **展示位置**：详情页顶部、关闭按钮下方，显示「建档 YYYY-MM-DD HH:mm」。原料/调料/净料/小料走 `RecordSheet`，酱料走其自带的新增/编辑弹窗。
+- **列表不展示**：5 个清单均不出现创建时间列；酱料列表原有的「更新时间」列按决定保留。
+- **通用件**：`RecordSheet` 新增 `headerAside` 槽位（关闭按钮下方的辅助信息）；`lib/shared/display-format.ts` 新增 `formatDateTime()`。
+
+### 2. 食材库首页
+
+- 「计价规则」从页面底部的常驻大卡片收进弹窗（`AppDialogContent size="wide"`），入口按钮放在页面左上角。
+- 5 个食材清单改为上下居中展示：页面改为 `flex h-dvh` 纵向布局，流程图区域 `flex-1 items-center justify-center`，各列卡片由 `justify-between` 改为 `justify-center + gap-8`。
+
+### 3. 小料清单主字段
+
+- 「名称」列由 `font-medium` 改为 `font-semibold text-primary`，与净料一致（主字段必须加粗 + 主题色）。
+- 列顺序调整为「序号 → 编号 → 名称 → 二级分类」，与其余 4 个清单的主字段位置一致。
+
+### 顺带清掉的基线欠账
+
+食材库模块 lint 告警清零（全站 19 → 12，剩余 12 条全在 `app/settings/**`）：原料删除确认、酱料表单与删除确认改用 `AppDialogContent` 语义尺寸；首页 3 处 <12px 字号改 `text-xs`；首页数据获取 effect 按 React 官方推荐模式加块级精确豁免。
+
+### 部署审计（本轮含 schema 变更）
+
+- **迁移**：仅 `20261115213000_add_created_at_to_ingredients`，只对 `ingredients` 表 ADD COLUMN + UPDATE 回填，**无 DELETE、不触碰其它表**。
+- **seed**：`prisma/seed.ts` 只写分类字典，**不写 ingredients**，无覆盖风险。
+- **零差异**：`migrate diff --from-migrations --to-schema` 输出空迁移；本地 MySQL 已 `migrate deploy` 实测通过（NOT NULL 约束即证明无残留 NULL）。
+
+### 验证
+
+- `npx tsc --noEmit` 0 错误；`npm run lint` 0 error / 12 warning（全部在 settings）；`npm test` 37 套件 / 206 用例全绿（新增 `formatDateTime` 用例）。
+- 待补：浏览器实测（首页计价规则弹窗、5 清单居中、详情页建档时间、小料主字段）。
+
+---
+---
 ## 2026-11-15（续 4）— 食材库迭代总结 + 全系统迭代升级基础
 
 ### 背景

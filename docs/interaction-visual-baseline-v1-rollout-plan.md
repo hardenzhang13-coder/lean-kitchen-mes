@@ -67,7 +67,7 @@
 5. 跨档时按**就近不缩小**原则选择，并同步更新 `/ui-kit` 样张。
 
 **已落地（2026-11-15，提交 9a3d807）**：13 处，排除 `app/ingredients/**` 与 `app/settings/**`。
-剩余 18 处（ingredients 5 + settings 12 + 1）随对应模块迭代消化 —— 其中 settings 的 12 处由「批次 5：设置模块」承接，ingredients 的 5 处已随食材库迭代完成。
+剩余 18 处（ingredients 5 + settings 12 + 1）随对应模块迭代消化 —— **ingredients 的 5 处已随食材库迭代全部清零**（原料删除确认、酱料表单与删除确认改语义尺寸，另 3 处字号下限一并处理）；settings 的 12 处由「批次 5：设置模块」承接。
 
 **涉及文件**（22 个）：
 
@@ -111,7 +111,7 @@ app/schedules/new/page.tsx
 
 **验收**：基线第 3.2 条「正文不得小于 12px」全站成立；列表扫读密度不回退。
 
-**剩余（2026-11-15）**：`app/login/page.tsx`（2 处）、`app/components/dish-form/process-step-card.tsx`（1 处）、`app/ingredients/page.tsx`（3 处）随对应模块迭代消化。
+**剩余（2026-11-15）**：`app/login/page.tsx`（2 处）与 `app/components/dish-form/process-step-card.tsx`（1 处）随对应模块迭代消化；`app/ingredients/page.tsx` 的 3 处已随食材库迭代清零。
 
 ---
 

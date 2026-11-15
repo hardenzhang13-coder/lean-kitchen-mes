@@ -252,7 +252,7 @@ npm run lint
 
 ## 当前技术债
 
-- **交互基线未全站落地**：19 条 lint warning 待清（弹窗像素宽度 15、正文字号 <12px 3、React Hooks 1），集中在 `app/ingredients/**`(7) 与 `app/settings/**`(12)，批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
+- **交互基线未全站落地**：12 条 lint warning 待清（全部为设置模块的弹窗像素宽度），集中在 `app/settings/**`；食材库模块已清零。批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
 - **生产数据待办（已复核关闭）**：存量净料/小料 `package_spec` 已全部回填 —— 2026-11-15 生产库只读复核 70 条全部有效（5g~2000g，0 NULL / 0 负值），原方案文档 `docs/production-data-package-spec-plan.md` 保留为备查
 - **旧库存表并存**：`inventory` / `inventory_ledger` 已停用但未清理，待定下线时点
 - **采购模块锁定**：试运行期间 `TRIAL_FEATURES.purchases = false`，采购链路未在生产验证

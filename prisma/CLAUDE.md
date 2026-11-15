@@ -44,6 +44,12 @@ Ingredient（原料）
 - 业务表中的 `l2Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查，被引用时禁止并引导停用。
 - 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类。
 
+### 建档时间（createdAt）
+
+- `Ingredient`（原料 + 调料）、`NetIngredient`（净料 + 小料）、`SauceIngredient`（酱料）三张表都有 `createdAt`，默认 `now()`。
+- 展示口径：只在**详情页顶部（关闭按钮下方）**显示「建档 YYYY-MM-DD HH:mm」，**列表页不展示**。
+- 枚举新加同口径列时：先加可空列 → 存量回填为初始建库日 → 再改为 `NOT NULL DEFAULT CURRENT_TIMESTAMP`，避免存量行拿到假的建档时间。
+
 ### 菜品域
 
 | 模型 | 说明 |
