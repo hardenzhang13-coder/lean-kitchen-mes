@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Power } from "lucide-react";
+import { Plus, Pencil, Power, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogHeader,
@@ -19,12 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -50,13 +56,17 @@ type CurrentUser = {
   role?: string | null;
 };
 
+const emptyForm = { username: "", password: "", name: "", role: "" };
+
 export default function UsersPage() {
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<User | null>(null);
-  const [form, setForm] = useState({ username: "", password: "", name: "", role: "" });
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [selected, setSelected] = useState<User | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -106,16 +116,40 @@ export default function UsersPage() {
     setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: User) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
-    setEditing(null);
-    setForm({ username: "", password: "", name: "", role: "" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openEdit = (row: User) => {
-    setEditing(row);
-    setForm({ username: row.username, password: "", name: row.name, role: row.role });
-    setDialogOpen(true);
+    const nextForm = {
+      username: row.username,
+      password: "",
+      name: row.name,
+      role: row.role,
+    };
+    setSelected(row);
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -123,7 +157,7 @@ export default function UsersPage() {
       toast.error("账号、姓名和角色不能为空");
       return;
     }
-    if (!editing && !form.password.trim()) {
+    if (!selected && !form.password.trim()) {
       toast.error("创建用户时必须设置密码");
       return;
     }
@@ -141,8 +175,8 @@ export default function UsersPage() {
         password: form.password.trim() || undefined,
       };
 
-      if (editing) {
-        const res = await fetch(`/api/users/${editing.id}`, {
+      if (selected) {
+        const res = await fetch(`/api/users/${selected.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -166,7 +200,7 @@ export default function UsersPage() {
         }
         toast.success("创建成功");
       }
-      setDialogOpen(false);
+      closeRecord();
       // 重新加载用户列表和当前用户
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
@@ -275,7 +309,7 @@ export default function UsersPage() {
           <DataTable<User>
             data={pageItems}
             loading={loading}
-            onRowClick={openEdit}
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -368,42 +402,102 @@ export default function UsersPage() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`删除用户 ${row.username}`}
+                  title={
+                    row.id === currentUser?.id
+                      ? "不能删除当前登录用户"
+                      : "停用并移出列表"
+                  }
+                  disabled={row.id === currentUser?.id}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteId(row.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </>
             )}
           />
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑用户" : "新增用户"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="username" className="text-base">账号</Label>
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? "新增用户"
+            : recordMode === "edit"
+              ? "编辑用户"
+              : selected?.name ?? "用户"
+        }
+        meta={
+          recordMode === "view" && selected ? (
+            <>
+              <span>{selected.username}</span>
+              <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs text-foreground">
+                {selected.role}
+              </span>
+              <StatusBadge
+                status={selected.isActive ? "启用" : "停用"}
+                variant={selected.isActive ? "success" : "danger"}
+              />
+            </>
+          ) : undefined
+        }
+        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel="用户"
+      >
+        {recordMode === "view" && selected ? (
+          <RecordView
+            items={[
+              { label: "账号", value: selected.username, emphasis: true },
+              { label: "姓名", value: selected.name },
+              { label: "角色", value: selected.role },
+              {
+                label: "创建时间",
+                value: formatDate(selected.createdAt),
+              },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
+            <FormField id="username" label="账号" required>
               <Input
-                id="username"
                 value={form.username}
                 onChange={(e) => setForm({ ...form, username: e.target.value })}
                 placeholder="登录账号"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">姓名</Label>
+            </FormField>
+            <FormField id="name" label="姓名" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="用户姓名"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="role" className="text-base">角色</Label>
+            </FormField>
+            <FormField label="角色" required>
               <Select value={form.role} onValueChange={(v) => v && setForm({ ...form, role: v })}>
-                <SelectTrigger id="role" className="h-11">
+                <SelectTrigger className="h-11">
                   <SelectValue placeholder="请选择角色" />
                 </SelectTrigger>
                 <SelectContent>
@@ -414,50 +508,24 @@ export default function UsersPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="password" className="text-base">
-                密码 {editing && "（留空则不修改）"}
-              </Label>
+            </FormField>
+            <FormField
+              id="password"
+              label="密码"
+              required={!selected}
+              hint={selected ? "留空则不修改" : "至少 10 位"}
+            >
               <Input
-                id="password"
                 type="password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                placeholder={editing ? "留空则不修改" : "初始密码"}
+                placeholder={selected ? "留空则不修改" : "初始密码"}
                 className="h-11 text-base px-4"
               />
-              <p className="text-xs text-muted-foreground">密码至少 10 位</p>
-            </div>
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                disabled={editing.id === currentUser?.id}
-                title={editing.id === currentUser?.id ? "不能删除当前登录用户" : "删除用户"}
-                onClick={() => {
-                  setDialogOpen(false);
-                  setDeleteId(editing.id);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+            </FormField>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

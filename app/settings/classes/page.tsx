@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Loader2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogHeader,
@@ -12,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -19,6 +19,12 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -45,6 +51,10 @@ type L2 = {
   isActive: boolean;
 };
 
+type RecordType = "l1" | "l2";
+
+type SelectedRecord = { type: RecordType; record: L1 | L2 };
+
 /** DataTable 逐行渲染：一级分类 + 展开后的二级分类 */
 type DisplayRow =
   | { kind: "l1"; l1: L1; l1Idx: number }
@@ -59,6 +69,12 @@ const statusFilters = [
   { value: "inactive", label: "已停用" },
 ];
 
+const emptyForm = { code: "", name: "", parentCode: "", description: "" };
+
+function typeLabel(type: RecordType) {
+  return type === "l1" ? "一级分类" : "二级分类";
+}
+
 export default function ClassesPage() {
   const [data, setData] = useState<L1[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
@@ -67,13 +83,15 @@ export default function ClassesPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [dialogType, setDialogType] = useState<"l1" | "l2">("l1");
-  const [editing, setEditing] = useState<L1 | L2 | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", parentCode: "", description: "" });
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [dialogType, setDialogType] = useState<RecordType>("l1");
+  const [selected, setSelected] = useState<SelectedRecord | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: "l1" | "l2"; name: string } | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: number; type: RecordType; name: string } | null>(null);
   const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
   const [reordering, setReordering] = useState(false);
 
@@ -161,6 +179,12 @@ export default function ClassesPage() {
     [data]
   );
 
+  const parentName = useMemo(() => {
+    if (!selected || selected.type !== "l2") return "";
+    const l2 = selected.record as L2;
+    return data.find((d) => d.code === l2.parentCode)?.name || l2.parentCode;
+  }, [data, selected]);
+
   const toggleExpand = (id: number) => {
     const next = new Set(expanded);
     if (next.has(id)) next.delete(id);
@@ -168,37 +192,73 @@ export default function ClassesPage() {
     setExpanded(next);
   };
 
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
+    setDialogType("l1");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: DisplayRow) => {
+    setSelected(
+      row.kind === "l1"
+        ? { type: "l1", record: row.l1 }
+        : { type: "l2", record: row.l2 }
+    );
+    setDialogType(row.kind);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreateL1 = () => {
     setDialogType("l1");
-    setEditing(null);
-    setForm({ code: "", name: "", parentCode: "", description: "" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openCreateL2 = (parentCode: string) => {
+    const nextForm = { ...emptyForm, parentCode };
     setDialogType("l2");
-    setEditing(null);
-    setForm({ code: "", name: "", parentCode, description: "" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const openEditL1 = (row: L1) => {
+    const nextForm = {
+      code: row.code,
+      name: row.name,
+      parentCode: "",
+      description: row.description || "",
+    };
     setDialogType("l1");
-    setEditing(row);
-    setForm({ code: row.code, name: row.name, parentCode: "", description: row.description || "" });
-    setDialogOpen(true);
+    setSelected({ type: "l1", record: row });
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const openEditL2 = (row: L2) => {
-    setDialogType("l2");
-    setEditing(row);
-    setForm({
+    const nextForm = {
       code: row.code,
       name: row.name,
       parentCode: row.parentCode,
       description: row.description || "",
-    });
-    setDialogOpen(true);
+    };
+    setDialogType("l2");
+    setSelected({ type: "l2", record: row });
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -219,8 +279,8 @@ export default function ClassesPage() {
         parentCode: dialogType === "l2" ? form.parentCode : undefined,
         description: form.description || null,
       };
-      const res = editing
-        ? await fetch(`/api/ingredient-categories/${editing.id}?type=${dialogType}`, {
+      const res = selected
+        ? await fetch(`/api/ingredient-categories/${selected.record.id}?type=${dialogType}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -235,8 +295,8 @@ export default function ClassesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(editing ? "更新成功" : "创建成功");
-      setDialogOpen(false);
+      toast.success(selected ? "更新成功" : "创建成功");
+      closeRecord();
       refresh();
     } catch {
       toast.error("操作失败");
@@ -245,7 +305,7 @@ export default function ClassesPage() {
     }
   };
 
-  const toggleActive = async (row: L1 | L2, type: "l1" | "l2") => {
+  const toggleActive = async (row: L1 | L2, type: RecordType) => {
     try {
       const payload =
         type === "l2"
@@ -329,7 +389,7 @@ export default function ClassesPage() {
     }
   };
 
-  const openDelete = (row: L1 | L2, type: "l1" | "l2") => {
+  const openDelete = (row: L1 | L2, type: RecordType) => {
     setDeleteTarget({ id: row.id, type, name: row.name });
     setDeleteError(null);
   };
@@ -353,6 +413,9 @@ export default function ClassesPage() {
       setDeleteError({ message: "删除失败，请稍后重试" });
     }
   };
+
+  const selectedRecord = selected?.record;
+  const selectedType = selected?.type ?? dialogType;
 
   return (
     <PageShell variant="workspace">
@@ -399,9 +462,7 @@ export default function ClassesPage() {
           <DataTable<DisplayRow>
             data={displayRows}
             loading={loading}
-            onRowClick={(row) =>
-              row.kind === "l1" ? openEditL1(row.l1) : openEditL2(row.l2)
-            }
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -568,6 +629,18 @@ export default function ClassesPage() {
                     >
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`删除一级分类 ${l1.name}`}
+                      title="删除一级分类"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openDelete(l1, "l1");
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
                   </>
                 );
               }
@@ -629,6 +702,18 @@ export default function ClassesPage() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`删除二级分类 ${l2.name}`}
+                    title="删除二级分类"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDelete(l2, "l2");
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </>
               );
             }}
@@ -636,19 +721,70 @@ export default function ClassesPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">
-              {editing
-                ? `编辑${dialogType === "l1" ? "一级" : "二级"}分类`
-                : `新增${dialogType === "l1" ? "一级" : "二级"}分类`}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? `新增${typeLabel(dialogType)}`
+            : recordMode === "edit"
+              ? `编辑${typeLabel(dialogType)}`
+              : selectedRecord?.name ?? typeLabel(selectedType)
+        }
+        meta={
+          recordMode === "view" && selectedRecord ? (
+            <>
+              <span className="tabular-nums">{selectedRecord.code}</span>
+              {selectedType === "l2" && <span>所属：{parentName}</span>}
+              <StatusBadge
+                status={selectedRecord.isActive ? "启用中" : "已停用"}
+                variant={selectedRecord.isActive ? "success" : "neutral"}
+              />
+            </>
+          ) : undefined
+        }
+        onEdit={
+          recordMode === "view" && selectedRecord
+            ? () =>
+                selectedType === "l1"
+                  ? openEditL1(selectedRecord as L1)
+                  : openEditL2(selectedRecord as L2)
+            : undefined
+        }
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel={typeLabel(selectedType)}
+      >
+        {recordMode === "view" && selectedRecord ? (
+          <RecordView
+            items={[
+              { label: "编号", value: selectedRecord.code, emphasis: true },
+              { label: "名称", value: selectedRecord.name },
+              ...(selectedType === "l2"
+                ? [{ label: "所属一级分类", value: parentName }]
+                : []),
+              {
+                label: "说明",
+                value: selectedRecord.description || "—",
+                wide: true,
+              },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
             {dialogType === "l2" && (
-              <div className="grid gap-2.5">
-                <Label htmlFor="parentCode" className="text-base">所属一级分类</Label>
+              <FormField label="所属一级分类" required>
                 <SelectTileMode
                   options={l1Options}
                   value={form.parentCode}
@@ -658,72 +794,45 @@ export default function ClassesPage() {
                   searchPlaceholder="搜索一级分类..."
                   required
                 />
-              </div>
+              </FormField>
             )}
-            <div className="grid gap-2.5">
-              <Label htmlFor="code" className="text-base">编号</Label>
+            <FormField
+              id="code"
+              label="编号"
+              required
+              hint={
+                selected
+                  ? dialogType === "l1"
+                    ? "修改编号将同步更新其下二级分类的归属"
+                    : "被食材引用后不可修改编号；如不再使用请停用"
+                  : undefined
+              }
+            >
               <Input
-                id="code"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder={dialogType === "l1" ? "如 VEG" : "如 VEG-LEF"}
                 className="h-11 text-base px-4"
               />
-              {editing && (
-                <p className="text-xs text-muted-foreground">
-                  {dialogType === "l1"
-                    ? "修改编号将同步更新其下二级分类的归属"
-                    : "被食材引用后不可修改编号；如不再使用请停用"}
-                </p>
-              )}
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
+            </FormField>
+            <FormField id="name" label="名称" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder={dialogType === "l1" ? "如 蔬菜" : "如 叶菜"}
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="description" className="text-base">说明</Label>
+            </FormField>
+            <FormField id="description" label="说明">
               <Input
-                id="description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                onClick={() => {
-                  setDialogOpen(false);
-                  openDelete(editing, dialogType);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+            </FormField>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

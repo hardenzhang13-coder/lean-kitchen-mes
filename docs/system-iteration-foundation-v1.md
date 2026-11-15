@@ -203,6 +203,7 @@ lib/server/            服务端 —— 与数据库交互
 | 分页 | `Pagination` | `totalLabel` / `showPageSize` 默认关闭 |
 | 详情抽屉 | `RecordSheet` + `RecordActions` | 半屏 50vw |
 | 详情信息分组 | `DetailSection` + `InfoCell` | 双列信息单元 |
+| 简单记录三态 | `RecordDialog`（`RecordView` / `SimpleForm`） | 查看 / 新增 / 编辑；删除可放列表操作列（二次确认），编辑态不放 |
 | 未保存拦截 | `useRecordGuard` + `DiscardChangesDialog` | 关闭前拦截 |
 | 表单字段 | `FormField` / `FormSection` | 标签、必填、帮助、错误 |
 | 表单状态 | `useRecordForm` | 初始化、dirty、错误、提交中、重置、连续录入 |
@@ -228,6 +229,7 @@ app/<域>/page.tsx                       列表页
   └─ Pagination                         totalLabel + showPageSize
   └─ <Domain>DetailSheet                详情抽屉（RecordSheet + RecordActions）
   └─ <Domain>FormDialog                 新建 / 编辑弹窗（FormDialog）
+  └─ <Domain>RecordDialog               简单记录三态弹窗（RecordDialog：查看 / 新增 / 编辑）
   └─ <Domain>CopyDialog                 复制弹窗（useRecordCopy 编排，叠在抽屉上）
   └─ <Domain>DeleteDialog               删除确认（AppDialogContent size="compact"）
 

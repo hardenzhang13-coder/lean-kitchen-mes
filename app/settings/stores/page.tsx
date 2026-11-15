@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogHeader,
@@ -12,6 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -19,6 +19,12 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -38,6 +44,14 @@ type Store = {
   _count?: { schedules: number };
 };
 
+const emptyForm = {
+  name: "",
+  manager: "",
+  phone: "",
+  address: "",
+  isActive: "1",
+};
+
 function EmptyValue() {
   return <span className="text-muted-foreground">—</span>;
 }
@@ -47,9 +61,11 @@ export default function StoresPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Store | null>(null);
-  const [form, setForm] = useState({ name: "", manager: "", phone: "", address: "", isActive: "1" });
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [selected, setSelected] = useState<Store | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Store | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -99,23 +115,43 @@ export default function StoresPage() {
     setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: Store) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", manager: "", phone: "", address: "", isActive: "1" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openEdit = (row: Store) => {
-    setEditing(row);
-    setForm({
+    const nextForm = {
       name: row.name,
       manager: row.manager || "",
       phone: row.phone || "",
       address: row.address || "",
       isActive: row.isActive ? "1" : "0",
-    });
-    setDialogOpen(true);
+    };
+    setSelected(row);
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
+
   const handleSubmit = async () => {
     if (!form.name.trim()) {
       toast.error("门店名称不能为空");
@@ -130,8 +166,8 @@ export default function StoresPage() {
         address: form.address || null,
       };
       let res: Response;
-      if (editing) {
-        res = await fetch(`/api/stores/${editing.id}`, {
+      if (selected) {
+        res = await fetch(`/api/stores/${selected.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, isActive: form.isActive === "1" }),
@@ -148,8 +184,8 @@ export default function StoresPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(editing ? "更新成功" : "创建成功");
-      setDialogOpen(false);
+      toast.success(selected ? "更新成功" : "创建成功");
+      closeRecord();
       refresh();
     } catch {
       toast.error("操作失败");
@@ -211,7 +247,7 @@ export default function StoresPage() {
           <DataTable<Store>
             data={pageItems}
             loading={loading}
-            onRowClick={openEdit}
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -285,72 +321,133 @@ export default function StoresPage() {
             }}
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`编辑门店 ${row.name}`}
-                title="编辑门店"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openEdit(row);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑门店 ${row.name}`}
+                  title="编辑门店"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`删除门店 ${row.name}`}
+                  title={row.isSystem ? "系统门店不可删除" : "删除门店"}
+                  disabled={row.isSystem}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteTarget(row);
+                  }}
+                >
+                  <Trash2
+                    className={
+                      row.isSystem
+                        ? "h-4 w-4 text-muted-foreground/40"
+                        : "h-4 w-4 text-destructive"
+                    }
+                  />
+                </Button>
+              </>
             )}
           />
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑门店" : "新增门店"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">门店名称</Label>
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? "新增门店"
+            : recordMode === "edit"
+              ? "编辑门店"
+              : selected?.name ?? "门店"
+        }
+        meta={
+          recordMode === "view" && selected ? (
+            <>
+              <span className="tabular-nums">{selected.code}</span>
+              <StatusBadge
+                status={selected.isActive ? "启用中" : "已停用"}
+                variant={selected.isActive ? "success" : "neutral"}
+              />
+            </>
+          ) : undefined
+        }
+        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel="门店"
+      >
+        {recordMode === "view" && selected ? (
+          <RecordView
+            items={[
+              { label: "负责人", value: selected.manager || "—" },
+              {
+                label: "电话",
+                value: selected.phone ? (
+                  <span className="tabular-nums">{selected.phone}</span>
+                ) : (
+                  "—"
+                ),
+              },
+              {
+                label: "地址",
+                value: selected.address || "—",
+                wide: true,
+              },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
+            <FormField id="name" label="门店名称" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="如：新金食堂"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="manager" className="text-base">负责人</Label>
+            </FormField>
+            <FormField id="manager" label="负责人">
               <Input
-                id="manager"
                 value={form.manager}
                 onChange={(e) => setForm({ ...form, manager: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="phone" className="text-base">联系电话</Label>
+            </FormField>
+            <FormField id="phone" label="联系电话">
               <Input
-                id="phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="address" className="text-base">地址</Label>
+            </FormField>
+            <FormField id="address" label="地址">
               <Input
-                id="address"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-            {editing && !editing.isSystem && (
-              <div className="grid gap-2.5">
-                <Label className="text-base">状态</Label>
+            </FormField>
+            {selected && !selected.isSystem && (
+              <FormField label="状态" required>
                 <SelectField
                   value={form.isActive}
                   onChange={(v) => setForm({ ...form, isActive: v })}
@@ -358,39 +455,12 @@ export default function StoresPage() {
                     { value: "1", label: "启用中" },
                     { value: "0", label: "停用" },
                   ]}
-                  className="h-11"
                 />
-              </div>
+              </FormField>
             )}
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                disabled={editing.isSystem}
-                title={editing.isSystem ? "系统门店不可删除" : "删除门店"}
-                onClick={() => {
-                  setDialogOpen(false);
-                  setDeleteTarget(editing);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={() => setDeleteTarget(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

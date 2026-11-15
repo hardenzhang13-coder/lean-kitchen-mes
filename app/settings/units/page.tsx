@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Ban, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogHeader,
@@ -20,12 +19,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SelectField } from "@/app/components/ui/select-field";
+import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -60,14 +66,20 @@ const statusFilters = [
 
 const emptyForm = { name: "", category: "weight", gramsPerUnit: "" };
 
+function categoryLabel(value: string) {
+  return categories.find((c) => c.value === value)?.label || value;
+}
+
 export default function UnitsPage() {
   const [data, setData] = useState<Unit[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Unit | null>(null);
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [selected, setSelected] = useState<Unit | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
   const [deleteError, setDeleteError] = useState<{ message: string; references?: UnitReferences } | null>(null);
@@ -133,26 +145,39 @@ export default function UnitsPage() {
     setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
-  const openCreate = () => {
-    setEditing(null);
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
     setForm(emptyForm);
-    setDialogOpen(true);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: Unit) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
+  const openCreate = () => {
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openEdit = (row: Unit) => {
-    setEditing(row);
-    setForm({
+    const nextForm = {
       name: row.name,
       category: row.category,
       gramsPerUnit: row.gramsPerUnit != null ? String(Number(row.gramsPerUnit)) : "",
-    });
-    setDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setDialogOpen(false);
-    setEditing(null);
-    setForm(emptyForm);
+    };
+    setSelected(row);
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -175,8 +200,8 @@ export default function UnitsPage() {
         gramsPerUnit:
           form.category === "weight" ? Number(form.gramsPerUnit) : null,
       };
-      const res = editing
-        ? await fetch(`/api/units/${editing.id}`, {
+      const res = selected
+        ? await fetch(`/api/units/${selected.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -191,8 +216,8 @@ export default function UnitsPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(editing ? "更新成功" : "创建成功");
-      closeDialog();
+      toast.success(selected ? "更新成功" : "创建成功");
+      closeRecord();
       refresh();
     } catch {
       toast.error("操作失败");
@@ -288,7 +313,7 @@ export default function UnitsPage() {
           <DataTable<Unit>
             data={pageItems}
             loading={loading}
-            onRowClick={openEdit}
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -312,7 +337,7 @@ export default function UnitsPage() {
                 className: "w-[100px]",
                 cell: (row) => (
                   <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                    {categories.find((c) => c.value === row.category)?.label || row.category}
+                    {categoryLabel(row.category)}
                   </span>
                 ),
               },
@@ -380,38 +405,89 @@ export default function UnitsPage() {
                 >
                   <Pencil className="h-4 w-4" />
                 </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`删除单位 ${row.name}`}
+                  title="删除单位"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openDelete(row);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
               </>
             )}
           />
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={(open) => !open && closeDialog()}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑单位" : "新增单位"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? "新增单位"
+            : recordMode === "edit"
+              ? "编辑单位"
+              : selected?.name ?? "单位"
+        }
+        meta={
+          recordMode === "view" && selected ? (
+            <StatusBadge
+              status={selected.isActive ? "启用中" : "已停用"}
+              variant={selected.isActive ? "success" : "neutral"}
+            />
+          ) : undefined
+        }
+        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel="单位"
+      >
+        {recordMode === "view" && selected ? (
+          <RecordView
+            items={[
+              { label: "名称", value: selected.name, emphasis: true },
+              { label: "分类", value: categoryLabel(selected.category) },
+              {
+                label: "换算值",
+                value:
+                  selected.category === "weight"
+                    ? formatUnitValue(selected.gramsPerUnit, "g/单位", "未设置", " ")
+                    : "—",
+              },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
+            <FormField id="name" label="名称" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="如 斤"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="category" className="text-base">分类</Label>
+            </FormField>
+            <FormField label="分类" required>
               <Select
                 value={form.category}
                 onValueChange={(v) => v && setForm({ ...form, category: v })}
               >
-                <SelectTrigger id="category" className="h-11">
-                  <SelectValue>
-                    {categories.find((c) => c.value === form.category)?.label}
-                  </SelectValue>
+                <SelectTrigger className="h-11">
+                  <SelectValue>{categoryLabel(form.category)}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {categories.map((c) => (
@@ -421,14 +497,15 @@ export default function UnitsPage() {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </FormField>
             {form.category === "weight" && (
-              <div className="grid gap-2.5">
-                <Label htmlFor="gramsPerUnit" className="text-base">
-                  换算克数 <span className="text-destructive">*</span>
-                </Label>
+              <FormField
+                id="gramsPerUnit"
+                label="换算克数"
+                required
+                hint="驱动全系统斤/克换算（采购规格换算、每斤单价、切配展示）"
+              >
                 <Input
-                  id="gramsPerUnit"
                   type="number"
                   min="0"
                   step="0.01"
@@ -437,38 +514,11 @@ export default function UnitsPage() {
                   placeholder="1 单位合多少克，如 斤 = 500"
                   className="h-11 text-base px-4"
                 />
-                <p className="text-xs text-muted-foreground">
-                  驱动全系统斤/克换算（采购规格换算、每斤单价、切配展示）
-                </p>
-              </div>
+              </FormField>
             )}
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                onClick={() => {
-                  setDialogOpen(false);
-                  openDelete(editing);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={closeDialog} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

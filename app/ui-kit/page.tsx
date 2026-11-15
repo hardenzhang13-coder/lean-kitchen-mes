@@ -34,6 +34,12 @@ import {
 import { InfoTile } from "@/app/components/ui/info-tile";
 import { DetailSection, InfoCell } from "@/app/components/ui/detail-section";
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -60,6 +66,12 @@ export default function UiKitPage() {
   const [tab, setTab] = useState<KitTab>("patterns");
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
+  const [recordDemoOpen, setRecordDemoOpen] = useState(false);
+  const [recordDemoMode, setRecordDemoMode] = useState<
+    "view" | "create" | "edit"
+  >("view");
+  const [recordDemoName, setRecordDemoName] = useState("斤");
+  const [recordDemoBaseline, setRecordDemoBaseline] = useState("斤");
 
   return (
     <PageShell>
@@ -243,6 +255,102 @@ export default function UiKitPage() {
                 )
               )}
             </div>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">简单记录三态弹窗</h2>
+              <p className="text-sm text-muted-foreground">
+                查看 / 新增 / 编辑共用一个外壳；删除放在列表操作列并二次确认，编辑态只保留取消与保存。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3 rounded-lg border bg-card p-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRecordDemoName("斤");
+                  setRecordDemoBaseline("斤");
+                  setRecordDemoMode("view");
+                  setRecordDemoOpen(true);
+                }}
+              >
+                查看示例
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRecordDemoName("");
+                  setRecordDemoBaseline("");
+                  setRecordDemoMode("create");
+                  setRecordDemoOpen(true);
+                }}
+              >
+                新增示例
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setRecordDemoName("斤");
+                  setRecordDemoBaseline("斤");
+                  setRecordDemoMode("edit");
+                  setRecordDemoOpen(true);
+                }}
+              >
+                编辑示例
+              </Button>
+            </div>
+            <RecordDialog
+              open={recordDemoOpen}
+              onOpenChange={setRecordDemoOpen}
+              mode={recordDemoMode}
+              title={
+                recordDemoMode === "view"
+                  ? recordDemoName
+                  : recordDemoMode === "create"
+                    ? "新增单位"
+                    : "编辑单位"
+              }
+              meta={
+                recordDemoMode === "view" ? (
+                  <StatusBadge status="启用中" variant="success" />
+                ) : undefined
+              }
+              onEdit={() => setRecordDemoMode("edit")}
+              onCancel={() => {
+                if (recordDemoMode === "create") setRecordDemoOpen(false);
+                else {
+                  setRecordDemoMode("view");
+                  setRecordDemoName(recordDemoBaseline);
+                }
+              }}
+              onSubmit={() => setRecordDemoOpen(false)}
+              dirty={isRecordDirty(
+                { name: recordDemoName },
+                { name: recordDemoBaseline }
+              )}
+              entityLabel="单位"
+            >
+              {recordDemoMode === "view" ? (
+                <RecordView
+                  items={[
+                    { label: "名称", value: recordDemoName, emphasis: true },
+                    { label: "分类", value: "重量" },
+                    { label: "换算值", value: "500 g/单位" },
+                  ]}
+                />
+              ) : (
+                <SimpleForm>
+                  <FormField id="record-demo-name" label="名称" required>
+                    <Input
+                      value={recordDemoName}
+                      onChange={(e) => setRecordDemoName(e.target.value)}
+                      placeholder="如 斤"
+                      className="h-11 text-base px-4"
+                    />
+                  </FormField>
+                </SimpleForm>
+              )}
+            </RecordDialog>
           </section>
 
           <section className="space-y-4">

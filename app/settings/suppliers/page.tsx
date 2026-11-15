@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogHeader,
@@ -12,11 +11,18 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -32,6 +38,8 @@ type Supplier = {
   remark: string | null;
 };
 
+const emptyForm = { name: "", contact: "", phone: "", remark: "" };
+
 function EmptyValue() {
   return <span className="text-muted-foreground">—</span>;
 }
@@ -41,9 +49,11 @@ export default function SuppliersPage() {
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Supplier | null>(null);
-  const [form, setForm] = useState({ name: "", contact: "", phone: "", remark: "" });
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [selected, setSelected] = useState<Supplier | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
@@ -92,21 +102,40 @@ export default function SuppliersPage() {
     setPageSize,
   } = usePagination(filtered, DEFAULT_PAGE_SIZE);
 
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: Supplier) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
-    setEditing(null);
-    setForm({ name: "", contact: "", phone: "", remark: "" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openEdit = (row: Supplier) => {
-    setEditing(row);
-    setForm({
+    const nextForm = {
       name: row.name,
       contact: row.contact || "",
       phone: row.phone || "",
       remark: row.remark || "",
-    });
-    setDialogOpen(true);
+    };
+    setSelected(row);
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -122,8 +151,8 @@ export default function SuppliersPage() {
         phone: form.phone || null,
         remark: form.remark || null,
       };
-      if (editing) {
-        await fetch(`/api/suppliers/${editing.id}`, {
+      if (selected) {
+        await fetch(`/api/suppliers/${selected.id}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -137,7 +166,7 @@ export default function SuppliersPage() {
         });
         toast.success("创建成功");
       }
-      setDialogOpen(false);
+      closeRecord();
       refresh();
     } catch {
       toast.error("操作失败");
@@ -190,7 +219,7 @@ export default function SuppliersPage() {
           <DataTable<Supplier>
             data={pageItems}
             loading={loading}
-            onRowClick={openEdit}
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -247,96 +276,113 @@ export default function SuppliersPage() {
             }}
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`编辑供应商 ${row.name}`}
-                title="编辑供应商"
-                onClick={(event) => {
-                  event.stopPropagation();
-                  openEdit(row);
-                }}
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑供应商 ${row.name}`}
+                  title="编辑供应商"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`删除供应商 ${row.name}`}
+                  title="删除供应商"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteId(row.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
             )}
           />
         </CardContent>
       </Card>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑供应商" : "新增供应商"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? "新增供应商"
+            : recordMode === "edit"
+              ? "编辑供应商"
+              : selected?.name ?? "供应商"
+        }
+        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel="供应商"
+      >
+        {recordMode === "view" && selected ? (
+          <RecordView
+            items={[
+              { label: "名称", value: selected.name, emphasis: true },
+              { label: "联系人", value: selected.contact || "—" },
+              {
+                label: "电话",
+                value: selected.phone ? (
+                  <span className="tabular-nums">{selected.phone}</span>
+                ) : (
+                  "—"
+                ),
+              },
+              { label: "备注", value: selected.remark || "—", wide: true },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
+            <FormField id="name" label="名称" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="供应商名称"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="contact" className="text-base">联系人</Label>
+            </FormField>
+            <FormField id="contact" label="联系人">
               <Input
-                id="contact"
                 value={form.contact}
                 onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="phone" className="text-base">电话</Label>
+            </FormField>
+            <FormField id="phone" label="电话">
               <Input
-                id="phone"
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="remark" className="text-base">备注</Label>
+            </FormField>
+            <FormField id="remark" label="备注">
               <Input
-                id="remark"
                 value={form.remark}
                 onChange={(e) => setForm({ ...form, remark: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                onClick={() => {
-                  setDialogOpen(false);
-                  setDeleteId(editing.id);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+            </FormField>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

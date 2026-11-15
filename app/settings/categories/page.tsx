@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Pencil, Trash2, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
-import { SelectField } from "@/app/components/ui/select-field";
 import {
   Dialog,
   DialogHeader,
@@ -13,12 +11,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormField } from "@/app/components/ui/form-field";
+import { SelectField } from "@/app/components/ui/select-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import {
+  RecordDialog,
+  RecordView,
+  SimpleForm,
+  isRecordDirty,
+} from "@/app/components/ui/record-dialog";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -43,6 +49,8 @@ const statusFilters = [
   { value: "inactive", label: "已停用" },
 ];
 
+const emptyForm = { code: "", name: "", description: "" };
+
 function EmptyValue() {
   return <span className="text-muted-foreground">—</span>;
 }
@@ -53,9 +61,11 @@ export default function CategoriesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<Category | null>(null);
-  const [form, setForm] = useState({ code: "", name: "", description: "" });
+  const [recordOpen, setRecordOpen] = useState(false);
+  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [selected, setSelected] = useState<Category | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Category | null>(null);
   const [deleteError, setDeleteError] = useState<{ message: string; references?: CategoryReferences } | null>(null);
@@ -140,20 +150,39 @@ export default function CategoriesPage() {
     }
   };
 
+  const closeRecord = () => {
+    setRecordOpen(false);
+    setRecordMode("view");
+    setSelected(null);
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+  };
+
+  const openView = (row: Category) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
-    setEditing(null);
-    setForm({ code: "", name: "", description: "" });
-    setDialogOpen(true);
+    setSelected(null);
+    setRecordMode("create");
+    setForm(emptyForm);
+    setBaselineForm(emptyForm);
+    setRecordOpen(true);
   };
 
   const openEdit = (row: Category) => {
-    setEditing(row);
-    setForm({
+    const nextForm = {
       code: row.code,
       name: row.name,
       description: row.description || "",
-    });
-    setDialogOpen(true);
+    };
+    setSelected(row);
+    setRecordMode("edit");
+    setForm(nextForm);
+    setBaselineForm(nextForm);
+    setRecordOpen(true);
   };
 
   const handleSubmit = async () => {
@@ -168,8 +197,8 @@ export default function CategoriesPage() {
         name: form.name,
         description: form.description || null,
       };
-      const res = editing
-        ? await fetch(`/api/dish-categories/${editing.id}`, {
+      const res = selected
+        ? await fetch(`/api/dish-categories/${selected.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
@@ -184,8 +213,8 @@ export default function CategoriesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(editing ? "更新成功" : "创建成功");
-      setDialogOpen(false);
+      toast.success(selected ? "更新成功" : "创建成功");
+      closeRecord();
       refresh();
     } catch {
       toast.error("操作失败");
@@ -281,7 +310,7 @@ export default function CategoriesPage() {
           <DataTable<Category>
             data={pageItems}
             loading={loading}
-            onRowClick={openEdit}
+            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -397,6 +426,18 @@ export default function CategoriesPage() {
                   >
                     <Pencil className="h-4 w-4" />
                   </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`删除菜品类别 ${row.name}`}
+                    title="删除菜品类别"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openDelete(row);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </>
               );
             }}
@@ -404,77 +445,80 @@ export default function CategoriesPage() {
         </CardContent>
       </Card>
 
-      {/* Create / Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <AppDialogContent size="form" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">{editing ? "编辑菜品类别" : "新增菜品类别"}</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-5 py-5">
-            <div className="grid gap-2.5">
-              <Label htmlFor="code" className="text-base">编号</Label>
+      <RecordDialog
+        open={recordOpen}
+        onOpenChange={(open) => {
+          if (!open) closeRecord();
+        }}
+        mode={recordMode}
+        title={
+          recordMode === "create"
+            ? "新增菜品类别"
+            : recordMode === "edit"
+              ? "编辑菜品类别"
+              : selected?.name ?? "菜品类别"
+        }
+        meta={
+          recordMode === "view" && selected ? (
+            <>
+              <span className="tabular-nums">{selected.code}</span>
+              <StatusBadge
+                status={selected.isActive ? "启用中" : "已停用"}
+                variant={selected.isActive ? "success" : "neutral"}
+              />
+            </>
+          ) : undefined
+        }
+        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
+        onSubmit={handleSubmit}
+        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        submitting={submitting}
+        entityLabel="菜品类别"
+      >
+        {recordMode === "view" && selected ? (
+          <RecordView
+            items={[
+              { label: "编号", value: selected.code, emphasis: true },
+              { label: "名称", value: selected.name },
+              { label: "说明", value: selected.description || "—", wide: true },
+            ]}
+          />
+        ) : (
+          <SimpleForm>
+            <FormField id="code" label="编号" required hint="被菜品引用后不可修改编号；如不再使用请停用">
               <Input
-                id="code"
                 value={form.code}
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder="如 PORK"
                 className="h-11 text-base px-4"
               />
-              {editing && (
-                <p className="text-xs text-muted-foreground">
-                  被菜品引用后不可修改编号；如不再使用请停用
-                </p>
-              )}
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="name" className="text-base">名称</Label>
+            </FormField>
+            <FormField id="name" label="名称" required>
               <Input
-                id="name"
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 placeholder="如 猪肉类"
                 className="h-11 text-base px-4"
               />
-            </div>
-            <div className="grid gap-2.5">
-              <Label htmlFor="description" className="text-base">说明</Label>
+            </FormField>
+            <FormField id="description" label="说明">
               <Input
-                id="description"
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="可选"
                 className="h-11 text-base px-4"
               />
-            </div>
-          </div>
-          <DialogFooter>
-            {editing && (
-              <Button
-                variant="destructive"
-                className="h-11 px-6 sm:mr-auto"
-                onClick={() => {
-                  setDialogOpen(false);
-                  openDelete(editing);
-                }}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                删除
-              </Button>
-            )}
-            <Button variant="outline" onClick={() => setDialogOpen(false)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button onClick={handleSubmit} disabled={submitting} className="h-11 px-6">
-              <span aria-live="polite" className="inline-flex items-center">
-                {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                保存
-              </span>
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+            </FormField>
+          </SimpleForm>
+        )}
+      </RecordDialog>
 
-      {/* Delete Confirm */}
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
           <DialogHeader>
