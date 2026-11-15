@@ -4,6 +4,33 @@
 
 ---
 ---
+## 2026-11-16（续）— 排程重构版本部署生产（ACR）
+
+### 部署
+- `workflow_dispatch` 触发 `deploy.yml`，run `43754248012`，head `d85b2ca`
+- build 推送 web / migrate 镜像 → deploy-prebuilt 拉取重启 → health 通过；现场构建按条件跳过
+
+### 部署前审计
+- 两条新迁移：`add_created_at_to_ingredients`（加列 → 存量回填固定日期 → 改 NOT NULL）、`normalize_dish_status_pending`（pending→draft）
+- 生产只读盘点：`dishes.status` 仅 published×3 / draft×1，**无 pending**，状态迁移为空操作；原料 51 / 净料 77 / 菜品 4 / 排程 3 / 计划单 3
+- seed、`scripts/dictionary-baseline.sql`、`docker-compose.yml`、`Dockerfile`、workflow 自上次部署无变化
+
+### 验证
+- 迁移均已应用；migrate 容器 `Exited (0)`；web 镜像为 ACR `lean-kms-web:d85b2ca…`
+- 12 张关键表行数与部署前完全一致；`ingredients.created_at` 51 条全部回填（2026-10-26 11:32:10）
+- `/login` HTTP 200；web 日志无错误
+
+### 存量标题回填
+- `scripts/backfill-schedule-titles.mjs --apply`：3 条排程标题改为 `门店 · 周几（月日）·菜单`
+- `scripts/backfill-production-plan-titles.mjs --apply`：3 张计划单标题改为 `切配中心·周几（月日）生产计划`
+- 运行方式：服务器上用 migrate 镜像挂载 `scripts/` 执行（`docker compose run --rm --no-deps -v /opt/lean-kms-v3/scripts:/app/scripts migrate node …`）
+
+### 遗留
+- 菜品「建档时间」存量统一回填为 2026-10-26 11:32:10，早于净料最早建档（10-29），仅展示口径、不影响业务
+- 新看板 / 弹窗 / 周视图仍待试运行实机验证
+
+---
+---
 ## 2026-11-16 — 排程模块整体优化（B3 前移：单据卡片视觉 + 业务加固）
 
 > 同日回退：第 1 条的拟物化视觉层已按用户反馈整体移除，当前为扁平卡片，最终形态见第 8 条。
