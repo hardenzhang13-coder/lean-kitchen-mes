@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type {
   CategoryL1,
@@ -175,8 +175,8 @@ export function useIngredientForm({
 }: UseIngredientFormOptions) {
   const [l2Open, setL2Open] = useState(false);
   const [pricePerJinDirty, setPricePerJinDirty] = useState(false);
-  // 「保存并继续添加」标记：为 true 时保存成功后保留分类与单位，只清空可重复录入字段
-  const continueAddingRef = useRef(false);
+  /** 最近一次保存成功的记录：供 onSaved 回调回传给调用方 */
+  const savedRef = useRef<SavedIngredientRecord | null>(null);
 
   const initialValues = buildForm(initialData, categories, mode);
   const categorySignature = categories
@@ -320,25 +320,8 @@ export function useIngredientForm({
         return false;
       }
 
-      // 连续录入：保留分类与单位，清空名称/品牌/价格/供应商，弹窗保持打开
-      if (continueAddingRef.current && !initialData?.id) {
-        continueAddingRef.current = false;
-        toast.success("已保存，可继续添加下一条");
-        setForm((previous) => ({
-          ...previous,
-          name: "",
-          alias: "",
-          latestRefPrice: "",
-          pricePerJin: "",
-          defaultSupplierId: "",
-        }));
-        setPricePerJinDirty(false);
-        onSaved(saved, true);
-        return true;
-      }
-
-      toast.success(initialData?.id ? "更新成功" : "创建成功");
-      onSaved(saved, false);
+      // 记录最近一次保存成功的档案，供 onSaved 回传给调用方
+      savedRef.current = saved;
       return true;
     } catch {
       toast.error("保存出错");
@@ -355,12 +338,32 @@ export function useIngredientForm({
     setField,
     resetForm,
     submit,
+    submitContinue,
   } = useRecordForm({
     active,
     resetKey,
     initialValues,
     validate: (values) => validateIngredientForm(values, categories, mode),
     onSubmit: submitIngredient,
+    // 连续录入策略由 useRecordForm 统一处理：清空可重复录入字段，保留分类与单位
+    clearOnContinue: [
+      "name",
+      "alias",
+      "latestRefPrice",
+      "pricePerJin",
+      "defaultSupplierId",
+    ],
+    onSaved: (_values, continued) => {
+      const saved = savedRef.current;
+      if (!saved) return;
+      if (continued) {
+        setPricePerJinDirty(false);
+        toast.success("已保存，可继续添加下一条");
+      } else {
+        toast.success(initialData?.id ? "更新成功" : "创建成功");
+      }
+      onSaved(saved, continued);
+    },
     onReset: () => {
       setL2Open(false);
       setPricePerJinDirty(false);
@@ -396,14 +399,6 @@ export function useIngredientForm({
     setField(field, value);
     if (field === "pricePerJin") setPricePerJinDirty(true);
   };
-
-  // 「保存并继续添加」：保存成功后不清空弹窗，由调用方决定后续动作
-  const submitContinue = useCallback(async () => {
-    continueAddingRef.current = true;
-    const ok = await submit();
-    if (!ok) continueAddingRef.current = false;
-    return ok;
-  }, [submit]);
 
   return {
     form,

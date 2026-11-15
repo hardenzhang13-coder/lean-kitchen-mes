@@ -95,4 +95,64 @@ describe("通用记录表单状态", () => {
     expect(result.current.isDirty).toBe(false);
     expect(onReset).toHaveBeenCalled();
   });
+
+  it("保存并继续添加时按策略清空字段并保留其余字段", async () => {
+    const onSubmit = jest.fn().mockResolvedValue(true);
+    const onSaved = jest.fn();
+    const { result } = renderHook(() =>
+      useRecordForm<TestForm>({
+        active: true,
+        resetKey: "create",
+        initialValues: { name: "", price: "" },
+        validate: () => ({}),
+        onSubmit,
+        onSaved,
+        clearOnContinue: ["name"],
+      })
+    );
+
+    act(() => {
+      result.current.setField("name", "带皮五花肉");
+      result.current.setField("price", "18.50");
+    });
+
+    let success = false;
+    await act(async () => {
+      success = await result.current.submitContinue();
+    });
+
+    expect(success).toBe(true);
+    // 名称被清空，价格保留
+    expect(result.current.form.name).toBe("");
+    expect(result.current.form.price).toBe("18.50");
+    expect(onSaved).toHaveBeenCalledWith(
+      { name: "带皮五花肉", price: "18.50" },
+      true
+    );
+  });
+
+  it("提供保留白名单时，白名单外字段全部清空", async () => {
+    const { result } = renderHook(() =>
+      useRecordForm<TestForm>({
+        active: true,
+        resetKey: "create",
+        initialValues: { name: "", price: "" },
+        validate: () => ({}),
+        onSubmit: async () => true,
+        keepOnContinue: ["price"],
+      })
+    );
+
+    act(() => {
+      result.current.setField("name", "带皮五花肉");
+      result.current.setField("price", "18.50");
+    });
+
+    await act(async () => {
+      await result.current.submitContinue();
+    });
+
+    expect(result.current.form.name).toBe("");
+    expect(result.current.form.price).toBe("18.50");
+  });
 });

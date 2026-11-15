@@ -3,6 +3,13 @@
 import { cn } from "@/lib/shared/utils";
 import { getPortionOption } from "@/lib/shared/portion-scale";
 
+/**
+ * 份量标签：净料/小料档案与菜品 BOM 选择器共用。
+ *
+ * 份量枚举的唯一真源是 `lib/shared/portion-scale.ts`；本组件只负责渲染，
+ * 不在这里硬编码枚举值。新增份量取值时需同步补底色映射。
+ */
+
 /** 份量标签的柔和底色映射：与菜品列表的份量徽标同一套语义。 */
 const PORTION_TAG_CLASSES: Record<string, string> = {
   小碗菜: "bg-sky-100 text-sky-700",
@@ -20,10 +27,6 @@ interface PortionTagProps {
   emptyText?: string;
 }
 
-/**
- * 份量标签：净料/小料档案与菜品 BOM 选择器共用。
- * 文本取枚举短值，说明文案（小碗菜等价份数）放在 title 上。
- */
 export function PortionTag({
   portion,
   className,

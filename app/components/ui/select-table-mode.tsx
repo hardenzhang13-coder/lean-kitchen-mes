@@ -169,7 +169,8 @@ export function SelectTableMode<T extends Record<string, unknown>>({
           setOpen(false);
           setPendingValue(null);
         }}
-        className="sm:max-w-[900px] max-w-[calc(100%-4rem)]"
+        size="wide"
+        className="max-w-[calc(100%-4rem)]"
         footer={
           confirmSelection ? (
             <Button

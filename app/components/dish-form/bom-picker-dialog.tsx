@@ -15,7 +15,7 @@ import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { useDebounce } from "@/lib/client/hooks";
 import { BomType, IngredientOption, IngredientCategory } from "./types";
-import { PortionTag } from "@/app/components/ingredients/portion-tag";
+import { PortionTag } from "@/app/components/ui/portion-tag";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";

@@ -4,11 +4,11 @@ import { useMemo, useRef, useState } from "react";
 import { Download, FileUp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { FormDialog } from "@/app/components/ui/form-dialog";
 import {
   Table,
@@ -125,7 +125,10 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
 
   return (
     <FormDialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[960px] max-h-[90vh] overflow-y-auto [&>button]:cursor-pointer">
+      <AppDialogContent
+        size="workbench"
+        className="max-h-[90vh] overflow-y-auto [&>button]:cursor-pointer"
+      >
         <DialogHeader>
           <DialogTitle className="text-lg">{title}</DialogTitle>
         </DialogHeader>
@@ -260,7 +263,7 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
               : `确认导入${validRows.length > 0 ? `（${validRows.length} 条）` : ""}`}
           </Button>
         </DialogFooter>
-      </DialogContent>
+      </AppDialogContent>
     </FormDialog>
   );
 }

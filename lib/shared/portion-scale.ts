@@ -46,6 +46,9 @@ const LEGACY_PORTION_COUNTS: Record<string, number> = {
 /** 份量枚举索引：value → 枚举项。 */
 const PORTION_MAP = new Map(PORTION_OPTIONS.map((option) => [option.value, option]));
 
+/** 份量枚举索引（对外）：value → 枚举项，避免各模块重复建 Map。 */
+export const PORTION_OPTION_BY_VALUE = PORTION_MAP;
+
 /** 取份量枚举项；非枚举值返回 null。 */
 export function getPortionOption(
   portion: string | null | undefined

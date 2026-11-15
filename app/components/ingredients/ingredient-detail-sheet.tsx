@@ -10,20 +10,16 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { DetailSection, InfoCell } from "@/app/components/ui/detail-section";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import {
   RecordActions,
   RecordSheet,
 } from "@/app/components/ui/record-sheet";
+import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
+import { useRecordGuard } from "@/app/components/ui/use-record-guard";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -106,51 +102,6 @@ function formatMoney(value: number | null | undefined) {
   return value != null ? `¥${Number(value).toFixed(2)}` : "—";
 }
 
-function DetailSection({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-lg border bg-card">
-      <h3 className="border-b bg-muted/40 px-4 py-3 text-sm font-semibold">
-        {title}
-      </h3>
-      <dl className="grid grid-cols-2 gap-x-8 gap-y-5 p-4">
-        {children}
-      </dl>
-    </section>
-  );
-}
-
-function InfoCell({
-  label,
-  value,
-  emphasis = false,
-}: {
-  label: string;
-  value: React.ReactNode;
-  emphasis?: boolean;
-}) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted-foreground">{label}</dt>
-      <dd
-        className={
-          "mt-1 break-words text-sm leading-6 " +
-          (emphasis
-            ? "font-semibold text-primary"
-            : "font-medium text-foreground")
-        }
-      >
-        {value}
-      </dd>
-    </div>
-  );
-}
-
 export function IngredientDetailSheet({
   open,
   onOpenChange,
@@ -174,7 +125,6 @@ export function IngredientDetailSheet({
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [discardOpen, setDiscardOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const rawInitialData = useMemo(
@@ -255,11 +205,9 @@ export function IngredientDetailSheet({
   useEffect(() => {
     if (!open) {
       setEditing(false);
-      setDiscardOpen(false);
       return;
     }
     setEditing(inlineEdit && startInEditMode);
-    setDiscardOpen(false);
   }, [open, ingredientId, inlineEdit, startInEditMode]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -381,32 +329,31 @@ export function IngredientDetailSheet({
   const activeResetForm =
     kind === "raw" || kind === "seasoning" ? resetRawForm : resetNetForm;
 
-  const handleOpenChange = (nextOpen: boolean) => {
-    if (!nextOpen && canInlineEdit && editing && activeIsDirty) {
-      setDiscardOpen(true);
-      return;
-    }
-    if (!nextOpen) setEditing(false);
-    onOpenChange(nextOpen);
-  };
-
   const cancelEdit = () => {
     activeResetForm();
     setEditing(false);
   };
 
-  const discardAndClose = () => {
-    setDiscardOpen(false);
-    setEditing(false);
-    activeResetForm();
-    onOpenChange(false);
-  };
+  const {
+    discardOpen,
+    requestClose,
+    cancelDiscard,
+    discardAndClose,
+  } = useRecordGuard({
+    open,
+    isDirty: canInlineEdit && editing && activeIsDirty,
+    onDiscard: () => {
+      setEditing(false);
+      activeResetForm();
+    },
+    onClose: onOpenChange,
+  });
 
   return (
     <>
       <RecordSheet
         open={open}
-        onOpenChange={handleOpenChange}
+        onOpenChange={requestClose}
         title={sheetTitle}
         meta={headerMeta}
         footer={
@@ -626,35 +573,22 @@ export function IngredientDetailSheet({
         )}
       </RecordSheet>
 
-      <Dialog open={discardOpen} onOpenChange={setDiscardOpen}>
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">放弃未保存的修改？</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            当前
-            {kind === "raw"
-              ? "原料"
-              : kind === "seasoning"
-                ? "调料"
-                : kind === "minor"
-                  ? "小料"
-                  : "净料"}
-            有尚未保存的修改，关闭后这些内容将丢失。
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDiscardOpen(false)}
-            >
-              继续编辑
-            </Button>
-            <Button variant="destructive" onClick={discardAndClose}>
-              放弃并关闭
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      <DiscardChangesDialog
+        open={discardOpen}
+        onOpenChange={(next) => {
+          if (!next) cancelDiscard();
+        }}
+        entityLabel={
+          kind === "raw"
+            ? "原料"
+            : kind === "seasoning"
+              ? "调料"
+              : kind === "minor"
+                ? "小料"
+                : "净料"
+        }
+        onDiscard={discardAndClose}
+      />
     </>
   );
 }

@@ -29,6 +29,7 @@ import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
 } from "@/lib/client/use-pagination";
+import { useRecordCopy } from "@/lib/client/use-record-copy";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 import { formatMoney, formatPercent } from "@/lib/shared/display-format";
@@ -93,8 +94,6 @@ export default function MinorIngredientsPage() {
   const [labelTarget, setLabelTarget] = useState<NetLabelTarget | null>(null);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
-  const [copyOpen, setCopyOpen] = useState(false);
-  const [copyData, setCopyData] = useState<NetIngredientFormItem | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchMeta = async () => {
@@ -170,34 +169,27 @@ export default function MinorIngredientsPage() {
   };
 
   // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名
-  const buildCopyData = (row: {
-    name: string;
-    sourceIngredientId: number | null;
-    packageSpec: number | null;
-    packageMaterial: string | null;
-    packageSize: string | null;
-    processingFeePerJin: number | null;
-    yieldRate: number | null;
-    grossMarginRate: number | null;
-    portion?: string | null;
-    l2Code: string;
-  }): NetIngredientFormItem => ({
-    name: `${row.name}-副本`,
-    sourceIngredientId: row.sourceIngredientId,
-    packageSpec: row.packageSpec,
-    packageMaterial: row.packageMaterial,
-    packageSize: row.packageSize,
-    processingFeePerJin: row.processingFeePerJin,
-    yieldRate: row.yieldRate,
-    grossMarginRate: row.grossMarginRate,
-    portion: row.portion ?? null,
-    l2Code: row.l2Code,
+  const { openCopy, copyDialogProps } = useRecordCopy<
+    NetIngredient | NetDetail,
+    NetIngredientFormItem
+  >({
+    buildInitialData: (row) => ({
+      sourceIngredientId: row.sourceIngredientId,
+      packageSpec: row.packageSpec,
+      packageMaterial: row.packageMaterial,
+      packageSize: row.packageSize,
+      processingFeePerJin: row.processingFeePerJin,
+      yieldRate: row.yieldRate,
+      grossMarginRate: row.grossMarginRate,
+      portion: row.portion ?? null,
+      l2Code: row.l2Code,
+    }),
+    title: "复制小料",
+    onCopySuccess: () => {
+      setDetailOpen(false);
+      fetchIngredients();
+    },
   });
-
-  const openCopy = (row: NetIngredient) => {
-    setCopyData(buildCopyData(row));
-    setCopyOpen(true);
-  };
 
   const handleDelete = async () => {
     if (!deleteRow) return;
@@ -447,22 +439,10 @@ export default function MinorIngredientsPage() {
       />
 
       <NetIngredientFormDialog
-        open={copyOpen}
-        onOpenChange={(open) => {
-          setCopyOpen(open);
-          if (!open) setCopyData(null);
-        }}
+        {...copyDialogProps}
         mode="minor"
-        initialData={copyData ?? undefined}
         categories={categories}
         rawIngredients={rawIngredients}
-        title="复制小料"
-        onSuccess={() => {
-          setCopyOpen(false);
-          setCopyData(null);
-          setDetailOpen(false);
-          fetchIngredients();
-        }}
       />
 
       <IngredientDetailSheet
@@ -491,9 +471,7 @@ export default function MinorIngredientsPage() {
           });
         }}
         onCopy={(record) => {
-          const detail = record as NetDetail;
-          setCopyData(buildCopyData(detail));
-          setCopyOpen(true);
+          openCopy(record as NetDetail);
         }}
         onDelete={(id) => {
           const row = data.find((item) => item.id === id);

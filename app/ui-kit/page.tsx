@@ -32,6 +32,9 @@ import {
   FormSection,
 } from "@/app/components/ui/form-field";
 import { InfoTile } from "@/app/components/ui/info-tile";
+import { DetailSection, InfoCell } from "@/app/components/ui/detail-section";
+import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
+import { PortionTag } from "@/app/components/ui/portion-tag";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -56,6 +59,7 @@ const semanticColors = [
 export default function UiKitPage() {
   const [tab, setTab] = useState<KitTab>("patterns");
   const [recordSheetOpen, setRecordSheetOpen] = useState(false);
+  const [discardOpen, setDiscardOpen] = useState(false);
 
   return (
     <PageShell>
@@ -274,11 +278,10 @@ export default function UiKitPage() {
                 />
               }
             >
-              <FormSection title="价格信息" cols={1}>
-                <FormField label="每斤单价">
-                  <ReadOnlyValue value="18.50" numeric emphasis />
-                </FormField>
-              </FormSection>
+              <DetailSection title="价格信息">
+                <InfoCell label="每斤单价" value="¥18.50/斤" emphasis />
+                <InfoCell label="份量" value={<PortionTag portion="社区·2份" />} />
+              </DetailSection>
             </RecordSheet>
           </section>
         </div>
@@ -317,6 +320,44 @@ export default function UiKitPage() {
           <section className="space-y-4">
             <h2 className="text-lg font-semibold">加载状态</h2>
             <LoadingState type="list" rows={2} />
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">份量标签</h2>
+              <p className="text-sm text-muted-foreground">
+                份量枚举的唯一渲染入口，取值来自 lib/shared/portion-scale.ts。
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-4">
+              <PortionTag portion="小碗菜" />
+              <PortionTag portion="小碗菜·10份" />
+              <PortionTag portion="社区·2份" />
+              <PortionTag portion="社区·3份" />
+              <PortionTag portion="社区·4份" />
+              <PortionTag portion={null} />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">放弃未保存修改</h2>
+              <p className="text-sm text-muted-foreground">
+                关闭有未保存改动的详情时统一走这个确认弹窗。
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setDiscardOpen(true)}
+            >
+              打开确认弹窗
+            </Button>
+            <DiscardChangesDialog
+              open={discardOpen}
+              onOpenChange={setDiscardOpen}
+              entityLabel="净料"
+              onDiscard={() => setDiscardOpen(false)}
+            />
           </section>
         </div>
       )}

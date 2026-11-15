@@ -32,6 +32,7 @@ import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
 } from "@/lib/client/use-pagination";
+import { useRecordCopy } from "@/lib/client/use-record-copy";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 
@@ -106,10 +107,6 @@ export default function RawIngredientsPage() {
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
-  const [copyOpen, setCopyOpen] = useState(false);
-  const [copyData, setCopyData] = useState<IngredientFormInitialData | null>(
-    null
-  );
 
   const fetchMeta = async () => {
     try {
@@ -202,34 +199,27 @@ export default function RawIngredientsPage() {
   };
 
   // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名校验拦截
-  const buildCopyData = (row: {
-    name: string;
-    alias: string | null;
-    l2Code: string;
-    purchaseSpec: string | null;
-    purchaseUnit: string | null;
-    stockUnit: string | null;
-    unitsPerPurchase?: number | null;
-    latestRefPrice: number | null;
-    pricePerJin: number | null;
-    defaultSupplierId: number | null;
-  }): IngredientFormInitialData => ({
-    name: `${row.name}-副本`,
-    alias: row.alias,
-    l2Code: row.l2Code,
-    purchaseSpec: row.purchaseSpec,
-    purchaseUnit: row.purchaseUnit,
-    stockUnit: row.stockUnit,
-    unitsPerPurchase: row.unitsPerPurchase ?? 1,
-    latestRefPrice: row.latestRefPrice,
-    pricePerJin: row.pricePerJin,
-    defaultSupplierId: row.defaultSupplierId,
+  const { openCopy, copyDialogProps } = useRecordCopy<
+    Ingredient | RawDetail,
+    IngredientFormInitialData
+  >({
+    buildInitialData: (row) => ({
+      alias: row.alias,
+      l2Code: row.l2Code,
+      purchaseSpec: row.purchaseSpec,
+      purchaseUnit: row.purchaseUnit,
+      stockUnit: row.stockUnit,
+      unitsPerPurchase: row.unitsPerPurchase ?? 1,
+      latestRefPrice: row.latestRefPrice,
+      pricePerJin: row.pricePerJin,
+      defaultSupplierId: row.defaultSupplierId,
+    }),
+    title: "复制原料",
+    onCopySuccess: () => {
+      setDetailOpen(false);
+      fetchData();
+    },
   });
-
-  const openCopy = (row: Ingredient) => {
-    setCopyData(buildCopyData(row));
-    setCopyOpen(true);
-  };
 
   const handleDelete = async (id: number) => {
     try {
@@ -550,9 +540,7 @@ export default function RawIngredientsPage() {
         }
         onUpdated={fetchData}
         onCopy={(record) => {
-          const detail = record as RawDetail;
-          setCopyData(buildCopyData(detail));
-          setCopyOpen(true);
+          openCopy(record as RawDetail);
         }}
         onConvert={(id) => {
           setDetailOpen(false);
@@ -578,22 +566,10 @@ export default function RawIngredientsPage() {
       />
 
       <IngredientFormDialog
-        open={copyOpen}
-        onOpenChange={(open) => {
-          setCopyOpen(open);
-          if (!open) setCopyData(null);
-        }}
-        initialData={copyData ?? undefined}
+        {...copyDialogProps}
         categories={categories}
         units={units}
         mode="ingredient"
-        title="复制原料"
-        onSuccess={() => {
-          setCopyOpen(false);
-          setCopyData(null);
-          setDetailOpen(false);
-          fetchData();
-        }}
       />
 
       <NetIngredientFormDialog

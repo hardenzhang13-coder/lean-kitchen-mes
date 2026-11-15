@@ -5,10 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AppDialogContent,
+  type AppDialogSize,
+} from "@/app/components/ui/app-dialog";
 import { cn } from "@/lib/shared/utils";
 
 interface SelectDialogProps {
@@ -24,6 +27,8 @@ interface SelectDialogProps {
   footer?: React.ReactNode;
   className?: string;
   hideSearch?: boolean;
+  /** 语义尺寸，默认 form；调用方不得自行声明像素宽度 */
+  size?: AppDialogSize;
 }
 
 export function SelectDialog({
@@ -38,12 +43,14 @@ export function SelectDialog({
   footer,
   className,
   hideSearch = false,
+  size = "form",
 }: SelectDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
+      <AppDialogContent
+        size={size}
         className={cn(
-          "sm:max-w-[560px] [&>button]:cursor-pointer flex flex-col max-h-[80vh]",
+          "[&>button]:cursor-pointer flex flex-col max-h-[80vh]",
           className
         )}
       >
@@ -70,7 +77,7 @@ export function SelectDialog({
             取消
           </Button>
         </div>
-      </DialogContent>
+      </AppDialogContent>
     </Dialog>
   );
 }

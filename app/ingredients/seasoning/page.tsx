@@ -24,6 +24,7 @@ import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
 } from "@/lib/client/use-pagination";
+import { useRecordCopy } from "@/lib/client/use-record-copy";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 
@@ -81,10 +82,6 @@ export default function SeasoningIngredientsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [copyOpen, setCopyOpen] = useState(false);
-  const [copyData, setCopyData] = useState<IngredientFormInitialData | null>(
-    null
-  );
 
   const seasoningL2Code = useMemo(
     () => findDefaultSeasoningL2Code(categories),
@@ -155,34 +152,27 @@ export default function SeasoningIngredientsPage() {
   };
 
   // 复制：以现有档案为模板新建一条，名称默认加「-副本」避免重名校验拦截
-  const buildCopyData = (row: {
-    name: string;
-    alias: string | null;
-    l2Code: string;
-    purchaseSpec: string | null;
-    purchaseUnit: string | null;
-    stockUnit: string | null;
-    unitsPerPurchase?: number | null;
-    latestRefPrice: number | null;
-    pricePerJin: number | null;
-    defaultSupplierId: number | null;
-  }): IngredientFormInitialData => ({
-    name: `${row.name}-副本`,
-    alias: row.alias,
-    l2Code: row.l2Code,
-    purchaseSpec: row.purchaseSpec,
-    purchaseUnit: row.purchaseUnit,
-    stockUnit: row.stockUnit,
-    unitsPerPurchase: row.unitsPerPurchase ?? 1,
-    latestRefPrice: row.latestRefPrice,
-    pricePerJin: row.pricePerJin,
-    defaultSupplierId: row.defaultSupplierId,
+  const { openCopy, copyDialogProps } = useRecordCopy<
+    Ingredient | RawDetail,
+    IngredientFormInitialData
+  >({
+    buildInitialData: (row) => ({
+      alias: row.alias,
+      l2Code: row.l2Code,
+      purchaseSpec: row.purchaseSpec,
+      purchaseUnit: row.purchaseUnit,
+      stockUnit: row.stockUnit,
+      unitsPerPurchase: row.unitsPerPurchase ?? 1,
+      latestRefPrice: row.latestRefPrice,
+      pricePerJin: row.pricePerJin,
+      defaultSupplierId: row.defaultSupplierId,
+    }),
+    title: "复制调料",
+    onCopySuccess: () => {
+      setDetailOpen(false);
+      fetchData();
+    },
   });
-
-  const openCopy = (row: Ingredient) => {
-    setCopyData(buildCopyData(row));
-    setCopyOpen(true);
-  };
 
   // 调料二级分类选项 = SEA（调味品）下的启用子分类
   const seasoningL2Options = useMemo(() => {
@@ -412,22 +402,10 @@ export default function SeasoningIngredientsPage() {
       />
 
       <IngredientFormDialog
-        open={copyOpen}
-        onOpenChange={(open) => {
-          setCopyOpen(open);
-          if (!open) setCopyData(null);
-        }}
-        initialData={copyData ?? undefined}
+        {...copyDialogProps}
         categories={categories}
         units={units}
         mode="seasoning"
-        title="复制调料"
-        onSuccess={() => {
-          setCopyOpen(false);
-          setCopyData(null);
-          setDetailOpen(false);
-          fetchData();
-        }}
       />
 
       <IngredientDetailSheet
@@ -446,9 +424,7 @@ export default function SeasoningIngredientsPage() {
         }
         onUpdated={fetchData}
         onCopy={(record) => {
-          const detail = record as RawDetail;
-          setCopyData(buildCopyData(detail));
-          setCopyOpen(true);
+          openCopy(record as RawDetail);
         }}
         onDelete={(id) => {
           setDetailOpen(false);
