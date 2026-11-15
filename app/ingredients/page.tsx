@@ -278,7 +278,9 @@ export default function IngredientsPage() {
       />
 
       {/* 主体：五个食材清单与转化流 */}
-      <div className="mt-24 overflow-x-auto">
+      {/* pt-4 是给卡片 hover 上浮预留的空间：滚动容器会裁切越界内容，
+          没有这段内边距，卡片上浮时顶部边框会被切掉 */}
+      <div className="mt-20 overflow-x-auto pt-4">
         <div
           ref={boardRef}
           className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr_110px_1fr]"
