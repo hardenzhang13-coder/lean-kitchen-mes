@@ -189,6 +189,23 @@ export async function POST(req: NextRequest) { /* ... */ }
 | `docs/` | 产品需求文档（PRD） |
 | `design/` | 设计文档 |
 
+## Agent Skills
+
+共享 Skill 的正本在 `.agents/skills/`（已纳入 git，所有 Agent 共用）；`.claude/skills/<name>` 是指向它的目录链接，仅为 Claude Code 发现而存在，**不要在那里改内容**。
+
+**开始相关任务前先加载对应 Skill**：
+
+| Skill | 触发场景 |
+|---|---|
+| `verify-change` | 代码改完、提交前、回答「是否通过」 |
+| `prisma-migration-guard` | 改 `prisma/schema.prisma`、新增迁移、部署涉库 |
+| `api-endpoint` | 新增或修改 `app/api/**` 路由 |
+| `ui-baseline` | 任何页面 / 组件 / 弹窗 / 表格改动 |
+| `domain-pricing` | 价格、成本、出成率、单位、份量、库存份数 |
+| `commit-hygiene` | `git add` / `git commit` |
+
+维护规则见 [`.agents/skills/README.md`](.agents/skills/README.md)：只写仓库真实约定、引用而不复制、约定变更与 Skill 同提交。新增 Skill 时同时创建 `.claude/skills` 下的目录链接。
+
 ## 命名约定
 
 - **API 路由文件**：统一为 `route.ts`
