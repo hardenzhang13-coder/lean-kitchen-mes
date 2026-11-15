@@ -17,6 +17,8 @@ describe("access control", () => {
     expect(canAccessPage("/settings", "业务运营")).toBe(true);
     expect(canAccessPage("/settings/profile", "厨师长")).toBe(true);
     expect(canAccessPage("/schedules", "厨师长")).toBe(true);
-    expect(canAccessPage("/schedules", "业务运营")).toBe(false);
+    // 业务运营可查看排程与计划单进度，但写操作仍限 admin/chef（见上一条用例）
+    expect(canAccessPage("/schedules", "业务运营")).toBe(true);
+    expect(canAccessPage("/production-plans", "业务运营")).toBe(true);
   });
 });

@@ -94,7 +94,7 @@ export function ScheduleCuttingTable({
       ["切配工单"],
       ["排程标题", meta.title],
       ["门店", meta.storeName],
-      ["生产日期", dateText],
+      ["售卖日期", dateText],
       ["单号", meta.code ?? "SCH-" + String(meta.scheduleId).padStart(4, "0")],
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],

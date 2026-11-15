@@ -38,6 +38,10 @@ interface BomPickerDialogProps {
   hideCategories?: boolean;
   /** 展示全部分类（默认按 type 过滤；酱料配方选净料/小料时跨全部分类） */
   allCategories?: boolean;
+  /** 是否展示底部用量输入；菜品 BOM 关闭，直接采用食材规格 */
+  showAmountInput?: boolean;
+  /** 单选模式：菜品 BOM 添加一次只选一项；酱料配方默认多选 */
+  singleSelect?: boolean;
 }
 
 const TYPE_TITLES: Record<BomType, string> = {
@@ -58,6 +62,8 @@ export function BomPickerDialog({
   title,
   hideCategories = false,
   allCategories = false,
+  showAmountInput = true,
+  singleSelect = false,
 }: BomPickerDialogProps) {
   const { l1Categories, l2Categories, hasCategories } = useMemo(() => {
     if (hideCategories || type === "sauce") {
@@ -188,6 +194,10 @@ export function BomPickerDialog({
   };
 
   const handleRowClick = (row: IngredientOption) => {
+    if (singleSelect) {
+      setSelectedItems(new Map([[row.id, row]]));
+      return;
+    }
     setSelectedItems((prev) => {
       const next = new Map(prev);
       if (next.has(row.id)) {
@@ -201,7 +211,11 @@ export function BomPickerDialog({
 
   const handleConfirm = () => {
     if (selectedItems.size === 0) return;
-    const items = Array.from(selectedItems.values()).map((option) => ({ option, amountG }));
+    const items = Array.from(selectedItems.values()).map((option) => ({
+      option,
+      // 菜品 BOM 不手填用量：直接采用食材规格（净料/小料 = 封装规格；其余回退 100g）
+      amountG: showAmountInput ? amountG : String(option.packageSpec ?? 100),
+    }));
     onSelect(items);
     onOpenChange(false);
   };
@@ -411,18 +425,24 @@ export function BomPickerDialog({
             <div className="flex-1 min-h-0 overflow-auto rounded-md border">
               {renderTableContent()}
             </div>
+          </div>
+        </div>
 
-            <div className="shrink-0 flex items-center justify-between gap-4 pt-2">
-              <div className="flex items-center gap-4">
-                <div className="text-sm text-muted-foreground min-h-[1.5rem]">
-                  {selectedItems.size > 0 ? (
-                    <span className="text-foreground">
-                      已选择 <span className="font-medium">{selectedItems.size}</span> 项
-                    </span>
-                  ) : (
-                    "请点击右侧表格选择原料"
-                  )}
-                </div>
+        <DialogFooter className="px-6 pt-0 pb-6">
+          <div className="flex w-full flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="text-sm text-muted-foreground min-h-[1.5rem]">
+                {selectedItems.size > 0 ? (
+                  <span className="text-foreground">
+                    已选择 <span className="font-medium">{selectedItems.size}</span> 项
+                  </span>
+                ) : singleSelect ? (
+                  "请选择一项原料"
+                ) : (
+                  "请选择原料"
+                )}
+              </div>
+              {showAmountInput && (
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-muted-foreground">用量</span>
                   <Input
@@ -435,26 +455,16 @@ export function BomPickerDialog({
                   />
                   <span className="text-sm text-muted-foreground">g</span>
                 </div>
-              </div>
-              <Button
-                onClick={handleConfirm}
-                disabled={selectedItems.size === 0 || loading}
-                className="h-11 px-6"
-              >
-                确认选择
-              </Button>
+              )}
             </div>
+            <Button
+              onClick={handleConfirm}
+              disabled={selectedItems.size === 0 || loading}
+              className="h-11 px-6"
+            >
+              确认选择
+            </Button>
           </div>
-        </div>
-
-        <DialogFooter className="px-6 pt-0 pb-6">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
-          >
-            取消
-          </Button>
         </DialogFooter>
       </AppDialogContent>
     </FormDialog>

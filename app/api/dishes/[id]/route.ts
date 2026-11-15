@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
 import { resolveUsernameToName } from "@/lib/server/user-resolve";
-import { success, badRequest, notFound } from "@/lib/server/api-response";
+import { success, badRequest, notFound, conflict } from "@/lib/server/api-response";
 import { updateDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
-import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
+import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 import {
   computeCostPricePerJin,
   resolveRecipeLines,
@@ -32,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               processingFeePerJin: true,
               grossMarginRate: true,
               packageSpec: true,
+              portion: true,
               unit: true,
               sourceIngredient: { select: { pricePerJin: true } },
             },
@@ -51,6 +52,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               processingFeePerJin: true,
               grossMarginRate: true,
               packageSpec: true,
+              portion: true,
               unit: true,
               sourceIngredient: { select: { pricePerJin: true } },
             },
@@ -85,10 +87,64 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
 
   const currentCost =
-    (await getCurrentDishCostMap([row.id])).get(row.id) ?? 0;
+    (await getCurrentDishCostBreakdownMap([row.id])).get(row.id) ?? {
+      main: 0,
+      support: 0,
+      minor: 0,
+      seasoning: 0,
+      sauce: 0,
+      total: 0,
+    };
+  const scheduleRefCount = await prisma.scheduleItem.count({
+    where: { dishId: row.id },
+  });
+  const scheduleRefs =
+    scheduleRefCount > 0
+      ? await prisma.schedule.findMany({
+          where: { items: { some: { dishId: row.id } } },
+          orderBy: [{ scheduleDate: "desc" }, { id: "desc" }],
+          take: 5,
+          select: {
+            id: true,
+            code: true,
+            title: true,
+            scheduleDate: true,
+            status: true,
+            store: { select: { name: true } },
+            items: {
+              where: { dishId: row.id },
+              select: { quantity: true },
+              take: 1,
+            },
+          },
+        })
+      : [];
+  const mainCount = row.netDetails.filter((d) => d.role === "main").length;
+  const supportCount = row.netDetails.filter((d) => d.role === "support").length;
   const enriched = {
     ...row,
-    cost: currentCost,
+    cost: currentCost.total,
+    costBreakdown: currentCost,
+    scheduleRefCount,
+    scheduleRefs: scheduleRefs.map((schedule) => ({
+      id: schedule.id,
+      code: schedule.code,
+      title: schedule.title,
+      scheduleDate: schedule.scheduleDate,
+      status: schedule.status,
+      storeName: schedule.store?.name ?? null,
+      quantity: schedule.items[0]?.quantity ?? 0,
+    })),
+    bomSummary: {
+      main: mainCount,
+      support: supportCount,
+      minor: row.minorDetails.length,
+      seasoning: row.seasoningDetails.length,
+      sauce: row.sauceDetails.length,
+      hasMain: mainCount > 0,
+      hasSupport: supportCount > 0,
+      complete: mainCount > 0 && supportCount > 0,
+    },
     // 主料/辅料/小料统一附价格体系（净料单价/成本价/标准规格价），前端展示口径一致
     netDetails: row.netDetails.map((d) => ({
       ...d,
@@ -149,7 +205,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const validation = validateBody(updateDishSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, intro, cuisine, technique, taste, portion, season, meatType, cost, price, status } =
+    const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price } =
       validation.data;
 
     const user = getUserFromRequest(req);
@@ -159,26 +215,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id: Number(id) },
       select: { status: true },
     });
-    if (existing?.status === "published") {
-      const rest = { name, intro, cuisine, technique, taste, portion, season, meatType, cost, price };
+    if (!existing) return notFound("菜品不存在");
+    if (existing.status !== "draft") {
+      const rest = { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price };
       const hasOtherChanges = Object.values(rest).some((v) => v !== undefined);
-      if (hasOtherChanges || status !== "draft") {
-        return badRequest("已发布菜品不可修改，请先下架");
+      if (hasOtherChanges) {
+        return badRequest("已发布或已停用菜品不可修改，请先下架为草稿");
       }
     }
 
     const updateData: Record<string, unknown> = { operator };
     if (name !== undefined) updateData.name = name;
     if (intro !== undefined) updateData.intro = intro || null;
+    if (categoryId !== undefined) updateData.categoryId = categoryId;
     if (cuisine !== undefined) updateData.cuisine = cuisine || null;
     if (technique !== undefined) updateData.technique = technique || null;
     if (taste !== undefined) updateData.taste = taste || null;
-    if (portion !== undefined) updateData.portion = portion || "单人份";
+    if (portion !== undefined) updateData.portion = portion || "小碗菜";
     if (season !== undefined) updateData.season = season || "四季";
     if (meatType !== undefined) updateData.meatType = meatType || null;
-    if (cost !== undefined) updateData.cost = cost != null ? cost : null;
     if (price !== undefined) updateData.price = price != null ? price : null;
-    if (status !== undefined) updateData.status = status;
 
     const row = await prisma.dish.update({
       where: { id: Number(id) },
@@ -203,8 +259,17 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   const { id } = await params;
   try {
     const row = await prisma.dish.findUnique({ where: { id: Number(id) } });
-    if (row?.status === "published") {
-      return badRequest("已发布菜品不可删除");
+    if (!row) return notFound("菜品不存在");
+    if (row.status === "published") {
+      return badRequest("已发布菜品不可删除，请先下架或停用");
+    }
+    const scheduleRefCount = await prisma.scheduleItem.count({
+      where: { dishId: Number(id) },
+    });
+    if (scheduleRefCount > 0) {
+      return conflict(
+        `该菜品已被 ${scheduleRefCount} 个排程引用，不能删除；可改为停用`
+      );
     }
     await prisma.dish.delete({ where: { id: Number(id) } });
     await logOperation(req, {

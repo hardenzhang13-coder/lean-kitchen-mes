@@ -19,6 +19,7 @@ const statusMap: Record<string, StatusVariant> = {
   已报销: "success",
   // 排程
   已发布: "success",
+  已停用: "warning",
   待生效: "warning",
   进行中: "info",
   已完成: "success",

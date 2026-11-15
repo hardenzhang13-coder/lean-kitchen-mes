@@ -19,6 +19,15 @@ export async function buildCuttingOrders(
 ) {
   const dishIds = items.map((i) => i.dishId);
 
+  // 同一道菜可能出现多行（历史数据或外部调用方），按菜合并份数，避免只取第一行导致少算。
+  const quantityByDish = new Map<number, number>();
+  for (const item of items) {
+    quantityByDish.set(
+      item.dishId,
+      (quantityByDish.get(item.dishId) ?? 0) + item.quantity
+    );
+  }
+
   // 1. 获取所有菜品的主料/辅料 BOM
   const netDetails = await prisma.dishNetDetail.findMany({
     where: { dishId: { in: dishIds } },
@@ -84,10 +93,10 @@ export async function buildCuttingOrders(
   >();
 
   for (const detail of netDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const net = detail.netIngredient;
-    const qty = Number(detail.amountG) * item.quantity;
+    const qty = Number(detail.amountG) * quantity;
 
     const existing = netMap.get(net.id);
     if (existing) {
@@ -132,11 +141,11 @@ export async function buildCuttingOrders(
   >();
 
   for (const detail of minorDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const minor = detail.netIngredient;
     if (!minor) continue;
-    const qty = Number(detail.amountG) * item.quantity;
+    const qty = Number(detail.amountG) * quantity;
 
     const existing = minorMap.get(minor.id);
     if (existing) {
@@ -199,6 +208,15 @@ export async function buildPurchasePlans(
   seasoningL2Codes: string[]
 ) {
   const dishIds = items.map((i) => i.dishId);
+
+  // 与 buildCuttingOrders 同一口径：重复菜品行按菜合并份数。
+  const quantityByDish = new Map<number, number>();
+  for (const item of items) {
+    quantityByDish.set(
+      item.dishId,
+      (quantityByDish.get(item.dishId) ?? 0) + item.quantity
+    );
+  }
   const [jinFactors, gramsPerJin, weightUnitNames] = await Promise.all([
     getJinFactors(prisma),
     getGramsPerJin(prisma),
@@ -380,23 +398,23 @@ export async function buildPurchasePlans(
   };
 
   for (const detail of netDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const src = detail.netIngredient.sourceIngredient;
     if (!src) continue;
 
-    const netNeed = Number(detail.amountG) * item.quantity; // 净料总需求(g)
+    const netNeed = Number(detail.amountG) * quantity; // 净料总需求(g)
     addSourceGrossNeed(src, netNeed, Number(detail.netIngredient.yieldRate));
   }
 
   // 7. 小料同口径并入原料毛需求（不再作为独立采购品）
   for (const detail of minorDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const src = detail.netIngredient.sourceIngredient;
     if (!src) continue;
 
-    const minorNeed = Number(detail.amountG) * item.quantity; // 小料总需求(g)
+    const minorNeed = Number(detail.amountG) * quantity; // 小料总需求(g)
     addSourceGrossNeed(src, minorNeed, Number(detail.netIngredient.yieldRate));
   }
 
@@ -404,11 +422,11 @@ export async function buildPurchasePlans(
   const seasoningMap = new Map<number, PlanAgg>();
 
   for (const detail of seasoningDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const seasoning = seasonings.find((s) => s.id === detail.sourceId);
     if (!seasoning) continue;
-    const need = Number(detail.amountG) * item.quantity;
+    const need = Number(detail.amountG) * quantity;
 
     const existing = seasoningMap.get(seasoning.id);
     if (existing) {
@@ -437,11 +455,11 @@ export async function buildPurchasePlans(
   const sauceMap = new Map<number, PlanAgg>();
 
   for (const detail of sauceDetails) {
-    const item = items.find((i) => i.dishId === detail.dishId);
-    if (!item) continue;
+    const quantity = quantityByDish.get(detail.dishId);
+    if (quantity == null) continue;
     const sauce = sauces.find((s) => s.id === detail.sauceId);
     if (!sauce) continue;
-    const need = Number(detail.amountG) * item.quantity;
+    const need = Number(detail.amountG) * quantity;
 
     const existing = sauceMap.get(sauce.id);
     if (existing) {

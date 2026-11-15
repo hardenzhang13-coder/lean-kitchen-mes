@@ -87,6 +87,36 @@ describe("buildCuttingOrders", () => {
     });
   });
 
+  it("同一道菜出现多行时按菜合并份数，不再只取第一行", async () => {
+    const prisma = makePrismaMock({
+      netDetails: [
+        {
+          dishId: 1,
+          spec: "",
+          amountG: 100,
+          netIngredient: {
+            id: 7,
+            code: "NET-0007",
+            name: "土豆丝",
+            unit: "g",
+            l2Code: "POR",
+            packageSpec: 200,
+          },
+        },
+      ],
+      l2Cats: L2_CATS,
+      l1Cats: L1_CATS,
+    });
+
+    const rows = await buildCuttingOrders(prisma, 1, [
+      { dishId: 1, quantity: 2 },
+      { dishId: 1, quantity: 3 },
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0].requiredQty).toBe(500); // 100 × (2 + 3)
+  });
+
   it("小料规格取自净料档案 spec 字段", async () => {
     const prisma = makePrismaMock({
       minorDetails: [

@@ -2,12 +2,17 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { Label } from "@/components/ui/label";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { DatePicker } from "@/app/components/ui/date-picker";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { Pagination } from "@/app/components/ui/pagination";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { formatDate, getWeekDay, dayOffsetInputValue } from "@/lib/shared/date-format";
 import { toast } from "sonner";
 
 interface ScheduleOption {
@@ -21,38 +26,39 @@ interface ScheduleOption {
 }
 
 interface ProductionPlanFormProps {
-  mode: "create" | "edit";
-  planId?: number;
-  initialTitle?: string;
+  planId: number;
   initialPlanDate?: string;
   initialScheduleIds?: number[];
 }
 
-function getTomorrow() {
-  const date = new Date();
-  date.setDate(date.getDate() + 1);
-  return date.toISOString().slice(0, 10);
-}
-
-function getWeekDay(dateStr: string) {
-  const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-  return days[new Date(dateStr).getDay()];
-}
+const OPTION_PAGE_SIZE = 10;
 
 export function ProductionPlanForm({
-  mode,
   planId,
-  initialTitle = "",
   initialPlanDate,
   initialScheduleIds = [],
 }: ProductionPlanFormProps) {
   const router = useRouter();
-  const [title, setTitle] = useState(initialTitle);
-  const [planDate, setPlanDate] = useState(initialPlanDate ?? getTomorrow());
+  const [planDate, setPlanDate] = useState(
+    initialPlanDate ?? dayOffsetInputValue(1)
+  );
   const [options, setOptions] = useState<ScheduleOption[]>([]);
   const [picked, setPicked] = useState<Set<number>>(() => new Set(initialScheduleIds));
+  const [known, setKnown] = useState<Map<number, ScheduleOption>>(new Map());
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     let alive = true;
@@ -62,12 +68,24 @@ export function ProductionPlanForm({
         const params = new URLSearchParams({
           status: "进行中",
           availableForPlan: "1",
-          pageSize: "100",
+          page: String(page),
+          pageSize: String(OPTION_PAGE_SIZE),
         });
         if (planId != null) params.set("excludePlanId", String(planId));
+        if (debouncedSearch) params.set("q", debouncedSearch);
         const res = await fetch("/api/schedules?" + params.toString());
         const data = await res.json();
-        if (alive) setOptions(data.data || []);
+        if (!alive) return;
+        const list: ScheduleOption[] = data.data || [];
+        setOptions(list);
+        setPagination(data.pagination || null);
+        setKnown((previous) => {
+          const next = new Map(previous);
+          for (const option of list) {
+            if (next.has(option.id)) next.set(option.id, option);
+          }
+          return next;
+        });
       } catch {
         if (alive) toast.error("获取排程单失败");
       } finally {
@@ -78,34 +96,45 @@ export function ProductionPlanForm({
     return () => {
       alive = false;
     };
-  }, [planId]);
+  }, [planId, page, debouncedSearch]);
 
   const pickedOptions = useMemo(
-    () => options.filter((option) => picked.has(option.id)),
-    [options, picked]
+    () => [...picked].map((id) => known.get(id)).filter((option): option is ScheduleOption => !!option),
+    [picked, known]
   );
-  const pickedTotalQty = pickedOptions.reduce(
-    (sum, option) => sum + option.totalQuantity,
-    0
-  );
+  const pickedTotalQty = pickedOptions.reduce((sum, option) => sum + option.totalQuantity, 0);
   const pickedDateCount = new Set(
     pickedOptions.map((option) => option.scheduleDate.slice(0, 10))
   ).size;
 
-  const toggle = (id: number) => {
+  const toggle = (option: ScheduleOption) => {
     setPicked((previous) => {
       const next = new Set(previous);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(option.id)) next.delete(option.id);
+      else next.add(option.id);
+      return next;
+    });
+    setKnown((previous) => new Map(previous).set(option.id, option));
+  };
+
+  const allOnPagePicked = options.length > 0 && options.every((option) => picked.has(option.id));
+  const togglePage = () => {
+    setPicked((previous) => {
+      const next = new Set(previous);
+      for (const option of options) {
+        if (allOnPagePicked) next.delete(option.id);
+        else next.add(option.id);
+      }
+      return next;
+    });
+    setKnown((previous) => {
+      const next = new Map(previous);
+      for (const option of options) next.set(option.id, option);
       return next;
     });
   };
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast.error("请填写标题");
-      return;
-    }
     if (picked.size === 0) {
       toast.error("请至少选择一张进行中的排程单");
       return;
@@ -113,25 +142,18 @@ export function ProductionPlanForm({
 
     setSubmitting(true);
     try {
-      const res = await fetch(
-        mode === "create" ? "/api/production-plans" : `/api/production-plans/${planId}`,
-        {
-          method: mode === "create" ? "POST" : "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: title.trim(),
-            planDate,
-            scheduleIds: [...picked],
-          }),
-        }
-      );
+      const res = await fetch(`/api/production-plans/${planId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planDate, scheduleIds: [...picked] }),
+      });
       const data = await res.json();
       if (!res.ok) {
-        toast.error(data.error || (mode === "create" ? "创建失败" : "修改失败"));
+        toast.error(data.error || "修改失败");
         return;
       }
-      toast.success(mode === "create" ? "生产计划单创建成功" : "生产计划单修改成功");
-      router.push("/production-plans/" + (mode === "create" ? data.data.id : planId));
+      toast.success("生产计划单修改成功");
+      router.push("/production-plans/" + planId);
     } catch {
       toast.error("提交出错");
     } finally {
@@ -139,72 +161,78 @@ export function ProductionPlanForm({
     }
   };
 
-  const backHref =
-    mode === "edit" && planId != null
-      ? `/production-plans/${planId}`
-      : "/schedules?tab=plans";
+  const backHref = `/production-plans/${planId}`;
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" aria-label="返回" onClick={() => router.push(backHref)}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {mode === "create" ? "新增生产计划单" : "修改生产计划单"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            汇总各门店「进行中」排程单的切配工单与采购计划
-          </p>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        showBack
+        backHref={backHref}
+        backLabel="返回"
+        title="修改生产计划单"
+        description="把各门店「进行中」的排程单汇总成一张执行单，切配中心据此切配、完成生产并入库"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => router.push(backHref)} disabled={submitting}>
+              取消
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting}>
+              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              保存修改
+            </Button>
+          </>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border p-4">
-        <div className="space-y-2">
-          <Label htmlFor="production-plan-title">
-            标题 <span className="text-destructive">*</span>
-          </Label>
-          <Input
-            id="production-plan-title"
-            placeholder="如：周五切配中心生产计划"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label>
-            生产日期 <span className="text-destructive">*</span>
-          </Label>
-          <DatePicker value={planDate} onChange={setPlanDate} placeholder="请选择生产日期" />
-        </div>
-      </div>
+      <FormSection cols={2}>
+        <FormField id="production-plan-date" label="生产日期" required optionalHint={false}>
+          <DatePicker value={planDate} onChange={setPlanDate} placeholder="请选择生产日期" showWeekday />
+        </FormField>
+      </FormSection>
 
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="font-medium">
-            选择进行中的排程单 <span className="text-primary">已选 {picked.size} 张</span>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-foreground">
+            选择进行中的排程单
+            <span className="ml-2 font-normal text-primary">已选 {picked.size} 张</span>
+            <span className="ml-2 font-normal text-muted-foreground">合计 {pickedTotalQty} 份</span>
           </h3>
-          <span className="text-sm text-muted-foreground">合计 {pickedTotalQty} 份</span>
+          <div className="flex items-center gap-2">
+            <Input
+              placeholder="搜索排程标题..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-[220px]"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={togglePage}
+              disabled={options.length === 0}
+            >
+              {allOnPagePicked ? "取消本页全选" : "全选本页"}
+            </Button>
+          </div>
         </div>
 
         {pickedDateCount > 1 && (
           <div className="rounded-lg border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-            当前已选排程跨 {pickedDateCount} 个生产日期，将统一汇总到计划日期{" "}
-            {new Date(planDate).toLocaleDateString("zh-CN")}。
+            已选排程跨 {pickedDateCount} 个生产日期，将统一汇总到计划日期{" "}
+            {formatDate(planDate)}。
           </div>
         )}
 
         {loading ? (
           <div className="space-y-2">
-            {[1, 2].map((item) => (
-              <div key={item} className="h-20 bg-muted rounded-lg animate-pulse" />
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="h-20 animate-pulse rounded-lg bg-muted" />
             ))}
           </div>
         ) : options.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-            暂无可汇总的「进行中」排程单
-          </div>
+          <EmptyState
+            title="暂无可汇总的排程单"
+            description="只有「进行中」且未纳入其他生产计划单的排程才能汇总。"
+          />
         ) : (
           <div className="space-y-2">
             {options.map((option) => {
@@ -213,7 +241,7 @@ export function ProductionPlanForm({
                 <label
                   key={option.id}
                   className={
-                    "flex items-start gap-3 rounded-lg border p-4 cursor-pointer transition-colors " +
+                    "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors " +
                     (checked ? "border-primary bg-primary/5" : "hover:bg-muted/40")
                   }
                 >
@@ -221,21 +249,20 @@ export function ProductionPlanForm({
                     type="checkbox"
                     className="mt-1"
                     checked={checked}
-                    onChange={() => toggle(option.id)}
+                    onChange={() => toggle(option)}
                     aria-label={`选择 ${option.title}`}
                   />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
                       <span className="font-medium">{option.title}</span>
                       <span className="font-mono text-xs text-muted-foreground">
                         {option.code ?? "排程 #" + option.id}
                       </span>
                       <StatusBadge status={option.status} />
                     </div>
-                    <div className="text-sm text-muted-foreground mt-1">
-                      {new Date(option.scheduleDate).toLocaleDateString("zh-CN")}{" "}
-                      {getWeekDay(option.scheduleDate)} · {option.dishCount} 个菜品 /{" "}
-                      {option.totalQuantity} 份
+                    <div className="mt-1 text-sm text-muted-foreground">
+                      {formatDate(option.scheduleDate)} {getWeekDay(option.scheduleDate)} ·{" "}
+                      {option.dishCount} 个菜品 / {option.totalQuantity} 份
                     </div>
                   </div>
                 </label>
@@ -243,20 +270,19 @@ export function ProductionPlanForm({
             })}
           </div>
         )}
+
+        {pagination && pagination.totalItems > 0 && (
+          <Pagination
+            currentPage={page}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+          />
+        )}
+
         <p className="text-xs text-muted-foreground">
           只能汇总「进行中」且未纳入其他生产计划单的排程；来源排程可跨日期，系统不限制日期一致。
         </p>
       </div>
-
-      <div className="flex justify-end gap-2">
-        <Button variant="outline" onClick={() => router.push(backHref)}>
-          取消
-        </Button>
-        <Button onClick={handleSubmit} disabled={submitting}>
-          {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {mode === "create" ? "生成生产计划单" : "保存修改"}
-        </Button>
-      </div>
-    </div>
+    </PageShell>
   );
 }

@@ -59,7 +59,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
       ["采购计划单"],
       ["排程标题", meta.title],
       ["收货单位", "净菜加工中心（统一采购，与门店无关）"],
-      ["生产日期", dateText],
+      ["售卖日期", dateText],
       ["单号", meta.code ?? "SCH-" + String(meta.scheduleId).padStart(4, "0")],
       ["打印时间", new Date().toLocaleString("zh-CN")],
       [],

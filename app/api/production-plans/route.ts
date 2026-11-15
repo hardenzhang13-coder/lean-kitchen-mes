@@ -12,6 +12,7 @@ import {
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
 import { resolveUsernamesToNames } from "@/lib/server/user-resolve";
+import { buildProductionPlanTitle } from "@/lib/shared/production-plan-title";
 import { logger } from "@/lib/server/logger";
 
 export async function GET(req: NextRequest) {
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
     const [rows, totalItems] = await Promise.all([
       prisma.productionPlan.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ planDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: pageSize,
         include: { _count: { select: { schedules: true } } },
@@ -67,12 +68,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validation = validateBody(createProductionPlanSchema, body);
     if (!validation.success) return validation.response;
-    const { title, planDate, scheduleIds } = validation.data;
+    const { planDate, scheduleIds } = validation.data;
 
     const uniqueIds = [...new Set(scheduleIds)];
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
     const planDateObj = new Date(planDate);
+    // 标题是派生字段：由生产日期生成，不接受客户端传入
+    const generatedTitle = buildProductionPlanTitle(planDate);
 
     let result: Awaited<ReturnType<typeof prisma.productionPlan.create>> | null = null;
     for (let attempt = 0; attempt < 5 && !result; attempt++) {
@@ -84,7 +87,7 @@ export async function POST(req: NextRequest) {
           return await tx.productionPlan.create({
             data: {
               code,
-              title: title.trim(),
+              title: generatedTitle,
               planDate: planDateObj,
               status: "待生效",
               operator,

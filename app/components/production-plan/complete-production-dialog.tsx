@@ -38,6 +38,7 @@ interface CompleteProductionDialogProps {
 export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onCompleted }: CompleteProductionDialogProps) {
   const [workRows, setWorkRows] = useState<WorkRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [search, setSearch] = useState("");
 
   // props 变化时重置本地状态：按 React 官方建议在渲染期调整，
   // 避免在 effect 中同步 setState 造成级联渲染。
@@ -79,11 +80,20 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
     setWorkRows((ws) => ws.map((w) => (w.key === key ? { ...w, ...patch } : w)));
   };
 
+  const normalizedSearch = search.trim().toLowerCase();
+  const visibleRows = normalizedSearch
+    ? workRows.filter(
+        (w) =>
+          w.row.itemName.toLowerCase().includes(normalizedSearch) ||
+          w.row.sourceCode.toLowerCase().includes(normalizedSearch)
+      )
+    : workRows;
+
   const submit = async () => {
     for (const w of workRows) {
       if (w.status === "completed") {
         const p = Number(w.portions);
-        if (w.portions === "" as unknown as number || Number.isNaN(p) || p < 0) {
+        if (Number.isNaN(p) || p < 0) {
           toast.error(`${w.row.itemName} 请填写有效的实际完成份数`);
           return;
         }
@@ -137,6 +147,22 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
           提交后净菜<b>自动入库</b>（份 + g 双单位）。
         </p>
 
+        {workRows.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              placeholder="搜索净料名称或编号..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="w-[240px]"
+            />
+            {normalizedSearch && (
+              <span className="text-xs text-muted-foreground">
+                显示 {visibleRows.length} / {workRows.length} 行（提交仍覆盖全部待确认行）
+              </span>
+            )}
+          </div>
+        )}
+
         {workRows.length === 0 ? (
           <EmptyState
             title="没有待确认的切配行"
@@ -161,8 +187,8 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {workRows.map((w) => (
-                  <TableRow key={w.key} className={"transition-colors " + (w.status === "unfinished" ? "bg-danger-muted hover:bg-danger-muted/80" : "hover:bg-muted/40")}>
+                {visibleRows.map((w) => (
+                  <TableRow key={w.key} className={"transition-colors " + (w.status === "unfinished" ? "bg-[var(--status-danger-bg)]" : "hover:bg-muted/40")}>
                     <TableCell className="font-medium bg-muted/30">{w.row.l1Name}</TableCell>
                     <TableCell className="text-muted-foreground">{w.row.l2Name}</TableCell>
                     <TableCell className="font-mono text-xs">{w.row.sourceCode}</TableCell>
@@ -195,9 +221,9 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
                               "px-2.5 py-1 text-xs transition-colors " +
                               (w.status === st
                                 ? st === "completed"
-                                  ? "bg-green-50 text-green-600 font-medium"
+                                  ? "bg-[var(--status-success-bg)] text-[var(--status-success)] font-medium"
                                   : st === "unfinished"
-                                    ? "bg-red-50 text-red-600 font-medium"
+                                    ? "bg-[var(--status-danger-bg)] text-[var(--status-danger)] font-medium"
                                     : "bg-muted text-muted-foreground font-medium"
                                 : "bg-background text-muted-foreground hover:bg-muted")
                             }
@@ -224,8 +250,8 @@ export function CompleteProductionDialog({ open, onOpenChange, planId, rows, onC
         )}
 
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 rounded-lg border bg-muted/40 p-4 text-sm">
-          <span>本次入库 <b className="text-green-600">{summary.inKinds}</b> 种 / 共 <b className="text-green-600">{formatPortionsCount(summary.inP)}</b>（{formatWeight(summary.inG)}）</span>
-          <span>未完成 <b className="text-red-600">{summary.undone}</b> 种</span>
+          <span>本次入库 <b className="text-[var(--status-success)]">{summary.inKinds}</b> 种 / 共 <b className="text-[var(--status-success)]">{formatPortionsCount(summary.inP)}</b>（{formatWeight(summary.inG)}）</span>
+          <span>未完成 <b className="text-[var(--status-danger)]">{summary.undone}</b> 种</span>
           <span>暂不确认 <b>{summary.hold}</b> 种（留待下次）</span>
         </div>
 

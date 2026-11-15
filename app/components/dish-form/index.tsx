@@ -28,7 +28,6 @@ import {
   bomToPayload,
   totalBomCost,
   validatePublish,
-  validateDishDetailForPublish,
   normalizeNetIngredients,
   normalizeIngredients,
   normalizeSauces,
@@ -48,7 +47,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   const [localStatus, setLocalStatus] = useState(initialDish?.status || "draft");
   const [lastDishId, setLastDishId] = useState<number | null>(initialDish?.id ?? null);
   const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
-  const isReadOnly = localStatus === "published" || mode === "view";
+  const isReadOnly = localStatus !== "draft" || mode === "view";
 
   const [form, setForm] = useState<DishFormData>(() =>
     initialDish ? dishToFormData(initialDish) : defaultFormData()
@@ -112,7 +111,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     return normalizeFn(data);
   }, []);
 
-  const saveBasicInfo = async (dishId: number, status: "draft" | "published") => {
+  const saveBasicInfo = async (dishId: number) => {
     const body = {
       name: form.name,
       intro: form.intro || undefined,
@@ -124,7 +123,6 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       season: form.season || "四季",
       meatType: form.meatType || undefined,
       price: form.price ? Number(form.price) : null,
-      status,
     };
     const res = await fetch(`/api/dishes/${dishId}`, {
       method: "PUT",
@@ -134,6 +132,21 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || "保存基础信息失败");
+    }
+  };
+
+  const changeStatus = async (
+    dishId: number,
+    action: "publish" | "unpublish" | "deactivate" | "restore"
+  ) => {
+    const res = await fetch(`/api/dishes/${dishId}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || "状态更新失败");
     }
   };
 
@@ -177,7 +190,6 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         season: form.season || "四季",
         meatType: form.meatType || undefined,
         price: form.price ? Number(form.price) : null,
-        status: "draft",
       }),
     });
     if (!res.ok) {
@@ -190,7 +202,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     await saveBom(dishId);
     await saveProcesses(dishId);
     if (status === "published") {
-      await saveBasicInfo(dishId, "published");
+      await changeStatus(dishId, "publish");
     }
     return dishId;
   };
@@ -200,7 +212,10 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     const dishId = initialDish.id;
     await saveBom(dishId);
     await saveProcesses(dishId);
-    await saveBasicInfo(dishId, status);
+    await saveBasicInfo(dishId);
+    if (status === "published") {
+      await changeStatus(dishId, "publish");
+    }
     return dishId;
   };
 
@@ -225,28 +240,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     if (mode === "view" && lastDishId) {
       setSubmitting(true);
       try {
-        const detailRes = await fetch(`/api/dishes/${lastDishId}`);
-        if (!detailRes.ok) {
-          const data = await detailRes.json().catch(() => ({}));
-          throw new Error(data.error || "获取菜品详情失败");
-        }
-        const detailJson = await detailRes.json();
-        const dishData = detailJson.data || detailJson;
-        const error = validateDishDetailForPublish(dishData);
-        if (error) {
-          toast.error(error);
-          setSubmitting(false);
-          return;
-        }
-        const res = await fetch(`/api/dishes/${lastDishId}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "published" }),
-        });
-        if (!res.ok) {
-          const data = await res.json().catch(() => ({}));
-          throw new Error(data.error || "发布失败");
-        }
+        await changeStatus(lastDishId, "publish");
         toast.success("发布成功");
         setLocalStatus("published");
         onSaved?.();
@@ -269,7 +263,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       setLastDishId(dishId);
       toast.success("发布成功");
       onSaved?.();
-      router.push(`/dishes/${dishId}`);
+      router.push("/dishes");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "保存失败");
     } finally {
@@ -282,15 +276,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     if (!dishId) return;
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/dishes/${dishId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "draft" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "下架失败");
-      }
+      await changeStatus(dishId, "unpublish");
       toast.success("已下架");
       onSaved?.();
       setLocalStatus("draft");
@@ -312,16 +298,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         <div className="flex items-center gap-2">
           {mode === "view" ? (
             <>
-              {localStatus === "published" ? (
-                <Button
-                  variant="secondary"
-                  className="h-10"
-                  onClick={handleUnpublish}
-                  disabled={submitting}
-                >
-                  下架
-                </Button>
-              ) : (
+              {localStatus === "draft" ? (
                 <Button
                   className="h-10"
                   onClick={() => {
@@ -336,16 +313,27 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
                 >
                   发布
                 </Button>
+              ) : (
+                <Button
+                  variant="secondary"
+                  className="h-10"
+                  onClick={handleUnpublish}
+                  disabled={submitting}
+                >
+                  下架
+                </Button>
               )}
-              <Button
-                variant="outline"
-                className="h-10"
-                onClick={() => router.push(`/dishes/${lastDishId}/edit`)}
-                disabled={submitting || !lastDishId}
-              >
-                <Pencil className="mr-1 h-4 w-4" />
-                编辑
-              </Button>
+              {localStatus === "draft" && (
+                <Button
+                  variant="outline"
+                  className="h-10"
+                  onClick={() => router.push(`/dishes/${lastDishId}/edit`)}
+                  disabled={submitting || !lastDishId}
+                >
+                  <Pencil className="mr-1 h-4 w-4" />
+                  编辑
+                </Button>
+              )}
             </>
           ) : isReadOnly ? (
             <Button variant="default" className="h-10" onClick={handleUnpublish} disabled={submitting}>
@@ -382,7 +370,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
 
       {/* Content */}
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-[40] min-w-[380px] max-w-[520px] overflow-y-auto p-6 border-r">
+        <div className="flex-[40] min-w-[380px] max-w-[520px] overflow-y-auto p-4 border-r [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <BasicInfoPanel data={form} onChange={setForm} categories={refs.categories} cost={currentCost} readOnly={isReadOnly} />
         </div>
         <div className="flex-[60] overflow-y-auto p-6 space-y-6 bg-muted/20">

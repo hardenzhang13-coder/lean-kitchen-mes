@@ -45,7 +45,7 @@ export function ScheduleMenuTable({ items, meta }: ScheduleMenuTableProps) {
       ["排程菜单"],
       ["排程标题", meta.title],
       ["门店", meta.storeName],
-      ["生产日期", new Date(meta.scheduleDate).toLocaleDateString("zh-CN")],
+      ["售卖日期", new Date(meta.scheduleDate).toLocaleDateString("zh-CN")],
       [],
     ];
     const headers = [

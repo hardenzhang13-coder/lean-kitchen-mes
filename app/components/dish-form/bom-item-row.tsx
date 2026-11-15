@@ -1,31 +1,23 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Input } from "@/app/components/ui/form-controls";
 import { Button } from "@/components/ui/button";
 import { CategoryTag } from "@/app/components/ui/category-tag";
-import { BomItem, BomType, calcCost, formatCost } from "./types";
+import { PortionTag } from "@/app/components/ui/portion-tag";
+import { BomItem, BomType, formatCost } from "./types";
 import { cn } from "@/lib/shared/utils";
 
 interface BomItemRowProps {
   item: BomItem;
   type: BomType;
   index: number;
-  onChange: (item: BomItem) => void;
   onRemove: () => void;
   readOnly?: boolean;
 }
 
 const isSauce = (type: BomType) => type === "sauce";
 
-export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: BomItemRowProps) {
-  const handleBlur = () => {
-    // 统一元/斤口径：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
-    const costBase = type === "sauce" ? item.unitPrice : (item.costPrice ?? null);
-    const cost = calcCost(type, costBase, item.amountG);
-    onChange({ ...item, cost });
-  };
-
+export function BomItemRow({ item, type, index, onRemove, readOnly }: BomItemRowProps) {
   const displayValue = isSauce(type) ? item.productName || "—" : item.spec || "—";
   const displayLabel = isSauce(type) ? "商品名称" : "规格";
 
@@ -44,18 +36,12 @@ export function BomItemRow({ item, type, index, onChange, onRemove, readOnly }: 
         {displayValue}
       </span>
 
-      <div className="flex items-center gap-1">
-        <Input
-          type="number"
-          min={0}
-          step={1}
-          value={item.amountG}
-          onChange={(e) => onChange({ ...item, amountG: e.target.value })}
-          onBlur={handleBlur}
-          disabled={readOnly}
-          className="h-9 text-sm px-2 font-semibold bg-muted/40 w-full"
-        />
-        <span className="text-sm font-semibold">g</span>
+      <div className="min-w-0">
+        {item.portion ? (
+          <PortionTag portion={item.portion} />
+        ) : (
+          <span className="text-sm text-muted-foreground">—</span>
+        )}
       </div>
 
       <span

@@ -17,7 +17,8 @@ export function canAccessPage(pathname: string, role?: string | null): boolean {
   if (pathname.startsWith("/settings/users")) return isAdmin(role);
   if (pathname.startsWith("/settings")) return isAdmin(role) || isOperations(role);
   if (pathname.startsWith("/schedules") || pathname.startsWith("/production-plans")) {
-    return isAdmin(role) || isChef(role);
+    // 业务运营需要查看排程与计划单进度；写操作仍由 API 层限制为 admin/chef。
+    return isAdmin(role) || isChef(role) || isOperations(role);
   }
   if (
     pathname.startsWith("/inventory/outbound/new") ||

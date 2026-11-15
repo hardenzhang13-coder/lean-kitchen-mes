@@ -14,7 +14,7 @@ export default function NewDishPage() {
     const fetchRefs = async () => {
       try {
         const [cRes, catRes] = await Promise.all([
-          fetch("/api/dish-categories"),
+          fetch("/api/dish-categories?page=1&pageSize=100"),
           fetch("/api/ingredient-categories?page=1&pageSize=100"),
         ]);
 

@@ -21,6 +21,7 @@ export async function getScheduleDetail(scheduleId: number) {
               name: true,
               portion: true,
               meatType: true,
+              status: true,
               cost: true,
               price: true,
               category: { select: { name: true } },

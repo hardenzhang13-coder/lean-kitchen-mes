@@ -1,35 +1,27 @@
 import { NextRequest } from "next/server";
-import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/server/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
-import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
+import {
+  success,
+  badRequest,
+  notFound,
+  conflict,
+  internalError,
+} from "@/lib/server/api-response";
 import { scaleDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
-import { nextCode } from "@/lib/shared/code-gen";
-import { portionScaleFactor } from "@/lib/shared/portion-scale";
+import {
+  buildPortionName,
+  portionScaleFactor,
+} from "@/lib/shared/portion-scale";
+import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
+import { createDishVariant } from "@/lib/server/dish-variant";
 import { logger } from "@/lib/server/logger";
 
-/** 可被转化的源份量规格（与净料/小料份量枚举同步） */
-const SOURCE_PORTION = "小碗菜";
-
-async function generateDishCode(tx: Prisma.TransactionClient, categoryCode: string): Promise<string> {
-  const prefix = `DSH-${categoryCode}`;
-  const last = await tx.dish.findFirst({
-    where: { code: { startsWith: `${prefix}-` } },
-    orderBy: { code: "desc" },
-  });
-  return nextCode(prefix, last?.code);
-}
-
-/** 数值按倍率缩放并保留 4 位小数（与 BOM 成本精度一致） */
-function scaleValue(value: Prisma.Decimal | number | null | undefined, factor: number): number | null {
-  if (value == null) return null;
-  return Number((Number(value) * factor).toFixed(4));
-}
-
 /**
- * 菜品转化：以「小碗菜」档案为源，按目标份量规格自动推导倍率
- * （如 小碗菜 → 小碗菜·10份 = ×10，社区·2份 = ×4），生成新规格独立草稿档案，不影响源档案。
+ * 菜品转化：以任一菜品档案为源，按目标份量规格自动推导倍率
+ * （如 小碗菜 → 社区·3份 = ×6），生成独立的草稿档案，不影响源档案。
  */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -41,7 +33,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const validation = validateBody(scaleDishSchema, body);
   if (!validation.success) return validation.response;
-  const { portion } = validation.data;
+  const { portion, name } = validation.data;
 
   const source = await prisma.dish.findUnique({
     where: { id: dishId },
@@ -55,9 +47,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     },
   });
   if (!source) return notFound("菜品不存在");
-  if (source.portion !== SOURCE_PORTION) {
-    return badRequest(`仅「${SOURCE_PORTION}」菜品档案可转化生成其它规格`);
-  }
   if (portion === source.portion) {
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }
@@ -65,8 +54,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // 倍率由份量规格自动推导：目标小碗菜等价份数 ÷ 源小碗菜等价份数
   const factor = portionScaleFactor(source.portion, portion);
   if (factor == null || factor <= 0) {
-    return badRequest("无法从目标份量规格推导转化倍率");
+    return badRequest(
+      `无法从源份量「${source.portion ?? "未知"}」推导转化倍率`
+    );
   }
+
+  const newName = name?.trim() || buildPortionName(source.name, portion);
+  const duplicate = await prisma.dish.findFirst({
+    where: { categoryId: source.categoryId, name: newName, portion },
+    select: { code: true },
+  });
+  if (duplicate) {
+    return conflict(`已存在同名同份量菜品档案：${duplicate.code}`);
+  }
+
+  // 成本按当前食材价格重算后再缩放，避免沿用 Dish.cost 历史快照
+  const sourceCost =
+    (await getCurrentDishCostMap([source.id])).get(source.id) ?? 0;
 
   const user = getUserFromRequest(req);
   const operator = user?.username || null;
@@ -77,74 +81,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
       const newDish = await prisma.$transaction(
-        async (tx) => {
-          const code = await generateDishCode(tx, source.category.code);
-          return tx.dish.create({
-            data: {
-              code,
-              name: source.name,
-              intro: source.intro,
-              categoryId: source.categoryId,
-              cuisine: source.cuisine,
-              technique: source.technique,
-              taste: source.taste,
-              portion,
-              season: source.season,
-              meatType: source.meatType,
-              // 成本与售价按倍率同步缩放
-              cost: scaleValue(source.cost, factor),
-              price: scaleValue(source.price, factor),
-              status: "draft",
-              operator,
-              netDetails: {
-                create: source.netDetails.map((d) => ({
-                  role: d.role,
-                  netIngId: d.netIngId,
-                  amountG: scaleValue(d.amountG, factor) ?? 0,
-                  spec: d.spec,
-                  cost: scaleValue(d.cost, factor),
-                })),
-              },
-              minorDetails: {
-                create: source.minorDetails.map((d) => ({
-                  netIngId: d.netIngId,
-                  amountG: scaleValue(d.amountG, factor) ?? 0,
-                  brand: d.brand,
-                  cost: scaleValue(d.cost, factor),
-                })),
-              },
-              seasoningDetails: {
-                create: source.seasoningDetails.map((d) => ({
-                  type: d.type,
-                  sourceId: d.sourceId,
-                  amountG: scaleValue(d.amountG, factor) ?? 0,
-                  brand: d.brand,
-                  cost: scaleValue(d.cost, factor),
-                })),
-              },
-              sauceDetails: {
-                create: source.sauceDetails.map((d) => ({
-                  sauceId: d.sauceId,
-                  amountG: scaleValue(d.amountG, factor) ?? 0,
-                  brand: d.brand,
-                  cost: scaleValue(d.cost, factor),
-                })),
-              },
-              // 加工工艺步骤原样复制（步骤文案不含计量缩放）
-              processes: {
-                create: source.processes.map((p) => ({
-                  stage: p.stage,
-                  stepNo: p.stepNo,
-                  object: p.object,
-                  action: p.action,
-                  description: p.description,
-                  tool: p.tool,
-                  standard: p.standard,
-                })),
-              },
-            },
-          });
-        },
+        async (tx) =>
+          createDishVariant(tx, source, {
+            name: newName,
+            portion,
+            factor,
+            cost: sourceCost,
+            operator,
+          }),
         { isolationLevel: "Serializable" }
       );
 

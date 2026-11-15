@@ -22,8 +22,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { id: dishId },
       select: { status: true },
     });
-    if (existing?.status === "published") {
-      return NextResponse.json({ error: "已发布菜品不可修改 BOM" }, { status: 400 });
+    if (existing && existing.status !== "draft") {
+      return NextResponse.json(
+        { error: "已发布或已停用菜品不可修改 BOM，请先下架为草稿" },
+        { status: 400 }
+      );
     }
 
     const seasoningL2Codes = await getSeasoningL2Codes();

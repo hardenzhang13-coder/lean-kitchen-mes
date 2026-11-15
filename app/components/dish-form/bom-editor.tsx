@@ -37,12 +37,6 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
     onChange({ ...bom, [type]: items });
   };
 
-  const handleUpdate = (type: BomType, index: number, item: BomItem) => {
-    const next = [...bom[type]];
-    next[index] = item;
-    updateType(type, next);
-  };
-
   const handleRemove = (type: BomType, index: number) => {
     const next = [...bom[type]];
     next.splice(index, 1);
@@ -58,7 +52,9 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           <CardTitle className="text-base font-heading font-medium">菜品用料</CardTitle>
           <span className="text-sm text-muted-foreground">
             估算成本：
-            <span className="font-medium text-foreground">{formatCost(totalCost)}</span>
+            <span className="text-base font-bold tabular-nums text-primary">
+              {formatCost(totalCost)}
+            </span>
           </span>
         </div>
       </CardHeader>
@@ -69,7 +65,6 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
             type={type}
             items={bom[type]}
             onAdd={() => openPicker(type)}
-            onUpdate={(idx, item) => handleUpdate(type, idx, item)}
             onRemove={(idx) => handleRemove(type, idx)}
             readOnly={readOnly}
           />
@@ -99,6 +94,7 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 unit: option.unit || "g",
                 costPrice: option.costPrice ?? null,
                 cost: calcCost(pickerType, costBase, amount),
+                portion: option.portion ?? null,
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;
@@ -108,6 +104,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           }}
           refs={refs}
           onLoadItems={onLoadItems}
+          showAmountInput={false}
+          singleSelect
         />
       )}
     </Card>
@@ -118,14 +116,12 @@ function BomSection({
   type,
   items,
   onAdd,
-  onUpdate,
   onRemove,
   readOnly,
 }: {
   type: BomType;
   items: BomItem[];
   onAdd: () => void;
-  onUpdate: (index: number, item: BomItem) => void;
   onRemove: (index: number) => void;
   readOnly?: boolean;
 }) {
@@ -156,7 +152,6 @@ function BomSection({
               type={type}
               index={idx}
               item={item}
-              onChange={(next) => onUpdate(idx, next)}
               onRemove={() => onRemove(idx)}
               readOnly={readOnly}
             />

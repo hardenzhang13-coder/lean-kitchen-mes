@@ -11,6 +11,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
+import { getWeekDay } from "@/lib/shared/date-format";
 
 interface DatePickerProps {
   value?: string;
@@ -18,6 +19,8 @@ interface DatePickerProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  /** 在日期后追加星期，便于一眼确认是周几 */
+  showWeekday?: boolean;
 }
 
 export function DatePicker({
@@ -26,6 +29,7 @@ export function DatePicker({
   placeholder = "请选择日期",
   className,
   disabled = false,
+  showWeekday = false,
 }: DatePickerProps) {
   const [open, setOpen] = useState(false);
 
@@ -49,7 +53,7 @@ export function DatePicker({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "flex h-11 w-full items-center justify-start rounded-md border border-input bg-background px-4 text-left text-base font-normal shadow-sm transition-colors",
+          "flex h-11 w-full items-center justify-start overflow-hidden whitespace-nowrap rounded-md border border-input bg-background px-4 text-left text-base font-normal shadow-sm transition-colors",
           "hover:bg-accent hover:text-accent-foreground",
           "focus:outline-none focus:border-primary",
           !value && "text-muted-foreground",
@@ -57,9 +61,16 @@ export function DatePicker({
           className
         )}
       >
-        <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+        <CalendarIcon className="mr-2 h-4 w-4 shrink-0 text-muted-foreground" />
         {selectedDate ? (
-          format(selectedDate, "yyyy年MM月dd日", { locale: zhCN })
+          <>
+            {format(selectedDate, "yyyy年MM月dd日", { locale: zhCN })}
+            {showWeekday && value && (
+              <span className="ml-2 text-sm text-muted-foreground">
+                {getWeekDay(value)}
+              </span>
+            )}
+          </>
         ) : (
           <span>{placeholder}</span>
         )}
@@ -69,7 +80,7 @@ export function DatePicker({
           mode="single"
           selected={selectedDate}
           onSelect={handleSelect}
-          locale={{ code: "zh-CN" }}
+          locale={zhCN}
         />
       </PopoverContent>
     </Popover>

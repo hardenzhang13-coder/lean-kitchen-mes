@@ -40,4 +40,22 @@ describe("详情内容分组", () => {
     expect(screen.getByText("NL-0001")).toHaveClass("font-medium");
     expect(screen.getByText("NL-0001")).not.toHaveClass("text-primary");
   });
+
+  it("支持四列布局与跨列字段", () => {
+    const { container } = render(
+      <DetailSection title="基础信息" cols={4}>
+        <InfoCell label="菜系" value="川菜" />
+        <InfoCell
+          label="菜品描述"
+          value="经典川菜"
+          className="col-span-4"
+        />
+      </DetailSection>
+    );
+
+    expect(container.querySelector("dl")).toHaveClass("lg:grid-cols-4");
+    expect(screen.getByText("菜品描述").closest("div")).toHaveClass(
+      "col-span-4"
+    );
+  });
 });

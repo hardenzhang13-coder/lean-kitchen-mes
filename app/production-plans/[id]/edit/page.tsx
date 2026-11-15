@@ -7,7 +7,6 @@ import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
 interface EditableProductionPlan {
-  title: string;
   planDate: string;
   status: string;
   sourceSchedules: Array<{ id: number }>;
@@ -28,7 +27,7 @@ export default function EditProductionPlanPage() {
         const result = await parseObject<EditableProductionPlan>(res);
         if (!result) {
           toast.error("生产计划单不存在");
-          router.push("/schedules?tab=plans");
+          router.push("/production-plans");
           return;
         }
         if (result.status !== "待生效") {
@@ -60,9 +59,7 @@ export default function EditProductionPlanPage() {
 
   return (
     <ProductionPlanForm
-      mode="edit"
       planId={id}
-      initialTitle={data.title}
       initialPlanDate={data.planDate.slice(0, 10)}
       initialScheduleIds={data.sourceSchedules.map((schedule) => schedule.id)}
     />

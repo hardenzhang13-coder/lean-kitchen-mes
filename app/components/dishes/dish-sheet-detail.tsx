@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/app/components/ui/data-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { DetailSection, InfoCell } from "@/app/components/ui/detail-section";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
+import { PortionTag } from "@/app/components/ui/portion-tag";
 import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText, calcCost } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
@@ -60,15 +62,6 @@ function MeatTypeBadge({ type }: { type?: string | null }) {
   return <Badge className={classes[type] || "bg-muted text-muted-foreground"}>{type}</Badge>;
 }
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex justify-between items-center py-2 border-b last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium">{value}</span>
-    </div>
-  );
-}
-
 function BomTypeBadge({ type }: { type: BomType }) {
   return <Badge className={BOM_TYPE_COLORS[type]}>{BOM_TYPE_LABELS[type]}</Badge>;
 }
@@ -85,8 +78,6 @@ interface BomTableRow {
 
 export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit }: DishSheetDetailProps) {
   const [confirmAction, setConfirmAction] = useState<"delete" | "unpublish" | "publish" | null>(null);
-
-  const statusLabel = dish.status === "published" ? "已发布" : "草稿";
 
   // 成本按当前食材价格实时重算，避免原料调价后展示历史 BOM 行成本
   const bomRows: BomTableRow[] = [
@@ -147,13 +138,13 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
   };
 
   return (
-    <SheetContent className="w-[45%] sm:max-w-[45vw] flex flex-col p-0">
+    <SheetContent className="w-[66.666%] sm:max-w-[66.666vw] flex flex-col p-0">
       <SheetHeader className="px-6 py-4 border-b">
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2">
               <SheetTitle className="text-lg font-medium truncate">{dish.name}</SheetTitle>
-              <StatusBadge status={statusLabel} />
+              <DishStatusTag status={dish.status} />
             </div>
             <SheetDescription className="text-xs text-muted-foreground">
               {dish.code}
@@ -203,15 +194,17 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
                   <RotateCcw className="mr-2 h-4 w-4" />
                   下架
                 </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  title="编辑"
-                  onClick={() => onEdit(dish.id)}
-                  className="h-8 w-8"
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                {dish.status === "published" && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title="编辑"
+                    onClick={() => onEdit(dish.id)}
+                    className="h-8 w-8"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                )}
               </>
             )}
           </div>
@@ -219,38 +212,36 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       </SheetHeader>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">基础信息</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-0">
-            <InfoRow
-              label="类别"
-              value={<CategoryTag l1Code={dish.category?.code} name={dish.category?.name} />}
-            />
-            <InfoRow label="菜系" value={dish.cuisine || "—"} />
-            <InfoRow label="做法" value={dish.technique || "—"} />
-            <InfoRow label="口味" value={dish.taste || "—"} />
-            <InfoRow label="份量" value={dish.portion || "—"} />
-            <InfoRow label="季节" value={dish.season || "—"} />
-            <InfoRow label="荤素" value={<MeatTypeBadge type={dish.meatType} />} />
-            <InfoRow label="描述" value={dish.intro || "—"} />
-            <InfoRow label="创建时间" value={formatDateTime(dish.createdAt)} />
-            <InfoRow label="售价" value={formatCost(dish.price)} />
-            <InfoRow
-              label="毛利率"
-              value={
-                calcGrossMarginPercent(computedCost, dish.price) != null
-                  ? `${calcGrossMarginPercent(computedCost, dish.price)}%`
-                  : "—"
-              }
-            />
-            <InfoRow
-              label="用料成本价"
-              value={<span className="text-lg font-semibold">{formatCost(computedCost)}</span>}
-            />
-          </CardContent>
-        </Card>
+        <DetailSection title="基础信息" cols={4}>
+          <InfoCell
+            label="类别"
+            value={
+              <CategoryTag l1Code={dish.category?.code} name={dish.category?.name} />
+            }
+          />
+          <InfoCell label="菜系" value={dish.cuisine || "—"} />
+          <InfoCell label="做法" value={dish.technique || "—"} />
+          <InfoCell label="口味" value={dish.taste || "—"} />
+          <InfoCell label="份量" value={<PortionTag portion={dish.portion} />} />
+          <InfoCell label="季节" value={dish.season || "—"} />
+          <InfoCell label="荤素" value={<MeatTypeBadge type={dish.meatType} />} />
+          <InfoCell label="创建时间" value={formatDateTime(dish.createdAt)} />
+          <InfoCell label="售价" value={formatCost(dish.price)} emphasis />
+          <InfoCell
+            label="毛利率"
+            value={
+              calcGrossMarginPercent(computedCost, dish.price) != null
+                ? `${calcGrossMarginPercent(computedCost, dish.price)}%`
+                : "—"
+            }
+          />
+          <InfoCell label="用料成本价" value={formatCost(computedCost)} emphasis />
+          <InfoCell
+            label="菜品描述"
+            value={dish.intro || "—"}
+            className="col-span-2 lg:col-span-4"
+          />
+        </DetailSection>
 
         <Card>
           <CardHeader>

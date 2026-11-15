@@ -144,7 +144,7 @@ export default function ProductionPlanDetailPage() {
       }
       toast.success("生产计划单已删除");
       setDeleteOpen(false);
-      router.push("/schedules?tab=plans");
+      router.push("/production-plans");
     } catch {
       toast.error("删除出错");
     } finally {
@@ -168,7 +168,7 @@ export default function ProductionPlanDetailPage() {
           description="该计划单可能已删除，或当前链接已失效。"
           action={{
             label: "返回生产计划单列表",
-            onClick: () => router.push("/schedules?tab=plans"),
+            onClick: () => router.push("/production-plans"),
           }}
         />
       </PageShell>
@@ -196,7 +196,7 @@ export default function ProductionPlanDetailPage() {
     <PageShell>
       <PageHeader
         showBack
-        backHref="/schedules?tab=plans"
+        backHref="/production-plans"
         backLabel="返回生产计划单列表"
         title={data.title}
         meta={<StatusBadge status={data.status} />}
@@ -357,12 +357,12 @@ export default function ProductionPlanDetailPage() {
       </Dialog>
 
       <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
-        <AppDialogContent size="form">
+        <AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认生产计划</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确认后生产计划单将进入「进行中」，标题、日期和来源排程不可再修改，也不能删除。
+          <p className="text-base text-muted-foreground">
+            确认后生产计划单进入「进行中」，标题、日期和来源排程不可再修改，也不能删除。
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil, Eye, Trash2, CopyPlus } from "lucide-react";
+import { Plus, Pencil, CopyPlus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
@@ -13,38 +13,30 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { SkeletonTable } from "@/app/components/ui/skeleton-table";
-import { StatusBadge } from "@/app/components/ui/status-badge";
+import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { PortionTag } from "@/app/components/ui/portion-tag";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { FormField } from "@/app/components/ui/form-field";
+import { Input } from "@/app/components/ui/form-controls";
+import {
+  DEFAULT_PAGE_SIZE,
+  formatPageSummary,
+} from "@/lib/client/use-pagination";
 import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
-import { DishDetail, calcGrossMarginPercent } from "@/app/components/dish-form/types";
+import {
+  DishDetail,
+  calcGrossMarginPercent,
+} from "@/app/components/dish-form/types";
 import { PORTION_OPTIONS, portionScaleFactor } from "@/lib/shared/portion-scale";
-import { validateDishDetailForPublish } from "@/app/components/dish-form/types";
+import { TECHNIQUE_OPTIONS as techniqueOptions } from "@/lib/shared/dish-enums";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
-
-const techniqueOptions = [
-  { value: "爆炒", label: "爆炒" },
-  { value: "红烧", label: "红烧" },
-  { value: "清蒸", label: "清蒸" },
-  { value: "炖煮", label: "炖煮" },
-  { value: "煎炸", label: "煎炸" },
-  { value: "凉拌", label: "凉拌" },
-  { value: "干锅", label: "干锅" },
-  { value: "烧烤", label: "烧烤" },
-  { value: "卤制", label: "卤制" },
-  { value: "煲汤", label: "煲汤" },
-  { value: "烩", label: "烩" },
-  { value: "熘", label: "熘" },
-  { value: "扒", label: "扒" },
-  { value: "焗", label: "焗" },
-];
 
 const statusOptions = [
   { value: "draft", label: "草稿" },
@@ -58,17 +50,6 @@ const portionOptions = PORTION_OPTIONS.map((option) => ({
   description: option.description,
 }));
 
-const formatDateTime = (dateStr: string | Date | null | undefined) => {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleString("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-
 function MeatTypeBadge({ type }: { type?: string | null }) {
   if (!type) return <span className="text-muted-foreground">—</span>;
   const classes: Record<string, string> = {
@@ -79,23 +60,6 @@ function MeatTypeBadge({ type }: { type?: string | null }) {
   return (
     <Badge className={classes[type] || "bg-muted text-muted-foreground"}>
       {type}
-    </Badge>
-  );
-}
-
-/** 份量徽标：与类别/荤素同风格的柔和底色，色彩区分开 */
-function PortionBadge({ portion }: { portion?: string | null }) {
-  if (!portion) return <span className="text-muted-foreground">—</span>;
-  const classes: Record<string, string> = {
-    小碗菜: "bg-sky-100 text-sky-700 hover:bg-sky-100",
-    "小碗菜·10份": "bg-cyan-100 text-cyan-700 hover:bg-cyan-100",
-    "社区·2份": "bg-amber-100 text-amber-700 hover:bg-amber-100",
-    "社区·3份": "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
-    "社区·4份": "bg-violet-100 text-violet-700 hover:bg-violet-100",
-  };
-  return (
-    <Badge className={classes[portion] || "bg-violet-100 text-violet-700 hover:bg-violet-100"}>
-      {portion}
     </Badge>
   );
 }
@@ -114,16 +78,19 @@ export default function DishesPage() {
   const [filterStatus, setFilterStatus] = useState("");
 
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
 
   const [selectedDish, setSelectedDish] = useState<DishDetail | null>(null);
   const [fullDish, setFullDish] = useState<DishDetail | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [scaleTarget, setScaleTarget] = useState<DishDetail | null>(null);
   const [scalePortion, setScalePortion] = useState("");
   const [scaling, setScaling] = useState(false);
+  const [copyTarget, setCopyTarget] = useState<DishDetail | null>(null);
+  const [copyName, setCopyName] = useState("");
+  const [copying, setCopying] = useState(false);
 
   const fetchDetail = useCallback(async (id: number) => {
     try {
@@ -151,11 +118,11 @@ export default function DishesPage() {
         if (filterStatus) params.set("status", filterStatus);
         if (search.trim()) params.set("q", search.trim());
         params.set("page", String(page));
-        params.set("pageSize", String(DEFAULT_PAGE_SIZE));
+        params.set("pageSize", String(pageSize));
 
         const [dRes, cRes] = await Promise.all([
           fetch(`/api/dishes?${params.toString()}`, { signal: controller.signal }),
-          fetch("/api/dish-categories", { signal: controller.signal }),
+          fetch("/api/dish-categories?page=1&pageSize=100", { signal: controller.signal }),
         ]);
         const dJson = await dRes.json();
         const cJson = await cRes.json();
@@ -181,7 +148,7 @@ export default function DishesPage() {
     };
     load();
     return () => controller.abort();
-  }, [filterCategory, filterTechnique, filterStatus, search, page, refreshKey, dishIdParam, fetchDetail]);
+  }, [filterCategory, filterTechnique, filterStatus, search, page, pageSize, refreshKey, dishIdParam, fetchDetail]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -216,7 +183,6 @@ export default function DishesPage() {
         return;
       }
       toast.success("删除成功");
-      setDeleteId(null);
       setSheetOpen(false);
       refresh();
     } catch {
@@ -224,18 +190,23 @@ export default function DishesPage() {
     }
   };
 
+  const changeDishStatus = async (id: number, action: "publish" | "unpublish") => {
+    const res = await fetch(`/api/dishes/${id}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      toast.error(data.error || (action === "publish" ? "发布失败" : "下架失败"));
+      return false;
+    }
+    return true;
+  };
+
   const handleUnpublish = async (id: number) => {
     try {
-      const res = await fetch(`/api/dishes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "draft" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "下架失败");
-        return;
-      }
+      if (!(await changeDishStatus(id, "unpublish"))) return;
       toast.success("已下架");
       setSheetOpen(false);
       refresh();
@@ -246,34 +217,41 @@ export default function DishesPage() {
 
   const handlePublish = async (id: number) => {
     try {
-      const detailRes = await fetch(`/api/dishes/${id}`);
-      if (!detailRes.ok) {
-        const data = await detailRes.json().catch(() => ({}));
-        toast.error(data.error || "获取菜品详情失败");
-        return;
-      }
-      const detailJson = await detailRes.json();
-      const dishData = detailJson.data || detailJson;
-      const error = validateDishDetailForPublish(dishData);
-      if (error) {
-        toast.error(error);
-        return;
-      }
-      const res = await fetch(`/api/dishes/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: "published" }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "发布失败");
-        return;
-      }
+      if (!(await changeDishStatus(id, "publish"))) return;
       toast.success("发布成功");
       setSheetOpen(false);
       refresh();
     } catch {
       toast.error("发布失败");
+    }
+  };
+
+  const openCopy = (dish: DishDetail) => {
+    setCopyTarget(dish);
+    setCopyName(`${dish.name}-副本`);
+  };
+
+  const handleCopy = async () => {
+    if (!copyTarget || !copyName.trim()) return;
+    setCopying(true);
+    try {
+      const res = await fetch(`/api/dishes/${copyTarget.id}/copy`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: copyName.trim() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error || "复制失败");
+        return;
+      }
+      toast.success(`已复制为「${copyName.trim()}」`);
+      setCopyTarget(null);
+      refresh();
+    } catch {
+      toast.error("复制失败");
+    } finally {
+      setCopying(false);
     }
   };
 
@@ -317,17 +295,20 @@ export default function DishesPage() {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-      <div className="flex items-center justify-between">
-        <PageHeader title="菜品库" description="管理所有菜品及其 BOM 与工艺" />
-        <Button onClick={() => router.push("/dishes/new")}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增菜品
-        </Button>
-      </div>
+    <PageShell variant="workspace">
+      <PageHeader
+        title="菜品库"
+        description="管理所有菜品及其 BOM 与工艺"
+        actions={
+          <Button onClick={() => router.push("/dishes/new")}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增菜品
+          </Button>
+        }
+      />
 
       <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-3">
+        <CardHeader className="shrink-0 pb-0">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -373,170 +354,165 @@ export default function DishesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col p-4">
-          {loading ? (
-            <SkeletonTable cols={11} rows={10} />
-          ) : (
-            <DataTable<DishDetail>
-              data={dishes}
-              onRowClick={openSheet}
-              fillHeight
-              tableClassName="table-fixed"
-              columns={[
-                {
-                  header: "序号",
-                  className: "w-[48px]",
-                  cell: (_, rowIdx) => (
-                    <span className="text-muted-foreground">
-                      {(page - 1) * DEFAULT_PAGE_SIZE + rowIdx + 1}
+        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+          <DataTable<DishDetail>
+            data={dishes}
+            loading={loading}
+            onRowClick={openSheet}
+            fillHeight
+            density="dense"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "序号",
+                className: "w-[48px]",
+                cell: (_, rowIdx) => (
+                  <span className="text-muted-foreground">
+                    {(page - 1) * pageSize + rowIdx + 1}
+                  </span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[120px]",
+                cell: (row) => (
+                  <span className="whitespace-nowrap font-medium">{row.code}</span>
+                ),
+              },
+              {
+                header: "菜品名称",
+                className: "w-[160px]",
+                cell: (row) => (
+                  <span className="whitespace-nowrap font-semibold text-primary">{row.name}</span>
+                ),
+              },
+              {
+                header: "份量",
+                className: "w-[96px]",
+                cell: (row) => <PortionTag portion={row.portion} />,
+              },
+              {
+                header: "类别",
+                className: "w-[96px]",
+                cell: (row) => (
+                  <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
+                ),
+              },
+              {
+                header: "荤素",
+                className: "w-[80px]",
+                cell: (row) => <MeatTypeBadge type={row.meatType} />,
+              },
+              {
+                header: "成本价",
+                className: "w-[90px] text-right",
+                cell: (row) => (
+                  <span className="whitespace-nowrap font-medium tabular-nums">
+                    {formatMoney(row.cost, "份")}
+                  </span>
+                ),
+              },
+              {
+                header: "售价",
+                className: "w-[90px] text-right",
+                cell: (row) => (
+                  <span className="whitespace-nowrap font-semibold tabular-nums text-primary">
+                    {formatMoney(row.price, "份")}
+                  </span>
+                ),
+              },
+              {
+                header: "毛利率",
+                className: "w-[80px] text-right",
+                cell: (row) => {
+                  const margin = calcGrossMarginPercent(row.cost, row.price);
+                  return (
+                    <span
+                      className={
+                        margin != null && margin < 0
+                          ? "font-medium text-destructive tabular-nums"
+                          : "text-muted-foreground tabular-nums"
+                      }
+                    >
+                      {margin != null ? `${margin}%` : "—"}
                     </span>
-                  ),
+                  );
                 },
-                {
-                  header: "编号",
-                  className: "w-[85px] truncate",
-                  cell: (row) => <span className="font-medium">{row.code}</span>,
-                },
-                {
-                  header: "菜品名称",
-                  className: "w-[160px] truncate",
-                  cell: (row) => <span className="font-medium">{row.name}</span>,
-                },
-                {
-                  header: "份量",
-                  className: "w-[100px]",
-                  cell: (row) => <PortionBadge portion={row.portion} />,
-                },
-                {
-                  header: "类别",
-                  className: "w-[90px] truncate",
-                  cell: (row) => (
-                    <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
-                  ),
-                },
-                {
-                  header: "荤素",
-                  className: "w-[70px]",
-                  cell: (row) => <MeatTypeBadge type={row.meatType} />,
-                },
-                {
-                  header: "成本价",
-                  className: "w-[80px] text-right",
-                  cell: (row) => (
-                    <span className="font-medium">
-                      {formatMoney(row.cost, "份")}
-                    </span>
-                  ),
-                },
-                {
-                  header: "售价",
-                  className: "w-[80px] text-right",
-                  cell: (row) => (
-                    <span className="font-medium">
-                      {formatMoney(row.price, "份")}
-                    </span>
-                  ),
-                },
-                {
-                  header: "毛利率",
-                  className: "w-[80px] text-right",
-                  cell: (row) => {
-                    const margin = calcGrossMarginPercent(row.cost, row.price);
-                    return (
-                      <span className={margin != null && margin < 0 ? "font-medium text-destructive" : "text-muted-foreground"}>
-                        {margin != null ? `${margin}%` : "—"}
-                      </span>
+              },
+              {
+                header: "状态",
+                className: "w-[90px]",
+                cell: (row) => <DishStatusTag status={row.status} />,
+              },
+            ]}
+            rowActions={(row) => (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`转化菜品 ${row.name}`}
+                  title="菜品转化"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setScaleTarget(row);
+                    setScalePortion(
+                      PORTION_OPTIONS.find((option) => option.value !== row.portion)
+                        ?.value ?? ""
                     );
-                  },
-                },
-                {
-                  header: "状态",
-                  className: "w-[80px]",
-                  cell: (row) => (
-                    <StatusBadge status={row.status === "published" ? "已发布" : "草稿"} />
-                  ),
-                },
-                {
-                  header: "创建时间",
-                  className: "w-[110px] truncate",
-                  cell: (row) => (
-                    <span className="text-muted-foreground">
-                      {formatDateTime(row.createdAt)}
-                    </span>
-                  ),
-                },
-              ]}
-              rowActions={(row) => (
-                <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`查看菜品 ${row.name}`}
-                    title="查看"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openSheet(row);
-                    }}
-                  >
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  {row.portion === "小碗菜" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`转化菜品 ${row.name}`}
-                      title="菜品转化"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setScaleTarget(row);
-                        setScalePortion("小碗菜·10份");
-                      }}
-                    >
-                      <CopyPlus className="h-4 w-4" />
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`编辑菜品 ${row.name}`}
-                    title="编辑"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/dishes/${row.id}/edit`);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {row.status === "draft" && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`删除菜品 ${row.name}`}
-                      title="删除"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteId(row.id);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  )}
-                </>
-              )}
-              pagination={
-                pagination && pagination.totalItems > 0
-                  ? {
-                      currentPage: page,
-                      totalPages: pagination.totalPages,
-                      totalItems: pagination.totalItems,
-                      pageSize: DEFAULT_PAGE_SIZE,
-                      onPageChange: setPage,
-                    }
-                  : undefined
-              }
-              emptyState={{ title: "暂无数据" }}
-            />
-          )}
+                  }}
+                >
+                  <CopyPlus className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`复制菜品 ${row.name}`}
+                  title="复制菜品"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openCopy(row);
+                  }}
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`编辑菜品 ${row.name}`}
+                  title="编辑"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/dishes/${row.id}/edit`);
+                  }}
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+            pagination={
+              pagination && pagination.totalItems > 0
+                ? {
+                    currentPage: page,
+                    totalPages: pagination.totalPages,
+                    totalItems: pagination.totalItems,
+                    pageSize,
+                    onPageChange: setPage,
+                    totalLabel: formatPageSummary(
+                      page,
+                      pageSize,
+                      pagination.totalItems,
+                      "菜品"
+                    ),
+                    showPageSize: true,
+                    onPageSizeChange: (size) => {
+                      setPageSize(size);
+                      setPage(1);
+                    },
+                  }
+                : undefined
+            }
+            emptyState={{ title: "暂无数据" }}
+          />
         </CardContent>
       </Card>
 
@@ -560,31 +536,48 @@ export default function DishesPage() {
         )}
       </Sheet>
 
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-<AppDialogContent size="compact">
+      <Dialog open={copyTarget !== null} onOpenChange={() => setCopyTarget(null)}>
+        <AppDialogContent size="form">
           <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
+            <DialogTitle className="text-lg">复制菜品</DialogTitle>
           </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除这条菜品吗？此操作不可撤销。
-          </p>
+          {copyTarget && (
+            <div className="space-y-4">
+              <p className="text-muted-foreground text-base">
+                将以「{copyTarget.name}」（{copyTarget.portion}）为模板生成新的草稿档案，用料与加工工艺完整复制。
+              </p>
+              <FormField id="copy-name" label="新菜品名称" required>
+                <Input
+                  id="copy-name"
+                  value={copyName}
+                  onChange={(e) => setCopyName(e.target.value)}
+                  placeholder="请输入新菜品名称"
+                  className="h-11 text-base px-4"
+                />
+              </FormField>
+            </div>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
+            <Button
+              variant="outline"
+              onClick={() => setCopyTarget(null)}
+              className="h-11 px-6"
+            >
               取消
             </Button>
             <Button
-              variant="destructive"
-              onClick={() => deleteId && handleDelete(deleteId)}
+              onClick={handleCopy}
+              disabled={copying || !copyName.trim()}
               className="h-11 px-6"
             >
-              删除
+              {copying ? "复制中..." : "确认复制"}
             </Button>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
 
       <Dialog open={scaleTarget !== null} onOpenChange={() => setScaleTarget(null)}>
-<AppDialogContent size="form">
+        <AppDialogContent size="form">
           <DialogHeader>
             <DialogTitle className="text-lg">菜品转化</DialogTitle>
           </DialogHeader>
@@ -646,6 +639,6 @@ export default function DishesPage() {
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

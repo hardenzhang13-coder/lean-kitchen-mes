@@ -6,6 +6,7 @@ import { error, success } from "@/lib/server/api-response";
 import { resolveUsernameToName } from "@/lib/server/user-resolve";
 import { logger } from "@/lib/server/logger";
 import { updateProductionPlanSchema } from "@/lib/server/schemas/production-plan";
+import { buildProductionPlanTitle } from "@/lib/shared/production-plan-title";
 import { validateBody } from "@/lib/server/validate";
 import {
   buildProductionPlanData,
@@ -119,9 +120,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateProductionPlanSchema, body);
   if (!validation.success) return validation.response;
 
-  const { title, planDate, scheduleIds } = validation.data;
+  const { planDate, scheduleIds } = validation.data;
   const uniqueIds = [...new Set(scheduleIds)];
   const planDateObj = new Date(planDate);
+  // 标题是派生字段：按生产日期重算，忽略客户端传值
+  const generatedTitle = buildProductionPlanTitle(planDate);
 
   let updated: Awaited<ReturnType<typeof prisma.productionPlan.update>> | null = null;
   for (let attempt = 0; attempt < 5 && !updated; attempt++) {
@@ -155,7 +158,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { id: planId },
           data: {
             code,
-            title: title.trim(),
+            title: generatedTitle,
             planDate: planDateObj,
             cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
             purchaseJson: JSON.parse(JSON.stringify(data.purchase)),

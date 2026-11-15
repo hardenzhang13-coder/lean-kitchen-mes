@@ -28,7 +28,7 @@ export default function DishDetailPage() {
       try {
         const [dishRes, cRes, catRes] = await Promise.all([
           fetch(`/api/dishes/${dishId}`, { signal: controller.signal }),
-          fetch("/api/dish-categories", { signal: controller.signal }),
+          fetch("/api/dish-categories?page=1&pageSize=100", { signal: controller.signal }),
           fetch("/api/ingredient-categories?page=1&pageSize=100", { signal: controller.signal }),
         ]);
 

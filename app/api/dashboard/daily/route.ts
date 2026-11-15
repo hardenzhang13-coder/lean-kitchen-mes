@@ -4,6 +4,7 @@ import { success, internalError } from "@/lib/server/api-response";
 import { dashboardDailyQuerySchema } from "@/lib/server/schemas/dashboard";
 import { validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
+import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 
 /**
  * 工作台某日复盘单：指定日期 + 门店的排程及其售卖数据。
@@ -43,11 +44,16 @@ export async function GET(req: NextRequest) {
       return success({ schedule: null, recorded: false, summary: null, items: [] });
     }
 
+    // 与列表/详情同口径：按当前食材价格重算，不读 Dish.cost 历史快照
+    const costMap = await getCurrentDishCostMap(
+      schedule.items.map((it) => it.dish.id)
+    );
+
     const items = schedule.items.map((it) => {
       const quantity = it.quantity;
       const sold = it.actualSoldQty != null ? Number(it.actualSoldQty) : null;
       const price = it.dish.price != null ? Number(it.dish.price) : null;
-      const cost = it.dish.cost != null ? Number(it.dish.cost) : null;
+      const cost = costMap.get(it.dish.id) ?? 0;
       const planAmount = price != null ? Number((quantity * price).toFixed(2)) : null;
       const diff = sold != null ? sold - quantity : null;
       const sellRate = sold != null ? sold / quantity : null;

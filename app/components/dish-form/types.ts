@@ -1,3 +1,5 @@
+import { validateDishForPublish } from "@/lib/shared/dish-publish";
+
 export type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
 export interface BomItem {
@@ -12,6 +14,8 @@ export interface BomItem {
   /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
   costPrice?: number | null;
   cost?: number | null;
+  /** 份量（净料/小料口径）：小碗菜 / 社区·N份；调料/酱料为空 */
+  portion?: string | null;
   l1Code?: string;
   l2Code?: string;
 }
@@ -150,7 +154,7 @@ export interface DishDetail {
     amountG: number | string;
     spec?: string | null;
     cost?: number | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null; portion?: string | null } | null;
   }>;
   minorDetails?: Array<{
     netIngId: number;
@@ -160,7 +164,7 @@ export interface DishDetail {
     name?: string;
     unitPrice?: number | null;
     unit?: string | null;
-    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null } | null;
+    netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null; portion?: string | null } | null;
   }>;
   seasoningDetails?: Array<{
     sourceId: number;
@@ -243,6 +247,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unit,
       costPrice,
       cost: calcCost(type, costPrice, d.amountG),
+      portion: ing?.portion ?? null,
     };
     if (d.role === "support") bom.support.push(item);
     else bom.main.push(item);
@@ -265,6 +270,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       unit,
       costPrice,
       cost: calcCost("minor", costPrice, d.amountG),
+      portion: ing?.portion ?? null,
     });
   });
 
@@ -360,15 +366,7 @@ export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem
 }
 
 export function validateDishDetailForPublish(dish: DishDetail): string | null {
-  if (!dish.name?.trim()) return "菜品名称不能为空";
-  if (!dish.categoryId) return "请选择菜品类别";
-  if (!dish.cuisine) return "请选择菜系";
-  if (!dish.technique) return "请选择做法";
-  if (!dish.taste) return "请选择口味";
-  if (!dish.meatType) return "请选择荤素类型";
-  if (!dish.netDetails?.some((d) => d.role === "main")) return "主料不能为空";
-  if (!dish.netDetails?.some((d) => d.role === "support")) return "辅料不能为空";
-  return null;
+  return validateDishForPublish(dish);
 }
 
 export function formatCost(value: number | null | undefined): string {

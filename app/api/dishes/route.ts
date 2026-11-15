@@ -16,12 +16,14 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(dishQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { categoryId, cuisine, meatType, status, q, page, pageSize } = validation.data;
+    const { categoryId, cuisine, technique, meatType, portion, status, q, page, pageSize } = validation.data;
 
     const where: Prisma.DishWhereInput = {};
     if (categoryId) where.categoryId = categoryId;
     if (cuisine) where.cuisine = cuisine;
+    if (technique) where.technique = technique;
     if (meatType) where.meatType = meatType;
+    if (portion) where.portion = portion;
     if (status) where.status = status;
     if (q) {
       where.OR = [
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createDishSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price, status } =
+    const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price } =
       validation.data;
 
     const user = getUserFromRequest(req);
@@ -127,7 +129,7 @@ export async function POST(req: NextRequest) {
                 season,
                 meatType: meatType ?? null,
                 price: price ?? null,
-                status,
+                status: "draft",
                 operator,
               },
             });

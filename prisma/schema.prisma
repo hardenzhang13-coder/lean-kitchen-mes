@@ -233,7 +233,7 @@ model Dish {
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
   price            Decimal?              @db.Decimal(10, 2) // 售价（元/份）
-  status           String                @default("draft") @map("status") // draft / pending / published
+  status           String                @default("draft") @map("status") // draft / published / inactive
   operator         String?
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")

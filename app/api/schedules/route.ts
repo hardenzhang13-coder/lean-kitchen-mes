@@ -4,11 +4,13 @@ import { prisma } from "@/lib/server/prisma";
 import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
 import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
 import { enrichOperatorNames } from "@/lib/server/user-resolve";
-import { created, paginated, internalError } from "@/lib/server/api-response";
+import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import { createScheduleSchema, scheduleQuerySchema } from "@/lib/server/schemas/schedule";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { getDishStatusOption } from "@/lib/shared/dish-status";
+import { buildScheduleTitle } from "@/lib/shared/schedule-title";
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
     const [rows, totalItems] = await Promise.all([
       prisma.schedule.findMany({
         where,
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ scheduleDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: pageSize,
         include: {
@@ -114,7 +116,39 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createScheduleSchema, body);
     if (!validation.success) return validation.response;
 
-    const { title, scheduleDate, storeId, items } = validation.data;
+    const { scheduleDate, storeId, items } = validation.data;
+
+    // 排程只能选择已发布菜品；停用/草稿不允许进入新排程
+    const dishIds = [...new Set(items.map((item) => item.dishId))];
+    const dishes = await prisma.dish.findMany({
+      where: { id: { in: dishIds } },
+      select: { id: true, name: true, status: true },
+    });
+    const dishById = new Map(dishes.map((dish) => [dish.id, dish]));
+    const missingIds = dishIds.filter((dishId) => !dishById.has(dishId));
+    if (missingIds.length > 0) {
+      return badRequest(`菜品不存在：${missingIds.join("、")}`);
+    }
+    const unavailable = dishes.filter((dish) => dish.status !== "published");
+    if (unavailable.length > 0) {
+      const names = unavailable
+        .map((dish) => {
+          const label = getDishStatusOption(dish.status)?.label ?? dish.status;
+          return `${dish.name}（${label}）`;
+        })
+        .join("、");
+      return badRequest(`以下菜品不可用于新建排程：${names}`);
+    }
+
+    const store = await prisma.store.findFirst({
+      where: { id: storeId, deletedAt: null },
+      select: { id: true, name: true, isActive: true },
+    });
+    if (!store) return badRequest("门店不存在或已删除");
+    if (!store.isActive) return badRequest("门店已停用，不能新建排程");
+
+    // 标题是派生字段：由门店与售卖日期生成，不接受客户端传入
+    const generatedTitle = buildScheduleTitle(store.name, scheduleDate);
 
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
@@ -134,9 +168,9 @@ export async function POST(req: NextRequest) {
           const schedule = await tx.schedule.create({
             data: {
               code,
-              title: title.trim(),
+              title: generatedTitle,
           scheduleDate: new Date(scheduleDate),
-          storeId: storeId ?? 1,
+          storeId,
           status: "待生效",
           operator,
         },

@@ -50,6 +50,7 @@ import {
 } from "@/app/components/ui/record-sheet";
 import { SectionTabs } from "@/app/components/ui/section-tabs";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 
 type KitTab = "patterns" | "forms" | "feedback";
 
@@ -150,6 +151,7 @@ export default function UiKitPage() {
               />
             </div>
           </section>
+
         </div>
       )}
 
@@ -411,6 +413,20 @@ export default function UiKitPage() {
               <StatusBadge status="已作废" />
               <StatusBadge status="未匹配" />
               <StatusBadge status="正常" />
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">菜品状态标签</h2>
+              <p className="text-sm text-muted-foreground">
+                菜品状态枚举的唯一渲染入口，取值与配色来自 lib/shared/dish-status.ts。
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 rounded-lg border bg-card p-4">
+              <DishStatusTag status="draft" />
+              <DishStatusTag status="published" />
+              <DishStatusTag status="inactive" />
             </div>
           </section>
 

@@ -8,6 +8,8 @@ import { getScheduleDetail } from "@/lib/server/schedule-detail";
 import { updateScheduleSchema } from "@/lib/server/schemas/schedule";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
+import { getDishStatusOption } from "@/lib/shared/dish-status";
+import { buildScheduleTitle } from "@/lib/shared/schedule-title";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,7 +29,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateScheduleSchema, body);
   if (!validation.success) return validation.response;
 
-  const { title, scheduleDate, storeId, items } = validation.data;
+  const { scheduleDate, storeId, items } = validation.data;
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -36,16 +38,28 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
       const existing = await tx.schedule.findUnique({
         where: { id: scheduleId },
-        select: { status: true },
+        select: { status: true, storeId: true, scheduleDate: true },
       });
       if (!existing) throw new Error("排程不存在");
       if (existing.status !== "待生效") throw new Error("只有待生效的排程可以修改");
+
+      // 标题是派生字段：门店或售卖日期变更后按固定格式重算
+      const targetStoreId = storeId ?? existing.storeId;
+      const targetDate = scheduleDate ? new Date(scheduleDate) : existing.scheduleDate;
+      const targetStore = await tx.store.findUnique({
+        where: { id: targetStoreId },
+        select: { name: true },
+      });
+      const generatedTitle = buildScheduleTitle(
+        targetStore?.name ?? "未命名门店",
+        targetDate.toISOString().slice(0, 10)
+      );
 
       // 更新基础信息
       const updated = await tx.schedule.update({
         where: { id: scheduleId },
         data: {
-          title: title?.trim(),
+          title: generatedTitle,
           scheduleDate: scheduleDate ? new Date(scheduleDate) : undefined,
           storeId: storeId ?? undefined,
         },
@@ -53,6 +67,36 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       // 如果有菜品变更，重新计算
       if (items && items.length > 0) {
+        // 新增菜品必须已发布；原本就在该排程中的停用菜品允许保留
+        const oldItems = await tx.scheduleItem.findMany({
+          where: { scheduleId },
+          select: { dishId: true },
+        });
+        const oldDishIds = new Set(oldItems.map((item) => item.dishId));
+        const newDishIds = [...new Set(items.map((item) => item.dishId))];
+        const newDishes = await tx.dish.findMany({
+          where: { id: { in: newDishIds } },
+          select: { id: true, name: true, status: true },
+        });
+        const newDishById = new Map(newDishes.map((dish) => [dish.id, dish]));
+        const missingIds = newDishIds.filter((dishId) => !newDishById.has(dishId));
+        if (missingIds.length > 0) {
+          throw new Error(`菜品不存在：${missingIds.join("、")}`);
+        }
+        const unavailable = newDishes.filter(
+          (dish) => dish.status !== "published" && !oldDishIds.has(dish.id)
+        );
+        if (unavailable.length > 0) {
+          const names = unavailable
+            .map((dish) => {
+              const label =
+                getDishStatusOption(dish.status)?.label ?? dish.status;
+              return `${dish.name}（${label}）`;
+            })
+            .join("、");
+          throw new Error(`以下菜品不可用于排程：${names}`);
+        }
+
         // 删除旧的
         await tx.scheduleItem.deleteMany({ where: { scheduleId } });
         await tx.cuttingOrder.deleteMany({ where: { scheduleId } });

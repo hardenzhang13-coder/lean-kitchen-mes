@@ -88,3 +88,19 @@ export function portionScaleFactor(
   if (sourceCount == null || targetCount == null || sourceCount <= 0) return null;
   return Number((targetCount / sourceCount).toFixed(4));
 }
+
+/** 去掉名称末尾已有的份量后缀（如「宫保鸡丁·小碗菜」→「宫保鸡丁」）。 */
+export function stripPortionSuffix(name: string): string {
+  const trimmed = name.trim();
+  const suffix = [...PORTION_VALUES]
+    .sort((a, b) => b.length - a.length)
+    .map((portion) => `·${portion}`)
+    .find((candidate) => trimmed.endsWith(candidate));
+  return suffix ? trimmed.slice(0, -suffix.length) : trimmed;
+}
+
+/** 为转化生成默认名称：基础名称 + 「·目标份量」，避免重复转化时后缀叠加。 */
+export function buildPortionName(name: string, portion: string): string {
+  const base = stripPortionSuffix(name) || name.trim();
+  return `${base}·${portion}`;
+}
