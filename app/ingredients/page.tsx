@@ -225,38 +225,38 @@ export default function IngredientsPage() {
         onMouseEnter={() => setHoverId(n.id)}
         onMouseLeave={() => setHoverId(null)}
         onClick={() => router.push(n.href)}
-        className={`relative cursor-pointer rounded-2xl border-[1.5px] bg-white p-5 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)] ${
+        className={`relative cursor-pointer rounded-2xl border-[1.5px] bg-white p-7 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)] ${
           n.id === "sauce" ? "border-[#ddd6fe] bg-gradient-to-b from-white from-60% to-[#faf8ff]" : "border-[#e2e8f0]"
         } ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
       >
-        <span className="absolute right-4 top-4 text-xs font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
+        <span className="absolute right-5 top-4 text-sm font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
           进入清单 →
         </span>
-        <div className="flex items-center gap-3.5">
+        <div className="flex items-center gap-4">
           <span
-            className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[15px] text-[22px] font-extrabold text-white shadow-[0_4px_12px_rgba(15,23,42,0.12)]"
+            className="flex h-[60px] w-[60px] shrink-0 items-center justify-center rounded-[18px] text-[26px] font-extrabold text-white shadow-[0_4px_12px_rgba(15,23,42,0.12)]"
             style={{ background: n.color }}
           >
             {n.glyph}
           </span>
           <div className="min-w-0">
-            <div className="text-[17px] font-extrabold">{n.name}</div>
-            <div className="mt-0.5 text-xs leading-normal text-slate-500">{n.desc}</div>
+            <div className="text-xl font-extrabold">{n.name}</div>
+            <div className="mt-1 text-sm leading-normal text-slate-500">{n.desc}</div>
           </div>
-          <div className="ml-auto shrink-0 pl-2.5 text-right">
-            <b className="text-[26px] font-extrabold leading-none" style={{ color: n.color }}>
+          <div className="ml-auto shrink-0 pl-3 text-right">
+            <b className="text-[30px] font-extrabold leading-none" style={{ color: n.color }}>
               {counts[n.id]}
             </b>
-            <span className="ml-0.5 text-xs text-slate-500">种</span>
+            <span className="ml-0.5 text-sm text-slate-500">种</span>
           </div>
         </div>
         {n.id === "sauce" && (
-          <div className="mt-3.5 flex gap-2">
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
-              <b className="mb-px block text-xs">自制</b>由调料与小料配比而成
+          <div className="mt-4 flex gap-2">
+            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2.5 px-3 text-sm leading-normal text-[#6d28d9]">
+              <b className="mb-px block text-sm">自制</b>由调料与小料配比而成
             </div>
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
-              <b className="mb-px block text-xs">外购</b>成品酱料直接采购
+            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2.5 px-3 text-sm leading-normal text-[#6d28d9]">
+              <b className="mb-px block text-sm">外购</b>成品酱料直接采购
             </div>
           </div>
         )}
@@ -277,11 +277,11 @@ export default function IngredientsPage() {
         }
       />
 
-      {/* 五个食材清单：主体区上下居中展示 */}
-      <div className="mt-10 overflow-x-auto">
+      {/* 主体：五个食材清单与转化流 */}
+      <div className="mt-12 overflow-x-auto">
         <div
           ref={boardRef}
-          className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr_110px_1fr]"
+          className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_100px_1fr_100px_1fr]"
         >
           <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full overflow-visible">
             <defs>
@@ -329,12 +329,12 @@ export default function IngredientsPage() {
             })}
           </svg>
 
-          <div className="relative z-[2] flex flex-col justify-center gap-8">
+          <div className="relative z-[2] flex flex-col justify-center gap-12">
             {nodeCard(NODES[0])}
             {nodeCard(NODES[1])}
           </div>
           <div />
-          <div className="relative z-[2] flex flex-col justify-center gap-8">
+          <div className="relative z-[2] flex flex-col justify-center gap-12">
             {nodeCard(NODES[2])}
             {nodeCard(NODES[3])}
           </div>
