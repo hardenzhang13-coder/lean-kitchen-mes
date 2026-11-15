@@ -11,13 +11,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { SelectField } from "@/app/components/ui/select-field";
 import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -496,18 +490,15 @@ export default function UsersPage() {
               />
             </FormField>
             <FormField label="角色" required>
-              <Select value={form.role} onValueChange={(v) => v && setForm({ ...form, role: v })}>
-                <SelectTrigger className="h-11">
-                  <SelectValue placeholder="请选择角色" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_OPTIONS.map((r) => (
-                    <SelectItem key={r.value} value={r.value}>
-                      {r.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <SelectField
+                value={form.role}
+                onChange={(v) => setForm({ ...form, role: v })}
+                options={ROLE_OPTIONS.map((r) => ({
+                  value: r.value,
+                  label: r.label,
+                }))}
+                placeholder="请选择角色"
+              />
             </FormField>
             <FormField
               id="password"

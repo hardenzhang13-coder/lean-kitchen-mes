@@ -11,13 +11,6 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { SelectField } from "@/app/components/ui/select-field";
 import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -482,21 +475,11 @@ export default function UnitsPage() {
               />
             </FormField>
             <FormField label="分类" required>
-              <Select
+              <SelectField
                 value={form.category}
-                onValueChange={(v) => v && setForm({ ...form, category: v })}
-              >
-                <SelectTrigger className="h-11">
-                  <SelectValue>{categoryLabel(form.category)}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>
-                      {c.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                onChange={(v) => setForm({ ...form, category: v })}
+                options={categories}
+              />
             </FormField>
             {form.category === "weight" && (
               <FormField
