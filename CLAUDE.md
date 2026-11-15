@@ -252,16 +252,16 @@ npm run lint
 
 ## 当前技术债
 
-- **交互基线未全站落地**：12 条 lint warning 待清（全部为设置模块的弹窗像素宽度），集中在 `app/settings/**`；食材库模块已清零。批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
+- **交互基线落地**：lint 告警已清零（0 error / 0 warning，含设置模块）；剩余工作是逐页目视回归，批次计划见 `docs/interaction-visual-baseline-v1-rollout-plan.md`
 - **生产数据待办（已复核关闭）**：存量净料/小料 `package_spec` 已全部回填 —— 2026-11-15 生产库只读复核 70 条全部有效（5g~2000g，0 NULL / 0 负值），原方案文档 `docs/production-data-package-spec-plan.md` 保留为备查
 - **旧库存表并存**：`inventory` / `inventory_ledger` 已停用但未清理，待定下线时点
 - **采购模块锁定**：试运行期间 `TRIAL_FEATURES.purchases = false`，采购链路未在生产验证
-- **测试覆盖**：现有 37 套件 / 204 用例，集中在纯函数、工具层与通用组件；API 路由与业务组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
+- **测试覆盖**：现有 49 套件 / 253 用例，集中在纯函数、工具层与通用组件；API 路由与业务组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
 - **客户端组件化**：大量 `"use client"` + `fetch()`，服务端组件化可逐步推进
 
 ## 重要说明
 
 - **Next.js 破坏性变更：** 这是 Next.js 16 配合 React 19。API 和约定可能与旧版本不同。不确定时，请查阅 `node_modules/next/dist/docs/`。详见 `AGENTS.md`。
 - **菜品状态生命周期：** `draft` 草稿 → `published` 已发布 → `inactive` 已停用（`pending` 已废弃）。只有草稿可编辑；发布与恢复发布必须通过 `POST /api/dishes/[id]/status` 的服务端校验；停用只影响新建排程，历史排程与生产计划保留。
-- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 37 套件 / 204 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
+- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 49 套件 / 253 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
 - **部署：** `next.config.ts` 设置 `output: "standalone"`。构建需要 `DATABASE_URL` 环境变量。

@@ -93,9 +93,17 @@
 - 列表卡片去掉计划编号（`PPL-日期-序号`），详情页与打印仍保留。
 - 看板三列去掉状态底色：列容器统一为中性 `bg-muted/20`，状态只由列头的彩色图标、文字与一句话说明表达。
 
+### 12. 工作台周视图与状态标签统一（同日收尾）
+
+- 工作台由「单日复盘」改为**周视图**：表格式周历按日期列展示排程单与生产计划单，接入 `GET /api/dashboard/weekly`；周切换写回 URL（`?week=<周一日期>`），刷新或分享可回到同一周；窄屏横向滚动。
+- 周历每格支持按日期直接新建：按权限（`canAccessApi`）打开排程/生产计划创建弹窗，创建成功后自动刷新；两个弹窗新增 `presetDate`。
+- 删除已被周视图替代的 `GET /api/dashboard/daily` 与 `dashboardDailyQuerySchema`。
+- `ScheduleStatusTag` 改为**中色系实底 + 白字**（`--status-warning/progress/done-solid`），排程列表、看板列头、创建弹窗选项、计划详情统一使用，不再与浅色 `StatusBadge` 混用；`--status-info-solid` / `--status-success-solid` 随之重命名为语义名。
+- 个人菜单（个人信息 / 退出登录）移至工作台右上角，侧边栏只保留导航。
+
 ### 验证
 
-- `npx tsc --noEmit` 0；`npm run lint` 0；`npm test` 49 套件 / 253 用例全绿（新增 schedule-status、schedule-schema、重复菜品聚合三组用例）。
+- `npx tsc --noEmit` 0；`npm run lint` 0；`npm test` 49 套件 / 253 用例全绿（新增 schedule-status、schedule-schema、重复菜品聚合三组用例）；`npm run build` 通过。
 - 未做浏览器实机目视：预览窗口没有登录态，已与用户确认先跳过。
 - 未做（延后，需补测试后再动）：`buildProductionPlanData` 改用排程快照口径（G5）、生产入库台账按门店拆分写 `scheduleId/storeId`（G6）。两者都会改变既有口径，当前无 UI 验证且 `buildProductionPlanData` 无测试覆盖。
 

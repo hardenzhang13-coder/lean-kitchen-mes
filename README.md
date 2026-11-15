@@ -82,7 +82,7 @@ npm run build
 | `npm run dev` | 开发服务器 |
 | `npm run build` | 生产构建（含 prisma generate） |
 | `npm run lint` | ESLint 检查 |
-| `npm test` | Jest 测试（28 套件 / 158 用例） |
+| `npm test` | Jest 测试（49 套件 / 253 用例） |
 | `npx prisma migrate dev` | 本地生成迁移文件（**禁止对生产使用**） |
 | `npx prisma migrate deploy` | 应用已有迁移 |
 | `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` | 提交前零差异校验，必须输出空迁移 |
