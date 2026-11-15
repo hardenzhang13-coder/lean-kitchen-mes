@@ -4,6 +4,33 @@
 
 ---
 ---
+## 2026-11-15（续 3）— ACR 镜像部署通路首次实测通过
+
+### 背景
+此前的生产部署走服务器现场构建；ACR 变量与 Secrets 虽已配置，但通路一直未实测。本次按用户要求改走 ACR。
+
+### 部署前审计
+- **迁移**：本次仅新增 `20261115100000_add_portion_to_net_ingredients`（`net_ingredients.portion` 加列 + 两条 `UPDATE dishes` 份量重命名）。生产盘点 `dishes.portion` 仅「单人份×3 / 一锅10份×1」，全部在迁移覆盖范围内，无枚举外取值。
+- **seed**：仅补缺失字典与基线；唯一固定写入是停用 `SEA-SEA`（幂等），不触碰菜品、食材与BOM。
+- **基线**：记录 14 张关键表行数（原料 51 / 净料 77 / 菜品 4 / BOM 16+9+1+0 / 排程 3 / 生产计划 3 / 净菜库存 5 / 出库单 1 / 单位 21 / 门店 2 / 包装 7）。
+
+### 部署
+- `workflow_dispatch` 触发 `deploy.yml`，run `43710678216`，head `a55089a`
+- build 推送 web / migrate 两镜像至 ACR → deploy-prebuilt 拉取并重启 → health 通过；`deploy-server`（现场构建）按条件跳过
+- 服务器 git HEAD `a55089a`；web 镜像为 `.../lean-kitchen/lean-kms-web:a55089a...`；migrate 容器 `Exited (0)`
+
+### 验证
+- 迁移 `20261115100000` 已应用
+- `dishes.portion`：小碗菜×3、小碗菜·10份×1，与迁移映射一致
+- `net_ingredients.portion` 列存在，77 条存量均为 NULL（符合设计）
+- 14 张关键表行数与部署前完全一致，差异 0
+- `/login` HTTP 200；web 日志无错误
+
+### 结论
+ACR 通路可用，后续部署默认走镜像拉取；现场构建仅作为未配置 ACR 时的兜底。
+
+---
+---
 ## 2026-11-15（续 2）— 旧原料库存表下线：代码层清理完成，删表待排期
 
 ### 背景
