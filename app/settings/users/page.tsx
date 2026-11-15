@@ -74,7 +74,7 @@ export default function UsersPage() {
         setData(usersJson.data || []);
         if (meRes.ok) {
           const meJson = await meRes.json();
-          setCurrentUser(meJson.user);
+          setCurrentUser(meJson.data?.user);
         }
       } catch {
         toast.error("获取数据失败");
