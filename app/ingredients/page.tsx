@@ -265,22 +265,20 @@ export default function IngredientsPage() {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col overflow-hidden p-8">
+    <div className="p-8">
       <PageHeader
         title="食材库"
         description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
+        actions={
+          <Button variant="outline" onClick={() => setPricingOpen(true)}>
+            <Calculator className="mr-2 h-4 w-4" />
+            计价规则
+          </Button>
+        }
       />
 
-      {/* 左上角：计价规则入口 */}
-      <div className="mt-2 flex items-start">
-        <Button variant="outline" onClick={() => setPricingOpen(true)}>
-          <Calculator className="mr-2 h-4 w-4" />
-          计价规则
-        </Button>
-      </div>
-
-      {/* 五个食材清单：上下居中展示 */}
-      <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto py-6">
+      {/* 五个食材清单：主体区上下居中展示 */}
+      <div className="mt-10 overflow-x-auto">
         <div
           ref={boardRef}
           className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr_110px_1fr]"

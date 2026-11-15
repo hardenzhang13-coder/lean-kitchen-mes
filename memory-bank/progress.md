@@ -19,8 +19,8 @@
 
 ### 2. 食材库首页
 
-- 「计价规则」从页面底部的常驻大卡片收进弹窗（`AppDialogContent size="wide"`），入口按钮放在页面左上角。
-- 5 个食材清单改为上下居中展示：页面改为 `flex h-dvh` 纵向布局，流程图区域 `flex-1 items-center justify-center`，各列卡片由 `justify-between` 改为 `justify-center + gap-8`。
+- 「计价规则」从页面底部的常驻大卡片收进弹窗（`AppDialogContent size="wide"`），入口按钮放在**标题行右上角**（`PageHeader` 的 `actions` 槽位）。
+- 5 个食材清单的主体展示：页面回到自然排布（不锁 `h-dvh`），流程图跟在标题行下方 `mt-10`；各列卡片由 `justify-between` 改为 `justify-center + gap-8`，使 5 个清单在流程图内上下居中成组。
 
 ### 3. 小料清单主字段
 
