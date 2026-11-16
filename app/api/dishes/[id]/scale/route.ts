@@ -11,19 +11,30 @@ import {
 } from "@/lib/server/api-response";
 import { scaleDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
-import {
-  buildPortionName,
-  portionScaleFactor,
-} from "@/lib/shared/portion-scale";
+import { portionScaleFactor } from "@/lib/shared/portion-scale";
+import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
+import { syncNamePackageSpec } from "@/lib/shared/name-utils";
 import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 import { createDishVariant } from "@/lib/server/dish-variant";
+import {
+  DishScaleValidationError,
+  buildDishScalePlan,
+  dishScaleSourceInclude,
+  generateNetIngredientCode,
+  resolveScaleSpecInputs,
+} from "@/lib/server/dish-scale-plan";
 import { logger } from "@/lib/server/logger";
 
 /**
- * 菜品转化：以任一菜品档案为源，按目标份量规格自动推导倍率
- * （如 小碗菜 → 社区·3份 = ×6），生成独立的草稿档案，不影响源档案。
+ * 菜品转化：
+ * 1. 同步把 BOM 引用的净料/小料切换到目标份量规格
+ * 2. 食材库没有的目标规格，按用户确认的提案自动建档
+ * 3. 生成独立草稿菜品，源档案不受影响
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const { id } = await params;
   const dishId = Number(id);
   if (!Number.isInteger(dishId) || dishId <= 0) {
@@ -33,25 +44,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const body = await req.json();
   const validation = validateBody(scaleDishSchema, body);
   if (!validation.success) return validation.response;
-  const { portion, name } = validation.data;
+  const { portion, name, specs: rawSpecs } = validation.data;
+  const specs = rawSpecs?.map((spec) => ({
+    ...spec,
+    processingFeePerJin: spec.processingFeePerJin ?? null,
+    grossMarginRate: spec.grossMarginRate ?? null,
+  }));
 
   const source = await prisma.dish.findUnique({
     where: { id: dishId },
-    include: {
-      category: { select: { code: true } },
-      netDetails: true,
-      minorDetails: true,
-      seasoningDetails: true,
-      sauceDetails: true,
-      processes: true,
-    },
+    include: dishScaleSourceInclude,
   });
   if (!source) return notFound("菜品不存在");
   if (portion === source.portion) {
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }
 
-  // 倍率由份量规格自动推导：目标小碗菜等价份数 ÷ 源小碗菜等价份数
   const factor = portionScaleFactor(source.portion, portion);
   if (factor == null || factor <= 0) {
     return badRequest(
@@ -59,7 +67,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     );
   }
 
-  const newName = name?.trim() || buildPortionName(source.name, portion);
+  // 转化后的菜品沿用源菜品名称，份量由 portion 字段区分
+  const newName = name?.trim() || source.name;
   const duplicate = await prisma.dish.findFirst({
     where: { categoryId: source.categoryId, name: newName, portion },
     select: { code: true },
@@ -80,27 +89,111 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const newDish = await prisma.$transaction(
-        async (tx) =>
-          createDishVariant(tx, source, {
+      const result = await prisma.$transaction(
+        async (tx) => {
+          const plan = await buildDishScalePlan(tx, source, portion);
+          const inputs = resolveScaleSpecInputs(plan, specs);
+
+          const netIngIdMap = new Map<number, number>();
+          const minorIngIdMap = new Map<number, number>();
+          // 同一净料可能同时出现在主料与小料，或重复引用；首次解析后复用目标 id
+          const resolvedBySourceId = new Map<number, number>();
+          let createdSpecCount = 0;
+
+          for (const item of [...plan.net, ...plan.minor]) {
+            const idMap = item.kind === "net" ? netIngIdMap : minorIngIdMap;
+
+            const cached = resolvedBySourceId.get(item.sourceNetIngId);
+            if (cached != null) {
+              idMap.set(item.sourceNetIngId, cached);
+              continue;
+            }
+
+            if (item.existing) {
+              idMap.set(item.sourceNetIngId, item.existing.id);
+              resolvedBySourceId.set(item.sourceNetIngId, item.existing.id);
+              continue;
+            }
+
+            const input = inputs.get(
+              `${item.kind}:${item.sourceNetIngId}`
+            );
+            if (!input) {
+              throw new DishScaleValidationError(
+                `缺少「${item.sourceName}」的目标规格`
+              );
+            }
+            if (!item.sourceIngredientId) {
+              throw new DishScaleValidationError(
+                `「${item.sourceName}」缺少来源原料，不能自动创建规格`
+              );
+            }
+            const unitPrice = calcNetUnitPrice({
+              pricePerJin: item.sourceIngredientPricePerJin,
+              yieldRate: input.yieldRate,
+            });
+            if (unitPrice == null) {
+              throw new DishScaleValidationError(
+                `「${item.sourceName}」缺少来源原料价格，无法计算净料单价`
+              );
+            }
+
+            const code = await generateNetIngredientCode(tx);
+            const created = await tx.netIngredient.create({
+              data: {
+                code,
+                name: syncNamePackageSpec(input.name, input.packageSpec),
+                sourceIngredientId: item.sourceIngredientId,
+                packageSpec: input.packageSpec,
+                packageMaterial: item.packageMaterial || "密封袋",
+                packageSize: item.packageSize || "50cm×40cm",
+                processingFeePerJin: input.processingFeePerJin ?? null,
+                yieldRate: input.yieldRate,
+                unitPrice,
+                grossMarginRate: input.grossMarginRate ?? 0,
+                portion,
+                unit: "g",
+                l2Code: item.l2Code,
+                storage: item.storage || "冷藏",
+              },
+              select: { id: true },
+            });
+            idMap.set(item.sourceNetIngId, created.id);
+            resolvedBySourceId.set(item.sourceNetIngId, created.id);
+            createdSpecCount += 1;
+          }
+
+          const dish = await createDishVariant(tx, source, {
             name: newName,
             portion,
-            factor,
+            factor: plan.factor,
             cost: sourceCost,
             operator,
-          }),
+            netIngIdMap,
+            minorIngIdMap,
+          });
+
+          return { dish, createdSpecCount, factor: plan.factor };
+        },
         { isolationLevel: "Serializable" }
       );
 
       await logOperation(req, {
         action: "CREATE",
         entity: "Dish",
-        entityId: newDish.id,
-        description: `由「${source.portion}」菜品「${source.name}」(${source.code}) 转化生成「${portion}」档案（×${factor}）`,
+        entityId: result.dish.id,
+        description: `由「${source.portion}」菜品「${source.name}」(${source.code}) 转化生成「${portion}」档案（×${result.factor}）${
+          result.createdSpecCount > 0
+            ? `，新建 ${result.createdSpecCount} 个净料/小料规格`
+            : ""
+        }`,
       });
 
-      return success(newDish, 201);
+      return success(result.dish, 201);
     } catch (err) {
+      if (err instanceof DishScaleValidationError) {
+        return badRequest(err.message);
+      }
       if (err instanceof Error && err.message.includes("Unique constraint")) {
         lastError = err;
         continue;
@@ -111,5 +204,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   logger.error({ err: lastError }, "生成菜品编码失败");
-  return internalError(`生成菜品编码失败，请稍后重试: ${lastError?.message ?? "未知错误"}`);
+  return internalError(
+    `生成菜品编码失败，请稍后重试: ${lastError?.message ?? "未知错误"}`
+  );
 }

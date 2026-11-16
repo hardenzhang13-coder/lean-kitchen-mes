@@ -6,7 +6,6 @@ import {
   success,
   badRequest,
   notFound,
-  conflict,
   internalError,
 } from "@/lib/server/api-response";
 import { copyDishSchema } from "@/lib/server/schemas/dish";
@@ -15,29 +14,10 @@ import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
 import { createDishVariant } from "@/lib/server/dish-variant";
 import { logger } from "@/lib/server/logger";
 
-/** 默认复制名称：源名称 + 「-副本」；重名时依次追加 2、3… */
-async function resolveCopyName(
-  categoryId: number,
-  portion: string,
-  sourceName: string
-): Promise<string> {
-  const base = `${sourceName}-副本`;
-  let candidate = base;
-  let suffix = 1;
-  for (;;) {
-    const existing = await prisma.dish.findFirst({
-      where: { categoryId, name: candidate, portion },
-      select: { id: true },
-    });
-    if (!existing) return candidate;
-    suffix += 1;
-    candidate = `${base}${suffix}`;
-  }
-}
-
 /**
  * 菜品复制：以现有档案为模板新建一条草稿档案。
- * 复制是新建动作，不带原记录 id；BOM、工序、售价原样保留，名称默认加「-副本」。
+ * 复制是新建动作，不带原记录 id；BOM、工序、售价原样保留。
+ * 编号本身唯一，名称不参与唯一校验。
  */
 export async function POST(
   req: NextRequest,
@@ -67,23 +47,7 @@ export async function POST(
   });
   if (!source) return notFound("菜品不存在");
 
-  const newName =
-    requestedName ??
-    (await resolveCopyName(source.categoryId, source.portion, source.name));
-
-  if (requestedName) {
-    const duplicate = await prisma.dish.findFirst({
-      where: {
-        categoryId: source.categoryId,
-        name: requestedName,
-        portion: source.portion,
-      },
-      select: { code: true },
-    });
-    if (duplicate) {
-      return conflict(`已存在同名同份量菜品档案：${duplicate.code}`);
-    }
-  }
+  const newName = requestedName ?? `${source.name}-副本`;
 
   const sourceCost =
     (await getCurrentDishCostMap([source.id])).get(source.id) ?? 0;

@@ -18,6 +18,21 @@ export function normalizeNameForMatch(name: string): string {
 }
 
 /**
+ * 同步净料/小料名称末尾的标准封装规格。
+ *
+ * 名称标准格式的最后一段是封装规格（如「平包菜•称重•500g」）。
+ * 转化派生新规格时，末尾规格要跟着目标 packageSpec 一起变化；
+ * 名称没有末尾规格时保持原样，交给用户自行维护。
+ */
+export function syncNamePackageSpec(name: string, packageSpec: number): string {
+  if (!Number.isFinite(packageSpec) || packageSpec <= 0) return name;
+  const trimmed = name.trim();
+  const trailingSpec = /(\d+(?:\.\d+)?)\s*(?:g|克)\s*$/i;
+  if (!trailingSpec.test(trimmed)) return trimmed;
+  return trimmed.replace(trailingSpec, `${packageSpec}g`);
+}
+
+/**
  * 计算两个名称的相似度（0~1）。
  * 规则：完全相同=1；一方包含另一方=0.9；否则 0。
  * （用于 AI 采购识别匹配的宽松阈值判定）

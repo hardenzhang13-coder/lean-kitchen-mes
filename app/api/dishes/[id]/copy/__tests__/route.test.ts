@@ -10,7 +10,6 @@ jest.mock("@/lib/server/prisma", () => ({
   prisma: {
     dish: {
       findUnique: jest.fn(),
-      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -30,7 +29,7 @@ jest.mock("@/lib/server/dish-variant", () => ({
 }));
 
 const mockedPrisma = prisma as unknown as {
-  dish: { findUnique: jest.Mock; findFirst: jest.Mock };
+  dish: { findUnique: jest.Mock };
   $transaction: jest.Mock;
 };
 const mockedLogOperation = logOperation as jest.Mock;
@@ -72,7 +71,6 @@ function params(id = "1") {
 describe("POST /api/dishes/[id]/copy", () => {
   beforeEach(() => {
     mockedPrisma.dish.findUnique.mockReset();
-    mockedPrisma.dish.findFirst.mockReset();
     mockedPrisma.$transaction.mockReset();
     mockedPrisma.$transaction.mockImplementation(async (callback) =>
       callback({})
@@ -90,7 +88,6 @@ describe("POST /api/dishes/[id]/copy", () => {
 
   it("默认名称加「-副本」并按 1 倍复制", async () => {
     mockedPrisma.dish.findUnique.mockResolvedValueOnce(source);
-    mockedPrisma.dish.findFirst.mockResolvedValueOnce(null);
     mockedCostMap.mockResolvedValueOnce(new Map([[1, 12]]));
     mockedCreateVariant.mockResolvedValueOnce({
       id: 2,
@@ -113,14 +110,20 @@ describe("POST /api/dishes/[id]/copy", () => {
     expect(mockedLogOperation).toHaveBeenCalled();
   });
 
-  it("指定名称重复时返回 409", async () => {
+  it("名称不参与唯一校验，按用户输入原样复制", async () => {
     mockedPrisma.dish.findUnique.mockResolvedValueOnce(source);
-    mockedPrisma.dish.findFirst.mockResolvedValueOnce({ code: "DSH-HOT-0009" });
+    mockedCostMap.mockResolvedValueOnce(new Map([[1, 12]]));
+    mockedCreateVariant.mockResolvedValueOnce({
+      id: 2,
+      name: "宫保鸡丁",
+    });
 
-    const res = await POST(createRequest({ name: "宫保鸡丁-副本" }), params());
-    expect(res.status).toBe(409);
-    const body = await res.json();
-    expect(body.error).toContain("已存在同名同份量");
-    expect(mockedCreateVariant).not.toHaveBeenCalled();
+    const res = await POST(createRequest({ name: "宫保鸡丁" }), params());
+    expect(res.status).toBe(201);
+    expect(mockedCreateVariant).toHaveBeenCalledWith(
+      {},
+      source,
+      expect.objectContaining({ name: "宫保鸡丁" })
+    );
   });
 });

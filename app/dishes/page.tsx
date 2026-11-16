@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil, CopyPlus, Copy } from "lucide-react";
+import { Plus, Pencil, ArrowRightLeft, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
@@ -28,11 +28,11 @@ import {
   formatPageSummary,
 } from "@/lib/client/use-pagination";
 import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
+import { DishScaleDialog } from "@/app/components/dishes/dish-scale-dialog";
 import {
   DishDetail,
   calcGrossMarginPercent,
 } from "@/app/components/dish-form/types";
-import { PORTION_OPTIONS, portionScaleFactor } from "@/lib/shared/portion-scale";
 import { TECHNIQUE_OPTIONS as techniqueOptions } from "@/lib/shared/dish-enums";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
@@ -44,11 +44,6 @@ const statusOptions = [
 ];
 
 // 份量与净料/小料档案共用同一套枚举（lib/shared/portion-scale.ts）
-const portionOptions = PORTION_OPTIONS.map((option) => ({
-  value: option.value,
-  label: option.label,
-  description: option.description,
-}));
 
 function MeatTypeBadge({ type }: { type?: string | null }) {
   if (!type) return <span className="text-muted-foreground">—</span>;
@@ -86,8 +81,6 @@ export default function DishesPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [scaleTarget, setScaleTarget] = useState<DishDetail | null>(null);
-  const [scalePortion, setScalePortion] = useState("");
-  const [scaling, setScaling] = useState(false);
   const [copyTarget, setCopyTarget] = useState<DishDetail | null>(null);
   const [copyName, setCopyName] = useState("");
   const [copying, setCopying] = useState(false);
@@ -255,45 +248,6 @@ export default function DishesPage() {
     }
   };
 
-  // 转化倍率由源/目标份量规格自动推导（如 小碗菜 → 小碗菜·10份 = ×10，社区·2份 = ×4）
-  const scaleFactorNum =
-    scaleTarget != null && scalePortion
-      ? portionScaleFactor(scaleTarget.portion, scalePortion)
-      : null;
-
-  const handleScaleUp = async (dish: DishDetail) => {
-    if (!scalePortion) {
-      toast.error("请选择目标份量");
-      return;
-    }
-    const factor = portionScaleFactor(dish.portion, scalePortion);
-    if (factor == null || factor <= 0) {
-      toast.error("无法从目标份量规格推导转化倍率");
-      return;
-    }
-    setScaling(true);
-    try {
-      const res = await fetch(`/api/dishes/${dish.id}/scale`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ portion: scalePortion }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error || "转化失败");
-        return;
-      }
-      const newDish = data.data || {};
-      toast.success(`已生成「${scalePortion}」菜品档案${newDish.code ? "：" + newDish.code : ""}`);
-      setScaleTarget(null);
-      refresh();
-    } catch {
-      toast.error("转化失败");
-    } finally {
-      setScaling(false);
-    }
-  };
-
   return (
     <PageShell variant="workspace">
       <PageHeader
@@ -455,13 +409,9 @@ export default function DishesPage() {
                   onClick={(e) => {
                     e.stopPropagation();
                     setScaleTarget(row);
-                    setScalePortion(
-                      PORTION_OPTIONS.find((option) => option.value !== row.portion)
-                        ?.value ?? ""
-                    );
                   }}
                 >
-                  <CopyPlus className="h-4 w-4" />
+                  <ArrowRightLeft className="h-4 w-4" />
                 </Button>
                 <Button
                   variant="ghost"
@@ -576,69 +526,25 @@ export default function DishesPage() {
         </AppDialogContent>
       </Dialog>
 
-      <Dialog open={scaleTarget !== null} onOpenChange={() => setScaleTarget(null)}>
-        <AppDialogContent size="form">
-          <DialogHeader>
-            <DialogTitle className="text-lg">菜品转化</DialogTitle>
-          </DialogHeader>
-          {scaleTarget && (
-            <div className="space-y-4">
-              <p className="text-muted-foreground text-base">
-                将「{scaleTarget.name}」（{scaleTarget.portion}）转化生成新的份量规格档案（草稿），源档案不受影响。
-              </p>
-              <div className="space-y-1.5">
-                <span className="text-sm font-medium">目标份量</span>
-                <SelectTileMode
-                  options={portionOptions.filter((o) => o.value !== scaleTarget.portion)}
-                  value={scalePortion}
-                  onChange={setScalePortion}
-                  placeholder="请选择目标份量"
-                  title="选择目标份量"
-                  searchable={false}
-                />
-                <p className="text-xs text-muted-foreground">
-                  用量按份量规格自动换算{scaleFactorNum != null && scaleFactorNum > 0 ? `：全部明细 ×${scaleFactorNum}` : ""}
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">用料成本</span>
-                  <span className="font-medium">
-                    {scaleTarget.cost != null && scaleFactorNum != null && scaleFactorNum > 0
-                      ? `¥${Number(scaleTarget.cost).toFixed(2)} × ${scaleFactorNum} = ¥${(Number(scaleTarget.cost) * scaleFactorNum).toFixed(2)}`
-                      : "—"}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">售价</span>
-                  <span className="font-medium">
-                    {scaleTarget.price != null && scaleFactorNum != null && scaleFactorNum > 0
-                      ? `¥${Number(scaleTarget.price).toFixed(2)} × ${scaleFactorNum} = ¥${(Number(scaleTarget.price) * scaleFactorNum).toFixed(2)}`
-                      : "—"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setScaleTarget(null)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button
-              onClick={() => scaleTarget && handleScaleUp(scaleTarget)}
-              disabled={
-                scaling ||
-                !scalePortion ||
-                scaleFactorNum == null ||
-                scaleFactorNum <= 0
-              }
-              className="h-11 px-6"
-            >
-              {scaling ? "转化中..." : "确认转化"}
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      {scaleTarget && (
+        <DishScaleDialog
+          key={scaleTarget.id}
+          dish={scaleTarget}
+          open={scaleTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setScaleTarget(null);
+          }}
+          onSuccess={(newDish) => {
+            setScaleTarget(null);
+            refresh();
+            if (newDish?.id) {
+              setSelectedDish(newDish);
+              setSheetOpen(true);
+              fetchDetail(newDish.id);
+            }
+          }}
+        />
+      )}
     </PageShell>
   );
 }

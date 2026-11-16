@@ -51,10 +51,27 @@ export const dishStatusActionSchema = z.object({
   action: z.enum(DISH_STATUS_ACTIONS),
 });
 
+/** 菜品转换时缺失的净料/小料规格（用户确认后自动建档） */
+export const scaleSpecSchema = z.object({
+  kind: z.enum(["net", "minor"]),
+  sourceNetIngId: z.number().int().positive(),
+  name: z.string().trim().min(1).max(100),
+  packageSpec: z.number().int().min(1).max(1000000),
+  yieldRate: z.number().min(0.01).max(500),
+  processingFeePerJin: z.number().min(0).max(10000).nullish(),
+  grossMarginRate: z.number().min(0).max(95).nullish(),
+});
+
 /** 菜品规格派生：由源菜品按倍率生成新份量规格档案 */
 export const scaleDishSchema = z.object({
   portion: z.enum(PORTION_VALUES),
   name: z.string().min(1).max(100).optional(),
+  specs: z.array(scaleSpecSchema).max(200).optional(),
+});
+
+/** 转化预览：只选择目标份量，返回净料/小料规格匹配计划 */
+export const scalePreviewSchema = z.object({
+  portion: z.enum(PORTION_VALUES),
 });
 
 /** 菜品复制：以现有档案为模板新建一条草稿，名称可覆盖 */

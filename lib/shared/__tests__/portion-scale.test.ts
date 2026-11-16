@@ -1,12 +1,10 @@
 import {
   PORTION_OPTIONS,
   PORTION_VALUES,
-  buildPortionName,
   getPortionOption,
   isValidPortion,
   parsePortionCount,
   portionScaleFactor,
-  stripPortionSuffix,
 } from "../portion-scale";
 
 describe("份量枚举与换算", () => {
@@ -53,17 +51,5 @@ describe("份量枚举与换算", () => {
       Number((8 / 6).toFixed(4))
     );
     expect(portionScaleFactor("小碗菜", null)).toBeNull();
-  });
-
-  it("转化名称避免份量后缀叠加", () => {
-    expect(stripPortionSuffix("宫保鸡丁·小碗菜")).toBe("宫保鸡丁");
-    expect(stripPortionSuffix("宫保鸡丁·社区·3份")).toBe("宫保鸡丁");
-    expect(stripPortionSuffix("宫保鸡丁")).toBe("宫保鸡丁");
-    expect(buildPortionName("宫保鸡丁", "社区·3份")).toBe(
-      "宫保鸡丁·社区·3份"
-    );
-    expect(buildPortionName("宫保鸡丁·小碗菜", "社区·3份")).toBe(
-      "宫保鸡丁·社区·3份"
-    );
   });
 });

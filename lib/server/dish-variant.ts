@@ -22,6 +22,9 @@ export type DishVariantOptions = {
   /** 源菜品当前成本（元/份），按倍率缩放后写入新档案 */
   cost: number | null;
   operator: string | null;
+  /** 转化时把源 BOM 的净料/小料切换到目标份量规格 */
+  netIngIdMap?: Map<number, number>;
+  minorIngIdMap?: Map<number, number>;
 };
 
 /** 数值按倍率缩放并保留 4 位小数（与 BOM 成本精度一致） */
@@ -78,7 +81,8 @@ export async function createDishVariant(
       netDetails: {
         create: source.netDetails.map((detail) => ({
           role: detail.role,
-          netIngId: detail.netIngId,
+          netIngId:
+            options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId,
           amountG: scaleValue(detail.amountG, factor) ?? 0,
           spec: detail.spec,
           cost: scaleValue(detail.cost, factor),
@@ -86,7 +90,8 @@ export async function createDishVariant(
       },
       minorDetails: {
         create: source.minorDetails.map((detail) => ({
-          netIngId: detail.netIngId,
+          netIngId:
+            options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId,
           amountG: scaleValue(detail.amountG, factor) ?? 0,
           brand: detail.brand,
           cost: scaleValue(detail.cost, factor),
