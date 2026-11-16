@@ -51,6 +51,7 @@
   2. 缺失规格按用户确认值创建 `NetIngredient`，编码沿用 `PRD-xxxx`；名称末尾的标准封装规格与 `packageSpec` 同步（如「平包菜•称重•500g」→「•600g」）
   3. 通过 `netIngIdMap` / `minorIngIdMap` 把新菜品 BOM 指向目标规格
   4. 调用 `createDishVariant()` 生成草稿菜品
+- 同一净料在 BOM 中重复引用时，规格计划按净料 id 去重；执行阶段跨主料/小料复用已解析的目标规格，避免重复建档与 React 重复 key。
 - 纯逻辑抽到 `lib/server/dish-scale-plan.ts`，类型定义在 `lib/shared/dish-scale.ts`，预览与执行共用。
 
 ### 4. 复制
@@ -60,7 +61,7 @@
 
 ### 校验
 
-- `npx tsc --noEmit`、`npm run lint`、`npm test`（53 套件 / 261 用例）、`npm run build` 全部通过。
+- `npx tsc --noEmit`、`npm run lint`、`npm test`（53 套件 / 263 用例）、`npm run build` 全部通过。
 - 新增测试覆盖：转化计划匹配/缺失/阻塞、转化执行建档与 BOM 映射、复制同名允许、转化弹窗预览与提交。
 
 

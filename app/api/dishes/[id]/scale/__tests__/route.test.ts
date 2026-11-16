@@ -10,6 +10,7 @@ import {
   generateNetIngredientCode,
   resolveScaleSpecInputs,
 } from "@/lib/server/dish-scale-plan";
+import type { DishScaleSpecInput } from "@/lib/shared/dish-scale";
 import { POST } from "../route";
 
 jest.mock("@/lib/server/prisma", () => ({
@@ -208,9 +209,9 @@ describe("POST /api/dishes/[id]/scale", () => {
       grossMarginRate: 30,
     };
     mockedResolveInputs.mockReturnValueOnce(
-      new Map([
+      new Map<string, DishScaleSpecInput>([
         ["net:101", input],
-        ["minor:101", { ...input, kind: "minor" as const }],
+        ["minor:101", { ...input, kind: "minor" }],
       ])
     );
     mockedGenerateCode.mockResolvedValueOnce("PRD-0200");
