@@ -19,6 +19,8 @@ interface ListToolbarProps {
   hasFilters?: boolean;
   /** 其余筛选项 */
   children?: ReactNode;
+  /** 筛选行最右侧的附加控件（如看板状态显隐） */
+  trailing?: ReactNode;
   className?: string;
 }
 
@@ -29,6 +31,7 @@ export function ListToolbar({
   onReset,
   hasFilters = false,
   children,
+  trailing,
   className = "",
 }: ListToolbarProps) {
   const showReset = searchValue.trim() !== "" || hasFilters;
@@ -50,6 +53,7 @@ export function ListToolbar({
           重置
         </Button>
       )}
+      {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
     </div>
   );
 }

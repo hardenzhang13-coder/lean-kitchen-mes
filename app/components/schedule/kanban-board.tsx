@@ -10,6 +10,8 @@ interface KanbanColumn<T> {
 }
 
 interface KanbanBoardProps<T> {
+  /** 需要展示的状态列（按此顺序渲染，数量决定每行几列） */
+  statuses: readonly string[];
   columns: KanbanColumn<T>[];
   loading: boolean;
   renderItem: (item: T) => ReactNode;
@@ -47,34 +49,45 @@ const FALLBACK_STYLE: ColumnStyle = {
   text: "text-muted-foreground",
 };
 
+// Tailwind 需要静态类名，按可见列数映射栅格
+const GRID_BY_COUNT: Record<number, string> = {
+  1: "lg:grid-cols-1",
+  2: "lg:grid-cols-2",
+  3: "lg:grid-cols-3",
+};
+
 /**
- * 按状态三列的单据看板。列头用状态色文字与图标区分状态，列容器保持中性底色；
+ * 按状态分列的单据看板。列头用状态色文字与图标区分状态，列容器保持中性底色；
  * 列内纵向滚动，列头显示该状态总条数，超过取数上限时提示缩小筛选。
+ * 展示哪几列由 `statuses` 决定，可见列数决定每行排布（3 / 2 / 1 列）。
  */
 export function KanbanBoard<T>({
+  statuses,
   columns,
   loading,
   renderItem,
   emptyText,
 }: KanbanBoardProps<T>) {
+  const columnByStatus = new Map(columns.map((column) => [column.status, column]));
+  const gridClass = GRID_BY_COUNT[statuses.length] ?? "lg:grid-cols-3";
+
   return (
-    <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-3">
-      {columns.map((column) => {
-        const style = COLUMN_STYLES[column.status] ?? FALLBACK_STYLE;
+    <div className={`grid grid-cols-1 items-start gap-4 ${gridClass}`}>
+      {statuses.map((status) => {
+        const column = columnByStatus.get(status) ?? { status, items: [], total: 0 };
+        const style = COLUMN_STYLES[status] ?? FALLBACK_STYLE;
         const Icon = style.icon;
         return (
           <section
-            key={column.status}
-            aria-label={`${column.status}单据`}
+            key={status}
+            aria-label={`${status}单据`}
             className="overflow-hidden rounded-xl border bg-muted/20"
           >
             <header className="border-b px-4 py-3">
               <div className="flex items-center gap-2">
                 <Icon className={`h-4 w-4 ${style.text}`} />
-                <span className={`text-sm font-semibold ${style.text}`}>
-                  {column.status}
-                </span>
-                <span className="ml-auto font-mono text-xs text-muted-foreground">
+                <span className={`text-sm font-semibold ${style.text}`}>{status}</span>
+                <span className="ml-auto font-mono text-sm font-bold text-primary">
                   {column.total}
                 </span>
               </div>

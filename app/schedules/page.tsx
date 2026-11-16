@@ -4,51 +4,36 @@ import { useEffect, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
-import { ScheduleMenuTable } from "@/app/components/schedule/schedule-menu-table";
-import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
-import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
+import { SchedulePreviewDialog } from "@/app/components/ui/schedule-preview-dialog";
 import { ScheduleCard } from "@/app/components/schedule/schedule-card";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
+import { StatusColumnMenu } from "@/app/components/schedule/status-column-menu";
 import { ScheduleCreateDialog } from "@/app/components/schedule/schedule-create-dialog";
 import { useScheduleBoard } from "@/app/components/schedule/use-schedule-board";
-import type {
-  QuickTab,
-  ScheduleDocMeta,
-  ScheduleQuickDetail,
-} from "@/app/components/schedule/list-types";
-import { formatDate, getWeekDay } from "@/lib/shared/date-format";
+import { useStatusVisibility } from "@/app/components/schedule/use-status-visibility";
 import { canAccessApi } from "@/lib/shared/access-control";
 import { useCurrentRole } from "@/lib/client/use-current-role";
-import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
 export default function SchedulesPage() {
   const router = useRouter();
-  const board = useScheduleBoard();
+  const { visible: visibleStatuses, setStatuses } = useStatusVisibility(
+    "lean-kms:schedules:visible-statuses"
+  );
+  const board = useScheduleBoard(visibleStatuses);
   const role = useCurrentRole();
   const canWrite = canAccessApi("/api/schedules", "POST", role);
 
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [actionId, setActionId] = useState<number | null>(null);
 
-  const [quickView, setQuickView] = useState<ScheduleQuickDetail | null>(null);
-  const [quickViewLoading, setQuickViewLoading] = useState(false);
-  const [quickTab, setQuickTab] = useState<QuickTab>("menu");
+  const [previewId, setPreviewId] = useState<number | null>(null);
   const [createState, setCreateState] = useState<{ copyFromId: number | null } | null>(null);
 
   useEffect(() => {
@@ -82,27 +67,8 @@ export default function SchedulesPage() {
     };
   }, []);
 
-  const openQuickView = async (id: number) => {
-    setQuickViewLoading(true);
-    setQuickTab("menu");
-    try {
-      const res = await fetch("/api/schedules/" + id);
-      const data = await parseObject<ScheduleQuickDetail>(res);
-      if (!data) {
-        toast.error("排程不存在");
-        return;
-      }
-      setQuickView(data);
-    } catch {
-      toast.error("获取排程数据失败");
-    } finally {
-      setQuickViewLoading(false);
-    }
-  };
-
   const closeQuickView = () => {
-    setQuickView(null);
-    setQuickViewLoading(false);
+    setPreviewId(null);
   };
 
   const activateSchedule = async (id: number) => {
@@ -122,16 +88,6 @@ export default function SchedulesPage() {
       setActionId(null);
     }
   };
-
-  const quickMeta: ScheduleDocMeta | null = quickView
-    ? {
-        title: quickView.title,
-        scheduleDate: quickView.scheduleDate,
-        storeName: quickView.store?.name ?? "",
-        scheduleId: quickView.id,
-        code: quickView.code,
-      }
-    : null;
 
   return (
     <PageShell>
@@ -154,6 +110,9 @@ export default function SchedulesPage() {
         searchPlaceholder="搜索排程标题..."
         onReset={board.reset}
         hasFilters={!!(board.date || board.storeId)}
+        trailing={
+          <StatusColumnMenu visible={visibleStatuses} onChange={setStatuses} />
+        }
       >
         <DatePicker
           value={board.date}
@@ -179,6 +138,7 @@ export default function SchedulesPage() {
         <LoadingState type="card-grid" rows={3} />
       ) : (
         <KanbanBoard
+          statuses={visibleStatuses}
           columns={board.columns}
           loading={board.loading}
           emptyText="暂无排程单"
@@ -188,7 +148,7 @@ export default function SchedulesPage() {
               item={row}
               busy={actionId === row.id}
               canWrite={canWrite}
-              onOpen={() => openQuickView(row.id)}
+              onOpen={() => setPreviewId(row.id)}
               onActivate={() => activateSchedule(row.id)}
               onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
             />
@@ -196,73 +156,10 @@ export default function SchedulesPage() {
         />
       )}
 
-      <Dialog
-        open={quickViewLoading || !!quickView}
-        onOpenChange={(open) => !open && closeQuickView()}
-      >
-        <AppDialogContent
-          size="workbench"
-          className="[&>button]:cursor-pointer p-0 flex flex-col max-h-[calc(100dvh-24px)]"
-        >
-          <DialogHeader className="border-b px-6 pb-4 pt-6">
-            <DialogTitle className="text-lg">
-              {quickView?.title ?? "排程预览"}
-            </DialogTitle>
-            {quickView && (
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <ScheduleStatusTag status={quickView.status} size="sm" />
-                <span>
-                  {formatDate(quickView.scheduleDate)}{" "}
-                  {getWeekDay(quickView.scheduleDate)}
-                </span>
-                <span>{quickView.store?.name ?? "—"}</span>
-                <span>
-                  {quickView.dishCount} 个菜品 / {quickView.totalQuantity} 份
-                </span>
-              </div>
-            )}
-          </DialogHeader>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            {quickViewLoading || !quickView || !quickMeta ? (
-              <LoadingState type="page" />
-            ) : (
-              <>
-                <SectionTabs
-                  ariaLabel="排程预览内容"
-                  value={quickTab}
-                  onChange={setQuickTab}
-                  tabs={[
-                    { value: "menu", label: "排程菜单", count: quickView.items.length },
-                    { value: "cutting", label: "切配工单", count: quickView.cuttingOrders.length },
-                    { value: "purchase", label: "采购计划", count: quickView.purchasePlans.length },
-                  ]}
-                />
-                <div className="pt-4">
-                  {quickTab === "menu" && (
-                    <ScheduleMenuTable items={quickView.items} meta={quickMeta} />
-                  )}
-                  {quickTab === "cutting" && (
-                    <ScheduleCuttingTable rows={quickView.cuttingOrders} meta={quickMeta} />
-                  )}
-                  {quickTab === "purchase" && (
-                    <SchedulePurchaseTable rows={quickView.purchasePlans} meta={quickMeta} />
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-
-          <DialogFooter className="border-t px-6 pb-5 pt-4">
-            <Button
-              onClick={() => quickView && router.push(`/schedules/${quickView.id}`)}
-              disabled={!quickView}
-            >
-              查看完整详情
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      <SchedulePreviewDialog
+        scheduleId={previewId}
+        onClose={closeQuickView}
+      />
 
       {createState && (
         <ScheduleCreateDialog

@@ -28,8 +28,9 @@ export async function GET(req: NextRequest) {
           store: { select: { name: true } },
           items: {
             select: {
+              id: true,
               quantity: true,
-              dish: { select: { price: true } },
+              dish: { select: { name: true, price: true } },
             },
           },
         },
@@ -78,6 +79,16 @@ export async function GET(req: NextRequest) {
                   )
                 )
               : null,
+          // 逐菜品明细：工作台悬浮查看今日售卖菜品
+          items: schedule.items.map((item) => ({
+            id: item.id,
+            dishName: item.dish.name,
+            quantity: item.quantity,
+            amount:
+              item.dish.price != null
+                ? round2(item.quantity * Number(item.dish.price))
+                : null,
+          })),
         };
       }),
       plans: plans.map((plan) => {

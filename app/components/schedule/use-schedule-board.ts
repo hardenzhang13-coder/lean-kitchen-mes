@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { SCHEDULE_STATUS_VALUES } from "@/lib/shared/schedule-status";
 import type {
   ProductionPlanListItem,
   ScheduleListItem,
@@ -27,6 +26,15 @@ function useDebouncedValue(value: string, delay = 300) {
   return debounced;
 }
 
+/** 可见状态串：作为 effect 依赖，避免每次渲染新建数组导致重复取数 */
+function useStatusList(visibleStatuses: readonly string[]) {
+  const statusKey = visibleStatuses.join(",");
+  return useMemo(
+    () => (statusKey ? statusKey.split(",") : []),
+    [statusKey]
+  );
+}
+
 async function fetchColumn<T>(
   base: string,
   status: string,
@@ -47,13 +55,14 @@ async function fetchColumn<T>(
 }
 
 function buildBoardColumns<T>(
+  statuses: readonly string[],
   fetcher: (status: string) => Promise<BoardColumn<T>>
 ): Promise<BoardColumn<T>[]> {
-  return Promise.all(SCHEDULE_STATUS_VALUES.map((status) => fetcher(status)));
+  return Promise.all(statuses.map((status) => fetcher(status)));
 }
 
-/** 菜品排程单看板：按状态三列取数，日期为单日筛选。 */
-export function useScheduleBoard() {
+/** 菜品排程单看板：按可见状态列取数，日期为单日筛选。 */
+export function useScheduleBoard(visibleStatuses: readonly string[]) {
   const [columns, setColumns] = useState<BoardColumn<ScheduleListItem>[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -61,8 +70,10 @@ export function useScheduleBoard() {
   const [storeId, setStoreId] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const debouncedSearch = useDebouncedValue(search);
+  const statuses = useStatusList(visibleStatuses);
+  const statusKey = statuses.join(",");
 
-  const boardKey = `${date}|${storeId}|${debouncedSearch}|${refreshKey}`;
+  const boardKey = `${date}|${storeId}|${debouncedSearch}|${statusKey}|${refreshKey}`;
   const [prevBoardKey, setPrevBoardKey] = useState(boardKey);
   if (prevBoardKey !== boardKey) {
     setPrevBoardKey(boardKey);
@@ -80,8 +91,15 @@ export function useScheduleBoard() {
     if (debouncedSearch) params.set("q", debouncedSearch);
 
     const run = async () => {
+      if (statuses.length === 0) {
+        if (alive) {
+          setColumns([]);
+          setLoading(false);
+        }
+        return;
+      }
       try {
-        const result = await buildBoardColumns((status) =>
+        const result = await buildBoardColumns(statuses, (status) =>
           fetchColumn<ScheduleListItem>("/api/schedules", status, params)
         );
         if (alive) setColumns(result);
@@ -95,7 +113,7 @@ export function useScheduleBoard() {
     return () => {
       alive = false;
     };
-  }, [date, storeId, debouncedSearch, refreshKey]);
+  }, [date, storeId, debouncedSearch, refreshKey, statuses]);
 
   return {
     columns,
@@ -115,16 +133,18 @@ export function useScheduleBoard() {
   };
 }
 
-/** 生产计划单看板：按状态三列取数，日期为单日筛选。 */
-export function useProductionPlanBoard() {
+/** 生产计划单看板：按可见状态列取数，日期为单日筛选。 */
+export function useProductionPlanBoard(visibleStatuses: readonly string[]) {
   const [columns, setColumns] = useState<BoardColumn<ProductionPlanListItem>[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [date, setDate] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   const debouncedSearch = useDebouncedValue(search);
+  const statuses = useStatusList(visibleStatuses);
+  const statusKey = statuses.join(",");
 
-  const boardKey = `${date}|${debouncedSearch}|${refreshKey}`;
+  const boardKey = `${date}|${debouncedSearch}|${statusKey}|${refreshKey}`;
   const [prevBoardKey, setPrevBoardKey] = useState(boardKey);
   if (prevBoardKey !== boardKey) {
     setPrevBoardKey(boardKey);
@@ -141,8 +161,15 @@ export function useProductionPlanBoard() {
     if (debouncedSearch) params.set("q", debouncedSearch);
 
     const run = async () => {
+      if (statuses.length === 0) {
+        if (alive) {
+          setColumns([]);
+          setLoading(false);
+        }
+        return;
+      }
       try {
-        const result = await buildBoardColumns((status) =>
+        const result = await buildBoardColumns(statuses, (status) =>
           fetchColumn<ProductionPlanListItem>("/api/production-plans", status, params)
         );
         if (alive) setColumns(result);
@@ -156,7 +183,7 @@ export function useProductionPlanBoard() {
     return () => {
       alive = false;
     };
-  }, [date, debouncedSearch, refreshKey]);
+  }, [date, debouncedSearch, refreshKey, statuses]);
 
   return {
     columns,

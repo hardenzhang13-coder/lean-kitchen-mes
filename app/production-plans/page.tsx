@@ -1,40 +1,27 @@
 "use client";
 
 import { useEffect, useState, startTransition } from "react";
-import { Plus, CalendarDays } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DatePicker } from "@/app/components/ui/date-picker";
-import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
-import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
+import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
-import { ProductionPlanStoreSchedules } from "@/app/components/production-plan/store-schedules-tab";
-import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
-import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
 import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
 import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
+import { StatusColumnMenu } from "@/app/components/schedule/status-column-menu";
 import { useProductionPlanBoard } from "@/app/components/schedule/use-schedule-board";
+import { useStatusVisibility } from "@/app/components/schedule/use-status-visibility";
 import type {
   CuttingOrderRow,
-  PlanPreviewTab,
   ProductionPlanPreview,
-  ScheduleDocMeta,
 } from "@/app/components/schedule/list-types";
 import type { PlanCuttingRow } from "@/lib/shared/prepped-stock";
-import { formatDate, getWeekDay } from "@/lib/shared/date-format";
 import { canAccessApi } from "@/lib/shared/access-control";
 import { useCurrentRole } from "@/lib/client/use-current-role";
 import { parseObject } from "@/lib/client/api";
@@ -62,7 +49,10 @@ function toPlanCuttingRows(rows: CuttingOrderRow[]): PlanCuttingRow[] {
 
 export default function ProductionPlansPage() {
   const router = useRouter();
-  const board = useProductionPlanBoard();
+  const { visible: visibleStatuses, setStatuses } = useStatusVisibility(
+    "lean-kms:production-plans:visible-statuses"
+  );
+  const board = useProductionPlanBoard(visibleStatuses);
   const role = useCurrentRole();
   const canWrite = canAccessApi("/api/production-plans", "POST", role);
 
@@ -70,9 +60,7 @@ export default function ProductionPlansPage() {
   const [createState, setCreateState] = useState<{
     presetScheduleId: number | null;
   } | null>(null);
-  const [preview, setPreview] = useState<ProductionPlanPreview | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewTab, setPreviewTab] = useState<PlanPreviewTab>("cutting");
+  const [previewId, setPreviewId] = useState<number | null>(null);
   const [completeTarget, setCompleteTarget] = useState<{
     planId: number;
     rows: PlanCuttingRow[];
@@ -91,27 +79,8 @@ export default function ProductionPlansPage() {
     });
   }, []);
 
-  const openPreview = async (id: number) => {
-    setPreviewLoading(true);
-    setPreviewTab("cutting");
-    try {
-      const res = await fetch("/api/production-plans/" + id);
-      const data = await parseObject<ProductionPlanPreview>(res);
-      if (!data) {
-        toast.error("生产计划单不存在");
-        return;
-      }
-      setPreview(data);
-    } catch {
-      toast.error("获取生产计划单失败");
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
   const closePreview = () => {
-    setPreview(null);
-    setPreviewLoading(false);
+    setPreviewId(null);
   };
 
   const activatePlan = async (id: number) => {
@@ -149,25 +118,6 @@ export default function ProductionPlansPage() {
     }
   };
 
-  const printLabels = (planId: number) => {
-    window.open(
-      `/production-plans/${planId}/labels`,
-      "_blank",
-      "noopener,noreferrer"
-    );
-  };
-
-  const previewMeta: ScheduleDocMeta | null = preview
-    ? {
-        title: preview.title,
-        scheduleDate: preview.planDate,
-        storeName: "",
-        scheduleId: preview.id,
-        code: preview.code,
-        printBase: "/production-plans/",
-      }
-    : null;
-
   return (
     <PageShell>
       <PageHeader
@@ -189,6 +139,9 @@ export default function ProductionPlansPage() {
         searchPlaceholder="搜索生产计划单标题..."
         onReset={board.reset}
         hasFilters={!!board.date}
+        trailing={
+          <StatusColumnMenu visible={visibleStatuses} onChange={setStatuses} />
+        }
       >
         <DatePicker
           value={board.date}
@@ -203,6 +156,7 @@ export default function ProductionPlansPage() {
         <LoadingState type="card-grid" rows={3} />
       ) : (
         <KanbanBoard
+          statuses={visibleStatuses}
           columns={board.columns}
           loading={board.loading}
           emptyText="暂无生产计划单"
@@ -212,7 +166,7 @@ export default function ProductionPlansPage() {
               item={row}
               busy={actionId === row.id}
               canWrite={canWrite}
-              onOpen={() => openPreview(row.id)}
+              onOpen={() => setPreviewId(row.id)}
               onActivate={() => activatePlan(row.id)}
               onComplete={() => openCompleteDialog(row.id)}
             />
@@ -220,97 +174,7 @@ export default function ProductionPlansPage() {
         />
       )}
 
-      <Dialog
-        open={previewLoading || !!preview}
-        onOpenChange={(open) => !open && closePreview()}
-      >
-        <AppDialogContent
-          size="workbench"
-          className="[&>button]:cursor-pointer p-0 flex flex-col max-h-[calc(100dvh-24px)]"
-        >
-          <DialogHeader className="border-b px-6 pb-4 pt-6">
-            <DialogTitle className="text-lg">
-              {preview?.title ?? "生产计划单预览"}
-            </DialogTitle>
-            {preview && (
-              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-                <ScheduleStatusTag status={preview.status} size="sm" />
-                <span>
-                  {formatDate(preview.planDate)} {getWeekDay(preview.planDate)}
-                </span>
-                <span>汇总 {preview.sourceSchedules.length} 张排程单</span>
-              </div>
-            )}
-          </DialogHeader>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
-            {previewLoading || !preview || !previewMeta ? (
-              <LoadingState type="page" />
-            ) : (
-              <>
-                <SectionTabs
-                  ariaLabel="生产计划单预览内容"
-                  value={previewTab}
-                  onChange={setPreviewTab}
-                  tabs={[
-                    { value: "cutting", label: "切配汇总", count: preview.cuttingOrders.length },
-                    { value: "purchase", label: "采购汇总", count: preview.purchasePlans.length },
-                    { value: "stores", label: "门店排程", count: preview.sourceSchedules.length },
-                  ]}
-                />
-                <div className="pt-4">
-                  {previewTab === "cutting" && (
-                    <ScheduleCuttingTable
-                      rows={preview.cuttingOrders}
-                      meta={previewMeta}
-                      enableLabelPrint
-                    />
-                  )}
-                  {previewTab === "purchase" && (
-                    <SchedulePurchaseTable rows={preview.purchasePlans} meta={previewMeta} />
-                  )}
-                  {previewTab === "stores" &&
-                    (preview.sourceSnapshot ? (
-                      <ProductionPlanStoreSchedules
-                        snapshot={preview.sourceSnapshot}
-                        sourceSchedules={preview.sourceSchedules.map((schedule) => ({
-                          id: schedule.id,
-                          status: schedule.status ?? "—",
-                        }))}
-                      />
-                    ) : (
-                      <EmptyState
-                        icon={CalendarDays}
-                        title="没有来源排程数据"
-                        description="历史计划单未固化来源快照，请到详情页查看。"
-                      />
-                    ))}
-                </div>
-              </>
-            )}
-          </div>
-
-          <DialogFooter className="border-t px-6 pb-5 pt-4">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => preview && printLabels(preview.id)}
-                disabled={!preview || preview.cuttingOrders.length === 0}
-              >
-                打印净菜标签
-              </Button>
-              <Button
-                onClick={() =>
-                  preview && router.push(`/production-plans/${preview.id}`)
-                }
-                disabled={!preview}
-              >
-                查看完整详情
-              </Button>
-            </div>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      <ProductionPlanPreviewDialog planId={previewId} onClose={closePreview} />
 
       <CompleteProductionDialog
         open={!!completeTarget}
