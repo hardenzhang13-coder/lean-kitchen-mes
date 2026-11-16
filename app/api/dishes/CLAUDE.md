@@ -11,7 +11,8 @@
 | `[id]/bom/route.ts` | `PUT /api/dishes/[id]/bom` | 保存 BOM 并重新计算菜品成本 |
 | `[id]/processes/route.ts` | `PUT /api/dishes/[id]/processes` | 保存加工工艺 |
 | `[id]/status/route.ts` | `POST /api/dishes/[id]/status` | 发布 / 下架 / 停用 / 恢复发布 |
-| `[id]/scale/route.ts` | `POST /api/dishes/[id]/scale` | 按目标份量转化生成独立草稿档案 |
+| `[id]/scale/route.ts` | `POST /api/dishes/[id]/scale` | 按目标份量转化生成独立草稿档案，并同步净料/小料规格 |
+| `[id]/scale/preview/route.ts` | `POST /api/dishes/[id]/scale/preview` | 转化前预览净料/小料规格匹配与缺失清单 |
 | `[id]/copy/route.ts` | `POST /api/dishes/[id]/copy` | 复制现有菜品为独立草稿档案 |
 
 ## 列表查询
@@ -101,21 +102,25 @@ BOM 数据包含四层：
 
 ## 菜品转化
 
-`POST /api/dishes/[id]/scale`，body `{ portion, name? }`
+`POST /api/dishes/[id]/scale`，body `{ portion, name?, specs? }`
 
 1. 任意份量档案都可作为源；目标份量必须来自 `PORTION_VALUES` 且与源不同
 2. 倍率由 `lib/shared/portion-scale.ts` 的 `portionScaleFactor` 推导（目标等价份数 ÷ 源等价份数）
-3. 名称默认「源基础名称·目标份量」，可由 `name` 覆盖；同类别、同名、同份量已存在时返回 409
-4. 复制四层 BOM 与工序，用量/成本/售价按倍率缩放；成本以当前食材价重算后再缩放
-5. 生成独立草稿档案，不建立来源关联，源档案不受影响
+3. 同步转化 BOM 引用的净料/小料：
+   - 食材库已有「同来源原料 + 目标份量 + 同分类」规格 → 直接复用
+   - 没有 → 按倍率推导封装规格，读取 `specs` 中用户确认的值自动建档
+4. 缺失规格的预览与编辑由 `POST /api/dishes/[id]/scale/preview` 提供
+5. 名称默认沿用源菜品名称，份量由 `portion` 字段区分；可由 `name` 覆盖。同类别、同名、同份量已存在时返回 409
+6. 复制四层 BOM 与工序，用量/成本/售价按倍率缩放；成本以当前食材价重算后再缩放
+7. 生成独立草稿档案，不建立来源关联，源档案不受影响
 
 ## 菜品复制
 
 `POST /api/dishes/[id]/copy`，body `{ name? }`
 
 1. 复制是新建动作：BOM、工序、售价原样保留，`factor = 1`
-2. 默认名称「源名称-副本」，重名时依次追加 2、3…
-3. 指定名称与同类别、同份量档案重名时返回 409
+2. 默认名称「源名称-副本」
+3. 菜品编号唯一，名称不参与唯一校验；同名档案允许存在
 4. 生成独立草稿档案，源档案不受影响
 
 ## 状态生命周期

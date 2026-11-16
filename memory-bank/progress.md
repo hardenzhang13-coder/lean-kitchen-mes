@@ -4,7 +4,66 @@
 
 ---
 ---
-## 2026-11-16（续）— 排程重构版本部署生产（ACR）
+## 2026-11-16（续 2）— 列表状态列可选 + 预览弹窗复用 + 工作台菜品明细
+
+### 1. 状态列可见性
+
+- 新增 `useStatusVisibility(storageKey)`：默认只展示「待生效 / 进行中」（已完成单据日常不必常驻），可在列表工具栏的「列」菜单里勾选；选择写入 localStorage，至少保留一列。
+- 新增 `StatusColumnMenu`（`Columns3` 图标 + 复选菜单），排程与生产计划两个看板共用。
+- `KanbanBoard` 改为按 `statuses` 顺序渲染，可见列数 1/2/3 分别映射栅格；`useScheduleBoard` / `useProductionPlanBoard` 接收可见状态并按列取数，避免「隐藏了还在请求」。
+
+### 2. 预览弹窗抽为通用件
+
+- 新增 `SchedulePreviewDialog` / `ProductionPlanPreviewDialog`（`app/components/ui/`），排程列表、生产计划列表、工作台共用同一份预览行为（菜单/切配/采购/门店排程页签）。
+- 两个列表页各自内联的预览状态与取数逻辑随之删除（`schedules/page.tsx` −139 行、`production-plans/page.tsx` −168 行）。
+
+### 3. 工作台周历
+
+- `GET /api/dashboard/weekly` 的排程卡片补 `items`（菜品名、份数、金额），周历悬浮可直接看今日售卖菜品。
+- 周历内点击排程/计划卡片改为打开上述预览弹窗，与列表页一致。
+
+### 校验
+
+- `npx tsc --noEmit`、`npm run lint`、`npm test`、`npm run build` 全部通过。
+
+---
+---
+## 2026-11-16（续）— 菜品转化联动净料/小料规格 + 复制名称去唯一校验
+
+### 1. 转化入口与语义
+
+- 列表操作列转化图标改为与「转净料」一致的 `ArrowRightLeft`，保持 ghost 弱化，不抢主操作。
+- 转化被视为「同一道菜在不同场景下的档案定义」：菜品用量、净料、小料按目标份量倍率同步换算。
+
+### 2. 转化预览与缺失规格确认
+
+- 新增 `POST /api/dishes/[id]/scale/preview`，返回 `factor` 与净料/小料匹配计划：
+  - 食材库已有「同来源原料 + 目标份量 + 同分类」规格 → `existing`，直接复用
+  - 没有 → `missing`，按源封装规格 × 倍率生成提案（名称、封装规格、出成率、加工费、毛利率）
+  - 缺少来源原料 → `canCreate: false`，阻止执行并提示先维护食材
+- 新增 `app/components/dishes/dish-scale-dialog.tsx`：选择目标份量 → 自动加载预览 → 展示净料/小料分区；缺失项可编辑，已存在项只读；确认后调用转化接口。
+- 新档案名称沿用源菜品名称（份量由 `portion` 区分），状态草稿；成功后刷新列表并打开新档案抽屉。
+
+### 3. 转化执行
+
+- `POST /api/dishes/[id]/scale` 在 Serializable 事务内：
+  1. 重新构建计划（处理预览与执行之间的并发变化）
+  2. 缺失规格按用户确认值创建 `NetIngredient`，编码沿用 `PRD-xxxx`；名称末尾的标准封装规格与 `packageSpec` 同步（如「平包菜•称重•500g」→「•600g」）
+  3. 通过 `netIngIdMap` / `minorIngIdMap` 把新菜品 BOM 指向目标规格
+  4. 调用 `createDishVariant()` 生成草稿菜品
+- 纯逻辑抽到 `lib/server/dish-scale-plan.ts`，类型定义在 `lib/shared/dish-scale.ts`，预览与执行共用。
+
+### 4. 复制
+
+- 复制不再做菜品名称唯一校验：编号本身唯一，允许同名档案；默认仍为「源名称-副本」。
+- 复制弹窗保留名称编辑，提交按新建处理。
+
+### 校验
+
+- `npx tsc --noEmit`、`npm run lint`、`npm test`（53 套件 / 261 用例）、`npm run build` 全部通过。
+- 新增测试覆盖：转化计划匹配/缺失/阻塞、转化执行建档与 BOM 映射、复制同名允许、转化弹窗预览与提交。
+
+
 
 ### 部署
 - `workflow_dispatch` 触发 `deploy.yml`，run `43754248012`，head `d85b2ca`
