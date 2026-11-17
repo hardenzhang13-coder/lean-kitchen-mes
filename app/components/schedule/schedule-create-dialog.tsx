@@ -237,7 +237,7 @@ export function ScheduleCreateDialog({
                     value={storeId}
                     onChange={setStoreId}
                     placeholder="请选择门店"
-                    className="w-[260px]"
+                    className="w-[320px]"
                     options={stores.map((store) => ({
                       value: String(store.id),
                       label: store.name,

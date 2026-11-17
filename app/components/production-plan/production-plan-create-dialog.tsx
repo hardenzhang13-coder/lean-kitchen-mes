@@ -309,7 +309,29 @@ export function ProductionPlanCreateDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-10">
-            <div className="lg:col-span-5">
+            <div className="flex flex-wrap items-end gap-4 lg:col-span-10">
+              <FormField
+                id="production-plan-store"
+                label="选择门店"
+                optionalHint={false}
+              >
+                <SelectField
+                  value={storeId}
+                  onChange={(value) => {
+                    setStoreId(value);
+                    setPage(1);
+                  }}
+                  className="w-[320px]"
+                  options={[
+                    { value: "", label: "所有门店" },
+                    ...stores.map((store) => ({
+                      value: String(store.id),
+                      label: store.name,
+                    })),
+                  ]}
+                />
+              </FormField>
+
               <FormField
                 id="production-plan-date"
                 label="生产日期"
@@ -322,30 +344,6 @@ export function ProductionPlanCreateDialog({
                   placeholder="请选择生产日期"
                   className="w-[260px]"
                   showWeekday
-                />
-              </FormField>
-            </div>
-
-            <div className="lg:col-span-5">
-              <FormField
-                id="production-plan-store"
-                label="选择门店"
-                optionalHint={false}
-              >
-                <SelectField
-                  value={storeId}
-                  onChange={(value) => {
-                    setStoreId(value);
-                    setPage(1);
-                  }}
-                  className="w-[260px]"
-                  options={[
-                    { value: "", label: "所有门店" },
-                    ...stores.map((store) => ({
-                      value: String(store.id),
-                      label: store.name,
-                    })),
-                  ]}
                 />
               </FormField>
             </div>
