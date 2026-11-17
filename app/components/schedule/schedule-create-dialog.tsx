@@ -226,7 +226,7 @@ export function ScheduleCreateDialog({
             <LoadingState type="card-grid" rows={2} />
           ) : (
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-10">
-              <div className="lg:col-span-5">
+              <div className="flex flex-wrap items-end gap-4 lg:col-span-10">
                 <FormField
                   id="schedule-store"
                   label="选择门店"
@@ -237,14 +237,13 @@ export function ScheduleCreateDialog({
                     value={storeId}
                     onChange={setStoreId}
                     placeholder="请选择门店"
+                    className="w-[260px]"
                     options={stores.map((store) => ({
                       value: String(store.id),
                       label: store.name,
                     }))}
                   />
                 </FormField>
-              </div>
-              <div className="lg:col-span-5">
                 <FormField
                   id="schedule-date"
                   label="售卖日期"
@@ -366,18 +365,19 @@ export function ScheduleCreateDialog({
                         ...categories.map((name) => ({ value: name, label: name })),
                       ]}
                     />
-                    {(search || categoryFilter) && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSearch("");
-                          setCategoryFilter("");
-                        }}
-                      >
-                        清除
-                      </Button>
-                    )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSearch("");
+                        setCategoryFilter("");
+                      }}
+                      className={search || categoryFilter ? undefined : "invisible"}
+                      aria-hidden={!(search || categoryFilter)}
+                      tabIndex={search || categoryFilter ? undefined : -1}
+                    >
+                      清除
+                    </Button>
                     <span className="ml-auto text-xs text-muted-foreground">
                       共 {filteredDishes.length} 道可选
                     </span>

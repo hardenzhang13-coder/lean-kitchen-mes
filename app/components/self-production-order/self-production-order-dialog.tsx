@@ -100,7 +100,7 @@ export function SelfProductionOrderDialog({
   onClose,
   onSaved,
 }: SelfProductionOrderDialogProps) {
-  const [produceDate, setProduceDate] = useState(dayOffsetInputValue(1));
+  const [produceDate, setProduceDate] = useState(dayOffsetInputValue(0));
   const [remark, setRemark] = useState("");
   const [picked, setPicked] = useState<PickedRow[]>([]);
   const [options, setOptions] = useState<NetOption[]>([]);
@@ -348,7 +348,7 @@ export function SelfProductionOrderDialog({
                       {picked.length} 种 · {totalPortions} 份
                     </span>
                   </div>
-                  <div className="min-h-[264px] max-h-[320px] overflow-y-auto p-3">
+                  <div className="h-[360px] overflow-y-auto p-3">
                     {picked.length === 0 ? (
                       <p className="py-16 text-center text-sm text-muted-foreground">
                         请在右侧选择净料或小料
@@ -482,22 +482,23 @@ export function SelfProductionOrderDialog({
                           ...l2Options,
                         ]}
                       />
-                      {(l1Code || l2Code) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setL1Code("");
-                            setL2Code("");
-                            setPage(1);
-                          }}
-                        >
-                          清除
-                        </Button>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setL1Code("");
+                          setL2Code("");
+                          setPage(1);
+                        }}
+                        className={l1Code || l2Code ? undefined : "invisible"}
+                        aria-hidden={!(l1Code || l2Code)}
+                        tabIndex={l1Code || l2Code ? undefined : -1}
+                      >
+                        清除
+                      </Button>
                     </div>
                   </div>
-                  <div className="min-h-[264px] p-3">
+                  <div className="h-[360px] p-3">
                     {loading ? (
                       <LoadingState type="list" rows={3} />
                     ) : options.length === 0 ? (
