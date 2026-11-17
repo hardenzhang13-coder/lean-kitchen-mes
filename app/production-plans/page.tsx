@@ -151,7 +151,7 @@ export default function ProductionPlansPage() {
           value={board.date}
           onChange={board.setDate}
           placeholder="生产日期"
-          className="w-[190px]"
+          className="w-[380px]"
           showWeekday
         />
       </ListToolbar>

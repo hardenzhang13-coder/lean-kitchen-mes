@@ -118,7 +118,7 @@ export default function SchedulesPage() {
           value={board.date}
           onChange={board.setDate}
           placeholder="售卖日期"
-          className="w-[190px]"
+          className="w-[380px]"
           showWeekday
         />
         <SelectTileMode

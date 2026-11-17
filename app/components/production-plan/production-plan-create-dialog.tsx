@@ -62,7 +62,7 @@ export function ProductionPlanCreateDialog({
   presetScheduleId,
   presetDate,
 }: ProductionPlanCreateDialogProps) {
-  const [planDate, setPlanDate] = useState(presetDate || dayOffsetInputValue(1));
+  const [planDate, setPlanDate] = useState(presetDate || dayOffsetInputValue(0));
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [storeId, setStoreId] = useState("");
   const [sourceTab, setSourceTab] = useState<"schedule" | "self">("schedule");
@@ -309,7 +309,7 @@ export function ProductionPlanCreateDialog({
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
           <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-10">
-            <div className="lg:col-span-4">
+            <div className="lg:col-span-5">
               <FormField
                 id="production-plan-date"
                 label="生产日期"
@@ -326,7 +326,7 @@ export function ProductionPlanCreateDialog({
               </FormField>
             </div>
 
-            <div className="lg:col-span-6">
+            <div className="lg:col-span-5">
               <FormField
                 id="production-plan-store"
                 label="选择门店"

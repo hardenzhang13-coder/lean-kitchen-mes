@@ -52,7 +52,7 @@ export function ProductionPlanForm({
 }: ProductionPlanFormProps) {
   const router = useRouter();
   const [planDate, setPlanDate] = useState(
-    initialPlanDate ?? dayOffsetInputValue(1)
+    initialPlanDate ?? dayOffsetInputValue(0)
   );
   const [options, setOptions] = useState<ScheduleOption[]>([]);
   const [picked, setPicked] = useState<Set<number>>(() => new Set(initialScheduleIds));

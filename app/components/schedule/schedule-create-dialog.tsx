@@ -226,7 +226,7 @@ export function ScheduleCreateDialog({
             <LoadingState type="card-grid" rows={2} />
           ) : (
             <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-10">
-              <div className="lg:col-span-4">
+              <div className="lg:col-span-5">
                 <FormField
                   id="schedule-store"
                   label="选择门店"
@@ -244,7 +244,7 @@ export function ScheduleCreateDialog({
                   />
                 </FormField>
               </div>
-              <div className="lg:col-span-6">
+              <div className="lg:col-span-5">
                 <FormField
                   id="schedule-date"
                   label="售卖日期"
@@ -305,7 +305,7 @@ export function ScheduleCreateDialog({
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
-                            <div className="mt-2 flex items-center gap-1.5">
+                            <div className="mt-2 flex items-center justify-end gap-1.5">
                               <Button
                                 variant="outline"
                                 size="icon"
