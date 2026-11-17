@@ -17,6 +17,8 @@ const config: Config = {
     "^@/(.*)$": "<rootDir>/$1",
   },
   testMatch: ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
+  // .claude/worktrees 里是仓库副本，不排除会把同一批用例重复收集一遍
+  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/.claude/"],
   transformIgnorePatterns: ["node_modules/(?!(jose)/)"],
   modulePathIgnorePatterns: ["<rootDir>/.next/"],
   collectCoverageFrom: [
