@@ -375,56 +375,56 @@ export function SelfProductionOrderDialog({
                                   </span>
                                 </div>
                               </div>
-                              <div className="flex shrink-0 items-center gap-1.5">
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  aria-label={`减少 ${row.name} 份数`}
-                                  onClick={() =>
-                                    updatePortions(
-                                      row.sourceId,
-                                      String(Math.max(1, (Number(row.portions) || 1) - 1))
-                                    )
-                                  }
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  value={row.portions}
-                                  onChange={(event) =>
-                                    updatePortions(row.sourceId, event.target.value)
-                                  }
-                                  className="h-7 w-14 text-center font-mono"
-                                  aria-label={`${row.name} 份数`}
-                                />
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  className="h-7 w-7"
-                                  aria-label={`增加 ${row.name} 份数`}
-                                  onClick={() =>
-                                    updatePortions(
-                                      row.sourceId,
-                                      String((Number(row.portions) || 0) + 1)
-                                    )
-                                  }
-                                >
-                                  <Plus className="h-3 w-3" />
-                                </Button>
-                                <span className="text-xs text-muted-foreground">份</span>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-7 w-7 text-muted-foreground"
-                                  aria-label={`移除 ${row.name}`}
-                                  onClick={() => removeRow(row.sourceId)}
-                                >
-                                  <X className="h-4 w-4" />
-                                </Button>
-                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 shrink-0 text-muted-foreground"
+                                aria-label={`移除 ${row.name}`}
+                                onClick={() => removeRow(row.sourceId)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                            <div className="mt-2 flex items-center justify-end gap-1.5">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                aria-label={`减少 ${row.name} 份数`}
+                                onClick={() =>
+                                  updatePortions(
+                                    row.sourceId,
+                                    String(Math.max(1, (Number(row.portions) || 1) - 1))
+                                  )
+                                }
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <Input
+                                type="number"
+                                min={1}
+                                value={row.portions}
+                                onChange={(event) =>
+                                  updatePortions(row.sourceId, event.target.value)
+                                }
+                                className="h-7 w-14 text-center font-mono"
+                                aria-label={`${row.name} 份数`}
+                              />
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                className="h-7 w-7"
+                                aria-label={`增加 ${row.name} 份数`}
+                                onClick={() =>
+                                  updatePortions(
+                                    row.sourceId,
+                                    String((Number(row.portions) || 0) + 1)
+                                  )
+                                }
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                              <span className="text-xs text-muted-foreground">份</span>
                             </div>
                             {!row.packageSpec && (
                               <p className="mt-1 text-xs text-destructive">
