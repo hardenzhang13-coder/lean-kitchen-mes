@@ -68,8 +68,7 @@ export async function lockSchedulesForProductionPlan(
   return locked;
 }
 
-/** 锁定生产计划主记录，保证状态流转串行执行。 */
-export async function lockProductionPlan(
+/** 锁定生产计划主记录，保证状态流转串行执行。 */export async function lockProductionPlan(
   tx: Prisma.TransactionClient,
   planId: number
 ): Promise<boolean> {
@@ -135,4 +134,89 @@ export async function syncSourceScheduleStatuses(
   }
 
   return completedScheduleIds;
+}
+
+/**
+ * 锁定并校验生产计划单来源内部生产单。
+ * 空数组直接放行；同一张内部生产单只能归属于一个未删除的生产计划单。
+ */
+export async function lockSelfOrdersForProductionPlan(
+  tx: Prisma.TransactionClient,
+  selfOrderIds: number[],
+  excludePlanId?: number
+): Promise<Array<{ id: number; status: string }>> {
+  if (selfOrderIds.length === 0) return [];
+
+  const locked = await tx.$queryRaw<Array<{ id: number; status: string }>>(
+    Prisma.sql`
+      SELECT id, status
+      FROM self_production_orders
+      WHERE id IN (${Prisma.join(selfOrderIds)})
+      ORDER BY id
+      FOR UPDATE
+    `
+  );
+
+  if (locked.length !== selfOrderIds.length) {
+    throw new ProductionPlanAssignmentError("存在无效的内部生产单");
+  }
+
+  if (locked.some((order) => order.status !== "进行中")) {
+    throw new ProductionPlanAssignmentError("只能汇总「进行中」的内部生产单");
+  }
+
+  const planWhere: Prisma.ProductionPlanWhereInput = { deletedAt: null };
+  if (excludePlanId != null) {
+    planWhere.id = { not: excludePlanId };
+  }
+
+  const references = await tx.productionPlanSelfOrder.findMany({
+    where: {
+      selfOrderId: { in: selfOrderIds },
+      plan: planWhere,
+    },
+    select: {
+      selfOrderId: true,
+      plan: { select: { code: true, title: true } },
+    },
+  });
+
+  if (references.length > 0) {
+    const reference = references[0];
+    throw new ProductionPlanAssignmentError(
+      `内部生产单「${reference.plan.code ?? reference.plan.title}」已纳入其他生产计划单，不能重复汇总`,
+      409
+    );
+  }
+
+  return locked;
+}
+
+/** 生成内部生产单编号：SPO-生产日期-当日序号。 */
+export async function nextSelfProductionOrderCode(
+  tx: Prisma.TransactionClient,
+  produceDate: Date
+): Promise<string> {
+  const ymd =
+    produceDate.getFullYear() +
+    String(produceDate.getMonth() + 1).padStart(2, "0") +
+    String(produceDate.getDate()).padStart(2, "0");
+  const dayCount = await tx.selfProductionOrder.count({ where: { produceDate } });
+  return "SPO-" + ymd + "-" + String(dayCount + 1).padStart(3, "0");
+}
+
+/** 生产计划完成时同步全部来源内部生产单状态。 */
+export async function syncSourceSelfOrderStatuses(
+  tx: Prisma.TransactionClient,
+  selfOrderIds: number[],
+  planCompleted: boolean
+): Promise<number[]> {
+  if (!planCompleted || selfOrderIds.length === 0) return [];
+
+  await tx.selfProductionOrder.updateMany({
+    where: { id: { in: selfOrderIds }, status: "进行中" },
+    data: { status: "已完成" },
+  });
+
+  return selfOrderIds;
 }

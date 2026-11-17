@@ -1,24 +1,28 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
+import { calcGrossNeedGrams } from "@/lib/shared/gross-need";
+import { GRAMS_PER_JIN } from "@/lib/shared/unit-conversion";
 import { formatPortions } from "@/lib/shared/weight-format";
 import { getJinFactors, getGramsPerJin, getWeightUnitNames } from "@/lib/server/unit-factors";
+import { ProductionPlanAssignmentError } from "@/lib/server/production-plan-assignment";
 import {
-  buildSourceScheduleSnapshot,
+  buildProductionPlanSourceSnapshot,
   type ProductionPlanSourceSnapshot,
 } from "@/lib/shared/production-plan";
 
 export {
   buildSourceScheduleSnapshot,
+  buildProductionPlanSourceSnapshot,
   type ProductionPlanSourceSnapshot,
 } from "@/lib/shared/production-plan";
 
 /**
  * 切配中心生产计划单汇总计算（快照，生成时固化一次）。
  * 口径：
- * - 切配按 (sourceType, sourceId) 跨店合并，净料用量相加；切配份数 = 合并量 ÷ 封装规格 重算；
+ * - 切配按 (sourceType, sourceId) 跨来源合并，净料用量相加；切配份数 = 合并量 ÷ 封装规格 重算；
  *   毛料用量（斤）经来源原料关联到汇总采购行。
- * - 采购按 (sourceType, sourceId) 合并毛需求（克）；不做库存抵扣（库存模块改版中）；
- *   采购量按门店排程同一套取整规则重算；预估金额 = 采购口径金额。
+ * - 采购按 (sourceType, sourceId) 合并毛需求（克）；不做库存抵扣；
+ *   内部生产单按「份数 × 封装规格 × 100 ÷ 出成率」折算原料毛需求后并入同一口径。
  * - 全部字段来自基础数据档案，不拼造。
  */
 
@@ -62,9 +66,18 @@ export interface ProductionPlanData {
 
 export async function buildProductionPlanData(
   prisma: PrismaClient | Prisma.TransactionClient,
-  scheduleIds: number[]
+  scheduleIds: number[],
+  selfOrderIds: number[] = []
 ): Promise<ProductionPlanData> {
-  const [cuttingOrders, purchasePlans, sourceSchedules, jinFactors, gramsPerJin, weightUnitNames] = await Promise.all([
+  const [
+    cuttingOrders,
+    purchasePlans,
+    sourceSchedules,
+    selfOrders,
+    jinFactors,
+    gramsPerJin,
+    weightUnitNames,
+  ] = await Promise.all([
     prisma.cuttingOrder.findMany({ where: { scheduleId: { in: scheduleIds } } }),
     prisma.purchasePlan.findMany({ where: { scheduleId: { in: scheduleIds } } }),
     prisma.schedule.findMany({
@@ -93,11 +106,30 @@ export async function buildProductionPlanData(
         },
       },
     }),
+    prisma.selfProductionOrder.findMany({
+      where: { id: { in: selfOrderIds } },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        produceDate: true,
+        remark: true,
+        items: {
+          orderBy: { id: "asc" },
+          select: { sourceType: true, sourceId: true, portions: true },
+        },
+      },
+    }),
     getJinFactors(prisma),
     getGramsPerJin(prisma),
     getWeightUnitNames(prisma),
   ]);
   const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  // 自产行（单 + 明细展开），后续采购/切配/快照共用
+  const selfItems = selfOrders.flatMap((order) =>
+    order.items.map((item) => ({ order, item }))
+  );
 
   // ---- 汇总采购（先做，切配的毛料用量依赖它） ----
   const pAgg = new Map<string, { sourceType: string; sourceId: number; grossNeed: number }>();
@@ -106,6 +138,54 @@ export async function buildProductionPlanData(
     const cur = pAgg.get(key);
     if (cur) cur.grossNeed += Number(p.grossNeed);
     else pAgg.set(key, { sourceType: p.sourceType, sourceId: p.sourceId, grossNeed: Number(p.grossNeed) });
+  }
+
+  // 切配 + 自产涉及的净料档案（净料与小料同表），一次查询供两处使用
+  const cuttingNetIds = cuttingOrders.map((c) => c.sourceId);
+  const selfNetIds = selfItems.map(({ item }) => item.sourceId);
+  const allNetIds = [...new Set([...cuttingNetIds, ...selfNetIds])];
+  const nets = await prisma.netIngredient.findMany({
+    where: { id: { in: allNetIds } },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      unit: true,
+      packageSpec: true,
+      l2Code: true,
+      sourceIngredientId: true,
+      yieldRate: true,
+    },
+  });
+  const netMap = new Map(nets.map((n) => [n.id, n]));
+
+  // 内部生产追加原料毛需求（与排程采购同 key 合并）
+  for (const { order, item } of selfItems) {
+    const net = netMap.get(item.sourceId);
+    if (!net) {
+      throw new ProductionPlanAssignmentError(`内部生产单「${order.title}」存在无效净料`);
+    }
+    const pkg = net.packageSpec != null ? Number(net.packageSpec) : 0;
+    if (!(pkg > 0)) {
+      throw new ProductionPlanAssignmentError(
+        `内部生产单「${order.title}」中的「${net.name}」缺少封装规格，无法汇总`
+      );
+    }
+    if (net.sourceIngredientId == null) continue; // 无来源原料：不进采购汇总，切配照常
+    const requiredQty = round2(Number(item.portions) * pkg);
+    const grossNeed = calcGrossNeedGrams(
+      requiredQty,
+      net.yieldRate != null ? Number(net.yieldRate) : 0
+    );
+    const key = "ingredient-" + net.sourceIngredientId;
+    const cur = pAgg.get(key);
+    if (cur) cur.grossNeed += grossNeed;
+    else
+      pAgg.set(key, {
+        sourceType: "ingredient",
+        sourceId: net.sourceIngredientId,
+        grossNeed,
+      });
   }
 
   const ingIds = [...pAgg.values()].filter((p) => p.sourceType !== "sauce").map((p) => p.sourceId);
@@ -200,7 +280,7 @@ export async function buildProductionPlanData(
     };
   });
 
-  // ---- 汇总切配 ----
+  // ---- 汇总切配（排程 + 自产按同一 key 合并） ----
   const cAgg = new Map<string, { sourceType: string; sourceId: number; requiredQty: number }>();
   for (const c of cuttingOrders) {
     const key = c.sourceType + "-" + c.sourceId;
@@ -208,13 +288,17 @@ export async function buildProductionPlanData(
     if (cur) cur.requiredQty += Number(c.requiredQty);
     else cAgg.set(key, { sourceType: c.sourceType, sourceId: c.sourceId, requiredQty: Number(c.requiredQty) });
   }
-  const netIds = [...cAgg.values()].filter((c) => c.sourceType === "net").map((c) => c.sourceId);
-  const minorIds = [...cAgg.values()].filter((c) => c.sourceType === "minor").map((c) => c.sourceId);
-  const nets = await prisma.netIngredient.findMany({
-    where: { id: { in: [...netIds, ...minorIds] } },
-    select: { id: true, code: true, name: true, unit: true, packageSpec: true, l2Code: true, sourceIngredientId: true },
-  });
-  const netMap = new Map(nets.map((n) => [n.id, n]));
+  for (const { item } of selfItems) {
+    const net = netMap.get(item.sourceId);
+    const pkg = net?.packageSpec != null ? Number(net.packageSpec) : 0;
+    if (!(pkg > 0)) continue; // 采购阶段已抛错，这里仅防御
+    const key = item.sourceType + "-" + item.sourceId;
+    const requiredQty = round2(Number(item.portions) * pkg);
+    const cur = cAgg.get(key);
+    if (cur) cur.requiredQty += requiredQty;
+    else cAgg.set(key, { sourceType: item.sourceType, sourceId: item.sourceId, requiredQty });
+  }
+
   const cL2Codes = nets.map((n) => n.l2Code).filter((x): x is string => !!x);
   const cL2Cats = await prisma.ingredientCategoryL2.findMany({ where: { code: { in: cL2Codes } }, select: { code: true, name: true, parentCode: true } });
   const cL1Codes = [...new Set(cL2Cats.map((c) => c.parentCode).filter((c): c is string => !!c))];
@@ -250,6 +334,34 @@ export async function buildProductionPlanData(
   return {
     cutting,
     purchase,
-    sourceSnapshot: buildSourceScheduleSnapshot(sourceSchedules),
+    sourceSnapshot: buildProductionPlanSourceSnapshot(
+      sourceSchedules,
+      selfOrders.map((order) => ({
+        id: order.id,
+        code: order.code,
+        title: order.title,
+        produceDate: order.produceDate,
+        remark: order.remark,
+        items: order.items.map((item) => {
+          const net = netMap.get(item.sourceId);
+          const pkg = net?.packageSpec != null ? Number(net.packageSpec) : 0;
+          const portions = round2(Number(item.portions));
+          const requiredQty = round2(portions * pkg);
+          const yieldRate = net?.yieldRate != null ? Number(net.yieldRate) : 0;
+          const grossNeed = round2(calcGrossNeedGrams(requiredQty, yieldRate));
+          return {
+            sourceType: item.sourceType === "minor" ? "minor" : "net",
+            sourceId: item.sourceId,
+            itemCode: net?.code ?? "",
+            itemName: net?.name ?? "",
+            packageSpec: pkg,
+            unit: net?.unit ?? "g",
+            portions,
+            requiredQty,
+            grossNeedJin: round2(grossNeed / GRAMS_PER_JIN),
+          };
+        }),
+      }))
+    ),
   };
 }

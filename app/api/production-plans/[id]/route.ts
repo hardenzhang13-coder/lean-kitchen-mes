@@ -16,15 +16,20 @@ import {
 import {
   lockProductionPlan,
   lockSchedulesForProductionPlan,
+  lockSelfOrdersForProductionPlan,
   nextProductionPlanCode,
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
 
 function normalizeSourceSnapshot(value: unknown): ProductionPlanSourceSnapshot | null {
   if (!value || typeof value !== "object") return null;
-  const snapshot = value as { version?: unknown; stores?: unknown };
-  if (snapshot.version !== 1 || !Array.isArray(snapshot.stores)) return null;
-  return value as ProductionPlanSourceSnapshot;
+  const snapshot = value as { version?: unknown; stores?: unknown; selfProduction?: unknown };
+  if (!Array.isArray(snapshot.stores)) return null;
+  if (snapshot.version === 1) return value as ProductionPlanSourceSnapshot;
+  if (snapshot.version === 2 && Array.isArray(snapshot.selfProduction)) {
+    return value as ProductionPlanSourceSnapshot;
+  }
+  return null;
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -65,6 +70,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         },
         orderBy: { id: "asc" },
       },
+      selfOrders: {
+        include: {
+          selfOrder: {
+            select: {
+              id: true,
+              code: true,
+              title: true,
+              produceDate: true,
+              status: true,
+              remark: true,
+              items: { select: { portions: true } },
+            },
+          },
+        },
+        orderBy: { id: "asc" },
+      },
     },
   });
   if (!plan) return NextResponse.json({ error: "生产计划单不存在" }, { status: 404 });
@@ -88,6 +109,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       totalQuantity: s.schedule.items.reduce((sum, item) => sum + item.quantity, 0),
       store: s.schedule.store,
     }));
+  const selfOrders = [...plan.selfOrders]
+    .map((reference) => reference.selfOrder)
+    .sort(
+      (a, b) =>
+        a.produceDate.getTime() - b.produceDate.getTime() ||
+        (a.code ?? "").localeCompare(b.code ?? "", "zh")
+    )
+    .map((order) => ({
+      id: order.id,
+      code: order.code,
+      title: order.title,
+      produceDate: order.produceDate.toISOString(),
+      status: order.status,
+      remark: order.remark,
+      totalPortions:
+        Math.round(
+          order.items.reduce((sum, item) => sum + Number(item.portions), 0) * 100
+        ) / 100,
+    }));
   return success({
     id: plan.id,
     code: plan.code,
@@ -109,6 +149,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
     purchasePlans: plan.purchaseJson ?? [],
     sourceSchedules,
+    selfOrders,
     sourceSnapshot,
   });
 }
@@ -120,7 +161,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateProductionPlanSchema, body);
   if (!validation.success) return validation.response;
 
-  const { planDate, scheduleIds } = validation.data;
+  const { planDate, scheduleIds, selfOrderIds } = validation.data;
   const uniqueIds = [...new Set(scheduleIds)];
   const planDateObj = new Date(planDate);
   // 标题是派生字段：按生产日期重算，忽略客户端传值
@@ -142,17 +183,40 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           throw new ProductionPlanAssignmentError("只有待生效的生产计划单可以修改", 409);
         }
 
-        await lockSchedulesForProductionPlan(tx, uniqueIds, planId);
+        const existingSelfRefs = await tx.productionPlanSelfOrder.findMany({
+          where: { planId },
+          select: { selfOrderId: true },
+        });
+        // 未传 selfOrderIds 表示保留现有内部生产单关联（兼容旧客户端）
+        const targetSelfIds =
+          selfOrderIds === undefined
+            ? existingSelfRefs.map((ref) => ref.selfOrderId)
+            : [...new Set(selfOrderIds)];
+
+        if (uniqueIds.length === 0 && targetSelfIds.length === 0) {
+          throw new ProductionPlanAssignmentError("请至少选择一张排程单或内部生产单");
+        }
+
+        if (uniqueIds.length > 0) {
+          await lockSchedulesForProductionPlan(tx, uniqueIds, planId);
+        }
+        if (targetSelfIds.length > 0) {
+          await lockSelfOrdersForProductionPlan(tx, targetSelfIds, planId);
+        }
         const planDateText = existing.planDate.toISOString().slice(0, 10);
         const code =
           existing.code && planDateText === planDate
             ? existing.code
             : await nextProductionPlanCode(tx, planDateObj);
-        const data = await buildProductionPlanData(tx, uniqueIds);
+        const data = await buildProductionPlanData(tx, uniqueIds, targetSelfIds);
 
         await tx.productionPlanSchedule.deleteMany({ where: { planId } });
         await tx.productionPlanSchedule.createMany({
           data: uniqueIds.map((scheduleId) => ({ planId, scheduleId })),
+        });
+        await tx.productionPlanSelfOrder.deleteMany({ where: { planId } });
+        await tx.productionPlanSelfOrder.createMany({
+          data: targetSelfIds.map((selfOrderId) => ({ planId, selfOrderId })),
         });
         return await tx.productionPlan.update({
           where: { id: planId },
@@ -189,7 +253,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     action: "UPDATE",
     entity: "ProductionPlan",
     entityId: planId,
-    description: `修改生产计划单: ${updated.title}（汇总 ${uniqueIds.length} 张排程单）`,
+    description: `修改生产计划单: ${updated.title}（汇总 ${uniqueIds.length} 张排程单 / ${selfOrderIds?.length ?? 0} 张内部生产单）`,
   });
   return success(updated);
 }

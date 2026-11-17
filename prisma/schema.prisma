@@ -537,6 +537,7 @@ model ProductionPlan {
   updatedAt   DateTime @updatedAt @map("updated_at")
   deletedAt   DateTime? @map("deleted_at")
   schedules   ProductionPlanSchedule[]
+  selfOrders  ProductionPlanSelfOrder[]
 
   @@map("production_plans")
 }
@@ -551,6 +552,51 @@ model ProductionPlanSchedule {
 
   @@unique([planId, scheduleId])
   @@map("production_plan_schedules")
+}
+
+// 内部生产单：净菜切配中心按日期内部生产的净料/小料份数（不写切配工单，纳入计划时才折算）
+model SelfProductionOrder {
+  id          Int      @id @default(autoincrement())
+  code        String?  @unique // 编号：SPO-生产日期-当日序号
+  title       String
+  produceDate DateTime @map("produce_date") @db.Date
+  status      String   @default("待生效") // 待生效 / 进行中 / 已完成
+  operator    String?
+  remark      String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  items       SelfProductionItem[]
+  productionPlanRefs ProductionPlanSelfOrder[]
+
+  @@index([produceDate, status])
+  @@map("self_production_orders")
+}
+
+// 内部生产单明细：sourceType 由净料二级分类（MIN）服务端派生，sourceId 弱引用 net_ingredients.id
+model SelfProductionItem {
+  id         Int     @id @default(autoincrement())
+  orderId    Int     @map("order_id")
+  sourceType String  @map("source_type") // net / minor
+  sourceId   Int     @map("source_id")
+  portions   Decimal @db.Decimal(12, 2) // 目标份数
+  order      SelfProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@unique([orderId, sourceId])
+  @@index([sourceId])
+  @@map("self_production_items")
+}
+
+// 生产计划单 ↔ 来源内部生产单（溯源）
+model ProductionPlanSelfOrder {
+  id          Int                @id @default(autoincrement())
+  planId      Int                @map("plan_id")
+  selfOrderId Int                @map("self_order_id")
+  plan        ProductionPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  selfOrder   SelfProductionOrder @relation(fields: [selfOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, selfOrderId])
+  @@index([selfOrderId])
+  @@map("production_plan_self_orders")
 }
 
 // ===== 净菜库存（v002）：切配中心库存只管理加工完成的净菜（净料+小料），按份出入库 =====

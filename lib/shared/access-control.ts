@@ -16,8 +16,12 @@ export function canAccessPage(pathname: string, role?: string | null): boolean {
   if (pathname.startsWith("/settings/profile")) return true;
   if (pathname.startsWith("/settings/users")) return isAdmin(role);
   if (pathname.startsWith("/settings")) return isAdmin(role) || isOperations(role);
-  if (pathname.startsWith("/schedules") || pathname.startsWith("/production-plans")) {
-    // 业务运营需要查看排程与计划单进度；写操作仍由 API 层限制为 admin/chef。
+  if (
+    pathname.startsWith("/schedules") ||
+    pathname.startsWith("/production-plans") ||
+    pathname.startsWith("/self-production-orders")
+  ) {
+    // 业务运营需要查看排程、计划单与内部生产进度；写操作仍由 API 层限制为 admin/chef。
     return isAdmin(role) || isChef(role) || isOperations(role);
   }
   if (
@@ -51,7 +55,11 @@ export function canAccessApi(
 
   const write = isWriteMethod(method);
 
-  if (pathname.startsWith("/api/schedules") || pathname.startsWith("/api/production-plans")) {
+  if (
+    pathname.startsWith("/api/schedules") ||
+    pathname.startsWith("/api/production-plans") ||
+    pathname.startsWith("/api/self-production-orders")
+  ) {
     return !write || isAdmin(role) || isChef(role);
   }
 

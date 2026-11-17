@@ -8,7 +8,7 @@ import { completeProductionPlanSchema } from "@/lib/server/schemas/prepped-stock
 import { applyStockChanges } from "@/lib/server/prepped-stock";
 import { round2, rowConfirmStatus, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
 import { logger } from "@/lib/server/logger";
-import { syncSourceScheduleStatuses } from "@/lib/server/production-plan-assignment";
+import { syncSourceScheduleStatuses, syncSourceSelfOrderStatuses } from "@/lib/server/production-plan-assignment";
 
 /**
  * 完成生产（生产计划单）：逐行确认切配（完成/未完成/暂不确认）→ 净菜自动入库（份+g 双单位）
@@ -37,7 +37,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
       const plan = await tx.productionPlan.findFirst({
         where: { id: planId, deletedAt: null },
-        select: { id: true, code: true, status: true, cuttingJson: true, schedules: { select: { scheduleId: true } } },
+        select: {
+          id: true,
+          code: true,
+          status: true,
+          cuttingJson: true,
+          schedules: { select: { scheduleId: true } },
+          selfOrders: { select: { selfOrderId: true } },
+        },
       });
       if (!plan) throw new Error("生产计划单不存在");
       if (plan.status !== "进行中") throw new Error("只有进行中的生产计划单可以完成生产");
@@ -115,10 +122,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { scheduleId: { in: scheduleIds } },
         select: { id: true, scheduleId: true, sourceType: true, sourceId: true, requiredQty: true },
       });
+      // 分摊分母只取门店切配工单合计：内部生产数量不应稀释各店实际完成量
       const mergedByKey = new Map<string, number>();
-      for (const r of rows) {
-        const key = `${r.sourceType}:${r.sourceId}`;
-        mergedByKey.set(key, (mergedByKey.get(key) ?? 0) + Number(r.requiredQty));
+      for (const order of storeOrders) {
+        const key = `${order.sourceType}:${order.sourceId}`;
+        mergedByKey.set(key, (mergedByKey.get(key) ?? 0) + Number(order.requiredQty));
       }
       const actualByKey = new Map<string, number>();
       for (const { row, portions } of stockInItems) {
@@ -131,7 +139,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (status === "pending") continue; // 暂不确认行不回写
         const merged = mergedByKey.get(key) ?? 0;
         const actualG = actualByKey.get(key) ?? 0;
-        const share = merged > 0 ? round2((actualG * Number(order.requiredQty)) / merged) : 0;
+        const share =
+          merged > 0
+            ? Math.min(
+                Number(order.requiredQty),
+                round2((actualG * Number(order.requiredQty)) / merged)
+              )
+            : 0;
         await tx.cuttingOrder.update({
           where: { id: order.id },
           data: {
@@ -150,6 +164,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         scheduleIds,
         newStatus === "已完成"
       );
+      const completedSelfOrders = await syncSourceSelfOrderStatuses(
+        tx,
+        plan.selfOrders.map((ref) => ref.selfOrderId),
+        newStatus === "已完成"
+      );
 
       return {
         status: newStatus,
@@ -157,6 +176,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         inKinds: stockInItems.length,
         unfinished: unfinishedKeys.length,
         completedSchedules: completedScheduleIds.length,
+        completedSelfOrders: completedSelfOrders.length,
       };
     });
 

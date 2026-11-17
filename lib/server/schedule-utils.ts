@@ -1,4 +1,5 @@
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
+import { calcGrossNeedGrams } from "@/lib/shared/gross-need";
 import { getJinFactors, getGramsPerJin, getWeightUnitNames } from "@/lib/server/unit-factors";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
@@ -372,7 +373,7 @@ export async function buildPurchasePlans(
     netNeed: number,
     yieldRate: number
   ) => {
-    const grossNeed = yieldRate > 0 ? (netNeed * 100) / yieldRate : netNeed; // 原料毛需求(g)
+    const grossNeed = calcGrossNeedGrams(netNeed, yieldRate); // 原料毛需求(g)
 
     const existing = ingredientMap.get(src.id);
     if (existing) {

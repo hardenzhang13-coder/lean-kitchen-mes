@@ -8,6 +8,7 @@ import { validateBody, validateQuery } from "@/lib/server/validate";
 import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
 import {
   lockSchedulesForProductionPlan,
+  lockSelfOrdersForProductionPlan,
   nextProductionPlanCode,
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
         orderBy: [{ planDate: "desc" }, { createdAt: "desc" }],
         skip,
         take: pageSize,
-        include: { _count: { select: { schedules: true } } },
+        include: { _count: { select: { schedules: true, selfOrders: true } } },
       }),
       prisma.productionPlan.count({ where }),
     ]);
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
       operatorName: r.operator ? nameMap.get(r.operator) || r.operator : null,
       createdAt: r.createdAt.toISOString(),
       scheduleCount: r._count.schedules,
+      selfOrderCount: r._count.selfOrders,
     }));
     const totalPages = Math.ceil(totalItems / pageSize);
     return paginated(data, { page, pageSize, totalItems, totalPages });
@@ -68,9 +70,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validation = validateBody(createProductionPlanSchema, body);
     if (!validation.success) return validation.response;
-    const { planDate, scheduleIds } = validation.data;
+    const { planDate, scheduleIds, selfOrderIds } = validation.data;
 
     const uniqueIds = [...new Set(scheduleIds)];
+    const uniqueSelfIds = [...new Set(selfOrderIds)];
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
     const planDateObj = new Date(planDate);
@@ -81,9 +84,14 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 5 && !result; attempt++) {
       try {
         result = await prisma.$transaction(async (tx) => {
-          await lockSchedulesForProductionPlan(tx, uniqueIds);
+          if (uniqueIds.length > 0) {
+            await lockSchedulesForProductionPlan(tx, uniqueIds);
+          }
+          if (uniqueSelfIds.length > 0) {
+            await lockSelfOrdersForProductionPlan(tx, uniqueSelfIds);
+          }
           const code = await nextProductionPlanCode(tx, planDateObj);
-          const data = await buildProductionPlanData(tx, uniqueIds);
+          const data = await buildProductionPlanData(tx, uniqueIds, uniqueSelfIds);
           return await tx.productionPlan.create({
             data: {
               code,
@@ -95,6 +103,7 @@ export async function POST(req: NextRequest) {
               purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
               sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
               schedules: { create: uniqueIds.map((scheduleId) => ({ scheduleId })) },
+              selfOrders: { create: uniqueSelfIds.map((selfOrderId) => ({ selfOrderId })) },
             },
           });
         });
@@ -110,7 +119,10 @@ export async function POST(req: NextRequest) {
       action: "CREATE",
       entity: "ProductionPlan",
       entityId: result.id,
-      description: "创建生产计划单: " + result.title + "（汇总 " + uniqueIds.length + " 张排程单）",
+      description:
+        "创建生产计划单: " +
+        result.title +
+        `（汇总 ${uniqueIds.length} 张排程单 / ${uniqueSelfIds.length} 张内部生产单）`,
     });
     return created(result);
   } catch (err) {
