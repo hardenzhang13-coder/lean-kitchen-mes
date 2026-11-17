@@ -4,6 +4,26 @@
 
 ---
 ---
+## 2026-11-17（续）— 登录态延长至 12 小时 + 新建默认日期与工具链修正
+
+### 1. 登录态 30 分钟 → 12 小时
+- 业务反馈：30 分钟过短，后厨作业频繁被打断退出。
+- 新增 `lib/shared/session-config.ts` 作为唯一口径：`SESSION_TTL_SECONDS = 12h`、`SESSION_RENEW_AHEAD_SECONDS = 1h`。
+- `lib/server/session.ts` 与 `proxy.ts` 的 JWT 有效期、cookie `maxAge`、滑动续期阈值统一读取该常量，不再各自硬编码。
+- 测试：`proxy.test` 补 SignJWT 签发链 mock 与「临近过期自动续期」用例；`session.test` 断言同步到 12 小时。
+
+### 2. 新建默认日期
+- 菜品排程、生产计划的新建弹窗与编辑表单默认日期由「明天」改为「今天」。
+- 生产计划弹窗首行比例改 5:5；排程弹窗首行 5:5、已选菜品数量控件右对齐；两个列表的日期筛选宽度 190 → 380，选中后日期与星期完整展示。
+
+### 3. 工具链修正
+- `jest.config.ts` 与 `eslint.config.mjs` 排除 `.claude/**`：Claude 工作树副本位于仓库内，否则测试会被重复收集（57 → 114 套件）、lint 扫描卡死。
+
+### 校验
+- `npx tsc --noEmit` 0；`npm run lint` 0；`npm test` 57 套件 / 284 用例；`npm run build` 通过；`prisma migrate diff` 空迁移。
+
+---
+---
 ## 2026-11-17 — 生产计划接入「净菜切配中心内部生产」
 
 ### 1. 新单据：内部生产单
