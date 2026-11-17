@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type {
   ProductionPlanListItem,
   ScheduleListItem,
+  SelfProductionOrderListItem,
 } from "@/app/components/schedule/list-types";
 
 /** 看板每列的取数上限（与 API pageSize 上限一致）。 */
@@ -133,6 +134,76 @@ export function useScheduleBoard(visibleStatuses: readonly string[]) {
   };
 }
 
+/** 内部生产单看板：按可见状态列取数，生产日期为单日筛选。 */
+export function useSelfProductionBoard(visibleStatuses: readonly string[]) {
+  const [columns, setColumns] = useState<BoardColumn<SelfProductionOrderListItem>[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [date, setDate] = useState("");
+  const [refreshKey, setRefreshKey] = useState(0);
+  const debouncedSearch = useDebouncedValue(search);
+  const statuses = useStatusList(visibleStatuses);
+  const statusKey = statuses.join(",");
+
+  const boardKey = `${date}|${debouncedSearch}|${statusKey}|${refreshKey}`;
+  const [prevBoardKey, setPrevBoardKey] = useState(boardKey);
+  if (prevBoardKey !== boardKey) {
+    setPrevBoardKey(boardKey);
+    setLoading(true);
+  }
+
+  useEffect(() => {
+    let alive = true;
+    const params = new URLSearchParams();
+    if (date) {
+      params.set("startDate", date);
+      params.set("endDate", date);
+    }
+    if (debouncedSearch) params.set("q", debouncedSearch);
+
+    const run = async () => {
+      if (statuses.length === 0) {
+        if (alive) {
+          setColumns([]);
+          setLoading(false);
+        }
+        return;
+      }
+      try {
+        const result = await buildBoardColumns(statuses, (status) =>
+          fetchColumn<SelfProductionOrderListItem>(
+            "/api/self-production-orders",
+            status,
+            params
+          )
+        );
+        if (alive) setColumns(result);
+      } catch {
+        if (alive) toast.error("获取内部生产单失败");
+      } finally {
+        if (alive) setLoading(false);
+      }
+    };
+    run();
+    return () => {
+      alive = false;
+    };
+  }, [date, debouncedSearch, refreshKey, statuses]);
+
+  return {
+    columns,
+    loading,
+    search,
+    date,
+    setSearch,
+    setDate,
+    reset: () => {
+      setDate("");
+      setSearch("");
+    },
+    refresh: () => setRefreshKey((key) => key + 1),
+  };
+}
 /** 生产计划单看板：按可见状态列取数，日期为单日筛选。 */
 export function useProductionPlanBoard(visibleStatuses: readonly string[]) {
   const [columns, setColumns] = useState<BoardColumn<ProductionPlanListItem>[]>([]);

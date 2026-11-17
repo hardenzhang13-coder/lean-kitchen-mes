@@ -38,6 +38,12 @@ export function ProductionPlanCard({
             <b className="font-mono font-semibold">{item.scheduleCount}</b>
             <span className="ml-1 text-muted-foreground">张排程</span>
           </span>
+          {item.selfOrderCount > 0 && (
+            <span>
+              <b className="font-mono font-semibold">{item.selfOrderCount}</b>
+              <span className="ml-1 text-muted-foreground">张内部生产</span>
+            </span>
+          )}
           <span className="text-muted-foreground">
             {formatMonthDay(item.planDate)} {getWeekDay(item.planDate)}
           </span>

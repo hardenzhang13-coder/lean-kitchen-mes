@@ -2,6 +2,7 @@
 
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
 import { ProductionPlanStoreSchedules } from "@/app/components/production-plan/store-schedules-tab";
+import { ProductionPlanSelfProduction } from "@/app/components/production-plan/self-production-tab";
 import { rowConfirmStatus, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
 import type { ProductionPlanSourceSnapshot } from "@/lib/shared/production-plan";
 import { useEffect, useState } from "react";
@@ -48,6 +49,16 @@ interface SourceSchedule {
   store: { id: number; name: string };
 }
 
+interface SelfOrderSummary {
+  id: number;
+  code: string | null;
+  title: string;
+  produceDate: string;
+  status: string;
+  remark: string | null;
+  totalPortions: number;
+}
+
 interface PlanDetail {
   id: number;
   code: string | null;
@@ -60,6 +71,7 @@ interface PlanDetail {
   cuttingOrders: CuttingOrderRow[];
   purchasePlans: PurchasePlanRow[];
   sourceSchedules: SourceSchedule[];
+  selfOrders: SelfOrderSummary[];
   sourceSnapshot: ProductionPlanSourceSnapshot;
 }
 
@@ -78,7 +90,7 @@ export default function ProductionPlanDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"cutting" | "purchase" | "stores">("cutting");
+  const [activeTab, setActiveTab] = useState<"cutting" | "purchase" | "stores" | "self">("cutting");
   const [completeOpen, setCompleteOpen] = useState(false);
 
   const fetchData = async () => {
@@ -276,11 +288,13 @@ export default function ProductionPlanDetailPage() {
         />
         <InfoTile
           icon={FileStack}
-          label="汇总排程单"
-          value={`${data.sourceSchedules.length} 张`}
+          label="汇总来源"
+          value={`${data.sourceSchedules.length} 张排程 · ${data.selfOrders.length} 张内部生产`}
           helper={
-            data.sourceSchedules.map((s) => s.code ?? "#" + s.id).join("、") ||
-            "—"
+            [
+              ...data.sourceSchedules.map((s) => s.code ?? "#" + s.id),
+              ...data.selfOrders.map((o) => o.code ?? "#" + o.id),
+            ].join("、") || "—"
           }
         />
         <InfoTile
@@ -300,6 +314,7 @@ export default function ProductionPlanDetailPage() {
             { value: "cutting", label: "切配工单明细", count: data.cuttingOrders.length },
             { value: "purchase", label: "采购计划明细", count: data.purchasePlans.length },
             { value: "stores", label: "门店排程", count: data.sourceSchedules.length },
+            { value: "self", label: "内部生产", count: data.selfOrders.length },
           ]}
         />
         <div className="min-w-0 pt-4">
@@ -331,6 +346,12 @@ export default function ProductionPlanDetailPage() {
               sourceSchedules={data.sourceSchedules}
             />
           )}
+          {activeTab === "self" && (
+            <ProductionPlanSelfProduction
+              snapshot={data.sourceSnapshot}
+              selfOrders={data.selfOrders}
+            />
+          )}
         </div>
       </div>
 
@@ -347,7 +368,7 @@ export default function ProductionPlanDetailPage() {
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除这条生产计划单吗？删除后来源排程可重新纳入其他生产计划单，此操作不可撤销。
+            确定要删除这条生产计划单吗？删除后来源排程与内部生产单可重新纳入其他生产计划单，此操作不可撤销。
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">取消</Button>
@@ -362,7 +383,7 @@ export default function ProductionPlanDetailPage() {
             <DialogTitle className="text-lg">确认生产计划</DialogTitle>
           </DialogHeader>
           <p className="text-base text-muted-foreground">
-            确认后生产计划单进入「进行中」，标题、日期和来源排程不可再修改，也不能删除。
+            确认后生产计划单进入「进行中」，标题、日期和来源排程/内部生产单不可再修改，也不能删除。
           </p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">

@@ -40,6 +40,22 @@ export interface ProductionPlanListItem {
   operatorName?: string | null;
   createdAt: string;
   scheduleCount: number;
+  selfOrderCount: number;
+}
+
+export interface SelfProductionOrderListItem {
+  id: number;
+  code: string | null;
+  title: string;
+  produceDate: string;
+  status: string;
+  operator: string | null;
+  operatorName?: string | null;
+  createdAt: string;
+  remark: string | null;
+  itemCount: number;
+  totalPortions: number;
+  productionPlan: PlanRef | null;
 }
 
 export interface ScheduleQuickDetail {
@@ -67,6 +83,16 @@ export interface ProductionPlanSourceSchedule {
   store?: { id: number; name: string };
 }
 
+export interface ProductionPlanPreviewSelfOrder {
+  id: number;
+  code: string | null;
+  title: string;
+  produceDate: string;
+  status: string;
+  remark: string | null;
+  totalPortions: number;
+}
+
 export interface ProductionPlanPreview {
   id: number;
   code: string | null;
@@ -79,8 +105,9 @@ export interface ProductionPlanPreview {
   cuttingOrders: CuttingOrderRow[];
   purchasePlans: PurchasePlanRow[];
   sourceSchedules: ProductionPlanSourceSchedule[];
+  selfOrders?: ProductionPlanPreviewSelfOrder[];
   sourceSnapshot?: ProductionPlanSourceSnapshot;
 }
 
 export type QuickTab = "menu" | "cutting" | "purchase";
-export type PlanPreviewTab = "cutting" | "purchase" | "stores";
+export type PlanPreviewTab = "cutting" | "purchase" | "stores" | "self";

@@ -16,6 +16,7 @@ import { LoadingState } from "@/app/components/ui/loading-state";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
 import { SectionTabs } from "@/app/components/ui/section-tabs";
 import { ProductionPlanStoreSchedules } from "@/app/components/production-plan/store-schedules-tab";
+import { ProductionPlanSelfProduction } from "@/app/components/production-plan/self-production-tab";
 import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
 import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
 import type {
@@ -111,7 +112,12 @@ export function ProductionPlanPreviewDialog({
               <span>
                 {formatDate(preview.planDate)} {getWeekDay(preview.planDate)}
               </span>
-              <span>汇总 {preview.sourceSchedules.length} 张排程单</span>
+              <span>
+                汇总 {preview.sourceSchedules.length} 张排程单
+                {(preview.selfOrders?.length ?? 0) > 0
+                  ? ` · ${preview.selfOrders?.length} 张内部生产单`
+                  : ""}
+              </span>
             </div>
           )}
         </DialogHeader>
@@ -135,6 +141,7 @@ export function ProductionPlanPreviewDialog({
                   { value: "cutting", label: "切配汇总", count: preview.cuttingOrders.length },
                   { value: "purchase", label: "采购汇总", count: preview.purchasePlans.length },
                   { value: "stores", label: "门店排程", count: preview.sourceSchedules.length },
+                  { value: "self", label: "内部生产", count: preview.selfOrders?.length ?? 0 },
                 ]}
               />
               <div className="pt-4">
@@ -161,6 +168,22 @@ export function ProductionPlanPreviewDialog({
                     <EmptyState
                       icon={CalendarDays}
                       title="没有来源排程数据"
+                      description="历史计划单未固化来源快照，请到详情页查看。"
+                    />
+                  ))}
+                {tab === "self" &&
+                  (preview.sourceSnapshot ? (
+                    <ProductionPlanSelfProduction
+                      snapshot={preview.sourceSnapshot}
+                      selfOrders={(preview.selfOrders ?? []).map((order) => ({
+                        id: order.id,
+                        status: order.status,
+                      }))}
+                    />
+                  ) : (
+                    <EmptyState
+                      icon={CalendarDays}
+                      title="没有来源内部生产数据"
                       description="历史计划单未固化来源快照，请到详情页查看。"
                     />
                   ))}

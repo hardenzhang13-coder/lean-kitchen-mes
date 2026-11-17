@@ -9,6 +9,7 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
+import { ProductionModuleSwitcher } from "@/app/components/ui/production-module-switcher";
 import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
 import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
@@ -122,14 +123,17 @@ export default function ProductionPlansPage() {
     <PageShell>
       <PageHeader
         title="生产计划单"
-        description="把各门店「进行中」的排程单汇总成一张执行单；切配完成后逐行确认并入库"
+        description="把各门店「进行中」的排程单与内部生产单汇总成一张执行单；切配完成后逐行确认并入库"
         actions={
-          canWrite ? (
-            <Button onClick={() => setCreateState({ presetScheduleId: null })}>
-              <Plus className="mr-2 h-4 w-4" />
-              生产计划
-            </Button>
-          ) : undefined
+          <>
+            <ProductionModuleSwitcher />
+            {canWrite && (
+              <Button onClick={() => setCreateState({ presetScheduleId: null })}>
+                <Plus className="mr-2 h-4 w-4" />
+                生产计划
+              </Button>
+            )}
+          </>
         }
       />
 

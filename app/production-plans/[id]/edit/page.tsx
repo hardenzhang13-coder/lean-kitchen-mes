@@ -10,6 +10,7 @@ interface EditableProductionPlan {
   planDate: string;
   status: string;
   sourceSchedules: Array<{ id: number }>;
+  selfOrders: Array<{ id: number }>;
 }
 
 export default function EditProductionPlanPage() {
@@ -62,6 +63,7 @@ export default function EditProductionPlanPage() {
       planId={id}
       initialPlanDate={data.planDate.slice(0, 10)}
       initialScheduleIds={data.sourceSchedules.map((schedule) => schedule.id)}
+      initialSelfOrderIds={data.selfOrders.map((order) => order.id)}
     />
   );
 }
