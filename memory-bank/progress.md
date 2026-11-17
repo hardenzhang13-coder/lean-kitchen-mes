@@ -22,6 +22,12 @@
 ### 校验
 - `npx tsc --noEmit` 0；`npm run lint` 0；`npm test` 57 套件 / 284 用例；`npm run build` 通过；`prisma migrate diff` 空迁移。
 
+### 部署
+- `workflow_dispatch` 触发 `deploy.yml`，run `44109184270`，head `5b167ba`；build → deploy-prebuilt → health 全绿。
+- 部署前基线：原料 60 / 净料 92 / 菜品 7，流转表为空；部署后逐项一致。
+- 迁移 `20261117090000_add_self_production_order` 已应用（仅建表），三张新表均为 0 行；`/login` 200，web 日志无错误。
+- 已确认部署产物包含 43200 秒（12 小时）登录态常量。
+
 ---
 ---
 ## 2026-11-17 — 生产计划接入「净菜切配中心内部生产」
