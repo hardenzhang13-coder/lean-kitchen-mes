@@ -2,6 +2,7 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { SESSION_SECRET } from "@/lib/server/env-check";
 import { prisma } from "@/lib/server/prisma";
+import { SESSION_TTL_SECONDS } from "@/lib/shared/session-config";
 
 export interface SessionPayload {
   userId: number;
@@ -15,7 +16,7 @@ export async function createSession(payload: SessionPayload): Promise<string> {
   const token = await new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("30m")
+    .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS)
     .sign(SESSION_SECRET);
   return token;
 }
@@ -44,7 +45,7 @@ export async function setSessionCookie(token: string): Promise<void> {
     httpOnly: true,
     secure,
     sameSite: "lax",
-    maxAge: 60 * 30, // 30 minutes
+    maxAge: SESSION_TTL_SECONDS,
     path: "/",
   });
 }

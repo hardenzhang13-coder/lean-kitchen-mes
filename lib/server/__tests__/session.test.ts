@@ -114,7 +114,7 @@ describe("session", () => {
         httpOnly: true,
         secure: false,
         sameSite: "lax",
-        maxAge: 60 * 30,
+        maxAge: 12 * 60 * 60,
         path: "/",
       });
     });

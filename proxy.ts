@@ -6,6 +6,10 @@ import { prisma } from "@/lib/server/prisma";
 import { logger } from "@/lib/server/logger";
 import { canAccessApi, canAccessPage } from "@/lib/shared/access-control";
 import { TRIAL_FEATURES } from "@/lib/shared/features";
+import {
+  SESSION_RENEW_AHEAD_SECONDS,
+  SESSION_TTL_SECONDS,
+} from "@/lib/shared/session-config";
 
 interface SessionTokenPayload {
   userId: number;
@@ -34,7 +38,7 @@ function cookieOptions() {
     httpOnly: true,
     secure: process.env.FORCE_HTTPS === "true",
     sameSite: "lax" as const,
-    maxAge: 60 * 30,
+    maxAge: SESSION_TTL_SECONDS,
     path: "/",
   };
 }
@@ -101,7 +105,7 @@ async function resolveSession(req: NextRequest): Promise<SessionResult> {
 
     let renewedToken: string | undefined;
     const remaining = (payload.exp ?? 0) - Math.floor(Date.now() / 1000);
-    if (remaining < 15 * 60) {
+    if (remaining < SESSION_RENEW_AHEAD_SECONDS) {
       renewedToken = await new SignJWT({
         userId: current.id,
         username: current.username,
@@ -111,7 +115,7 @@ async function resolveSession(req: NextRequest): Promise<SessionResult> {
       })
         .setProtectedHeader({ alg: "HS256" })
         .setIssuedAt()
-        .setExpirationTime("30m")
+        .setExpirationTime(Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS)
         .sign(SESSION_SECRET);
     }
 

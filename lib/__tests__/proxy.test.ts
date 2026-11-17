@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
-import { jwtVerify } from "jose";
+import { jwtVerify, SignJWT } from "jose";
 import { prisma } from "@/lib/server/prisma";
+import { SESSION_TTL_SECONDS } from "@/lib/shared/session-config";
 import { proxy } from "@/proxy";
 
 jest.mock("jose", () => ({
@@ -24,12 +25,26 @@ const mockedPrisma = prisma as unknown as {
 function mockVerifyResult(payload: Record<string, unknown>): Awaited<ReturnType<typeof jwtVerify>> {
   return {
     payload: {
-      exp: Math.floor(Date.now() / 1000) + 30 * 60,
+      exp: Math.floor(Date.now() / 1000) + SESSION_TTL_SECONDS,
       ...payload,
     },
     protectedHeader: { alg: "HS256" },
     key: {} as CryptoKey,
   } as Awaited<ReturnType<typeof jwtVerify>>;
+}
+
+/** 滑动续期会用到的签发链：SignJWT 在测试里只需要能链式调用并返回 token */
+function createSignerMock() {
+  const signer = {
+    setProtectedHeader: jest.fn(),
+    setIssuedAt: jest.fn(),
+    setExpirationTime: jest.fn(),
+    sign: jest.fn(async () => "renewed-token"),
+  };
+  signer.setProtectedHeader.mockReturnValue(signer);
+  signer.setIssuedAt.mockReturnValue(signer);
+  signer.setExpirationTime.mockReturnValue(signer);
+  return signer;
 }
 
 function createRequest(path: string, cookie?: string, method = "GET"): NextRequest {
@@ -56,6 +71,7 @@ describe("proxy", () => {
   beforeEach(() => {
     mockedJwtVerify.mockReset();
     mockedPrisma.user.findUnique.mockReset();
+    (SignJWT as unknown as jest.Mock).mockImplementation(() => createSignerMock());
   });
 
   it("lets unauthenticated users open the login page", async () => {
@@ -130,5 +146,19 @@ describe("proxy", () => {
     const res = await proxy(createRequest("/api/dishes", "valid-token", "POST"));
     expect(res.status).toBe(403);
     expect((await res.json()).code).toBe("FORBIDDEN");
+  });
+
+  it("renews the session when the token is close to expiry", async () => {
+    mockedJwtVerify.mockResolvedValueOnce(
+      mockVerifyResult({
+        userId: 1,
+        sessionVersion: 1,
+        exp: Math.floor(Date.now() / 1000) + 10 * 60,
+      })
+    );
+    mockedPrisma.user.findUnique.mockResolvedValueOnce(activeUser());
+    const res = await proxy(createRequest("/api/schedules", "valid-token"));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie")).toContain("session=renewed-token");
   });
 });
