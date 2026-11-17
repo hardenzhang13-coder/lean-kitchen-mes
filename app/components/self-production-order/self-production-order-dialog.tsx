@@ -545,15 +545,15 @@ export function SelfProductionOrderDialog({
                       </div>
                     )}
                   </div>
-                  {pagination && pagination.totalItems > OPTION_PAGE_SIZE && (
-                    <div className="border-t px-4 py-2">
+                  <div className="h-[48px] border-t px-4 py-2">
+                    {pagination && pagination.totalItems > OPTION_PAGE_SIZE && (
                       <Pagination
                         currentPage={page}
                         totalPages={pagination.totalPages}
                         onPageChange={setPage}
                       />
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

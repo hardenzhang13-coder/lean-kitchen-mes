@@ -541,15 +541,15 @@ export function ProductionPlanCreateDialog({
                       )}
                     </div>
 
-                    {pagination && pagination.totalItems > OPTION_PAGE_SIZE && (
-                      <div className="border-t px-4 py-2">
+                    <div className="h-[48px] border-t px-4 py-2">
+                      {pagination && pagination.totalItems > OPTION_PAGE_SIZE && (
                         <Pagination
                           currentPage={page}
                           totalPages={pagination.totalPages}
                           onPageChange={setPage}
                         />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </>
                 ) : (
                   <>
@@ -611,15 +611,15 @@ export function ProductionPlanCreateDialog({
                       )}
                     </div>
 
-                    {selfPagination && selfPagination.totalItems > OPTION_PAGE_SIZE && (
-                      <div className="border-t px-4 py-2">
+                    <div className="h-[48px] border-t px-4 py-2">
+                      {selfPagination && selfPagination.totalItems > OPTION_PAGE_SIZE && (
                         <Pagination
                           currentPage={selfPage}
                           totalPages={selfPagination.totalPages}
                           onPageChange={setSelfPage}
                         />
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </>
                 )}
               </div>
