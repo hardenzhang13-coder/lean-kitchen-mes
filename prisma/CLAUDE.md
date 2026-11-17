@@ -71,6 +71,16 @@ Ingredient（原料）
 | `CuttingOrder` | 切配工单，由 `buildCuttingOrders()` 自动生成 |
 | `PurchasePlan` | 采购计划，由 `buildPurchasePlans()` 自动生成 |
 
+### 生产计划域
+
+| 模型 | 说明 |
+|------|------|
+| `ProductionPlan` | 生产计划单，`cuttingJson` / `purchaseJson` / `sourceScheduleJson` 为生成时快照（v2 含 `selfProduction[]`），软删除 |
+| `ProductionPlanSchedule` | 计划 ↔ 来源门店排程 |
+| `SelfProductionOrder` | 内部生产单（切配中心自产），`status`：待生效 / 进行中 / 已完成；不做软删除 |
+| `SelfProductionItem` | 明细：`sourceType`（net / minor 由二级分类 MIN 服务端派生）、`sourceId` 弱引用 `net_ingredients.id`、`portions` |
+| `ProductionPlanSelfOrder` | 计划 ↔ 来源内部生产单 |
+
 ### 采购域
 
 | 模型 | 说明 |

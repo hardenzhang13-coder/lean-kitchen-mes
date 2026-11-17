@@ -37,6 +37,11 @@
 | | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
 | | `outbound_orders` | 净菜出库单主表 | ✅ v002 |
 | | `outbound_order_items` | 净菜出库单明细 | ✅ v002 |
+| **生产计划** | `production_plans` | 生产计划单（汇总快照） | ✅ |
+| | `production_plan_schedules` | 计划 ↔ 来源门店排程 | ✅ |
+| | `self_production_orders` | 内部生产单主表 | ✅ 2026-11 |
+| | `self_production_items` | 内部生产单明细 | ✅ 2026-11 |
+| | `production_plan_self_orders` | 计划 ↔ 来源内部生产单 | ✅ 2026-11 |
 
 ---
 
@@ -628,4 +633,23 @@ await prisma.ingredient.update({
 
 ---
 
+## 生产计划与内部生产（2026-11）
+
+切配中心作为系统内置的单一生产主体：除汇总门店排程外，也可按日期内部生产净料/小料。
+
+| 表 | 说明 |
+|---|---|
+| `production_plans` | 生产计划单；`cutting_json` / `purchase_json` / `source_schedule_json` 为生成时快照；软删除 `deleted_at` |
+| `production_plan_schedules` | 计划 ↔ 来源门店排程（`plan_id + schedule_id` 唯一） |
+| `self_production_orders` | 内部生产单：`code`（`SPO-日期-序号`）、`produce_date`、`status`（待生效 / 进行中 / 已完成）、`operator`、`remark`；不做软删除，待生效物理删除 |
+| `self_production_items` | 明细：`source_type`（net / minor，服务端按二级分类 `MIN` 派生）、`source_id`（弱引用 `net_ingredients.id`，不建外键）、`portions`（Decimal(12,2)）；`(order_id, source_id)` 唯一 |
+| `production_plan_self_orders` | 计划 ↔ 来源内部生产单（`plan_id + self_order_id` 唯一） |
+
+- 来源快照 `source_schedule_json` 升级为 v2：`{ version: 2, stores[], selfProduction[] }`；v1 只读兼容。
+- `PreppedStock` 仍为全局单仓，不按生产主体隔离；完成生产入库时 `store_id` 为空。
+- 完成生产时门店 `cutting_orders.actual_qty` 的分摊分母只取门店工单合计，内部生产量不稀释各店实际量。
+
+---
+
 *版本：v1.3 | 2026.06.19 | 增加：调料表默认排序（created_at DESC）、数据迁移规范（原料→调料迁移）、字段映射说明、迁移脚本示例*
+*增补：2026-11-17 内部生产单与生产计划来源（v2 快照）*

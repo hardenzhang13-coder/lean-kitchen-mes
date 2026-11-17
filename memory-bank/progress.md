@@ -4,6 +4,34 @@
 
 ---
 ---
+## 2026-11-17 — 生产计划接入「净菜切配中心内部生产」
+
+### 1. 新单据：内部生产单
+- 新增 `self_production_orders` / `self_production_items` / `production_plan_self_orders`（迁移 `20261117090000_add_self_production_order`）。
+- 状态机复用 `待生效 / 进行中 / 已完成`；只有「进行中」可被生产计划纳入，同一张单最多归属一个未删除计划；待生效可物理删除。
+- `source_type` 由服务端按净料二级分类 `MIN` 派生，不信任客户端；`packageSpec` 缺失在创建/激活/汇总三处拦截。
+
+### 2. 生产计划双来源
+- `createProductionPlanSchema` 改为 `scheduleIds` / `selfOrderIds` 均可为空但至少选一（原先 `.min(1)` 会挡住纯自产计划）。
+- `buildProductionPlanData(prisma, scheduleIds, selfOrderIds)`：自产按 `份数 × 封装规格` 并入切配，按 `× 100 / 出成率` 折算原料毛需求并入采购；与排程同净料/同原料自动合并。
+- 来源快照升级 v2：`{ version: 2, stores[], selfProduction[] }`，`normalizeSourceSnapshot` 同时接受 v1/v2。
+- 修改计划时 `selfOrderIds` 可省略，省略即保留现有来源关联。
+
+### 3. 完成生产修正
+- 门店 `cutting_orders.actual_qty` 分摊分母改为「门店工单合计」，并按单店需求量封顶，避免自产数量稀释各店实际量。
+- 计划完成时通过 `syncSourceSelfOrderStatuses()` 把来源内部生产单置为「已完成」。
+
+### 4. UI 与权限
+- 新增 `/self-production-orders` 列表 + 详情 + 新建/编辑弹窗（净料搜索、份数、切配量/毛料需求实时计算）。
+- 生产计划新建/编辑弹窗改为「门店排程 / 内部生产单」双页签；详情与预览新增「内部生产」Tab；看板卡片显示内部生产单数量。
+- 内部生产单不占用一级菜单，入口为生产页右上角「生产计划单 / 内部生产单」页签切换；列表改为与排程/生产计划同构的三列看板；详情页与排程详情对齐（信息卡、纳入计划提示条、明细合计、按角色控制写操作）。
+- 新建弹窗对齐菜品排程单：右侧候选一行两列、仅展示名称与包装规格、支持一级/二级分类筛选；左侧已选行右侧带数量步进器；毛料需求统一以斤展示（1 斤 = 500g），与排程/生产计划口径一致。
+- 侧边栏新增「自产」；`/api/self-production-orders` 已登记权限（读全体、写 admin/chef）。
+
+### 校验
+- `npx tsc --noEmit` 通过；新增/更新 7 个测试套件全绿。
+
+---
 ## 2026-11-16（续 2）— 列表状态列可选 + 预览弹窗复用 + 工作台菜品明细
 
 ### 1. 状态列可见性
