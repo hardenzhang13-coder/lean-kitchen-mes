@@ -10,6 +10,7 @@ import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { ProductionModuleSwitcher } from "@/app/components/ui/production-module-switcher";
+import { SelfProductionOrderPreviewDialog } from "@/app/components/ui/self-production-order-preview-dialog";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
 import { StatusColumnMenu } from "@/app/components/schedule/status-column-menu";
 import { useSelfProductionBoard } from "@/app/components/schedule/use-schedule-board";
@@ -32,6 +33,7 @@ export default function SelfProductionOrdersPage() {
 
   const [actionId, setActionId] = useState<number | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [previewId, setPreviewId] = useState<number | null>(null);
 
   const activateOrder = async (id: number) => {
     setActionId(id);
@@ -104,13 +106,18 @@ export default function SelfProductionOrdersPage() {
               item={row}
               busy={actionId === row.id}
               canWrite={canWrite}
-              onOpen={() => router.push(`/self-production-orders/${row.id}`)}
+              onOpen={() => setPreviewId(row.id)}
               onActivate={() => activateOrder(row.id)}
               onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
             />
           )}
         />
       )}
+
+      <SelfProductionOrderPreviewDialog
+        orderId={previewId}
+        onClose={() => setPreviewId(null)}
+      />
 
       {createOpen && (
         <SelfProductionOrderDialog

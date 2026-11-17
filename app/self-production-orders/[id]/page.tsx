@@ -13,21 +13,12 @@ import {
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { InfoTile } from "@/app/components/ui/info-tile";
@@ -35,49 +26,17 @@ import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
+import { SectionTabs } from "@/app/components/ui/section-tabs";
+import { SelfProductionItemsTable } from "@/app/components/self-production-order/self-production-items-table";
 import { SelfProductionOrderDialog } from "@/app/components/self-production-order/self-production-order-dialog";
+import type { SelfProductionOrderDetail } from "@/app/components/self-production-order/types";
 import { parseObject } from "@/lib/client/api";
 import { formatDate, getWeekDay } from "@/lib/shared/date-format";
 import { canAccessApi } from "@/lib/shared/access-control";
 import { useCurrentRole } from "@/lib/client/use-current-role";
 import { toast } from "sonner";
 
-interface DetailItem {
-  id: number;
-  sourceType: string;
-  sourceId: number;
-  itemCode: string;
-  itemName: string;
-  l1Name: string;
-  l2Name: string;
-  packageSpec: number | null;
-  unit: string;
-  yieldRate: number | null;
-  portions: number;
-  requiredQty: number | null;
-  grossNeed: number | null;
-  grossNeedJin: number | null;
-}
-
-interface SelfProductionOrderDetail {
-  id: number;
-  code: string | null;
-  title: string;
-  produceDate: string;
-  status: string;
-  operator: string | null;
-  operatorName: string | null;
-  remark: string | null;
-  createdAt: string;
-  items: DetailItem[];
-  productionPlan: {
-    id: number;
-    code: string | null;
-    title: string;
-    planDate: string;
-    status: string;
-  } | null;
-}
+type DetailTab = "items" | "plan";
 
 export default function SelfProductionOrderDetailPage() {
   const router = useRouter();
@@ -92,6 +51,7 @@ export default function SelfProductionOrderDetailPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<DetailTab>("items");
   const [reloadKey, setReloadKey] = useState(0);
 
   const refresh = () => {
@@ -303,68 +263,64 @@ export default function SelfProductionOrderDetailPage() {
         )
       )}
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <CardTitle className="text-base">生产明细</CardTitle>
-          <span className="text-sm text-muted-foreground">
-            {data.remark ? `备注：${data.remark}` : "—"}
-          </span>
-        </CardHeader>
-        <CardContent className="px-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-16">序号</TableHead>
-                <TableHead>编号</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>分类</TableHead>
-                <TableHead className="text-right">包装规格</TableHead>
-                <TableHead className="text-right">份数</TableHead>
-                <TableHead className="text-right">切配量（g）</TableHead>
-                <TableHead className="text-right">毛料需求（斤）</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.items.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
-                    暂无明细
-                  </TableCell>
-                </TableRow>
-              ) : (
-                data.items.map((item, index) => (
-                  <TableRow key={item.id}>
-                    <TableCell className="text-muted-foreground">{index + 1}</TableCell>
-                    <TableCell className="font-mono text-xs">{item.itemCode}</TableCell>
-                    <TableCell className="font-medium">{item.itemName}</TableCell>
-                    <TableCell>
-                      {item.l1Name} / {item.l2Name}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.packageSpec != null ? `${item.packageSpec}g` : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{item.portions}</TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.requiredQty != null ? item.requiredQty : "—"}
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {item.grossNeedJin != null ? item.grossNeedJin : "—"}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-              <TableRow className="bg-muted/40">
-                <TableCell colSpan={5} className="text-right font-medium">
-                  合计
-                </TableCell>
-                <TableCell className="text-right font-bold">{totalPortions}</TableCell>
-                <TableCell className="text-right font-bold">{totalRequiredQty}</TableCell>
-                <TableCell className="text-right font-bold">{totalGrossJin}</TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {data.remark && (
+        <div className="rounded-lg border bg-muted/30 px-4 py-3 text-sm text-muted-foreground">
+          备注：{data.remark}
+        </div>
+      )}
+
+      <div className="min-w-0">
+        <SectionTabs
+          ariaLabel="内部生产单内容"
+          value={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { value: "items", label: "生产明细", count: data.items.length },
+            { value: "plan", label: "生产计划", count: plan ? 1 : 0 },
+          ]}
+        />
+        <div className="min-w-0 pt-4">
+          {activeTab === "items" &&
+            (data.items.length > 0 ? (
+              <SelfProductionItemsTable items={data.items} />
+            ) : (
+              <EmptyState
+                icon={ChefHat}
+                title="暂无生产明细"
+                description="这张内部生产单还没有净料/小料明细。"
+              />
+            ))}
+          {activeTab === "plan" &&
+            (plan ? (
+              <div className="space-y-3 rounded-lg border p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <FileStack className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-mono text-xs text-muted-foreground">
+                    {plan.code ?? `PPL-${plan.id}`}
+                  </span>
+                  <span className="font-medium">{plan.title}</span>
+                  <ScheduleStatusTag status={plan.status} size="sm" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  生产日期 {formatDate(plan.planDate)} · 已纳入生产计划单
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push(`/production-plans/${plan.id}`)}
+                >
+                  查看生产计划
+                </Button>
+              </div>
+            ) : (
+              <EmptyState
+                icon={FileStack}
+                title="尚未纳入生产计划"
+                description="确认生产后，可在生产计划单中与门店排程一起勾选。"
+              />
+            ))}
+        </div>
+      </div>
 
       {editOpen && (
         <SelfProductionOrderDialog
