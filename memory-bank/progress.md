@@ -4,6 +4,29 @@
 
 ---
 ---
+## 2026-11-19 — 部署 48c2712（菜品发布口径 / 出库金额 / 食材库反馈）
+
+### 合并与提交
+- `3512f30` feat(dishes)：试运行菜品发布口径整改（发布必填收敛、类别可空、份量默认小碗菜·10份）
+- `48c2712` fix(inventory)：出库金额改为标准规格价 × 出库份数，主体选择三列栅格，打印页去分类加单价
+- 一并带上此前未部署的 `3960120`（食材库五点反馈）、`631e6f4`（文档同步）、`988cb24`（净料关联菜品）
+- 推送 `1b935c7..48c2712` 到 origin/main
+
+### 门禁
+- `npx prisma migrate diff` 空迁移；`npx tsc --noEmit` 0；`npm run lint` 全量 0
+- `npm run build` 成功；`npm test` 60 套件 / 307 用例全绿
+
+### 部署
+- `workflow_dispatch` 触发 `deploy.yml`，run `44348374076`，head `48c2712`；build → deploy-prebuilt → health 全绿（16:32–16:35 UTC）
+- 迁移 `20261118120000_dish_category_optional_and_portion_default` 于 16:35:26 UTC 应用；`migrate` 与 `db-users` 均 `Exited (0)`；web healthy、日志 `Ready` 无错误
+
+### 部署后只读复核
+- `dishes.category_id` 可空（YES/NULL）、`portion` 默认 `小碗菜·10份`；`outbound_orders` 的 `subject_type` / `self_order_id` 就位，`store_id` / `schedule_id` 可空
+- 基线行数：ingredients 78 / net_ingredients 118 / dishes 12 / schedules 1 / production_plans 4 / prepped_stock 31 / outbound_orders 2；12 条菜品份量全部为 `小碗菜·10份`
+- `/login` HTTP 200，`/api/health` `{"status":"ok"}`
+
+---
+---
 ## 2026-11-18（续 2）— 库存模块试运行反馈：出库单三处修正
 
 ### 交付
