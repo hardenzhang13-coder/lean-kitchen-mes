@@ -15,10 +15,11 @@ import { formatPortionsCount } from "@/lib/shared/prepped-stock";
 interface OutboundRow {
   id: number;
   code: string;
-  storeName: string;
-  scheduleCode: string | null;
-  scheduleTitle: string;
-  scheduleDate: string;
+  subjectType: "store" | "cutting_center";
+  subjectName: string;
+  sourceCode: string | null;
+  sourceTitle: string;
+  sourceDate: string;
   totalPortions: number;
   totalAmount: number;
   asPlanned: boolean;
@@ -32,7 +33,7 @@ interface PageData {
   pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
 }
 
-/** 出库单 Tab：序号/单号/门店/来源排程单名称/出库份数/合计金额/是否按计划出库/状态/库管负责人/创建时间/操作 */
+/** 出库单 Tab：序号/单号/出库主体/来源单据/出库份数/合计金额/是否按计划出库/状态/库管负责人/创建时间/操作 */
 export function OutboundTab() {
   const router = useRouter();
   const [rows, setRows] = useState<OutboundRow[]>([]);
@@ -92,7 +93,7 @@ export function OutboundTab() {
       ) : rows.length === 0 ? (
         <EmptyState
           title="还没有出库单"
-          description="点击右上角「创建出库单」，按排程为门店出库净菜"
+          description="点击右上角「创建出库单」，按排程单或内部生产单出库净菜"
           action={{ label: "创建出库单", onClick: () => router.push("/inventory/outbound/new") }}
         />
       ) : (
@@ -102,8 +103,8 @@ export function OutboundTab() {
               <TableRow>
                 <TableHead>序号</TableHead>
                 <TableHead>出库单号</TableHead>
-                <TableHead>门店</TableHead>
-                <TableHead>来源排程单名称</TableHead>
+                <TableHead>出库主体</TableHead>
+                <TableHead>来源单据</TableHead>
                 <TableHead className="text-right">出库份数</TableHead>
                 <TableHead className="text-right">合计金额</TableHead>
                 <TableHead>是否按计划出库</TableHead>
@@ -120,8 +121,8 @@ export function OutboundTab() {
                     {String((page - 1) * pageSize + idx + 1).padStart(2, "0")}
                   </TableCell>
                   <TableCell className="font-mono text-xs">{o.code}</TableCell>
-                  <TableCell>{o.storeName}</TableCell>
-                  <TableCell className="max-w-[220px] truncate" title={o.scheduleTitle}>{o.scheduleTitle}</TableCell>
+                  <TableCell>{o.subjectName}</TableCell>
+                  <TableCell className="max-w-[220px] truncate" title={o.sourceTitle}>{o.sourceTitle}</TableCell>
                   <TableCell className="text-right">{formatPortionsCount(o.totalPortions)}</TableCell>
                   <TableCell className="text-right font-medium">¥{o.totalAmount.toFixed(2)}</TableCell>
                   <TableCell>

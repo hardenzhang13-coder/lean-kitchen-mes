@@ -21,10 +21,18 @@ export const createOutboundItemSchema = z.object({
 });
 
 export const createOutboundSchema = z.object({
-  scheduleId: z.number().int().positive(),
+  scheduleId: z.number().int().positive().optional(),
+  selfOrderId: z.number().int().positive().optional(),
   remark: z.string().max(200).optional(),
   items: z.array(createOutboundItemSchema).min(1).max(500),
 }).superRefine((value, ctx) => {
+  if ((value.scheduleId == null) === (value.selfOrderId == null)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["scheduleId"],
+      message: "请选择排程单或内部生产单（二选一）",
+    });
+  }
   const totalPortions = value.items.reduce(
     (sum, item) => sum + item.shippedPortions,
     0

@@ -4,6 +4,21 @@
 
 ---
 ---
+## 2026-11-18 — 出库单支持「净菜切配中心」主体
+
+### 背景
+内部生产单纳入生产计划后，切配中心生产的净菜无法开出库单（出库单原先只认门店 + 排程单）。实际使用中需要以切配中心为主体的出库凭证。
+
+### 交付
+- Schema + 迁移 `20261118100000_add_outbound_cutting_center_subject`：`outbound_orders` 新增 `subject_type`（store / cutting_center）与 `self_order_id`，`store_id` / `schedule_id` 改为可空；来源单据快照字段继续复用 `schedule_code/title/date`。
+- 出库行构建：`lib/server/outbound-utils.ts` 抽出统一行构建，门店取切配工单、切配中心取内部生产单明细；进行中内部生产单按「未切配」默认不出库。
+- API：`GET /api/outbound-orders?selfOrderId=` 报价预览；`POST` 支持 `scheduleId` / `selfOrderId` 二选一；列表与详情返回 `subjectType / subjectName / sourceCode / sourceTitle / sourceDate`。
+- UI：创建出库单向导改为「选择主体 → 选择来源单据 → 确认明细」，第一步新增切配中心卡片；列表、详情、打印按主体显示「门店 / 切配中心」与「排程单 / 内部生产单」。
+
+### 校验
+- `npx tsc --noEmit` 0；`npm run lint` 0；定向 Jest 2 套件 / 10 用例通过。
+
+---
 ## 2026-11-17（续）— 登录态延长至 12 小时 + 新建默认日期与工具链修正
 
 ### 1. 登录态 30 分钟 → 12 小时

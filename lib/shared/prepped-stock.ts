@@ -30,6 +30,16 @@ export const PLAN_ROW_PENDING = "pending" as const;
 
 export type OutboundDisplayStatus = "unshipped" | "partial" | "shipped";
 
+/** 出库主体：门店（按排程单）或净菜切配中心（按内部生产单） */
+export type OutboundSubjectType = "store" | "cutting_center";
+
+export const CUTTING_CENTER_NAME = "净菜切配中心";
+
+export const OUTBOUND_SUBJECT_LABEL: Record<OutboundSubjectType, string> = {
+  store: "门店",
+  cutting_center: CUTTING_CENTER_NAME,
+};
+
 export const OUTBOUND_STATUS_LABEL: Record<OutboundDisplayStatus, string> = {
   unshipped: "未出库",
   partial: "部分出库",

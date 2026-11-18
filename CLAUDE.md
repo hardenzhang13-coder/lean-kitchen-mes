@@ -74,7 +74,7 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 2. `lib/server/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料/小料；`buildPurchasePlans()` 按出成率折算毛需求生成 `PurchasePlan` 行（**库存抵扣已随 v002 下线，建议采购量 = 毛需求**），两者在同一 `$transaction` 内创建
 3. `lib/server/production-plan-utils.ts` 把多店排程**与切配中心内部生产单**合并为生产计划单（切配汇总 + 采购汇总），生成时固化来源快照 v2（`stores[] + selfProduction[]`）。内部生产单（`/self-production-orders`）按日期指定净料/小料份数，只有「进行中」可被纳入计划
 4. 「完成生产」按份逐行三态确认（完成 / 未完成 / 暂不确认），净菜入库（份 + g 双单位）→ 写台账 → 回写各店切配工单实际完成量
-5. 出库单扣库存 + 写台账 + 标记是否按计划；作废走事务回滚（作废 ≠ 删除）
+5. 出库单按「门店排程单」或「切配中心内部生产单」扣库存 + 写台账 + 标记是否按计划；作废走事务回滚（作废 ≠ 删除）
 
 **采购流程：**
 - `PurchaseReceipt` + `PurchaseReceiptItem` 记录实际到货

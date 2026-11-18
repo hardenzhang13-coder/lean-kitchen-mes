@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/server/prisma";
-import { round2 } from "@/lib/shared/prepped-stock";
+import { round2, CUTTING_CENTER_NAME } from "@/lib/shared/prepped-stock";
 
 export async function getOutboundOrderDetail(id: number) {
   const order = await prisma.outboundOrder.findUnique({
@@ -15,12 +15,14 @@ export async function getOutboundOrderDetail(id: number) {
   return {
     id: order.id,
     code: order.code,
+    subjectType: order.subjectType,
+    subjectName: order.store?.name ?? CUTTING_CENTER_NAME,
     storeId: order.storeId,
-    storeName: order.store.name,
     scheduleId: order.scheduleId,
-    scheduleCode: order.scheduleCode,
-    scheduleTitle: order.scheduleTitle,
-    scheduleDate: order.scheduleDate.toISOString(),
+    selfOrderId: order.selfOrderId,
+    sourceCode: order.scheduleCode,
+    sourceTitle: order.scheduleTitle,
+    sourceDate: order.scheduleDate.toISOString(),
     totalPortions: round2(Number(order.totalPortions)),
     totalAmount: round2(Number(order.totalAmount)),
     asPlanned: order.asPlanned,

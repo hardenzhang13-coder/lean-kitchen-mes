@@ -94,8 +94,12 @@ Ingredient（原料）
 
 | 模型 | 说明 |
 |------|------|
-| `Inventory` | 当前库存量，`ingredientId` 唯一 |
-| `InventoryLedger` | 库存流水，不可删除，记录 `changeType`（入库/出库） |
+| `PreppedStock` | 净菜当前库存（份 + g 双单位），唯一键 `(sourceType, sourceId)` |
+| `PreppedStockLedger` | 净菜库存流水，不可删除，记录 `changeType`（stock_in / stock_out / stock_rollback） |
+| `OutboundOrder` | 净菜出库单：`subjectType` 区分门店（来源排程单）/ 切配中心（来源内部生产单）；`storeId` 与 `scheduleId` 仅门店主体有值 |
+| `OutboundOrderItem` | 出库单明细快照（含出库价与金额） |
+| `Inventory` | 旧原料库存，已停用 |
+| `InventoryLedger` | 旧库存流水，已停用 |
 
 ### 系统域
 

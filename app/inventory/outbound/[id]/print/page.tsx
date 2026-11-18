@@ -66,6 +66,8 @@ export default async function OutboundPrintPage({
     currentUser?.name?.trim() || currentUser?.username?.trim() || "—";
   const outboundTime = fmtDateTime(new Date());
   const voided = detail.status === "voided";
+  const isCuttingCenter = detail.subjectType === "cutting_center";
+  const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
 
   return (
     <div className="print-root">
@@ -77,16 +79,16 @@ export default async function OutboundPrintPage({
       <div className="doc">
         <div className="doc-title">净 菜 出 库 单</div>
         <div className="doc-sub">
-          精益厨房 · 门店净菜出库凭证（{detail.scheduleTitle}）
+          精益厨房 · 净菜出库凭证（{detail.sourceTitle}）
           {voided ? " · 已作废" : ""}
         </div>
 
         <div className="pm-meta">
           <span>
-            门店：<b>{detail.storeName}</b>
+            出库主体：<b>{detail.subjectName}</b>
           </span>
           <span>
-            排程单：<b>{detail.scheduleTitle || "—"}</b>
+            {sourceLabel}：<b>{detail.sourceTitle || "—"}</b>
           </span>
           <span>
             单号：<b>{detail.code}</b>
@@ -151,7 +153,7 @@ export default async function OutboundPrintPage({
         <div className="sign">
           <span>库管负责人：{printerName}</span>
           <span>司机签字：＿＿＿＿＿＿</span>
-          <span>门店收货人：＿＿＿＿＿＿</span>
+          <span>{isCuttingCenter ? "经办人" : "门店收货人"}：＿＿＿＿＿＿</span>
         </div>
       </div>
     </div>

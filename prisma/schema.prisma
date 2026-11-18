@@ -567,6 +567,7 @@ model SelfProductionOrder {
   updatedAt   DateTime @updatedAt @map("updated_at")
   items       SelfProductionItem[]
   productionPlanRefs ProductionPlanSelfOrder[]
+  outboundOrders OutboundOrder[]
 
   @@index([produceDate, status])
   @@map("self_production_orders")
@@ -645,8 +646,11 @@ model PreppedStockLedger {
 model OutboundOrder {
   id             Int      @id @default(autoincrement())
   code           String   @unique // OUT-YYYYMMDD-NNN（当日序号）
-  scheduleId     Int      @map("schedule_id")
-  storeId        Int      @map("store_id")
+  subjectType    String   @default("store") @map("subject_type") // store / cutting_center
+  scheduleId     Int?     @map("schedule_id") // 门店出库来源排程单
+  selfOrderId    Int?     @map("self_order_id") // 切配中心出库来源内部生产单
+  storeId        Int?     @map("store_id") // 门店主体；切配中心主体为空
+  // 来源单据快照：门店主体取排程单，切配中心主体取内部生产单
   scheduleCode   String?  @map("schedule_code")
   scheduleTitle  String   @map("schedule_title")
   scheduleDate   DateTime @map("schedule_date") @db.Date
@@ -659,10 +663,12 @@ model OutboundOrder {
   createdAt      DateTime @default(now()) @map("created_at")
   voidedAt       DateTime? @map("voided_at")
   voidReason     String?   @map("void_reason")
-  store          Store    @relation(fields: [storeId], references: [id])
+  store          Store?   @relation(fields: [storeId], references: [id], onDelete: Restrict)
+  selfOrder      SelfProductionOrder? @relation(fields: [selfOrderId], references: [id], onDelete: Restrict)
   items          OutboundOrderItem[]
 
   @@index([storeId])
+  @@index([selfOrderId])
   @@index([status])
   @@index([createdAt])
   @@map("outbound_orders")

@@ -27,4 +27,37 @@ describe("createOutboundSchema", () => {
 
     expect(result.success).toBe(true);
   });
+
+  it("允许仅指定内部生产单（切配中心主体）", () => {
+    const result = createOutboundSchema.safeParse({
+      selfOrderId: 3,
+      items: [{ sourceType: "net", sourceId: 1, shippedPortions: 1 }],
+    });
+
+    expect(result.success).toBe(true);
+  });
+
+  it("拒绝未指定任何来源单据", () => {
+    const result = createOutboundSchema.safeParse({
+      items: [{ sourceType: "net", sourceId: 1, shippedPortions: 1 }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("请选择排程单或内部生产单（二选一）");
+    }
+  });
+
+  it("拒绝同时指定排程单与内部生产单", () => {
+    const result = createOutboundSchema.safeParse({
+      scheduleId: 1,
+      selfOrderId: 3,
+      items: [{ sourceType: "net", sourceId: 1, shippedPortions: 1 }],
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe("请选择排程单或内部生产单（二选一）");
+    }
+  });
 });

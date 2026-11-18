@@ -35,7 +35,7 @@
 | | ~~`inventory_ledger`~~ | 旧原料库存台账 | ⚠️ 已停用，**代码引用已全部移除，待删表**（2026-11-15） |
 | | `prepped_stock` | 净菜库存表（份+g 双单位） | ✅ v002 |
 | | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
-| | `outbound_orders` | 净菜出库单主表 | ✅ v002 |
+| | `outbound_orders` | 净菜出库单主表（主体：门店 / 切配中心） | ✅ v002 |
 | | `outbound_order_items` | 净菜出库单明细 | ✅ v002 |
 | **生产计划** | `production_plans` | 生产计划单（汇总快照） | ✅ |
 | | `production_plan_schedules` | 计划 ↔ 来源门店排程 | ✅ |

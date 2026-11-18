@@ -24,10 +24,12 @@ import { AppDialogContent } from "@/app/components/ui/app-dialog";
 interface OutboundDetail {
   id: number;
   code: string;
-  storeName: string;
-  scheduleCode: string | null;
-  scheduleTitle: string;
-  scheduleDate: string;
+  subjectType: "store" | "cutting_center";
+  subjectName: string;
+  sourceCode: string | null;
+  sourceTitle: string;
+  sourceDate: string;
+  selfOrderId: number | null;
   totalPortions: number;
   totalAmount: number;
   asPlanned: boolean;
@@ -133,6 +135,8 @@ export default function OutboundDetailPage() {
   }
 
   const voided = data.status === "voided";
+  const isCuttingCenter = data.subjectType === "cutting_center";
+  const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
 
   return (
     <div className="flex flex-col gap-6 p-8">
@@ -163,7 +167,7 @@ export default function OutboundDetailPage() {
               )}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {data.storeName} · 排程单 {data.scheduleTitle} · 制单人 {data.operator} · {new Date(data.createdAt).toLocaleString("zh-CN")}
+              {data.subjectName} · {sourceLabel} {data.sourceTitle} · 制单人 {data.operator} · {new Date(data.createdAt).toLocaleString("zh-CN")}
             </p>
           </div>
         </div>
@@ -182,8 +186,10 @@ export default function OutboundDetailPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-lg border p-4">
-          <div className="text-sm text-muted-foreground mb-1">门店</div>
-          <div className="font-medium">{data.storeName}</div>
+          <div className="text-sm text-muted-foreground mb-1">
+            {isCuttingCenter ? "出库主体" : "门店"}
+          </div>
+          <div className="font-medium">{data.subjectName}</div>
         </div>
         <div className="rounded-lg border p-4">
           <div className="text-sm text-muted-foreground mb-1">出库总份数</div>
