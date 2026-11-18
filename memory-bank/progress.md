@@ -4,6 +4,23 @@
 
 ---
 ---
+## 2026-11-19（续）— 部署 5e17269 并完成生产 BOM 对齐
+
+### 合并与门禁
+- 将最新 main（含 48c2712 等 5 个提交）合并进 BOM 联动分支，解决 `progress.md` / `prisma/CLAUDE.md` 两处文档冲突
+- tsc 0 / lint 0 / build 通过 / Jest 63 套件 315 用例 / Prisma 零差异
+
+### 部署
+- `workflow_dispatch` run `44350895503`，head `5e17269`；build → deploy-prebuilt → health 全绿
+- `migrate` / `db-users` 均 Exited(0)；web healthy；`/login` 200、`/api/health` ok
+
+### 生产对齐（只读 → 备份 → apply）
+- 备份 `backups/bom-align-20261119_004935.sql`；审计 `backups/bom-align-audit-20261119_004935.json`
+- 对齐 13 行 BOM（11 个净料/小料）；重建排程 `SCH-20261119-001` 的 20 条切配、19 条采购与计划 `PPL-20261118-004` 快照
+- 复核：BOM 漂移 0；计划 8 的 20 行份数全部为整数；已完成计划 5/6、2 张出库单、库存流水未变；再跑预览输出「无需处理」
+
+---
+---
 ## 2026-11-19 — 部署 48c2712（菜品发布口径 / 出库金额 / 食材库反馈）
 
 ### 合并与提交
