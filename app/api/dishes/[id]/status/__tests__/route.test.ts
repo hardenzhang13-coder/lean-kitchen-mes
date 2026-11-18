@@ -34,7 +34,8 @@ const completeDish = {
   technique: "爆炒",
   taste: "香辣",
   meatType: "荤菜",
-  netDetails: [{ role: "main" }, { role: "support" }],
+  price: 18,
+  netDetails: [{ role: "main" }],
 };
 
 function createRequest(body: unknown): NextRequest {
@@ -78,6 +79,18 @@ describe("POST /api/dishes/[id]/status", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toBe("主料不能为空");
+    expect(mockedPrisma.dish.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("草稿缺售价时拒绝发布", async () => {
+    mockedPrisma.dish.findUnique.mockResolvedValueOnce({
+      ...completeDish,
+      price: null,
+    });
+    const res = await POST(createRequest({ action: "publish" }), params());
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("请填写售价");
     expect(mockedPrisma.dish.updateMany).not.toHaveBeenCalled();
   });
 

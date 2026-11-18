@@ -227,7 +227,7 @@ export default function SeasoningIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称或商品名称..."
+            searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
               setL2Filter("");

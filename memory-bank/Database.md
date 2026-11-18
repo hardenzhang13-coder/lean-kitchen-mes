@@ -330,11 +330,11 @@ UNIQUE(sauce_id, line_type, ref_id)
 | code | varchar(20) UNIQUE | 编号 DSH-PORK-0001 |
 | name | varchar(100) | 菜品名称 |
 | intro | text | 菜品介绍（参照来源或做法说明） |
-| category_id | int | 关联 dish_categories.id |
-| cuisine | varchar(20) | 菜系做法 |
-| technique | varchar(20) | 加工工艺 |
-| taste | varchar(20) | 口味 |
-| portion | varchar(20) | 规格份量，默认「小碗菜」；枚举见 `lib/shared/portion-scale.ts` |
+| category_id | int 可空 | 关联 dish_categories.id；未分类菜品编号使用 DSH-GEN-xxxx（2026-11-18 改为可空） |
+| cuisine | varchar(20) | 菜系做法，可空 |
+| technique | varchar(20) | 加工工艺，可空 |
+| taste | varchar(20) | 口味，可空 |
+| portion | varchar(20) | 规格份量，默认「小碗菜·10份」；枚举见 `lib/shared/portion-scale.ts` |
 | season | varchar(10) | 适用季节：四季/春/夏/秋/冬 |
 | meat_type | varchar(10) | 荤素类型：荤菜/素菜/小荤菜 |
 | cost | decimal(10,2) | 菜品成本快照；列表/详情/工作台按当前食材价实时重算 |
@@ -347,6 +347,8 @@ UNIQUE(sauce_id, line_type, ref_id)
 **编号格式：** DSH-类别编号-流水号，如 DSH-PORK-0001
 
 **状态机：** 草稿（可编辑/可删除）→ 已发布（锁定，可进新排程）→ 已停用（锁定，不进新排程，历史排程与生产计划保留）；状态流转见 `lib/shared/dish-status.ts`。
+
+**发布必填：** 名称、荤素类型、售价（元/份）、主料 ≥1；类别/菜系/做法/口味可留空。
 
 ---
 

@@ -19,6 +19,7 @@ import {
   OUTBOUND_STATUS_LABEL,
 } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
+import { formatMoney } from "@/lib/shared/display-format";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface OutboundDetail {
@@ -51,6 +52,7 @@ interface OutboundDetail {
     shippedPortions: number;
     shippedQty: number;
     pricePerJin: number | null;
+    standardPackagePrice: number | null;
     amount: number;
     prepStatus: string;
     sortIndex: number;
@@ -216,6 +218,7 @@ export default function OutboundDetailPage() {
               <TableHead>封装规格</TableHead>
               <TableHead className="text-right">计划出库数（份）</TableHead>
               <TableHead className="text-right">计划量</TableHead>
+              <TableHead className="text-right">单价</TableHead>
               <TableHead className="text-right">本次出库数（份）</TableHead>
               <TableHead className="text-right">出库量</TableHead>
               <TableHead className="text-right">金额</TableHead>
@@ -241,10 +244,11 @@ export default function OutboundDetailPage() {
                 <TableCell className="text-muted-foreground">{it.packageSpec} g/份</TableCell>
                 <TableCell className="text-right font-medium">{formatPortionsCount(it.requiredPortions)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatWeight(it.requiredQty)}</TableCell>
+                <TableCell className="text-right text-muted-foreground tabular-nums">{formatMoney(it.standardPackagePrice, "份")}</TableCell>
                 <TableCell className="text-right font-semibold">{formatPortionsCount(it.shippedPortions)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatWeight(it.shippedQty)}</TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {it.pricePerJin != null ? "¥" + it.amount.toFixed(2) : "价缺失"}
+                  {it.standardPackagePrice != null ? "¥" + it.amount.toFixed(2) : "价缺失"}
                 </TableCell>
                 <TableCell>{outboundBadge(it.requiredPortions, it.shippedPortions)}</TableCell>
               </TableRow>

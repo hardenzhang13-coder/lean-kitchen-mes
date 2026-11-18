@@ -80,7 +80,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
         <FormField id="portion" label="份量" required readOnly={readOnly}>
           <SelectTileMode
             options={portionOptions}
-            value={data.portion || "小碗菜"}
+            value={data.portion || "小碗菜·10份"}
             onChange={(v) => update({ portion: v })}
             placeholder="请选择份量"
             title="选择份量"
@@ -89,7 +89,14 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="price" label="售价（元/份）" optionalHint={false} readOnly={readOnly}>
+        <FormField
+          id="price"
+          label="售价（元/份）"
+          required
+          optionalHint={false}
+          readOnly={readOnly}
+          labelClassName="text-primary font-semibold"
+        >
           <Input
             id="price"
             type="number"
@@ -103,7 +110,14 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="grossMargin" label="毛利率（%）" optionalHint={false} readOnly={readOnly}>
+        <FormField
+          id="grossMargin"
+          label="毛利率（%）"
+          required
+          optionalHint={false}
+          readOnly={readOnly}
+          labelClassName="text-primary font-semibold"
+        >
           <Input
             id="grossMargin"
             type="number"
@@ -151,7 +165,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="categoryId" label="菜品类别" required readOnly={readOnly}>
+        <FormField id="categoryId" label="菜品类别" readOnly={readOnly}>
           <SelectTileMode
             options={categoryOptions}
             value={data.categoryId}
@@ -162,7 +176,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="cuisine" label="菜系" required readOnly={readOnly}>
+        <FormField id="cuisine" label="菜系" readOnly={readOnly}>
           <SelectTileMode
             options={cuisineOptions}
             value={data.cuisine}
@@ -173,7 +187,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="technique" label="做法" required readOnly={readOnly}>
+        <FormField id="technique" label="做法" readOnly={readOnly}>
           <SelectTileMode
             options={techniqueOptions}
             value={data.technique}
@@ -184,7 +198,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
           />
         </FormField>
 
-        <FormField id="taste" label="口味" required readOnly={readOnly}>
+        <FormField id="taste" label="口味" readOnly={readOnly}>
           <SelectTileMode
             options={tasteOptions}
             value={data.taste}

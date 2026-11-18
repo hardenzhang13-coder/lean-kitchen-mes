@@ -27,12 +27,13 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { toast } from "sonner";
 import {
-  calcLineAmount,
+  calcPortionAmount,
   formatPortionsCount,
   CUTTING_CENTER_NAME,
   type OutboundSubjectType,
 } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
+import { formatMoney } from "@/lib/shared/display-format";
 
 interface StoreItem {
   id: number;
@@ -62,6 +63,7 @@ interface QuoteLine {
   requiredQty: number;
   availablePortions: number;
   pricePerJin: number | null;
+  standardPackagePrice: number | null;
   prepStatus: "normal" | "insufficient" | "unfinished";
   suggestedPortions: number;
 }
@@ -365,11 +367,8 @@ export default function NewOutboundPage() {
       const shipped = parseShipped(shipMap[line.key] ?? "") ?? 0;
       planP += line.requiredPortions;
       shipP += shipped;
-      if (line.pricePerJin != null) {
-        amount += calcLineAmount(
-          line.pricePerJin,
-          Math.round(shipped * line.packageSpec * 10) / 10
-        );
+      if (line.standardPackagePrice != null) {
+        amount += calcPortionAmount(line.standardPackagePrice, shipped);
       }
       if (line.prepStatus === "unfinished") unfinished += 1;
     }
@@ -512,25 +511,53 @@ export default function NewOutboundPage() {
             <InlineError message={storesError} onRetry={loadStores} />
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => void pickCuttingCenter()}
-                aria-pressed={isCuttingCenter}
-                className={
-                  "w-full min-h-24 rounded-lg border border-dashed p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
-                  (isCuttingCenter ? "border-primary bg-primary/5" : "border-border")
-                }
-              >
-                <div className="flex items-center gap-2 font-medium">
-                  <ChefHat className="h-4 w-4 text-primary" />
-                  {CUTTING_CENTER_NAME}
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground">
-                  按内部生产单出库净菜，来源单据为切配中心内部生产单
-                </div>
-              </button>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <button
+                  type="button"
+                  onClick={() => void pickCuttingCenter()}
+                  aria-pressed={isCuttingCenter}
+                  className={
+                    "min-h-24 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/10 " +
+                    (isCuttingCenter
+                      ? "border-primary bg-primary/10 ring-1 ring-primary"
+                      : "border-primary/40 bg-primary/5")
+                  }
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-medium">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/15">
+                        <ChefHat className="h-4 w-4 text-primary" />
+                      </span>
+                      {CUTTING_CENTER_NAME}
+                    </div>
+                    <StatusBadge status="切配中心" variant="info" size="sm" />
+                  </div>
+                  <div className="mt-1.5 text-xs text-muted-foreground">
+                    按内部生产单出库净菜，来源单据为内部生产单
+                  </div>
+                </button>
 
-              {filteredStores.length === 0 ? (
+                {filteredStores.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => void pickStore(item.id)}
+                    aria-pressed={storeId === item.id}
+                    className={
+                      "min-h-24 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
+                      (storeId === item.id ? "border-primary bg-primary/5" : "border-border")
+                    }
+                  >
+                    <div className="flex items-center gap-2 font-medium">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      {item.name}
+                    </div>
+                    <div className="mt-1 font-mono text-xs text-muted-foreground">{item.code}</div>
+                  </button>
+                ))}
+              </div>
+
+              {filteredStores.length === 0 && (
                 <div className="rounded-lg border border-dashed p-10 text-center">
                   <p className="font-medium">
                     {stores.length === 0 ? "暂无可用门店" : "未找到匹配门店"}
@@ -538,27 +565,6 @@ export default function NewOutboundPage() {
                   <p className="mt-1 text-sm text-muted-foreground">
                     {stores.length === 0 ? "请先在设置中新增并启用门店" : "请调整搜索关键词"}
                   </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  {filteredStores.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      onClick={() => void pickStore(item.id)}
-                      aria-pressed={storeId === item.id}
-                      className={
-                        "min-h-24 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
-                        (storeId === item.id ? "border-primary bg-primary/5" : "border-border")
-                      }
-                    >
-                      <div className="flex items-center gap-2 font-medium">
-                        <MapPin className="h-4 w-4 text-muted-foreground" />
-                        {item.name}
-                      </div>
-                      <div className="mt-1 font-mono text-xs text-muted-foreground">{item.code}</div>
-                    </button>
-                  ))}
                 </div>
               )}
             </>
@@ -706,6 +712,7 @@ export default function NewOutboundPage() {
                     <TableHead>封装规格</TableHead>
                     <TableHead className="text-right">计划出库数（份）</TableHead>
                     <TableHead className="text-right">计划量</TableHead>
+                    <TableHead className="text-right">单价</TableHead>
                     <TableHead className="text-right">库存份数</TableHead>
                     <TableHead className="text-right">本次出库数（份）</TableHead>
                     <TableHead className="text-right">金额</TableHead>
@@ -717,11 +724,8 @@ export default function NewOutboundPage() {
                     const shipped = parseShipped(shipMap[line.key] ?? "") ?? 0;
                     const lineError = getLineError(line);
                     const amount =
-                      line.pricePerJin != null
-                        ? calcLineAmount(
-                            line.pricePerJin,
-                            Math.round(shipped * line.packageSpec * 10) / 10
-                          )
+                      line.standardPackagePrice != null
+                        ? calcPortionAmount(line.standardPackagePrice, shipped)
                         : null;
                     return (
                       <TableRow
@@ -757,6 +761,9 @@ export default function NewOutboundPage() {
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground tabular-nums">
                           {formatWeight(line.requiredQty)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                          {formatMoney(line.standardPackagePrice, "份")}
                         </TableCell>
                         <TableCell className="text-right text-muted-foreground tabular-nums">
                           {formatPortionsCount(line.availablePortions)}

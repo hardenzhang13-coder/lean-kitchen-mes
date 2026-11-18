@@ -414,7 +414,7 @@ export function BomPickerDialog({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="搜索编号、名称或商品名称..."
+                placeholder="搜索名称..."
                 className="h-11 pl-9 text-base"
               />
               {loading && isSearchMode && (

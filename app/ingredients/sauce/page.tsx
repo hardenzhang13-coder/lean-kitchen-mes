@@ -466,7 +466,7 @@ export default function SauceIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称或品牌..."
+            searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
               setPage(1);

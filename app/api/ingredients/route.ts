@@ -43,12 +43,8 @@ export async function GET(req: NextRequest) {
       where.AND = categoryFilters;
     }
     if (q?.trim()) {
-      const term = q.trim();
-      where.OR = [
-        { name: { contains: term } },
-        { code: { contains: term } },
-        { alias: { contains: term } },
-      ];
+      // 食材库列表的筛选范围只限名称字段
+      where.name = { contains: q.trim() };
     }
 
     const skip = (page - 1) * pageSize;

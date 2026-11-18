@@ -14,6 +14,8 @@ description: 涉及净料价格、菜品成本、出成率、单位换算、份�
                         ↑ 小料与净料同表，l2Code 归属 MIN 一级分类
 ```
 
+**净料默认名称**：转净料与新增净料自动生成「原料名称•加工方式•500g」（`lib/shared/net-name.ts` 的 `buildNetIngredientDefaultName`）。「加工方式」是占位词由用户改写；用户改过就不再自动覆盖。不要在别处另拼一套命名规则。
+
 ## 价格链路（唯一真源）
 
 `lib/server/net-ingredient-utils.ts` 的 `deriveNetIngredientPrices()`：

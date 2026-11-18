@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/server/prisma";
 import { round2, CUTTING_CENTER_NAME } from "@/lib/shared/prepped-stock";
+import { calcStandardPackagePrice } from "@/lib/shared/net-price";
 
 export async function getOutboundOrderDetail(id: number) {
   const order = await prisma.outboundOrder.findUnique({
@@ -47,6 +48,10 @@ export async function getOutboundOrderDetail(id: number) {
       shippedQty: round2(Number(item.shippedQty)),
       pricePerJin:
         item.pricePerJin != null ? round2(Number(item.pricePerJin)) : null,
+      standardPackagePrice: calcStandardPackagePrice(
+        item.pricePerJin,
+        item.packageSpec
+      ),
       amount: round2(Number(item.amount)),
       prepStatus: item.prepStatus,
       sortIndex: item.sortIndex,

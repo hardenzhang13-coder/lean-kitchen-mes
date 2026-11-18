@@ -7,6 +7,7 @@ import {
   OUTBOUND_STATUS_LABEL,
 } from "@/lib/shared/prepped-stock";
 import { PrintActions } from "./print-actions";
+import { formatMoney } from "@/lib/shared/display-format";
 
 function fmtDateTime(date: Date) {
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -105,10 +106,9 @@ export default async function OutboundPrintPage({
           <thead>
             <tr>
               <th className="center" style={{ width: 42 }}>序号</th>
-              <th>一级分类</th>
-              <th>二级分类</th>
               <th>名称</th>
-              <th>封装规格（份）</th>
+              <th>封装规格</th>
+              <th className="num">单价</th>
               <th className="num">计划出库数（份）</th>
               <th className="num">本次出库数（份）</th>
               <th className="num">金额</th>
@@ -124,21 +124,20 @@ export default async function OutboundPrintPage({
               return (
                 <tr key={item.id}>
                   <td className="center">{index + 1}</td>
-                  <td>{item.l1Name}</td>
-                  <td>{item.l2Name}</td>
                   <td>{item.name}</td>
                   <td>{item.packageSpec != null ? `${item.packageSpec} g/份` : "—"}</td>
+                  <td className="num">{formatMoney(item.standardPackagePrice, "份")}</td>
                   <td className="num">{formatPortionsValue(item.requiredPortions)}</td>
                   <td className="num">{formatPortionsValue(item.shippedPortions)}</td>
                   <td className="num">
-                    {item.pricePerJin != null ? `¥${item.amount.toFixed(2)}` : "价缺失"}
+                    {item.standardPackagePrice != null ? `¥${item.amount.toFixed(2)}` : "价缺失"}
                   </td>
                   <td className="center">{OUTBOUND_STATUS_LABEL[status]}</td>
                 </tr>
               );
             })}
             <tr className="total">
-              <td colSpan={6} className="num">
+              <td colSpan={5} className="num">
                 合计
               </td>
               <td className="num">{formatPortionsValue(detail.totalPortions)}</td>

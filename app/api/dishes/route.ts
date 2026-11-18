@@ -79,8 +79,12 @@ export async function GET(req: NextRequest) {
   }
 }
 
-async function generateDishCode(tx: Prisma.TransactionClient, categoryCode: string): Promise<string> {
-  const prefix = `DSH-${categoryCode}`;
+async function generateDishCode(
+  tx: Prisma.TransactionClient,
+  categoryCode: string | null | undefined
+): Promise<string> {
+  // 未分类菜品使用 GEN 前缀，保持编号格式一致
+  const prefix = `DSH-${categoryCode || "GEN"}`;
   const last = await tx.dish.findFirst({
     where: { code: { startsWith: `${prefix}-` } },
     orderBy: { code: "desc" },
@@ -100,11 +104,13 @@ export async function POST(req: NextRequest) {
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
 
-    const category = await prisma.dishCategory.findUnique({
-      where: { id: categoryId },
-      select: { code: true },
-    });
-    if (!category) {
+    const category = categoryId
+      ? await prisma.dishCategory.findUnique({
+          where: { id: categoryId },
+          select: { code: true },
+        })
+      : null;
+    if (categoryId && !category) {
       return badRequest("菜品类别不存在");
     }
 
@@ -115,13 +121,13 @@ export async function POST(req: NextRequest) {
       try {
         const row = await prisma.$transaction(
           async (tx) => {
-            const code = await generateDishCode(tx, category.code);
+            const code = await generateDishCode(tx, category?.code);
             return tx.dish.create({
               data: {
                 code,
                 name,
                 intro: intro ?? null,
-                categoryId,
+                categoryId: categoryId ?? null,
                 cuisine: cuisine ?? null,
                 technique: technique ?? null,
                 taste: taste ?? null,

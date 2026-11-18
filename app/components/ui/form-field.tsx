@@ -18,6 +18,8 @@ interface FormFieldProps {
   hint?: string;
   children: React.ReactNode;
   className?: string;
+  /** 标题附加样式，如关键字段用 `text-primary` 强调 */
+  labelClassName?: string;
 }
 
 export function FormField({
@@ -30,6 +32,7 @@ export function FormField({
   hint,
   children,
   className,
+  labelClassName,
 }: FormFieldProps) {
   const errorId = id ? `${id}-error` : undefined;
 
@@ -37,7 +40,7 @@ export function FormField({
     <div className={cn("grid gap-2", className)}>
       <Label
         htmlFor={id}
-        className="text-base flex items-center gap-1"
+        className={cn("text-base flex items-center gap-1", labelClassName)}
       >
         {label}
         {required && !readOnly && <span className="text-destructive">*</span>}

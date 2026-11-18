@@ -39,6 +39,10 @@ import {
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { toast } from "sonner";
+import {
+  buildNetIngredientDefaultName,
+  isDefaultNetIngredientName,
+} from "@/lib/shared/net-name";
 
 export type NetIngredientItem = {
   id: number;
@@ -84,6 +88,8 @@ interface NetIngredientFormDialogProps {
   onOpenChange: (open: boolean) => void;
   mode?: "net" | "minor" | "convert";
   sourceIngredientId?: number;
+  /** 来源原料名称：转净料时用于生成默认净料名称（原料列表可能分页，不能只靠 rawIngredients 查） */
+  sourceIngredientName?: string | null;
   initialData?: NetIngredientFormItem;
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
@@ -106,7 +112,8 @@ const emptyForm: NetIngredientFormData = {
   yieldRate: "",
   unitPrice: "",
   grossMarginRate: "0",
-  portion: "",
+  // 新建净料/转净料默认份量
+  portion: "小碗菜·10份",
 };
 
 function formatPackageSpec(value: number | null) {
@@ -126,6 +133,7 @@ export function NetIngredientFormDialog({
   onOpenChange,
   mode = "net",
   sourceIngredientId: propSourceId,
+  sourceIngredientName,
   initialData,
   categories,
   rawIngredients,
@@ -224,6 +232,11 @@ export function NetIngredientFormDialog({
       const parentL1 = raw ? findParentL1(raw.l2Code) : undefined;
       setForm({
         ...emptyForm,
+        // 默认名称：原料名称•加工方式•500g
+        name: buildNetIngredientDefaultName(
+          raw?.name ?? sourceIngredientName,
+          emptyForm.packageSpec
+        ),
         l1Code: parentL1?.code || "",
         l2Code: raw?.l2Code || "",
         sourceIngredientId: String(propSourceId),
@@ -250,6 +263,7 @@ export function NetIngredientFormDialog({
     isConvert,
     isMinor,
     propSourceId,
+    sourceIngredientName,
     findParentL1,
     getRawIngredient,
     categories,
@@ -347,11 +361,17 @@ export function NetIngredientFormDialog({
       setSourceSelectorOpen(false);
       return;
     }
+    const sourceName = getRawIngredient(Number(value.ingredientId))?.name;
     setForm((previous) => ({
       ...previous,
       l1Code: value.l1Code,
       l2Code: value.l2Code,
       sourceIngredientId: value.ingredientId,
+      // 选定来源原料后自动生成默认名称；用户手工改过就不覆盖
+      name:
+        !previous.name.trim() || isDefaultNetIngredientName(previous.name)
+          ? buildNetIngredientDefaultName(sourceName, previous.packageSpec)
+          : previous.name,
     }));
     setListPage(1);
     setSourceSelectorOpen(false);
@@ -615,6 +635,7 @@ export function NetIngredientFormDialog({
               categories={categories}
               rawIngredients={rawIngredients}
               errors={errors}
+              autoSelectFirst={!isConvert}
             />
           </div>
         ) : (

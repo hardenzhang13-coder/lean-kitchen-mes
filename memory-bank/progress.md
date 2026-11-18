@@ -4,6 +4,29 @@
 
 ---
 ---
+## 2026-11-19 — 部署 48c2712（菜品发布口径 / 出库金额 / 食材库反馈）
+
+### 合并与提交
+- `3512f30` feat(dishes)：试运行菜品发布口径整改（发布必填收敛、类别可空、份量默认小碗菜·10份）
+- `48c2712` fix(inventory)：出库金额改为标准规格价 × 出库份数，主体选择三列栅格，打印页去分类加单价
+- 一并带上此前未部署的 `3960120`（食材库五点反馈）、`631e6f4`（文档同步）、`988cb24`（净料关联菜品）
+- 推送 `1b935c7..48c2712` 到 origin/main
+
+### 门禁
+- `npx prisma migrate diff` 空迁移；`npx tsc --noEmit` 0；`npm run lint` 全量 0
+- `npm run build` 成功；`npm test` 60 套件 / 307 用例全绿
+
+### 部署
+- `workflow_dispatch` 触发 `deploy.yml`，run `44348374076`，head `48c2712`；build → deploy-prebuilt → health 全绿（16:32–16:35 UTC）
+- 迁移 `20261118120000_dish_category_optional_and_portion_default` 于 16:35:26 UTC 应用；`migrate` 与 `db-users` 均 `Exited (0)`；web healthy、日志 `Ready` 无错误
+
+### 部署后只读复核
+- `dishes.category_id` 可空（YES/NULL）、`portion` 默认 `小碗菜·10份`；`outbound_orders` 的 `subject_type` / `self_order_id` 就位，`store_id` / `schedule_id` 可空
+- 基线行数：ingredients 78 / net_ingredients 118 / dishes 12 / schedules 1 / production_plans 4 / prepped_stock 31 / outbound_orders 2；12 条菜品份量全部为 `小碗菜·10份`
+- `/login` HTTP 200，`/api/health` `{"status":"ok"}`
+
+---
+---
 ## 2026-11-18（续）— 菜品 BOM 与净料/小料标准规格实时联动
 
 ### 背景
@@ -20,6 +43,38 @@
 ### 校验
 - `npx tsc --noEmit` 0；新增 helper/同步/重算单测通过；全量 Jest 58 套件 / 292 用例通过。
 
+---
+---
+## 2026-11-18（续 2）— 库存模块试运行反馈：出库单三处修正
+
+### 交付
+- 创建出库单「选择主体」：净菜切配中心与门店合并为一行三列栅格；切配中心卡片用主色描边 + 浅主色底 + 「切配中心」标签，与门店卡片区分
+- 出库单单价：创建页第 3 步明细与出库单详情表在「计划量」后新增「单价」列，取**标准规格价（元/份）= 出库价 × 封装规格 ÷ 500**（`net-price.calcStandardPackagePrice`，由 API 注入 `standardPackagePrice`）
+- 出库金额口径同步改为「标准规格价 × 出库份数」（`prepped-stock.calcPortionAmount`，替换原 `calcLineAmount(出库价, 克数)`），保证单据上「单价 × 份数 = 金额」；存量出库单金额保留旧口径快照，不回算
+- 打印出库单：去掉一级分类、二级分类两列；「封装规格」后新增「单价」；表头「封装规格（份）」改为「封装规格」；合计行 colspan 6 → 5
+
+### 校验
+- `npx tsc --noEmit` 0；`npm run lint` 全量 0；浏览器实机走通主体选择（三列 + 切配中心高亮）、创建页与详情页单价列、打印页表头与合计行
+
+---
+---
+## 2026-11-18（续）— 菜品表单试运行问题整改
+
+### 背景
+试运行反馈：新增菜品时发布门槛过高（辅料必填）、售价/毛利率漏填没有明确提示、部分基础字段实际用不上却强制必填、份量默认值不符合当前主流场景、用料搜索范围过宽。
+
+### 交付
+- 发布校验（前后端共用 `lib/shared/dish-publish.ts`）：名称、荤素类型、售价（>0）、主料 ≥1 必填；类别/菜系/做法/口味与辅料等其余用料全部放开。
+- 售价/毛利率必填：表单标题主题色加粗并标注 `*`；保存草稿与发布都会给出「请填写售价（元/份），毛利率会根据成本自动计算」等人性化提示；毛利率仍由售价与实时成本派生，不入库。
+- 菜品类别改为可空（迁移 `20261118120000_dish_category_optional_and_portion_default`）：未分类菜品编号使用 `DSH-GEN-xxxx`，复制/转化沿用同一规则。
+- 份量默认值统一为「小碗菜·10份」：新建表单、存量缺省回退、`createDishSchema` 与 `dishes.portion` 列默认值同步。
+- 用料选择弹窗搜索占位改为「搜索名称...」，搜索范围与食材库一致，只匹配名称字段。
+
+### 校验
+- `npx tsc --noEmit` 0；`npm run lint` 0；`prisma migrate diff` 空迁移；定向 Jest 9 套件 / 39 用例通过。
+- 迁移未应用：本地 `migrate dev` 因历史迁移 `20261110090000` 被改过而要求重置数据库，已改为手写迁移文件，待部署时由 `migrate deploy` 执行。
+
+---
 ---
 ## 2026-11-18 — 出库单支持「净菜切配中心」主体
 

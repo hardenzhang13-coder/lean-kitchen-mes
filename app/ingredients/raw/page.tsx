@@ -310,7 +310,7 @@ export default function RawIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称或品牌名称..."
+            searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
               setL1Filter("");
@@ -577,6 +577,9 @@ export default function RawIngredientsPage() {
         onOpenChange={setConvertDialogOpen}
         mode="convert"
         sourceIngredientId={convertSourceId ?? undefined}
+        sourceIngredientName={
+          data.find((d) => d.id === convertSourceId)?.name ?? null
+        }
         categories={categories}
         rawIngredients={data.map((d) => ({
           id: d.id,

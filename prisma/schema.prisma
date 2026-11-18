@@ -224,11 +224,11 @@ model Dish {
   code             String                @unique
   name             String
   intro            String?
-  categoryId       Int                   @map("category_id")
+  categoryId       Int?                  @map("category_id")
   cuisine          String?
   technique        String?
   taste            String?
-  portion          String                @default("小碗菜")
+  portion          String                @default("小碗菜·10份")
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
@@ -242,7 +242,7 @@ model Dish {
   processes        DishProcess[]
   sauceDetails     DishSauceDetail[]
   seasoningDetails DishSeasoningDetail[]
-  category         DishCategory          @relation(fields: [categoryId], references: [id])
+  category         DishCategory?         @relation(fields: [categoryId], references: [id])
   scheduleItems    ScheduleItem[]
 
   @@map("dishes")
@@ -690,7 +690,7 @@ model OutboundOrderItem {
   shippedPortions   Decimal  @map("shipped_portions") @db.Decimal(12, 2)
   shippedQty        Decimal  @map("shipped_qty") @db.Decimal(14, 2)
   pricePerJin       Decimal? @map("price_per_jin") @db.Decimal(10, 2) // 出库价快照（元/斤）
-  amount            Decimal  @map("amount") @db.Decimal(12, 2) // 行金额 = 出库价 × shippedQty ÷ 500
+  amount            Decimal  @map("amount") @db.Decimal(12, 2) // 行金额 = 标准规格价（元/份）× 出库份数
   prepStatus        String   @default("normal") @map("prep_status") // normal / insufficient / unfinished
   sortIndex         Int      @map("sort_index")
   outboundOrder     OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)

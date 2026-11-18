@@ -30,7 +30,7 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 - `seasoning` — 调料（对应 `DishSeasoningDetail.type === "seasoning"`）
 - `sauce` — 酱料（对应 `DishSauceDetail`）
 
-`BOM_TYPE_REQUIRED` 定义前 4 类为发布必填，`sauce` 为可选。
+`BomType` 前 4 类有对应明细表，`sauce` 为可选。发布只要求主料至少 1 项，其余用料均不强制。
 
 ### 表单三模式
 
@@ -76,10 +76,14 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
 ## 发布校验规则
 
-基础信息必填：名称、类别、菜系、做法、口味、荤素类型。  
-BOM 必填：主料、辅料均至少 1 项。小料、调料和酱料不强制。
+基础信息必填：名称、荤素类型、售价（元/份）。类别、菜系、做法、口味均可留空。  
+BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 
-> 提示：发布后会锁定菜品，前端 `isReadOnly = localStatus === "published" || mode === "view"` 控制表单只读。
+- 售价必填在 `validateForSave`（保存草稿）与 `validatePublish`（发布）中共用：缺失时提示「请填写售价（元/份），毛利率会根据成本自动计算」。
+- 毛利率不入库，由「售价 + 当前成本」实时派生；发布时成本缺失会提示先添加主料。售价与毛利率在表单标题上以主题色加粗并标注必填。
+- 份量默认值：`小碗菜·10份`（新建、存量缺省、API schema 三处一致）。
+
+> 提示：发布后会锁定菜品，前端 `isReadOnly = localStatus !== "draft" || mode === "view"` 控制表单只读。
 
 ## 食材加载策略
 
@@ -97,6 +101,7 @@ BOM 必填：主料、辅料均至少 1 项。小料、调料和酱料不强制�
 - **实时联动**：`packageSpec` 是唯一真源；净料/小料规格变更后，BOM 用量与成本会自动同步，不需要重新选择食材。客户端传入的净料/小料 `amountG` 会被服务端忽略。
 - BOM 行展示所选食材的**份量**（`PortionTag`），不再提供用量输入框。
 - 菜品 BOM 添加为**单选**，选择弹窗不提供「取消」按钮，已选摘要与「确认选择」统一放在底部操作行。
+- 选择弹窗的搜索范围只匹配食材名称字段（不匹配编号、商品名称），与食材库列表口径一致。
 - 估算成本在「菜品用量」模块标题处以主题色加粗展示。
 - `BomPickerDialog` 的 `showAmountInput` 默认 `true`、`singleSelect` 默认 `false`，供酱料配方编辑器复用；菜品 BOM 传 `showAmountInput={false} singleSelect`。
 

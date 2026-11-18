@@ -80,7 +80,10 @@ export function getOutboundDisplayStatus(
   return "shipped";
 }
 
-/** 行金额（元）= 出库价（元/斤）× 出库量 g ÷ 500 */
-export function calcLineAmount(outPricePerJin: number, shippedQtyG: number): number {
-  return round2((outPricePerJin * shippedQtyG) / 500);
+/** 行金额（元）= 标准规格价（元/份）× 出库份数；保证单据上「单价 × 份数 = 金额」 */
+export function calcPortionAmount(
+  standardPackagePrice: number,
+  shippedPortions: number
+): number {
+  return round2(standardPackagePrice * shippedPortions);
 }

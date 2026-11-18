@@ -48,6 +48,7 @@ export async function POST(
       technique: true,
       taste: true,
       meatType: true,
+      price: true,
       netDetails: { select: { role: true } },
     },
   });
