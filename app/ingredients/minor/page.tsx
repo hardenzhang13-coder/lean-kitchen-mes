@@ -235,7 +235,7 @@ export default function MinorIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号、名称..."
+            searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
               setL2Filter("");

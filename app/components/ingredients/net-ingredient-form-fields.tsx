@@ -74,6 +74,8 @@ export interface NetIngredientFormFieldsProps {
   viewMode?: boolean;
   errors?: Record<string, string>;
   layout?: "legacy" | "net-dialog" | "sheet";
+  /** 包装是否自动选中第一个启用项；转净料场景传 false */
+  autoSelectFirst?: boolean;
 }
 
 export function NetIngredientFormFields({
@@ -87,6 +89,7 @@ export function NetIngredientFormFields({
   viewMode = false,
   errors,
   layout = "legacy",
+  autoSelectFirst = true,
 }: NetIngredientFormFieldsProps) {
   const [l2Open, setL2Open] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
@@ -207,6 +210,7 @@ export function NetIngredientFormFields({
             required
             readOnly={viewMode}
             optionalHint={false}
+            labelClassName="text-primary"
             error={errors?.packageSpec}
           >
             {viewMode ? (
@@ -228,6 +232,7 @@ export function NetIngredientFormFields({
           <NetPackagingSelect
             variant="split"
             viewMode={viewMode}
+            autoSelectFirst={autoSelectFirst}
             packageMaterial={form.packageMaterial}
             packageSize={form.packageSize}
             onChange={(name, size) => {
@@ -273,6 +278,7 @@ export function NetIngredientFormFields({
             required
             readOnly={viewMode}
             optionalHint={false}
+            labelClassName="text-primary"
             error={errors?.yieldRate}
             hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
           >
@@ -350,6 +356,7 @@ export function NetIngredientFormFields({
             label="毛利率（%）"
             readOnly={viewMode}
             optionalHint={false}
+            labelClassName="text-primary"
             error={errors?.grossMarginRate}
             hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
           >
@@ -617,6 +624,7 @@ export function NetIngredientFormFields({
           label="包装规格（g）"
           required
           optionalHint={false}
+          labelClassName="text-primary"
           error={errors?.packageSpec}
           hint="标准包装单位的克数，如 500g/袋填 500"
         >
@@ -639,6 +647,7 @@ export function NetIngredientFormFields({
             onChange("packageSize", size);
           }}
           viewMode={viewMode}
+          autoSelectFirst={autoSelectFirst}
           error={errors?.packageMaterial}
         />
 
@@ -670,6 +679,7 @@ export function NetIngredientFormFields({
           label="出成率 (%)"
           required
           optionalHint={false}
+          labelClassName="text-primary"
           error={errors?.yieldRate}
           hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
         >
@@ -722,6 +732,7 @@ export function NetIngredientFormFields({
         <FormField
           label="毛利率（%）"
           optionalHint={false}
+          labelClassName="text-primary"
           error={errors?.grossMarginRate}
           hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
         >

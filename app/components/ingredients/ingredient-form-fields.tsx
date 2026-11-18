@@ -409,7 +409,7 @@ export function IngredientFormFields({
                       value === "" ? "" : String(value)
                     )
                   }
-                  placeholder="不设置默认供应商"
+                  placeholder="选择供应商"
                 />
               )}
             </FormField>
@@ -619,7 +619,7 @@ export function IngredientFormFields({
           <SupplierSelect
             value={form.defaultSupplierId ? Number(form.defaultSupplierId) : ""}
             onChange={(v) => onChange("defaultSupplierId", v === "" ? "" : String(v))}
-            placeholder="无"
+            placeholder="选择供应商"
             disabled={viewMode}
           />
         </FormField>

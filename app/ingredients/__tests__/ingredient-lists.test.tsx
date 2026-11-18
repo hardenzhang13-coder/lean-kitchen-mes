@@ -154,7 +154,7 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     await waitFor(() =>
       expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
     );
-    const input = screen.getByPlaceholderText("搜索编号、名称或品牌名称...");
+    const input = screen.getByPlaceholderText("搜索名称...");
     expect(input.parentElement?.querySelector("svg")).toBeNull();
   });
 

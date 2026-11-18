@@ -261,7 +261,7 @@ export default function NetIngredientsPage() {
               setSearch(v);
               setPage(1);
             }}
-            searchPlaceholder="搜索编号或名称..."
+            searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
               setL1Filter("");

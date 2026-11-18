@@ -354,12 +354,15 @@ describe("转净料与新增净料弹窗", () => {
 
     expect(await screen.findByText("¥2.35")).toBeInTheDocument();
     expect(screen.getByDisplayValue("0")).toBeInTheDocument();
+    // 转净料不再自动选中包装，需手动选择；选定包装名称后尺寸随之自动带入
+    expect(await screen.findByText("请选择包装名称")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("请选择包装名称"));
+    fireEvent.click(await screen.findByRole("button", { name: /^密封袋/ }));
     await waitFor(() => {
       expect(screen.getAllByText("密封袋").length).toBeGreaterThan(0);
     });
-    // 份量为新建必填：选择「社区·2份」
-    fireEvent.click(screen.getByText("请选择份量"));
-    fireEvent.click(await screen.findByRole("button", { name: /^社区·2份/ }));
+    // 份量已默认「小碗菜·10份」，无需再选
+    expect(screen.getByText("小碗菜·10份")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
@@ -374,7 +377,7 @@ describe("转净料与新增净料弹窗", () => {
     expect(payload).not.toHaveProperty("unitPrice");
     expect(payload).not.toHaveProperty("autoCalculate");
     expect(payload.grossMarginRate).toBe(0);
-    expect(payload.portion).toBe("社区·2份");
+    expect(payload.portion).toBe("小碗菜·10份");
   });
 
   it("小料模式使用与净料一致的三分组布局", async () => {

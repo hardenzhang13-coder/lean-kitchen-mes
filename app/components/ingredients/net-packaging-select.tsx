@@ -22,6 +22,8 @@ interface NetPackagingSelectProps {
   variant?: "combined" | "split";
   nameError?: string;
   sizeError?: string;
+  /** 是否在两者都为空时自动选中第一个启用包装；转净料场景传 false 让用户自己选 */
+  autoSelectFirst?: boolean;
 }
 
 export function NetPackagingSelect({
@@ -33,6 +35,7 @@ export function NetPackagingSelect({
   variant = "combined",
   nameError,
   sizeError,
+  autoSelectFirst = true,
 }: NetPackagingSelectProps) {
   const [options, setOptions] = useState<NetPackagingOption[]>([]);
   const [loading, setLoading] = useState(!viewMode);
@@ -76,13 +79,14 @@ export function NetPackagingSelect({
     [options, packageMaterial, packageSize]
   );
 
-  // 新建净料/小料或转净料时，默认选中第一个启用包装
+  // 新建净料/小料时默认选中第一个启用包装；转净料（autoSelectFirst=false）不留默认值
   useEffect(() => {
+    if (!autoSelectFirst) return;
     if (viewMode || loading || loadError) return;
     if (packageMaterial.trim() || packageSize.trim()) return;
     const firstActive = options.find((option) => option.isActive);
     if (firstActive) onChange(firstActive.name, firstActive.size);
-  }, [viewMode, loading, loadError, options, packageMaterial, packageSize, onChange]);
+  }, [autoSelectFirst, viewMode, loading, loadError, options, packageMaterial, packageSize, onChange]);
 
   const selectOptions = useMemo(() => {
     const list = options.map((option) => ({

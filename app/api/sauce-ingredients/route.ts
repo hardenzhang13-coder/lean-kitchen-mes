@@ -30,16 +30,8 @@ export async function GET(req: NextRequest) {
     const where: Prisma.SauceIngredientWhereInput = { deletedAt: null };
     if (type) where.type = type;
     if (q?.trim()) {
-      const term = q.trim();
-      where.AND = [
-        {
-          OR: [
-            { name: { contains: term } },
-            { code: { contains: term } },
-            { brand: { contains: term } },
-          ],
-        },
-      ];
+      // 食材库列表的筛选范围只限名称字段
+      where.name = { contains: q.trim() };
     }
 
     const [rows, totalItems] = await Promise.all([
