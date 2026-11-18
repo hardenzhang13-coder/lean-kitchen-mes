@@ -1,6 +1,8 @@
 import { Prisma } from "@prisma/client";
 
 import { nextCode } from "@/lib/shared/code-gen";
+import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 
 /** 复制/转化共用的源档案形状：主档 + 四层 BOM + 工序 + 分类编码 */
 export type DishVariantSource = Prisma.DishGetPayload<{
@@ -62,7 +64,38 @@ export async function createDishVariant(
   const code = await generateDishCode(tx, source.category.code);
   const { factor } = options;
 
-  return tx.dish.create({
+  // 净料/小料的 BOM 用量必须等于目标档案的封装规格；先按目标 ID 取规格
+  const targetNetIds = [
+    ...new Set(
+      source.netDetails.map(
+        (detail) => options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId
+      )
+    ),
+  ];
+  const targetMinorIds = [
+    ...new Set(
+      source.minorDetails.map(
+        (detail) => options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId
+      )
+    ),
+  ];
+  const targetIngredients = await tx.netIngredient.findMany({
+    where: { id: { in: [...targetNetIds, ...targetMinorIds] } },
+    select: { id: true, name: true, packageSpec: true },
+  });
+  const packageSpecMap = new Map(
+    targetIngredients.map((ingredient) => [ingredient.id, ingredient.packageSpec])
+  );
+  const requireSpec = (id: number): number => {
+    const pkg = Number(packageSpecMap.get(id) ?? 0);
+    if (!(pkg > 0)) {
+      const ingredient = targetIngredients.find((item) => item.id === id);
+      throw new Error(`${ingredient?.name ?? `净料 #${id}`} 缺少封装规格，无法生成菜品`);
+    }
+    return pkg;
+  };
+
+  const created = await tx.dish.create({
     data: {
       code,
       name: options.name,
@@ -79,23 +112,31 @@ export async function createDishVariant(
       status: "draft",
       operator: options.operator,
       netDetails: {
-        create: source.netDetails.map((detail) => ({
-          role: detail.role,
-          netIngId:
-            options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId,
-          amountG: scaleValue(detail.amountG, factor) ?? 0,
-          spec: detail.spec,
-          cost: scaleValue(detail.cost, factor),
-        })),
+        create: source.netDetails.map((detail) => {
+          const netIngId =
+            options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId;
+          const packageSpec = requireSpec(netIngId);
+          return {
+            role: detail.role,
+            netIngId,
+            amountG: resolveNetBomAmountG(detail.amountG, packageSpec),
+            spec: `${packageSpec}g`,
+            cost: scaleValue(detail.cost, factor),
+          };
+        }),
       },
       minorDetails: {
-        create: source.minorDetails.map((detail) => ({
-          netIngId:
-            options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId,
-          amountG: scaleValue(detail.amountG, factor) ?? 0,
-          brand: detail.brand,
-          cost: scaleValue(detail.cost, factor),
-        })),
+        create: source.minorDetails.map((detail) => {
+          const netIngId =
+            options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId;
+          const packageSpec = requireSpec(netIngId);
+          return {
+            netIngId,
+            amountG: resolveNetBomAmountG(detail.amountG, packageSpec),
+            brand: detail.brand,
+            cost: scaleValue(detail.cost, factor),
+          };
+        }),
       },
       seasoningDetails: {
         create: source.seasoningDetails.map((detail) => ({
@@ -128,4 +169,13 @@ export async function createDishVariant(
       },
     },
   });
+
+  // 目标规格下的当前成本以实时口径重算，避免沿用源成本缩放造成偏差
+  const costMap = await getCurrentDishCostBreakdownMap([created.id], tx);
+  const cost = costMap.get(created.id)?.total;
+  if (cost != null) {
+    await tx.dish.update({ where: { id: created.id }, data: { cost } });
+  }
+
+  return tx.dish.findUniqueOrThrow({ where: { id: created.id } });
 }

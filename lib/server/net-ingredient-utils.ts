@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
 import {
@@ -15,13 +16,16 @@ import {
  * 净料单价始终按「来源原料当前每斤单价 ÷ (出成率/100)」派生。
  * 缺少来源价格或出成率无效时返回 null。
  */
+type UnitPriceDatabase = Pick<Prisma.TransactionClient, "ingredient">;
+
 export async function calculateUnitPrice(
   sourceIngredientId: number,
-  yieldRate: number
+  yieldRate: number,
+  database: UnitPriceDatabase = prisma
 ): Promise<number | null> {
   if (!sourceIngredientId || !yieldRate) return null;
 
-  const ingredient = await prisma.ingredient.findUnique({
+  const ingredient = await database.ingredient.findUnique({
     where: { id: sourceIngredientId },
     select: { pricePerJin: true },
   });

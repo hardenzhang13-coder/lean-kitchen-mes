@@ -1,5 +1,6 @@
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { calcGrossNeedGrams } from "@/lib/shared/gross-need";
+import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 import { getJinFactors, getGramsPerJin, getWeightUnitNames } from "@/lib/server/unit-factors";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
@@ -97,7 +98,7 @@ export async function buildCuttingOrders(
     const quantity = quantityByDish.get(detail.dishId);
     if (quantity == null) continue;
     const net = detail.netIngredient;
-    const qty = Number(detail.amountG) * quantity;
+    const qty = resolveNetBomAmountG(detail.amountG, net.packageSpec) * quantity;
 
     const existing = netMap.get(net.id);
     if (existing) {
@@ -146,7 +147,7 @@ export async function buildCuttingOrders(
     if (quantity == null) continue;
     const minor = detail.netIngredient;
     if (!minor) continue;
-    const qty = Number(detail.amountG) * quantity;
+    const qty = resolveNetBomAmountG(detail.amountG, minor.packageSpec) * quantity;
 
     const existing = minorMap.get(minor.id);
     if (existing) {
@@ -232,6 +233,7 @@ export async function buildPurchasePlans(
         select: {
           id: true,
           yieldRate: true,
+          packageSpec: true,
           sourceIngredientId: true,
           sourceIngredient: {
             select: {
@@ -404,7 +406,8 @@ export async function buildPurchasePlans(
     const src = detail.netIngredient.sourceIngredient;
     if (!src) continue;
 
-    const netNeed = Number(detail.amountG) * quantity; // 净料总需求(g)
+    const netNeed =
+      resolveNetBomAmountG(detail.amountG, detail.netIngredient.packageSpec) * quantity; // 净料总需求(g)
     addSourceGrossNeed(src, netNeed, Number(detail.netIngredient.yieldRate));
   }
 
@@ -415,7 +418,8 @@ export async function buildPurchasePlans(
     const src = detail.netIngredient.sourceIngredient;
     if (!src) continue;
 
-    const minorNeed = Number(detail.amountG) * quantity; // 小料总需求(g)
+    const minorNeed =
+      resolveNetBomAmountG(detail.amountG, detail.netIngredient.packageSpec) * quantity; // 小料总需求(g)
     addSourceGrossNeed(src, minorNeed, Number(detail.netIngredient.yieldRate));
   }
 

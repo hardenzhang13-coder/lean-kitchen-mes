@@ -1,10 +1,15 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { success, badRequest, notFound, internalError } from "@/lib/server/api-response";
+import { success, badRequest, notFound, internalError, conflict } from "@/lib/server/api-response";
 import { updateNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
 import { validateBody } from "@/lib/server/validate";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
+import { syncBomAmountsForNetIngredient } from "@/lib/server/bom-package-sync";
+import {
+  BomSyncConflictError,
+  recalcIncompleteDocumentsForNetIngredient,
+} from "@/lib/server/incomplete-document-recalc";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -27,6 +32,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const netIngredientId = Number(id);
     const body = await req.json();
     const validation = validateBody(updateNetIngredientSchema, body);
     if (!validation.success) return validation.response;
@@ -44,90 +50,170 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       portion,
     } = validation.data;
 
-    const existing = await prisma.netIngredient.findFirst({
-      where: { id: Number(id), deletedAt: null },
-    });
-    if (!existing) return notFound("净料不存在或已删除");
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const existing = await tx.netIngredient.findFirst({
+          where: { id: netIngredientId, deletedAt: null },
+        });
+        if (!existing) throw new Error("净料不存在或已删除");
 
-    if (!name?.trim() || !l2Code?.trim()) {
-      return badRequest("名称和二级分类不能为空");
-    }
+        if (!name?.trim() || !l2Code?.trim()) {
+          throw new Error("名称和二级分类不能为空");
+        }
 
-    const l2Row = await prisma.ingredientCategoryL2.findUnique({
-      where: { code: l2Code.trim() },
-      select: { parentCode: true },
-    });
-    if (!l2Row) {
-      return badRequest("二级分类不存在");
-    }
+        const l2Row = await tx.ingredientCategoryL2.findUnique({
+          where: { code: l2Code.trim() },
+          select: { parentCode: true },
+        });
+        if (!l2Row) throw new Error("二级分类不存在");
 
-    const isMinor = l2Row.parentCode === "MIN";
+        const isMinor = l2Row.parentCode === "MIN";
+        const existingL2 = existing.l2Code
+          ? await tx.ingredientCategoryL2.findUnique({
+              where: { code: existing.l2Code },
+              select: { parentCode: true },
+            })
+          : null;
+        const wasMinor = existingL2?.parentCode === "MIN";
 
-    // 净料/小料统一口径（同 POST）：来源原料 + 出成率 + 包装规格必填，成本价元/斤
-    if (!sourceIngredientId) {
-      return badRequest("必须选择来源原料");
-    }
-    // 包装规格（g）必填：编辑存量数据时补填
-    const finalPackageSpec = packageSpec ?? existing.packageSpec;
-    if (!finalPackageSpec) {
-      return badRequest("必须填写包装规格（g）");
-    }
-    const finalSourceIngredientId = Number(sourceIngredientId);
+        if (!sourceIngredientId) throw new Error("必须选择来源原料");
 
-    const yieldRateNum = Number(yieldRate ?? existing.yieldRate);
-    if (!yieldRateNum || yieldRateNum <= 0 || yieldRateNum > 500) {
-      return badRequest("出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）");
-    }
+        const finalPackageSpec = packageSpec ?? existing.packageSpec;
+        if (!finalPackageSpec || finalPackageSpec <= 0) {
+          throw new Error("必须填写包装规格（g）");
+        }
+        const finalSourceIngredientId = Number(sourceIngredientId);
 
-    const calculated = await calculateUnitPrice(
-      finalSourceIngredientId,
-      yieldRateNum
-    );
-    if (calculated == null) {
-      return badRequest("来源原料缺少每斤单价，无法计算净料单价");
-    }
+        const yieldRateNum = Number(yieldRate ?? existing.yieldRate);
+        if (!yieldRateNum || yieldRateNum <= 0 || yieldRateNum > 500) {
+          throw new Error("出成率必须在 0.01-500 之间（上浆/挂糊类可超过 100）");
+        }
 
-    const row = await prisma.netIngredient.update({
-      where: { id: Number(id) },
-      data: {
-        name: name.trim(),
-        sourceIngredientId: finalSourceIngredientId,
-        packageSpec: finalPackageSpec,
-        packageMaterial:
-          packageMaterial === undefined ? existing.packageMaterial : packageMaterial?.trim() || "密封袋",
-        packageSize:
-          packageSize === undefined ? existing.packageSize : packageSize?.trim() || "50cm×40cm",
-        processingFeePerJin: processingFeePerJin ?? existing.processingFeePerJin ?? null,
-        yieldRate: yieldRateNum,
-        // 份量：undefined = 保持原值；显式 null = 清空
-        ...(portion !== undefined ? { portion } : {}),
-        unitPrice: calculated,
-        // undefined = 未传该字段（保持原值）；显式 null = 用户清空毛利率
-        grossMarginRate:
+        const finalFee = processingFeePerJin ?? existing.processingFeePerJin ?? null;
+        const finalMargin =
           grossMarginRate === undefined
             ? Number(existing.grossMarginRate ?? 0)
-            : grossMarginRate ?? 0,
-        unit: "g",
-        l2Code: l2Code.trim(),
-        storage: "冷藏",
+            : grossMarginRate ?? 0;
+
+        const specChanged = finalPackageSpec !== existing.packageSpec;
+        const yieldChanged = yieldRateNum !== Number(existing.yieldRate);
+        const sourceChanged = finalSourceIngredientId !== existing.sourceIngredientId;
+        const costChanged =
+          specChanged ||
+          yieldChanged ||
+          sourceChanged ||
+          Number(finalFee ?? 0) !== Number(existing.processingFeePerJin ?? 0) ||
+          finalMargin !== Number(existing.grossMarginRate ?? 0);
+
+        if (wasMinor !== isMinor) {
+          const referenceCount =
+            (await tx.dishNetDetail.count({ where: { netIngId: netIngredientId } })) +
+            (await tx.dishMinorDetail.count({ where: { netIngId: netIngredientId } }));
+          if (referenceCount > 0) {
+            throw new BomSyncConflictError(
+              "该净料/小料已被菜品 BOM 引用，不能跨小料/净料分类调整，请先在菜品中移除引用"
+            );
+          }
+        }
+
+        const calculated = await calculateUnitPrice(
+          finalSourceIngredientId,
+          yieldRateNum,
+          tx
+        );
+        if (calculated == null) {
+          throw new Error("来源原料缺少每斤单价，无法计算净料单价");
+        }
+
+        const row = await tx.netIngredient.update({
+          where: { id: netIngredientId },
+          data: {
+            name: name.trim(),
+            sourceIngredientId: finalSourceIngredientId,
+            packageSpec: finalPackageSpec,
+            packageMaterial:
+              packageMaterial === undefined
+                ? existing.packageMaterial
+                : packageMaterial?.trim() || "密封袋",
+            packageSize:
+              packageSize === undefined
+                ? existing.packageSize
+                : packageSize?.trim() || "50cm×40cm",
+            processingFeePerJin: finalFee,
+            yieldRate: yieldRateNum,
+            ...(portion !== undefined ? { portion } : {}),
+            unitPrice: calculated,
+            grossMarginRate: finalMargin,
+            unit: "g",
+            l2Code: l2Code.trim(),
+            storage: "冷藏",
+          },
+          include: {
+            sourceIngredient: {
+              select: { id: true, name: true, pricePerJin: true },
+            },
+          },
+        });
+
+        let sync: Awaited<ReturnType<typeof syncBomAmountsForNetIngredient>> | null = null;
+        let recalc: Awaited<
+          ReturnType<typeof recalcIncompleteDocumentsForNetIngredient>
+        > | null = null;
+
+        if (costChanged) {
+          sync = await syncBomAmountsForNetIngredient(tx, row.id, finalPackageSpec);
+        }
+        if (specChanged || yieldChanged || sourceChanged) {
+          recalc = await recalcIncompleteDocumentsForNetIngredient(tx, row.id);
+        }
+
+        return {
+          row,
+          isMinor,
+          oldPackageSpec: existing.packageSpec,
+          sync,
+          recalc,
+        };
       },
-      include: {
-        sourceIngredient: {
-          select: { id: true, name: true, pricePerJin: true },
-        },
-      },
-    });
+      { timeout: 60_000, maxWait: 10_000 }
+    );
+
+    const { row, isMinor, oldPackageSpec, sync, recalc } = result;
+    const syncParts: string[] = [];
+    if (sync) {
+      syncParts.push(
+        `联动 BOM ${sync.netRows + sync.minorRows} 行 / ${sync.dishIds.length} 道菜品`
+      );
+    }
+    if (recalc) {
+      syncParts.push(
+        `重建排程 ${recalc.scheduleIds.length} 张、生产计划 ${recalc.planIds.length} 张`
+      );
+    }
 
     await logOperation(req, {
       action: "UPDATE",
       entity: "NetIngredient",
       entityId: row.id,
-      description: `更新${isMinor ? "小料" : "净料"}: ${row.name || row.code}`,
+      description:
+        `更新${isMinor ? "小料" : "净料"}: ${row.name || row.code}` +
+        `；封装规格 ${oldPackageSpec ?? "—"} → ${row.packageSpec}g` +
+        (syncParts.length > 0 ? `；${syncParts.join("；")}` : ""),
     });
 
-    return success(serializeNetIngredient(row));
+    return success({
+      ...serializeNetIngredient(row),
+      sync: {
+        updatedBomRows: sync ? sync.netRows + sync.minorRows : 0,
+        affectedDishCount: sync?.dishIds.length ?? 0,
+        rebuiltScheduleIds: recalc?.scheduleIds ?? [],
+        rebuiltPlanIds: recalc?.planIds ?? [],
+      },
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (err instanceof BomSyncConflictError) return conflict(message);
+    if (message === "净料不存在或已删除") return notFound(message);
     return badRequest(message || "更新净料失败");
   }
 }

@@ -4,6 +4,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 import { computeSauceCostPrices } from "@/lib/server/sauce-utils";
 import { calcOutPricePerJin } from "@/lib/shared/net-price";
+import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 import { round2 } from "@/lib/shared/prepped-stock";
 
 type DishCostDatabase = Pick<
@@ -55,6 +56,7 @@ export async function getCurrentDishCostBreakdownMap(
               yieldRate: true,
               processingFeePerJin: true,
               grossMarginRate: true,
+              packageSpec: true,
               sourceIngredient: { select: { pricePerJin: true } },
             },
           },
@@ -70,6 +72,7 @@ export async function getCurrentDishCostBreakdownMap(
               yieldRate: true,
               processingFeePerJin: true,
               grossMarginRate: true,
+              packageSpec: true,
               sourceIngredient: { select: { pricePerJin: true } },
             },
           },
@@ -159,12 +162,14 @@ export async function getCurrentDishCostBreakdownMap(
 
   for (const row of netDetails) {
     const prices = deriveNetIngredientPrices(row.netIngredient);
-    const cost = lineCost(prices.outPricePerJin, Number(row.amountG));
+    const amountG = resolveNetBomAmountG(row.amountG, row.netIngredient.packageSpec);
+    const cost = lineCost(prices.outPricePerJin, amountG);
     addCost(row.dishId, row.role === "support" ? "support" : "main", cost);
   }
   for (const row of minorDetails) {
     const prices = deriveNetIngredientPrices(row.netIngredient);
-    const cost = lineCost(prices.outPricePerJin, Number(row.amountG));
+    const amountG = resolveNetBomAmountG(row.amountG, row.netIngredient.packageSpec);
+    const cost = lineCost(prices.outPricePerJin, amountG);
     addCost(row.dishId, "minor", cost);
   }
   for (const row of seasoningDetails) {

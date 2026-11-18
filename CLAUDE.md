@@ -67,6 +67,7 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 - **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料与净料同表同口径**（l2Code 归属 MIN 一级分类），同样由原料转化而来
 - **净料价格体系**（唯一真源 `lib/server/net-ingredient-utils.ts` 的 `deriveNetIngredientPrices()`）：净料单价 = 原料每斤单价 ÷ (出成率/100) → 成本价 = 净料单价 + 封装加工费 → 出库价 = 成本价 ÷ (1 − 毛利率/100) → 标准规格价（元/份）= 出库价 × 封装规格 ÷ 500。净料单价**强制由来源原料实时价格派生**，服务端忽略客户端传入的 `unitPrice`
 - **`package_spec`（封装规格，单位 g）** 是「按份」换算的物理基准（一个标准包装装多少克）。缺失会导致：完成生产抛错整单回滚、出库金额算成 0、标签张数为 0、标准规格价显示「—」。补齐方案见 `docs/production-data-package-spec-plan.md`
+- **净料/小料 BOM 用量 = 档案封装规格**：`DishNetDetail.amountG` / `DishMinorDetail.amountG` 只是缓存，唯一真源是 `NetIngredient.packageSpec`。修改净料/小料规格时，服务端在同一事务内同步 BOM 用量、重算菜品成本，并自动重建待生效/进行中的排程切配、采购计划与生产计划快照；已完成单据、出库单、库存流水保持历史快照。
 - **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料（SeasoningIngredients）、酱料（SauceIngredients）及 `DishProcess` 工序组成
 
 **排程 → 生产计划 → 净菜库存** 是当前业务主链路：

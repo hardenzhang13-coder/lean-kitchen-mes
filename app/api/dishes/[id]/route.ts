@@ -8,6 +8,7 @@ import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
+import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 import {
   computeCostPricePerJin,
   resolveRecipeLines,
@@ -148,12 +149,15 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     // 主料/辅料/小料统一附价格体系（净料单价/成本价/标准规格价），前端展示口径一致
     netDetails: row.netDetails.map((d) => ({
       ...d,
+      // 净料 BOM 用量以档案封装规格为唯一真源
+      amountG: resolveNetBomAmountG(d.amountG, d.netIngredient?.packageSpec),
       netIngredient: d.netIngredient
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,
     })),
     minorDetails: row.minorDetails.map((d) => ({
       ...d,
+      amountG: resolveNetBomAmountG(d.amountG, d.netIngredient?.packageSpec),
       netIngredient: d.netIngredient
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,

@@ -1,4 +1,5 @@
 import { validateDishForPublish } from "@/lib/shared/dish-publish";
+import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 
 export type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
@@ -237,16 +238,17 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     // 出库价（元/斤，含加工费与毛利）为 BOM 成本口径
     const costPrice = ing?.outPricePerJin ?? null;
     const type: BomType = d.role === "support" ? "support" : "main";
+    const amountG = resolveNetBomAmountG(d.amountG, ing?.packageSpec);
     const item: BomItem = {
       id: `net-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
       name,
       spec: netSpecText(ing, d.spec),
-      amountG: String(d.amountG),
+      amountG: String(amountG),
       unitPrice,
       unit,
       costPrice,
-      cost: calcCost(type, costPrice, d.amountG),
+      cost: calcCost(type, costPrice, amountG),
       portion: ing?.portion ?? null,
     };
     if (d.role === "support") bom.support.push(item);
@@ -259,17 +261,18 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const unitPrice = ing?.unitPrice ?? d.unitPrice ?? 0;
     const unit = ing?.unit ?? d.unit ?? "g";
     const costPrice = ing?.outPricePerJin ?? null;
+    const amountG = resolveNetBomAmountG(d.amountG, ing?.packageSpec);
     bom.minor.push({
       id: `minor-${d.netIngId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.netIngId,
       name,
       productName: d.brand,
       spec: netSpecText(ing, null),
-      amountG: String(d.amountG),
+      amountG: String(amountG),
       unitPrice,
       unit,
       costPrice,
-      cost: calcCost("minor", costPrice, d.amountG),
+      cost: calcCost("minor", costPrice, amountG),
       portion: ing?.portion ?? null,
     });
   });

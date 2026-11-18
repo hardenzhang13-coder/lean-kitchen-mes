@@ -210,7 +210,7 @@ model DishMinorDetail {
   id            Int           @id @default(autoincrement())
   dishId        Int           @map("dish_id")
   netIngId      Int           @map("net_ing_id")
-  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2)
+  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2) // 冗余缓存：必须等于 NetIngredient.packageSpec，读取以 packageSpec 为准
   brand         String?
   cost          Decimal?      @db.Decimal(10, 2)
   dish          Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)
@@ -253,7 +253,7 @@ model DishNetDetail {
   dishId        Int           @map("dish_id")
   role          String // main(主料) / support(辅料)
   netIngId      Int           @map("net_ing_id")
-  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2)
+  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2) // 冗余缓存：必须等于 NetIngredient.packageSpec，读取以 packageSpec 为准
   spec          String?
   cost          Decimal?      @db.Decimal(10, 2)
   dish          Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)

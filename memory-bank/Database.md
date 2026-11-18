@@ -360,8 +360,8 @@ UNIQUE(sauce_id, line_type, ref_id)
 | dish_id | int | 关联菜品 |
 | role | varchar(10) | main（主料）/ support（辅料） |
 | net_ing_id | int | 关联净料表 |
-| amount_g | decimal(10,2) | 用量，单位g |
-| spec | varchar(100) | 规格形态（从净料表带出，可调整） |
+| amount_g | decimal(10,2) | 用量（g）：冗余缓存，必须等于净料档案的 `package_spec`，由服务端写入 |
+| spec | varchar(100) | 规格文本，保存时由当前 `package_spec` 生成 |
 | cost | decimal(10,2) | 该食材在这道菜中的成本 |
 
 ---

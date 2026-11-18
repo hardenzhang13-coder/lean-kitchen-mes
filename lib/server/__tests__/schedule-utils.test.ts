@@ -44,7 +44,7 @@ describe("buildCuttingOrders", () => {
         {
           dishId: 1,
           spec: "丝 · 3mm",
-          amountG: 300,
+          amountG: 120,
           netIngredient: {
             id: 12,
             code: "NET-0012",
@@ -57,7 +57,7 @@ describe("buildCuttingOrders", () => {
         {
           dishId: 1,
           spec: "",
-          amountG: 200,
+          amountG: 80,
           netIngredient: {
             id: 12,
             code: "NET-0012",
@@ -82,7 +82,7 @@ describe("buildCuttingOrders", () => {
       itemName: "猪里脊肉丝",
       sourceCode: "NET-0012",
       packageSpec: 250,
-      requiredQty: 5000, // (300+200) × 10
+      requiredQty: 5000, // 封装规格 250 × 2 行 × 10 份；旧 amountG 不参与计算
       unit: "g",
     });
   });
@@ -114,10 +114,10 @@ describe("buildCuttingOrders", () => {
     ]);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].requiredQty).toBe(500); // 100 × (2 + 3)
+    expect(rows[0].requiredQty).toBe(1000); // 封装规格 200 × 合并份数 5；不再按旧 amountG=100 计算
   });
 
-  it("小料规格取自净料档案 spec 字段", async () => {
+  it("小料用量以档案封装规格为准，忽略历史 amountG", async () => {
     const prisma = makePrismaMock({
       minorDetails: [
         {
@@ -143,7 +143,7 @@ describe("buildCuttingOrders", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0].sourceCode).toBe("MIN-0040");
     expect(rows[0].packageSpec).toBe(50);
-    expect(rows[0].requiredQty).toBe(230);
+    expect(rows[0].requiredQty).toBe(2300); // 封装规格 50 × 46 份
   });
 });
 
