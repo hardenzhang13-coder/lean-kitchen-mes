@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRightLeft,
   Copy,
+  Link2,
   Loader2,
   Pencil,
   Printer,
@@ -20,6 +21,7 @@ import {
 } from "@/app/components/ui/record-sheet";
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
+import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -129,6 +131,7 @@ export function IngredientDetailSheet({
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [relatedDishesOpen, setRelatedDishesOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const rawInitialData = useMemo(
@@ -409,6 +412,15 @@ export function IngredientDetailSheet({
                   }
                   secondary={
                     <>
+                      {kind === "net" || kind === "minor" ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setRelatedDishesOpen(true)}
+                        >
+                          <Link2 className="mr-2 h-4 w-4" />
+                          关联菜品
+                        </Button>
+                      ) : null}
                       {onCopy ? (
                         <Button
                           variant="outline"
@@ -581,6 +593,15 @@ export function IngredientDetailSheet({
           />
         )}
       </RecordSheet>
+
+      <NetIngredientDishesDialog
+        key={`${data?.id ?? "none"}-${relatedDishesOpen}`}
+        open={relatedDishesOpen}
+        onOpenChange={setRelatedDishesOpen}
+        netIngredientId={data?.id ?? null}
+        netIngredientName={data?.name ?? null}
+        kind={kind === "minor" ? "minor" : "net"}
+      />
 
       <DiscardChangesDialog
         open={discardOpen}
