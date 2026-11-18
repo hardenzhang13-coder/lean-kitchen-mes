@@ -4,6 +4,7 @@
 
 import type { Prisma } from "@prisma/client";
 import { round2 } from "@/lib/shared/prepped-stock";
+import { calcStandardPackagePrice } from "@/lib/shared/net-price";
 import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 
 export interface OutboundLine {
@@ -19,6 +20,8 @@ export interface OutboundLine {
   requiredQty: number;
   availablePortions: number;
   pricePerJin: number | null;
+  /** 标准规格价格（元/份）= 出库价 × 封装规格 ÷ 500，即每份出库单价 */
+  standardPackagePrice: number | null;
   prepStatus: "normal" | "insufficient" | "unfinished";
   /** 默认出库份数 = min(计划份数, 库存份数)；未切配 = 0 */
   suggestedPortions: number;
@@ -115,6 +118,7 @@ async function buildOutboundLines(
       requiredQty,
       availablePortions: available,
       pricePerJin: price,
+      standardPackagePrice: calcStandardPackagePrice(price, pkg),
       prepStatus,
       suggestedPortions: prepStatus === "unfinished" ? 0 : Math.min(requiredPortions, available),
     };

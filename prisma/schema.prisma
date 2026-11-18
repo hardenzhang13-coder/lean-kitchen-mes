@@ -690,7 +690,7 @@ model OutboundOrderItem {
   shippedPortions   Decimal  @map("shipped_portions") @db.Decimal(12, 2)
   shippedQty        Decimal  @map("shipped_qty") @db.Decimal(14, 2)
   pricePerJin       Decimal? @map("price_per_jin") @db.Decimal(10, 2) // 出库价快照（元/斤）
-  amount            Decimal  @map("amount") @db.Decimal(12, 2) // 行金额 = 出库价 × shippedQty ÷ 500
+  amount            Decimal  @map("amount") @db.Decimal(12, 2) // 行金额 = 标准规格价（元/份）× 出库份数
   prepStatus        String   @default("normal") @map("prep_status") // normal / insufficient / unfinished
   sortIndex         Int      @map("sort_index")
   outboundOrder     OutboundOrder @relation(fields: [outboundOrderId], references: [id], onDelete: Cascade)

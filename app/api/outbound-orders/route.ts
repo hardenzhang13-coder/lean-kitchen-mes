@@ -6,7 +6,7 @@ import { validateBody, validateQuery } from "@/lib/server/validate";
 import { createOutboundSchema, outboundQuerySchema } from "@/lib/server/schemas/prepped-stock";
 import { applyStockChanges } from "@/lib/server/prepped-stock";
 import { getOutboundLines, getSelfOrderOutboundLines } from "@/lib/server/outbound-utils";
-import { round2, calcLineAmount, CUTTING_CENTER_NAME } from "@/lib/shared/prepped-stock";
+import { round2, calcPortionAmount, CUTTING_CENTER_NAME } from "@/lib/shared/prepped-stock";
 import { z } from "zod";
 import { logger } from "@/lib/server/logger";
 
@@ -166,7 +166,10 @@ export async function POST(req: NextRequest) {
           throw new Error(`${l.itemName} 出库份数超过库存（库存 ${l.availablePortions} 份）`);
         }
         const shippedQty = round2(shipped * l.packageSpec);
-        const amount = l.pricePerJin != null ? calcLineAmount(l.pricePerJin, shippedQty) : 0;
+        const amount =
+          l.standardPackagePrice != null
+            ? calcPortionAmount(l.standardPackagePrice, shipped)
+            : 0;
         if (shipped !== l.requiredPortions) asPlanned = false;
         totalPortions = round2(totalPortions + shipped);
         totalAmount = round2(totalAmount + amount);
