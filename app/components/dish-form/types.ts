@@ -84,7 +84,7 @@ export const BOM_TYPE_LABELS: Record<BomType, string> = {
   sauce: "酱料",
 };
 
-// 发布必填规则以 validatePublish 为准：主料/辅料必填；小料/调料/酱料可选（先跑业务，后续再收紧）
+// 发布必填规则以 validateDishForPublish 为准：荤素类型、售价、主料必填；其余用料可选
 
 export const VALID_STAGES: ProcessStage[] = ["初加工", "预处理", "上灶加工", "出锅成品"];
 
@@ -205,7 +205,7 @@ export function dishToFormData(dish: DishDetail): DishFormData {
     cuisine: dish.cuisine || "",
     technique: dish.technique || "",
     taste: dish.taste || "",
-    portion: dish.portion || "单人份",
+    portion: dish.portion || "小碗菜·10份",
     season: dish.season || "四季",
     meatType: dish.meatType || "",
     price: dish.price != null ? String(dish.price) : "",
@@ -353,16 +353,54 @@ export function bomToPayload(bom: Record<BomType, BomItem[]>) {
   };
 }
 
-export function validatePublish(form: DishFormData, bom: Record<BomType, BomItem[]>): string | null {
-  if (!form.name.trim()) return "菜品名称不能为空";
-  if (!form.categoryId) return "请选择菜品类别";
-  if (!form.cuisine) return "请选择菜系";
-  if (!form.technique) return "请选择做法";
-  if (!form.taste) return "请选择口味";
-  if (!form.meatType) return "请选择荤素类型";
-  if (bom.main.length === 0) return "主料不能为空";
-  if (bom.support.length === 0) return "辅料不能为空";
+/** 毛利率必填：售价与成本齐备时由两者派生，缺失时给出可操作提示 */
+export function validateGrossMargin(
+  form: DishFormData,
+  cost: number | null | undefined
+): string | null {
+  const price = form.price ? Number(form.price) : null;
+  if (price == null || !(price > 0)) {
+    return "请填写售价（元/份），毛利率会根据成本自动计算";
+  }
+  if (cost == null || !(cost > 0)) {
+    return "请先在「菜品用料」中添加主料，毛利率会根据用料成本自动计算";
+  }
+  if (calcGrossMarginPercent(cost, price) == null) {
+    return "毛利率无法计算，请检查售价与菜品成本";
+  }
   return null;
+}
+
+/** 保存草稿：售价必填；成本已具备时毛利率自动派生，不强制先有成本 */
+export function validateForSave(
+  form: DishFormData,
+  cost: number | null | undefined
+): string | null {
+  if (!form.price.trim() || !(Number(form.price) > 0)) {
+    return "请填写售价（元/份），毛利率会根据成本自动计算";
+  }
+  if (cost != null && cost > 0) {
+    return validateGrossMargin(form, cost);
+  }
+  return null;
+}
+
+export function validatePublish(
+  form: DishFormData,
+  bom: Record<BomType, BomItem[]>,
+  cost?: number | null
+): string | null {
+  const publishError = validateDishForPublish({
+    name: form.name,
+    meatType: form.meatType,
+    price: form.price ? Number(form.price) : null,
+    netDetails: [
+      ...bom.main.map(() => ({ role: "main" })),
+      ...bom.support.map(() => ({ role: "support" })),
+    ],
+  });
+  if (publishError) return publishError;
+  return validateGrossMargin(form, cost);
 }
 
 export function validateDishDetailForPublish(dish: DishDetail): string | null {

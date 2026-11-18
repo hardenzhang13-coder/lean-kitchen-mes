@@ -70,6 +70,24 @@ describe("菜品基础信息表单分组", () => {
     expect(introIndex).toBe(labels.length - 1);
   });
 
+  it("售价与毛利率以主题色强调且为必填", () => {
+    renderPanel();
+    const priceLabel = screen.getByText("售价（元/份）").closest("label");
+    const marginLabel = screen.getByText("毛利率（%）").closest("label");
+
+    expect(priceLabel?.className).toContain("text-primary");
+    expect(priceLabel?.textContent).toContain("*");
+    expect(marginLabel?.className).toContain("text-primary");
+    expect(marginLabel?.textContent).toContain("*");
+  });
+
+  it("菜品类别等基础字段为可选", () => {
+    renderPanel();
+    const categoryLabel = screen.getByText("菜品类别").closest("label");
+    expect(categoryLabel?.textContent).toContain("(可选)");
+    expect(categoryLabel?.textContent).not.toContain("*");
+  });
+
   it("菜品描述使用单行输入框", () => {
     const { container } = renderPanel();
     expect(screen.getByLabelText(/菜品描述/).tagName).toBe("INPUT");

@@ -55,7 +55,7 @@ Ingredient（原料）
 | 模型 | 说明 |
 |------|------|
 | `DishCategory` | 菜品分类，编码唯一；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
-| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、自动计算的 `cost` |
+| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「小碗菜·10份」 |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient` |
 | `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，关联 `Ingredient` |

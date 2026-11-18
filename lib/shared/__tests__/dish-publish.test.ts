@@ -2,12 +2,9 @@ import { validateDishForPublish } from "../dish-publish";
 
 const validDish = {
   name: "宫保鸡丁",
-  categoryId: 1,
-  cuisine: "川菜",
-  technique: "爆炒",
-  taste: "香辣",
   meatType: "荤菜",
-  netDetails: [{ role: "main" }, { role: "support" }],
+  price: 18,
+  netDetails: [{ role: "main" }],
 };
 
 describe("菜品发布校验", () => {
@@ -15,34 +12,35 @@ describe("菜品发布校验", () => {
     expect(validateDishForPublish(validDish)).toBeNull();
   });
 
-  it("基础信息缺失时返回具体提示", () => {
+  it("类别/菜系/做法/口味可留空", () => {
+    const { name, meatType, price, netDetails } = validDish;
+    expect(
+      validateDishForPublish({ name, meatType, price, netDetails })
+    ).toBeNull();
+  });
+
+  it("名称与荤素类型必填", () => {
     expect(validateDishForPublish({ ...validDish, name: "  " })).toBe(
       "菜品名称不能为空"
-    );
-    expect(validateDishForPublish({ ...validDish, categoryId: null })).toBe(
-      "请选择菜品类别"
-    );
-    expect(validateDishForPublish({ ...validDish, cuisine: null })).toBe(
-      "请选择菜系"
-    );
-    expect(validateDishForPublish({ ...validDish, technique: null })).toBe(
-      "请选择做法"
-    );
-    expect(validateDishForPublish({ ...validDish, taste: null })).toBe(
-      "请选择口味"
     );
     expect(validateDishForPublish({ ...validDish, meatType: null })).toBe(
       "请选择荤素类型"
     );
   });
 
-  it("主料与辅料为发布必填", () => {
+  it("售价必填且需大于 0", () => {
+    expect(validateDishForPublish({ ...validDish, price: null })).toBe(
+      "请填写售价（元/份），毛利率会根据成本自动计算"
+    );
+    expect(validateDishForPublish({ ...validDish, price: 0 })).toBe(
+      "请填写售价（元/份），毛利率会根据成本自动计算"
+    );
+  });
+
+  it("只要求主料，辅料不再强制", () => {
     expect(
       validateDishForPublish({ ...validDish, netDetails: [{ role: "support" }] })
     ).toBe("主料不能为空");
-    expect(
-      validateDishForPublish({ ...validDish, netDetails: [{ role: "main" }] })
-    ).toBe("辅料不能为空");
     expect(validateDishForPublish({ ...validDish, netDetails: [] })).toBe(
       "主料不能为空"
     );

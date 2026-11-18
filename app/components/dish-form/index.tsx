@@ -28,6 +28,7 @@ import {
   bomToPayload,
   totalBomCost,
   validatePublish,
+  validateForSave,
   normalizeNetIngredients,
   normalizeIngredients,
   normalizeSauces,
@@ -115,11 +116,11 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     const body = {
       name: form.name,
       intro: form.intro || undefined,
-      categoryId: Number(form.categoryId),
+      categoryId: form.categoryId ? Number(form.categoryId) : null,
       cuisine: form.cuisine || undefined,
       technique: form.technique || undefined,
       taste: form.taste || undefined,
-      portion: form.portion || "小碗菜",
+      portion: form.portion || "小碗菜·10份",
       season: form.season || "四季",
       meatType: form.meatType || undefined,
       price: form.price ? Number(form.price) : null,
@@ -182,11 +183,11 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       body: JSON.stringify({
         name: form.name,
         intro: form.intro || undefined,
-        categoryId: Number(form.categoryId),
+        categoryId: form.categoryId ? Number(form.categoryId) : null,
         cuisine: form.cuisine || undefined,
         technique: form.technique || undefined,
         taste: form.taste || undefined,
-        portion: form.portion || "小碗菜",
+        portion: form.portion || "小碗菜·10份",
         season: form.season || "四季",
         meatType: form.meatType || undefined,
         price: form.price ? Number(form.price) : null,
@@ -220,6 +221,11 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   };
 
   const handleSave = async () => {
+    const error = validateForSave(form, currentCost);
+    if (error) {
+      toast.error(error);
+      return;
+    }
     setSubmitting(true);
     try {
       const dishId = mode === "new" ? await createDish("draft") : await updateDish("draft");
@@ -252,7 +258,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       return;
     }
 
-    const error = validatePublish(form, bom);
+    const error = validatePublish(form, bom, currentCost);
     if (error) {
       toast.error(error);
       return;
@@ -302,7 +308,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
                 <Button
                   className="h-10"
                   onClick={() => {
-                    const error = validatePublish(form, bom);
+                    const error = validatePublish(form, bom, currentCost);
                     if (error) {
                       toast.error(error);
                       return;
@@ -352,7 +358,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
               <Button
                 className="h-10"
                 onClick={() => {
-                  const error = validatePublish(form, bom);
+                  const error = validatePublish(form, bom, currentCost);
                   if (error) {
                     toast.error(error);
                     return;
@@ -414,7 +420,7 @@ function defaultFormData(): DishFormData {
     cuisine: "",
     technique: "",
     taste: "",
-    portion: "小碗菜",
+    portion: "小碗菜·10份",
     season: "四季",
     meatType: "",
     price: "",

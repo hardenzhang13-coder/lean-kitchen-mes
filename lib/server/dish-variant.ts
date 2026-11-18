@@ -38,9 +38,10 @@ function scaleValue(
 
 async function generateDishCode(
   tx: Prisma.TransactionClient,
-  categoryCode: string
+  categoryCode: string | null | undefined
 ): Promise<string> {
-  const prefix = `DSH-${categoryCode}`;
+  // 未分类菜品使用 GEN 前缀，保持编号格式一致
+  const prefix = `DSH-${categoryCode || "GEN"}`;
   const last = await tx.dish.findFirst({
     where: { code: { startsWith: `${prefix}-` } },
     orderBy: { code: "desc" },
@@ -59,7 +60,7 @@ export async function createDishVariant(
   source: DishVariantSource,
   options: DishVariantOptions
 ) {
-  const code = await generateDishCode(tx, source.category.code);
+  const code = await generateDishCode(tx, source.category?.code);
   const { factor } = options;
 
   return tx.dish.create({

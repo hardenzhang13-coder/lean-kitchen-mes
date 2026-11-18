@@ -231,7 +231,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (cuisine !== undefined) updateData.cuisine = cuisine || null;
     if (technique !== undefined) updateData.technique = technique || null;
     if (taste !== undefined) updateData.taste = taste || null;
-    if (portion !== undefined) updateData.portion = portion || "小碗菜";
+    if (portion !== undefined) updateData.portion = portion || "小碗菜·10份";
     if (season !== undefined) updateData.season = season || "四季";
     if (meatType !== undefined) updateData.meatType = meatType || null;
     if (price !== undefined) updateData.price = price != null ? price : null;

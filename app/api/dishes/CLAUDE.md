@@ -34,8 +34,8 @@
 
 `POST /api/dishes` 流程：
 
-1. 校验请求体（`createDishSchema`）
-2. 查询 `DishCategory` 获取分类编码
+1. 校验请求体（`createDishSchema`；`categoryId` 可空）
+2. 有分类时查询 `DishCategory` 获取分类编码；无分类使用 `GEN` 前缀
 3. 在 Serializable 事务中生成编码并创建菜品
 4. 编码生成失败（唯一键冲突）时最多重试 3 次
 5. 记录 `OperationLog`
@@ -43,10 +43,10 @@
 ### 编码生成算法
 
 ```
-DSH-{categoryCode}-{0001}
+DSH-{categoryCode}-{0001}    // 未分类：DSH-GEN-0001
 ```
 
-按 `code startsWith DSH-{categoryCode}-` 取字典序最后一条，解析序号后 +1，不足 4 位补零。
+按 `code startsWith DSH-{categoryCode}-` 取字典序最后一条，解析序号后 +1，不足 4 位补零。复制/转化同样沿用该规则，源菜品无分类时使用 `GEN`。
 
 ## 详情查询
 
@@ -131,7 +131,8 @@ draft ──发布──> published ──停用──> inactive
   └────下架────────┴────恢复发布─────┘
 ```
 
-- 只有草稿可编辑；发布与恢复发布由服务端校验（名称、类别、菜系、做法、口味、荤素、主料、辅料）
+- 只有草稿可编辑；发布与恢复发布由服务端校验（名称、荤素类型、售价、主料）
+- 类别、菜系、做法、口味不参与发布校验，可留空；辅料等其余用料不强制
 - 停用后不出现在新建排程的可选菜品中；历史排程、生产计划快照与销售回录保留
 - 状态流转接口：`POST /api/dishes/[id]/status`，body `{ action: "publish" | "unpublish" | "deactivate" | "restore" }`
 - `pending` 状态已废弃，存量由迁移 `20261115233000_normalize_dish_status_pending` 归一到 `draft`

@@ -11,27 +11,27 @@ export const dishStatusSchema = z.enum(DISH_STATUS_VALUES);
 export const createDishSchema = z.object({
   name: z.string().min(1).max(100),
   intro: z.string().max(500).optional(),
-  categoryId: z.number().int().positive(),
+  categoryId: z.number().int().positive().nullish(),
   cuisine: z.string().max(50).optional(),
   technique: z.string().max(50).optional(),
   taste: z.string().max(50).optional(),
-  portion: z.string().max(50).default("小碗菜"),
+  portion: z.string().max(50).default("小碗菜·10份"),
   season: z.string().max(50).default("四季"),
   meatType: z.string().max(50).optional(),
-  price: z.number().nonnegative().optional(),
+  price: z.number().nonnegative().nullish(),
 });
 
 export const updateDishSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   intro: z.string().max(500).optional(),
-  categoryId: z.number().int().positive().optional(),
+  categoryId: z.number().int().positive().nullish(),
   cuisine: z.string().max(50).optional(),
   technique: z.string().max(50).optional(),
   taste: z.string().max(50).optional(),
   portion: z.string().max(50).optional(),
   season: z.string().max(50).optional(),
   meatType: z.string().max(50).optional(),
-  price: z.number().nonnegative().optional(),
+  price: z.number().nonnegative().nullish(),
 });
 
 export const dishQuerySchema = z.object({
