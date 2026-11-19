@@ -27,6 +27,9 @@
 - **不要**为图省事把本机 GitHub 凭据经第三方中继转发（token 与私有仓库内容会暴露给中继）
 - 正确做法：直连 `https://github.com/...` 推送（凭据只发往 GitHub 官方域名），失败时重试或让用户执行 `git push`
 - 部署触发走 GitHub 官方 REST API（`api.github.com` 的 `workflow_dispatch`），不经中继
+- **本地 dev 与生产构建不要混用 `.next`**：先跑过 `npm run build` 再 `npm run dev` 时，`.next` 里同时存在
+  生产产物与 dev 缓存，会复现「`/api/auth/*` 全部 404、登录不可用」的假故障。删掉 `.next` 重新 `npm run dev` 即恢复
+  （与 proxy 的请求头修复是两件事，排查时先清缓存再怀疑代码）
 
 ---
 
