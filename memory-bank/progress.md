@@ -67,6 +67,18 @@
 - **调料详情主操作**改为「转调料」（编辑退到次级操作区），与原料详情页「转净料 + 复制 + 编辑」的分工一致
 - 删除文件：`standard-seasoning-section.tsx`、`standard-seasoning-dishes-dialog.tsx`、`/api/standard-seasonings/[id]/dishes`
 
+### 版式再对齐：转调料弹窗复用「转净料」版式
+
+首版只复用了弹窗外壳（workbench 尺寸、来源摘要、保存区），表单体仍是单列纵向堆叠，
+与「转净料」的版式不一致。本轮按 `net-ingredient-form-fields.tsx` 的 `net-dialog` 分支对齐：
+
+- 表单体改为 **顶部一行基本信息 + 三列并排**：顶部「调料」名称一行，下方 `FormLayout variant="workbench"`
+  铺开「规格指标 / 加工指标 / 价格指标」三列，与转净料逐段对应
+- 弹窗头部右侧新增 **「查看已有封装调料（N）」** 入口，位置与样式对齐转净料的「查看已有净料（N）」；
+  点击打开半屏抽屉列出该调料已有的标准规格
+- 「查看封装调料」由普通弹窗改为 **RecordSheet 半屏抽屉**，与「查看已有净料」同一形态
+- 新增 `standard-seasoning-list-sheet.tsx`（替代 `standard-seasoning-view-dialog.tsx`），承载查看/编辑/删除
+
 ### 顺带修复：本地登录接口 404（proxy 透传请求头）
 
 - **现象**：`npm run dev` 下 `/api/auth/*`（login / me / logout）全部返回 404，登录表单无法使用；`/api/health` 正常。生产（`next start`）不受影响。
