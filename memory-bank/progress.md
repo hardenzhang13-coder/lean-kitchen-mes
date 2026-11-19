@@ -4,6 +4,84 @@
 
 ---
 ---
+## 2026-11-20 — 调料标准化规格改造（食材库基础数据夯实 · V3.3）
+
+### 背景
+
+试运行反馈：调料此前只有自由文本采购规格（如「1.2kg/瓶」）与每斤单价，菜品 BOM 里用量被系统固定为 100g 且不可编辑。参照「原料 → 净料/小料」的既有链路，把调料纳入同一套标准化体系。
+
+### 口径决策（与用户对齐）
+
+- **标准规格统一以 g 计**，不引入瓶/袋/桶等单位；采购规格留在来源调料上仅作对照展示
+- **BOM 用量强制 = 标准规格**（与净料/小料完全同构）
+- **份量复用净料同一套枚举**（`PORTION_VALUES`），不新增档位、不允许自由数字
+- **价格链全套同构净料**：出成率 → 单价 → +封装加工费 → 成本价 → ÷(1−毛利率) → 出库价 → 标准规格价（元/份）
+- **菜品 BOM 调料 Tab 只列已标准化的规格**；未标准化的调料不进 BOM（与「原料不能直接进 BOM」同构）
+- **存量 BOM 不迁移**：`dish_seasoning_details.spec_id` 为空的行保持旧口径（每斤单价 × 克需求）
+
+### 数据模型
+
+- 新表 `standard_seasonings`（迁移 `20261120100000_add_standard_seasonings`）：编号 `SEA-SP-xxxx`，来源调料、标准规格（g）、份量、出成率、单价、封装加工费、毛利率、继承分类、软删除
+- `dish_seasoning_details` 增 `spec_id`（可空 FK）+ 索引
+- 迁移审计：仅 `ADD COLUMN` + `CREATE TABLE` + `CREATE INDEX` + `ADD FOREIGN KEY`，**无 UPDATE/DELETE 碰业务表**
+
+### 交付
+
+**服务端**
+
+- `lib/shared/seasoning-spec.ts`：默认名「{调料名}•{克数}g」与价格派生（复用 `calcNetUnitPrice` / `calcCostPricePerJin` / `calcOutPricePerJin` / `calcStandardPackagePrice`，**零新公式**）
+- `lib/shared/bom-amount.ts`：新增通用 `resolvePackageSpecAmountG`，`resolveNetBomAmountG` 改为委托（行为不变）
+- `lib/server/standard-seasoning-utils.ts`、`lib/server/schemas/standard-seasoning.ts`
+- API `/api/standard-seasonings`（GET 列表分页 / POST / GET[id] / PUT / DELETE）+ `/api/standard-seasonings/[id]/dishes`；权限登记到 `access-control.ts` 主数据前缀
+- 联动：`lib/server/seasoning-spec-sync.ts`（BOM 行同步 + 菜品成本重算）+ `lib/server/seasoning-spec-recalc.ts`（只重建未完成排程的**采购计划**与相关生产计划快照；切配工单不含调料故不动）；有执行进度抛 409 整体回滚
+- 菜品 BOM 接口：`dishBomSeasoningSchema` 增 `specId`，服务端按 `specId` 分支——有则用量强制 = 标准规格、成本按出库价；无则沿用旧口径
+- 成本汇总 `dish-costing.ts`、采购计划 `schedule-utils.ts`（标准化调料毛需求 = 标准规格 × 道数 ÷ 出成率）同步新口径
+- 从 `incomplete-document-recalc.ts` 导出 `assertScheduleHasNoProgress` / `hasPlanProgress` 供复用（仅加 export，行为不变）
+
+**前端**
+
+- 新增 `standard-seasoning-form-dialog.tsx` / `standard-seasoning-form-fields.tsx`（转化弹窗，来源调料锁定，含只读派生字段）
+- 新增 `standard-seasoning-section.tsx`（调料详情页「标准规格」区块：列表 + 新建/编辑/删除/查看关联菜品）
+- 新增 `standard-seasoning-dishes-dialog.tsx`（关联菜品）
+- 调料详情抽屉集成「标准规格」区块（`ingredient-detail-sheet.tsx`）
+- 菜品 BOM 选择器调料 Tab 换源为标准化规格，列改为 名称/标准规格/采购规格/份量/出库价/标准规格价；`dish-form/types.ts` 增 `normalizeStandardSeasonings`、`BomItem.specId`、`dishToBom`/`bomToPayload` 同步
+- 菜品详情 BOM 表增加「份量」列
+
+### 校验
+
+- `npx tsc --noEmit` 0；`npm run lint` 0 error 0 warning；`npm run build` 通过
+- `npm test`：69 套件 / 354 用例全绿（新增 seasoning-spec / bom-amount / seasoning-spec-sync / standard-seasonings API ×2 / BOM specId 分支 / 转化弹窗 共 8 组用例）
+- `npx prisma migrate diff --from-migrations --to-schema` 输出空迁移（零差异通过）
+- 迁移已在本地 `migrate deploy` 应用并 `prisma generate`
+
+### 交互整改（试运行实测反馈后重做）
+
+用户实测后反馈交互形态不符预期，本轮按「参照原料转净料」的既有交互重做：
+
+- **调料清单操作列**新增「转调料」（`ArrowRightLeft` 图标、`variant="default"`），位置与样式对齐原料清单的「转净料」
+- **转化弹窗**参照「转净料」弹窗：`size="workbench"` + 头部来源调料摘要（编号 · 名称 · 采购规格 · 分类）+ 表单主体 + 底部保存；标题「转调料」
+- **名称口径**：标准规格的「调料」字段默认取来源调料名，不再拼接「•克数g」后缀；同一调料的多个包装规格靠「包装规格」列区分
+- **字段命名统一**：包装规格（g）、份量、调料单价（元/斤）、出库价（元/斤）、标准规格价（元/份）
+- **详情页形态调整**：移除抽屉内嵌的「标准规格」区块与「关联菜品」能力（调料模块不需要关联菜品，API 的 `dishCount` 一并移除）
+- **底部功能区**新增「查看封装调料」：弹窗列出该调料转化出的全部标准规格，展示字段固定六项——名称 / 包装规格 / 份量 / 调料单价 / 出库价 / 标准规格价；行操作保留编辑与删除
+- **调料详情主操作**改为「转调料」（编辑退到次级操作区），与原料详情页「转净料 + 复制 + 编辑」的分工一致
+- 删除文件：`standard-seasoning-section.tsx`、`standard-seasoning-dishes-dialog.tsx`、`/api/standard-seasonings/[id]/dishes`
+
+### 顺带修复：本地登录接口 404（proxy 透传请求头）
+
+- **现象**：`npm run dev` 下 `/api/auth/*`（login / me / logout）全部返回 404，登录表单无法使用；`/api/health` 正常。生产（`next start`）不受影响。
+- **根因**：`proxy.ts` 中 `/api/auth/*` 分支返回裸 `NextResponse.next()`。Next 16 Turbopack dev 下不传 `request: { headers }` 会丢失原始请求，路由处理器收不到请求，被判为未匹配路由（404）。
+- **修复**：改为 `NextResponse.next({ request: { headers: req.headers } })`，并在代码注释里写明原因。其余 API 分支本来就传了 `requestWithIdentity()`，不受影响。
+- **验证**：登录 200 并正常下发会话 cookie；`/api/auth/me` 200；`/api/auth/logout` GET 返回 405（仅允许 POST，证明路由已匹配）；工作台 / 调料清单 / 菜品列表 / 菜品详情 四个页面 SSR 全部 200。
+
+### 遗留与后续
+
+- 出库单与净菜库存暂不支持标准化调料（现有库存只覆盖净料/小料），记为后续批次
+- 采购单入库仍按来源调料（采购品）录入，未按标准规格换算
+- 份量枚举粒度（1/4/6/8/10 份）对大规格瓶装偏粗，暂按最接近档位使用，待业务反馈再扩枚举
+
+---
+
 ## 2026-11-19（续）— 部署 5e17269 并完成生产 BOM 对齐
 
 ### 合并与门禁

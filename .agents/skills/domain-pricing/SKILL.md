@@ -12,6 +12,9 @@ description: 涉及净料价格、菜品成本、出成率、单位换算、份�
 ```
 原料 Ingredient → 净料 NetIngredient（出成率 yieldRate）→ 菜品 Dish
                         ↑ 小料与净料同表，l2Code 归属 MIN 一级分类
+
+调料 Ingredient（SEA 体系）→ 标准化调料 StandardSeasoning（标准规格 g）→ 菜品 Dish
+                        ↑ 标准化调料与净料同构：BOM 用量 = 标准规格，份量共用同一套枚举
 ```
 
 **净料默认名称**：转净料与新增净料自动生成「原料名称•加工方式•500g」（`lib/shared/net-name.ts` 的 `buildNetIngredientDefaultName`）。「加工方式」是占位词由用户改写；用户改过就不再自动覆盖。不要在别处另拼一套命名规则。
@@ -31,11 +34,29 @@ description: 涉及净料价格、菜品成本、出成率、单位换算、份�
 - 毛利率空值统一按 0 处理，不要各自写 `?? 0` 之外的逻辑。
 - 新增任何价格展示，复用 `serializeNetIngredient()` 附加的计算字段，不要在页面里重算。
 
+## 调料标准规格（2026-11 新口径）
+
+调料与净料/小料同构：调料采购档案 →「转标准规格」→ `standard_seasonings` 档案 → 菜品 BOM 引用。
+
+```
+标准化调料单价(元/斤) = 来源调料每斤单价 ÷ (出成率 / 100)
+成本价(元/斤)         = 单价 + 封装加工费(元/斤，空 = 0)
+出库价(元/斤)         = 成本价 ÷ (1 − 毛利率 / 100)      // 毛利率空值按 0
+标准规格价(元/份)     = 出库价 × 标准规格(g) ÷ 500
+```
+
+- 唯一真源：`lib/shared/seasoning-spec.ts` 的 `deriveStandardSeasoningPrices()`（与 `deriveNetIngredientPrices()` 同构，只换来源档案）。**不要另写一份价格公式**。
+- **标准规格统一以 g 计**，不引入瓶/袋/桶等单位；采购规格（`ingredients.purchaseSpec`，如「1.2kg/瓶」）留在来源调料上，只作对照展示，不参与任何计算。
+- **名称沿用来源调料名**，不拼「•克数g」后缀；同一调料的多个包装规格靠「包装规格」列区分。
+- **BOM 用量强制等于标准规格**：服务端按 `spec.packageSpec` 覆盖客户端传值（`resolvePackageSpecAmountG`）。
+- 份量 `portion` 复用 `PORTION_VALUES`，只用于展示与口径标注，**不参与** BOM 用量或采购量计算（与 `NetIngredient.portion` 边界相同）。
+- 采购毛需求 = 标准规格 × 道数 ÷ (出成率/100)；存量 `dish_seasoning_details.spec_id` 为空的行按旧口径（每斤单价 × 克需求）保留，不迁移。
+
 ## 菜品成本（实时，不信任快照）
 
 `lib/server/dish-costing.ts` 的 `getCurrentDishCostMap(dishIds)`：
 
-- 净料/小料按出库价，调料按每斤单价，酱料按配方成本 + 毛利率。
+- 净料/小料按出库价；标准化调料按出库价（用量 = 标准规格），存量旧口径调料按每斤单价；酱料按配方成本 + 毛利率。
 - `Dish.cost` 是历史快照，只作兜底，不作为展示依据。
 - 菜品列表、菜品详情、排程详情都应走这个函数。
 

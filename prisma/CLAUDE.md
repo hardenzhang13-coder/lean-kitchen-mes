@@ -16,11 +16,11 @@
 ### 三层食材体系
 
 ```
-Ingredient（原料）
+Ingredient（原料 / 调料）
    │
    ├── 直接采购入库，库存单位通常为斤/件
    │
-   └── NetIngredient（净料）
+   ├── NetIngredient（净料）
           │
           ├── yieldRate：出成率（如 0.65 表示 100g 原料出 65g 净料）
           ├── packageSpec：封装规格（g），净料必填；单位固定 g
@@ -32,6 +32,20 @@ Ingredient（原料）
                  ├── DishMinorDetail（小料）
                  ├── DishSeasoningDetail（调料）
                  └── DishSauceDetail（酱料）
+
+Ingredient（调料，SEA 体系）
+   │
+   └── StandardSeasoning（标准化调料，2026-11 新增）
+          │
+          ├── packageSpec：标准规格（g），统一以 g 计，不引入瓶/袋等单位
+          ├── portion：份量，与净料/小料/菜品共用同一套枚举
+          ├── yieldRate：出成率（%），标准化分装的出成率
+          ├── 价格体系：单价(元/斤) = 调料每斤单价 ÷ 出成率；成本价 = 单价 + 加工费；
+          │   出库价 = 成本价 ÷ (1 − 毛利率/100)；
+          │   标准规格价(元/份) = 出库价 × 标准规格 ÷ 500（纯计算，见 lib/shared/seasoning-spec.ts）
+          └── DishSeasoningDetail（调料）
+                 ├── spec_id：指向标准化规格；空 = 存量旧口径行（直接引用采购调料）
+                 └── amount_g：服务端强制等于标准规格
 ```
 
 ### 食材分类字典
@@ -58,7 +72,7 @@ Ingredient（原料）
 | `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「小碗菜·10份」 |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |
-| `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，关联 `Ingredient`（调料暂未纳入标准规格联动） |
+| `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，`source_id` 关联 `Ingredient`（调料），`spec_id` 关联 `StandardSeasoning`（标准化规格）；`spec_id` 为空的存量行保持旧口径 |
 | `DishSauceDetail` | 酱料明细，关联 `SauceIngredient` |
 | `DishProcess` | 加工工序，按 `stage` + `stepNo` 排序 |
 
@@ -115,6 +129,7 @@ Ingredient（原料）
 
 - `Ingredient`
 - `NetIngredient`
+- `StandardSeasoning`
 
 其他模型（如 `Dish`、`PurchaseReceipt`）目前使用状态字段控制生命周期，未实现软删除。
 

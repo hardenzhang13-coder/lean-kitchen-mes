@@ -269,7 +269,38 @@
 
 ---
 
-### 2.5 `sauce_ingredients` — 酱料表（2026-11-05 BOM 化重构，迁移 20261105092428）
+### 2.5 `standard_seasonings` — 标准化调料表（2026-11 调料标准化，迁移 20261120100000）
+
+由「调料采购档案」转化而来的标准规格档案，是**菜品 BOM 里调料的唯一引用对象**（与净料/小料同构）。编号从 SEA-SP-0001 起。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | int PK | |
+| code | varchar(191) UNIQUE | 编号 | SEA-SP-0001 |
+| name | varchar(191) | **调料名称**：沿用来源调料名，不拼规格后缀（同一调料的不同包装规格以此区分） | 蒸鱼双椒酱 |
+| source_ingredient_id | int FK→ingredients.id | **来源调料**（必填，须属 SEA 调味品体系） |
+| package_spec | int | **标准规格（g）**：统一以 g 计，不引入瓶/袋等单位；是 BOM 用量的唯一真源 |
+| portion | varchar(50) | 份量，与净料/小料/菜品共用同一套枚举（`PORTION_VALUES`） |
+| yield_rate | decimal(5,2) | 出成率 %，标准化分装的出成率 |
+| unit_price | decimal(10,2) | 单价（元/斤）= 来源调料每斤单价 ÷ (出成率/100)，服务端实时派生 |
+| processing_fee_per_jin | decimal(10,2) | 封装加工费（元/斤），空 = 0 |
+| gross_margin_rate | decimal(5,2) | 毛利率 %，空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100) |
+| l2_code | varchar(191) | 二级分类，**继承来源调料** |
+| storage | varchar(191) | 默认「常温」 |
+| created_at / updated_at / deleted_at | datetime | 软删除 |
+
+**派生字段（不落库，API 序列化时注入）**：成本价（元/斤）= 单价 + 封装加工费；出库价（元/斤）= 成本价 ÷ (1 − 毛利率/100)；标准规格价（元/份）= 出库价 × 标准规格(g) ÷ 500。
+
+**口径边界**：
+
+- 采购规格（`ingredients.purchaseSpec`，如「1.2kg/瓶」）留在来源调料上，只作对照展示，不参与任何计算。
+- 份量 `portion` 与净料一致，只用于展示与口径标注；**不参与** BOM 用量或采购量计算（与 `NetIngredient.portion` 边界相同）。
+- 调料模块**不做关联菜品统计**：无 `dishCount`、无关联菜品弹窗；标准规格是否被引用只体现在删除接口的报错文案里。
+- 存量 `dish_seasoning_details.spec_id` 为空表示旧口径行（直接引用采购调料），保持原值不迁移。
+
+---
+
+### 2.6 `sauce_ingredients` — 酱料表（2026-11-05 BOM 化重构，迁移 20261105092428）
 
 复合调味半成品，决定菜品味型方向。**抽象模型：酱料 = 特殊菜品 BOM**（自制酱料由配方明细自动核算成本）。编号从 SAU-0001 起。
 
@@ -303,7 +334,7 @@
 配方行成本（元）= 行单价（元/斤）× 用量g ÷ 500；净料/小料行单价 = 出库价，调料行单价 = 每斤单价。
 酱料不嵌套（配方不可引用其他酱料）；菜品 BOM 酱料成本 = 出库价 × g ÷ 500（已废弃元/kg 旧口径）。
 
-### 2.6 `sauce_recipe_details` — 酱料配方明细（新表）
+### 2.7 `sauce_recipe_details` — 酱料配方明细（新表）
 
 自制酱料的成本来源，镜像菜品 BOM 行。
 
@@ -377,10 +408,11 @@ UNIQUE(sauce_id, line_type, ref_id)
 | id | serial PK | |
 | dish_id | int | 关联菜品 |
 | type | varchar(10) | minor（小料）/ seasoning（调料） |
-| source_id | int | 关联小料表或调料表的 ID |
-| amount_g | decimal(10,2) | 用量，单位g |
+| source_id | int | 关联来源调料（`ingredients.id`，SEA 体系）的 ID |
+| spec_id | int? | **标准化规格**（`standard_seasonings.id`）：空 = 存量旧口径行（直接引用采购调料） |
+| amount_g | decimal(10,2) | 用量，单位g；有 spec_id 时由服务端强制等于标准规格 |
 | brand | varchar(100) | 品牌（从表带出，可调整） |
-| cost | decimal(10,2) | 该食材在这道菜中的成本 |
+| cost | decimal(10,2) | 该食材在这道菜中的成本；有 spec_id 时按出库价折算 |
 
 ---
 
