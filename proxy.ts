@@ -140,7 +140,9 @@ export async function proxy(req: NextRequest) {
   const isLoginPage = pathname === "/login";
 
   if (pathname.startsWith("/api/auth/")) {
-    return NextResponse.next();
+    // 必须把原始请求头透传下去：Next 16 Turbopack dev 下裸 next() 会丢失请求体，
+    // 导致 /api/auth/* 的路由处理器收不到请求而被判 404（本地登录接口不可用）。
+    return NextResponse.next({ request: { headers: req.headers } });
   }
   if (pathname === "/api/health") {
     return NextResponse.next();
