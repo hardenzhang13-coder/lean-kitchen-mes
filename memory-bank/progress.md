@@ -4,6 +4,32 @@
 
 ---
 ---
+## 2026-11-20（部署）— 调料标准化 v1 + 版式对齐 已上线生产
+
+### 部署
+- 提交链：`1dcefec`（feat 调料标准化）→ `f00daff`（fix proxy 登录 404）→ `6e401c1`（docs）→ `177075f`（refactor 版式对齐）→ `b903e49`（docs）
+- 两次 `workflow_dispatch`：run `44588399867` @ `6e401c1`、run `44591874740` @ `b903e49`，均 build → deploy-prebuilt → health 全绿
+- web 镜像 tag = `b903e4951b8b6c5072231a71610bfe8d5f52d012`（ACR 预构建路径）
+
+### 部署前审计
+- 迁移 `20261120100000_add_standard_seasonings`：仅 CREATE TABLE + ADD COLUMN + CREATE INDEX + ADD FOREIGN KEY，**无 UPDATE/DELETE 碰业务表**
+- seed：仅补缺失（分类/单位/门店/包装/首个管理员），**不触碰 standard_seasonings 与 dish_seasoning_details**
+- 生产只读盘点（部署前）：ingredients 91 / net_ingredients 138 / dishes 12 / dish_seasoning_details 1 / users 3；standard_seasonings 表不存在，spec_id 列不存在
+
+### 部署后复核（只读）
+- 服务器 HEAD = `b903e49`；backup / db / web 均 running；migrate 容器 `Exited(0)`
+- 数据基线逐项一致：91 / 138 / 12 / 1 / 3，无任何行数变化
+- `standard_seasonings` 表已创建；`dish_seasoning_details.spec_id` 列已创建
+- `/login` HTTP 200，`/api/health` 返回 `{"status":"ok"}`；web 近 5 分钟无 error 日志
+
+### 推送通道备忘（重要）
+- 本机直连 `github.com:443` 时通时不通；服务器 origin 指向 `gh-proxy.com` 第三方中继
+- **不要**为图省事把本机 GitHub 凭据经第三方中继转发（token 与私有仓库内容会暴露给中继）
+- 正确做法：直连 `https://github.com/...` 推送（凭据只发往 GitHub 官方域名），失败时重试或让用户执行 `git push`
+- 部署触发走 GitHub 官方 REST API（`api.github.com` 的 `workflow_dispatch`），不经中继
+
+---
+
 ## 2026-11-20 — 调料标准化规格改造（食材库基础数据夯实 · V3.3）
 
 ### 背景
