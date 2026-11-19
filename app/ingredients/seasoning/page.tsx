@@ -17,6 +17,7 @@ import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { StandardSeasoningFormDialog } from "@/app/components/ingredients/standard-seasoning-form-dialog";
+import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
@@ -86,6 +87,8 @@ export default function SeasoningIngredientsPage() {
   // 「转调料」：从列表行操作发起，创建该调料的标准规格
   const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
+  // 「查看已有封装调料」列表（转调料弹窗头部入口）
+  const [packagedOpen, setPackagedOpen] = useState(false);
 
   const seasoningL2Code = useMemo(
     () => findDefaultSeasoningL2Code(categories),
@@ -483,6 +486,18 @@ export default function SeasoningIngredientsPage() {
           setConvertSourceId(null);
           fetchData();
         }}
+        onViewExisting={() => setPackagedOpen(true)}
+      />
+
+      <StandardSeasoningListSheet
+        open={packagedOpen}
+        onOpenChange={setPackagedOpen}
+        sourceIngredientId={convertSourceId}
+        sourceName={convertSourceRow?.name ?? null}
+        sourceCode={convertSourceRow?.code ?? null}
+        sourceL2Name={
+          convertSourceRow ? l2Map[convertSourceRow.l2Code]?.name ?? null : null
+        }
       />
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>

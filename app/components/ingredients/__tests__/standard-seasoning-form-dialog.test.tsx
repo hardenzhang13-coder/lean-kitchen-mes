@@ -21,14 +21,36 @@ function numberInputs(): HTMLInputElement[] {
   );
 }
 
+/** 取保存（POST）的调用；弹窗打开时会先发一次「已有数量」查询 */
+function saveCall(mock: jest.Mock): [string, RequestInit] | undefined {
+  return mock.mock.calls.find(
+    (call) => (call[1] as RequestInit | undefined)?.method === "POST"
+  ) as [string, RequestInit] | undefined;
+}
+
 describe("转调料弹窗", () => {
   let fetchMock: jest.Mock;
 
   beforeEach(() => {
-    fetchMock = jest.fn(async () => ({
-      ok: true,
-      json: async () => ({ data: { id: 3, code: "SEA-SP-0001" } }),
-    })) as unknown as jest.Mock;
+    fetchMock = jest.fn(async (input: unknown, init?: RequestInit) => {
+      const url = String(input);
+      if (init?.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ data: { id: 3, code: "SEA-SP-0001" } }),
+        } as Response;
+      }
+      if (url.includes("/api/standard-seasonings?")) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [],
+            pagination: { page: 1, pageSize: 1, totalItems: 2, totalPages: 2 },
+          }),
+        } as Response;
+      }
+      return { ok: true, json: async () => ({ data: [] }) } as Response;
+    }) as unknown as jest.Mock;
     global.fetch = fetchMock;
   });
 
@@ -49,6 +71,27 @@ describe("转调料弹窗", () => {
     expect(
       (screen.getByDisplayValue("蒸鱼双椒酱") as HTMLInputElement).value
     ).toBe("蒸鱼双椒酱");
+  });
+
+  it("提供「查看已有封装调料」入口并显示已有数量", async () => {
+    const onViewExisting = jest.fn();
+    render(
+      <StandardSeasoningFormDialog
+        open
+        onOpenChange={() => {}}
+        source={source}
+        onViewExisting={onViewExisting}
+      />
+    );
+
+    const button = await screen.findByRole("button", {
+      name: /查看已有封装调料/,
+    });
+    await waitFor(() => {
+      expect(screen.getByText(/查看已有封装调料（2）/)).toBeTruthy();
+    });
+    fireEvent.click(button);
+    expect(onViewExisting).toHaveBeenCalled();
   });
 
   it("份量默认来自净料/小料的同一套枚举", () => {
@@ -98,9 +141,9 @@ describe("转调料弹窗", () => {
     fireEvent.click(screen.getByText("保存"));
 
     await waitFor(() => {
-      expect(fetchMock).toHaveBeenCalled();
+      expect(saveCall(fetchMock)).toBeDefined();
     });
-    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const [url, init] = saveCall(fetchMock)!;
     expect(url).toBe("/api/standard-seasonings");
     expect(init.method).toBe("POST");
     const payload = JSON.parse(String(init.body));
@@ -116,7 +159,7 @@ describe("转调料弹窗", () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(3));
   });
 
-  it("缺包装规格时给出可读校验提示", async () => {
+  it("缺包装规格时给出可读校验提示且不提交", async () => {
     render(
       <StandardSeasoningFormDialog
         open
@@ -130,6 +173,6 @@ describe("转调料弹窗", () => {
     await waitFor(() => {
       expect(screen.getByText("请填写包装规格（g）")).toBeTruthy();
     });
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(saveCall(fetchMock)).toBeUndefined();
   });
 });

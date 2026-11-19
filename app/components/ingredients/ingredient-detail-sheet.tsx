@@ -23,7 +23,7 @@ import {
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
 import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
-import { StandardSeasoningViewDialog } from "@/app/components/ingredients/standard-seasoning-view-dialog";
+import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -611,7 +611,7 @@ export function IngredientDetailSheet({
       </RecordSheet>
 
       {kind === "seasoning" && data && (
-        <StandardSeasoningViewDialog
+        <StandardSeasoningListSheet
           open={packagedOpen}
           onOpenChange={setPackagedOpen}
           sourceIngredientId={data.id}

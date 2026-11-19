@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
-import { Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Loader2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DialogFooter,
@@ -42,6 +42,8 @@ interface StandardSeasoningFormDialogProps {
   /** 编辑态初始数据；缺省为新建（转调料） */
   initialData?: StandardSeasoningFormItem;
   onSuccess?: (savedId: number) => void;
+  /** 点击「查看已有封装调料」时回调，由外层打开封装调料列表 */
+  onViewExisting?: () => void;
 }
 
 const DEFAULT_PORTION = "小碗菜·10份";
@@ -93,8 +95,11 @@ export function StandardSeasoningFormDialog({
   source,
   initialData,
   onSuccess,
+  onViewExisting,
 }: StandardSeasoningFormDialogProps) {
   const isEdit = Boolean(initialData?.id);
+  // 该来源调料已有的标准规格数量（头部「查看已有封装调料」入口用）
+  const [existingCount, setExistingCount] = useState<number | null>(null);
   const initialValues = useMemo(
     () => buildInitialForm(initialData, source),
     [initialData, source]
@@ -147,11 +152,33 @@ export function StandardSeasoningFormDialog({
           : undefined;
 
       toast.success(isEdit ? "调料规格已更新" : "调料规格已创建");
+      void loadExistingCount();
       onSuccess?.(Number(data?.id ?? 0));
       onOpenChange(false);
       return true;
     },
   });
+
+  const loadExistingCount = useCallback(async () => {
+    if (!open || !source.id) return;
+    try {
+      const res = await fetch(
+        `/api/standard-seasonings?sourceIngredientId=${source.id}&page=1&pageSize=1`
+      );
+      const json: unknown = await res.json();
+      const pagination =
+        typeof json === "object" && json !== null && "pagination" in json
+          ? (json as { pagination?: { totalItems?: number } }).pagination
+          : undefined;
+      setExistingCount(pagination?.totalItems ?? null);
+    } catch {
+      setExistingCount(null);
+    }
+  }, [open, source.id]);
+
+  useEffect(() => {
+    void loadExistingCount();
+  }, [loadExistingCount]);
 
   const handleChange = useCallback(
     (field: keyof StandardSeasoningFormData, value: string) => {
@@ -164,31 +191,47 @@ export function StandardSeasoningFormDialog({
 
   // 来源调料摘要：与「转净料」弹窗一致
   const sourceSummary = (
-    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-      <span className="font-mono font-medium tabular-nums text-muted-foreground">
-        {source.code}
-      </span>
-      <span aria-hidden="true" className="text-muted-foreground">
-        ·
-      </span>
-      <span className="font-medium text-foreground">{source.name}</span>
-      {source.purchaseSpec ? (
-        <>
-          <span aria-hidden="true" className="text-muted-foreground">
-            ·
-          </span>
-          <span className="text-muted-foreground">
-            采购规格 {source.purchaseSpec}
-          </span>
-        </>
-      ) : null}
-      {source.l2Name ? (
-        <>
-          <span aria-hidden="true" className="text-muted-foreground">
-            ·
-          </span>
-          <CategoryTag l2Code="" name={source.l2Name} />
-        </>
+    <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs">
+        <span className="font-mono font-medium tabular-nums text-muted-foreground">
+          {source.code}
+        </span>
+        <span aria-hidden="true" className="text-muted-foreground">
+          ·
+        </span>
+        <span className="font-medium text-foreground">{source.name}</span>
+        {source.purchaseSpec ? (
+          <>
+            <span aria-hidden="true" className="text-muted-foreground">
+              ·
+            </span>
+            <span className="text-muted-foreground">
+              采购规格 {source.purchaseSpec}
+            </span>
+          </>
+        ) : null}
+        {source.l2Name ? (
+          <>
+            <span aria-hidden="true" className="text-muted-foreground">
+              ·
+            </span>
+            <CategoryTag l2Code="" name={source.l2Name} />
+          </>
+        ) : null}
+      </div>
+
+      {onViewExisting ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-8 rounded-full px-3 text-xs"
+          onClick={onViewExisting}
+        >
+          <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
+          查看已有封装调料
+          {existingCount != null ? `（${existingCount}）` : ""}
+        </Button>
       ) : null}
     </div>
   );
@@ -209,7 +252,7 @@ export function StandardSeasoningFormDialog({
           )}
         </DialogHeader>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
           <StandardSeasoningFormFields
             form={form}
             onChange={handleChange}

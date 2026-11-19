@@ -3,11 +3,12 @@
 import { useMemo } from "react";
 import {
   BusinessFieldInput,
+  BusinessNumberInput,
   ReadOnlyValue,
 } from "@/app/components/ui/form-controls";
-import { IngredientNumberInput } from "@/app/components/ingredients/ingredient-number-input";
 import {
   FormField,
+  FormLayout,
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
@@ -52,6 +53,10 @@ export interface StandardSeasoningFormFieldsProps {
   viewMode?: boolean;
 }
 
+/**
+ * 调料标准规格表单。
+ * 版式与「转净料」弹窗完全一致：顶部一行基本信息 + 三列并排（规格指标 / 加工指标 / 价格指标）。
+ */
 export function StandardSeasoningFormFields({
   form,
   onChange,
@@ -92,14 +97,15 @@ export function StandardSeasoningFormFields({
     ]
   );
 
+  const sectionClassName = "p-4 sm:p-4 [&>div:last-child]:gap-3";
+
   return (
     <div className="space-y-4">
-      <FormSection title="规格指标" cols={1}>
+      <FormSection cols={1} className={sectionClassName}>
         <FormField
           label="调料"
           required
           readOnly={viewMode}
-          optionalHint={false}
           error={errors?.name}
           hint="沿用来源调料名称；同一调料的不同包装规格以此区分"
         >
@@ -114,192 +120,219 @@ export function StandardSeasoningFormFields({
             />
           )}
         </FormField>
-
-        <FormField
-          label="包装规格（g）"
-          required
-          readOnly={viewMode}
-          optionalHint={false}
-          labelClassName="text-primary"
-          error={errors?.packageSpec}
-          hint="调料标准规格统一以 g 计；菜品 BOM 的调料用量即等于此值"
-        >
-          {viewMode ? (
-            <ReadOnlyValue value={`${form.packageSpec}g`} numeric />
-          ) : (
-            <IngredientNumberInput
-              min={1}
-              max={1000000}
-              step={1}
-              value={form.packageSpec}
-              onChange={(e) => onChange("packageSpec", e.target.value)}
-              placeholder="如 1200"
-              className="h-11 text-base px-4"
-              disabled={viewMode}
-            />
-          )}
-        </FormField>
-
-        <FormField
-          label="份量"
-          required
-          readOnly={viewMode}
-          optionalHint={false}
-          error={errors?.portion}
-          hint="与净料、小料、菜品共用同一套份量枚举"
-        >
-          {viewMode ? (
-            <ReadOnlyValue value={form.portion || null} />
-          ) : (
-            <SelectTileMode
-              options={portionOptions}
-              value={form.portion}
-              onChange={(v) => onChange("portion", v)}
-              placeholder="请选择份量"
-              title="选择份量"
-              searchable={false}
-              cols={2}
-              required
-            />
-          )}
-        </FormField>
       </FormSection>
 
-      <FormSection title="价格体系" cols={1}>
-        <FormField
-          label="出成率 (%)"
-          required
-          readOnly={viewMode}
-          optionalHint={false}
-          labelClassName="text-primary"
-          error={errors?.yieldRate}
-          hint="标准化分装的出成率；留空按 100 处理"
-        >
-          {viewMode ? (
-            <ReadOnlyValue value={`${form.yieldRate}%`} numeric />
-          ) : (
-            <IngredientNumberInput
-              min={0.01}
-              max={500}
-              step="0.01"
-              value={form.yieldRate}
-              onChange={(e) => onChange("yieldRate", e.target.value)}
-              placeholder="如 100"
-              className="h-11 text-base px-4"
-              disabled={viewMode}
-            />
-          )}
-        </FormField>
+      <FormLayout variant="workbench">
+        <FormSection title="规格指标" cols={1} className={sectionClassName}>
+          <FormField
+            label="包装规格（g）"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            labelClassName="text-primary"
+            error={errors?.packageSpec}
+            hint="调料标准规格统一以 g 计；菜品 BOM 的调料用量即等于此值"
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={`${form.packageSpec}g`} numeric />
+            ) : (
+              <BusinessNumberInput
+                min={1}
+                step={1}
+                value={form.packageSpec}
+                onChange={(e) => onChange("packageSpec", e.target.value)}
+                placeholder="如 1200"
+                className="h-11 text-base px-4"
+                disabled={viewMode}
+              />
+            )}
+          </FormField>
 
-        <FormField
-          label="调料单价（元/斤）"
-          readOnly={viewMode}
-          optionalHint={false}
-          hint="根据来源调料当前每斤单价和出成率自动计算"
-        >
-          <ReadOnlyValue
-            value={
-              prices.unitPrice != null
-                ? `¥${prices.unitPrice.toFixed(2)}`
-                : null
-            }
-            numeric
-            emptyText="自动计算得出"
-          />
-        </FormField>
+          <FormField
+            label="份量"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.portion}
+            hint="与净料、小料、菜品共用同一套份量枚举"
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={form.portion || null} />
+            ) : (
+              <SelectTileMode
+                options={portionOptions}
+                value={form.portion}
+                onChange={(v) => onChange("portion", v)}
+                placeholder="请选择份量"
+                title="选择份量"
+                searchable={false}
+                cols={2}
+                required
+              />
+            )}
+          </FormField>
+        </FormSection>
 
-        <FormField
-          label="封装加工费（元/斤）"
-          readOnly={viewMode}
-          optionalHint={false}
-          error={errors?.processingFeePerJin}
-          hint="分装环节每斤的加工成本，计入成本价；留空 = 0"
-        >
-          {viewMode ? (
+        <FormSection title="加工指标" cols={1} className={sectionClassName}>
+          <FormField
+            label="出成率（%）"
+            required
+            readOnly={viewMode}
+            optionalHint={false}
+            labelClassName="text-primary"
+            error={errors?.yieldRate}
+            hint="标准化分装的出成率；留空按 100 处理"
+          >
+            {viewMode ? (
+              <ReadOnlyValue
+                value={form.yieldRate !== "" ? `${form.yieldRate}%` : null}
+                numeric
+              />
+            ) : (
+              <BusinessNumberInput
+                min={0.01}
+                max={500}
+                step="0.01"
+                value={form.yieldRate}
+                onChange={(e) => onChange("yieldRate", e.target.value)}
+                placeholder="如 100"
+                className="h-11 text-base px-4"
+                disabled={viewMode}
+              />
+            )}
+          </FormField>
+
+          <FormField
+            label="调料单价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.unitPrice}
+            hint="根据来源调料当前每斤单价和出成率自动计算"
+          >
             <ReadOnlyValue
               value={
-                prices.costPricePerJin != null && prices.unitPrice != null
-                  ? `¥${(prices.costPricePerJin - prices.unitPrice).toFixed(2)}`
+                prices.unitPrice != null
+                  ? `¥${prices.unitPrice.toFixed(2)}`
                   : null
               }
               numeric
+              emptyText="自动计算得出"
             />
-          ) : (
-            <IngredientNumberInput
-              min={0}
-              step="0.01"
-              value={form.processingFeePerJin}
-              onChange={(e) => onChange("processingFeePerJin", e.target.value)}
-              placeholder="留空 = 0"
-              className="h-11 text-base px-4"
-              disabled={viewMode}
+          </FormField>
+
+          <FormField
+            label="封装加工费（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            error={errors?.processingFeePerJin}
+            hint="封装环节每斤的加工成本，计入成本价；留空 = 0"
+          >
+            {viewMode ? (
+              <ReadOnlyValue
+                value={
+                  prices.costPricePerJin != null && prices.unitPrice != null
+                    ? `¥${(prices.costPricePerJin - prices.unitPrice).toFixed(2)}`
+                    : null
+                }
+                numeric
+              />
+            ) : (
+              <BusinessNumberInput
+                min={0}
+                step="0.01"
+                value={form.processingFeePerJin}
+                onChange={(e) => onChange("processingFeePerJin", e.target.value)}
+                placeholder="留空 = 0"
+                className="h-11 text-base px-4"
+                disabled={viewMode}
+              />
+            )}
+          </FormField>
+
+          <FormField
+            label="毛利率（%）"
+            readOnly={viewMode}
+            optionalHint={false}
+            labelClassName="text-primary"
+            error={errors?.grossMarginRate}
+            hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={`${form.grossMarginRate}%`} numeric />
+            ) : (
+              <BusinessNumberInput
+                min={0}
+                max={95}
+                step="0.01"
+                value={form.grossMarginRate}
+                onChange={(e) => onChange("grossMarginRate", e.target.value)}
+                placeholder="0"
+                className="h-11 text-base px-4"
+                disabled={viewMode}
+                onBlur={() => {
+                  if (form.grossMarginRate === "") {
+                    onChange("grossMarginRate", "0");
+                  }
+                }}
+              />
+            )}
+          </FormField>
+        </FormSection>
+
+        <FormSection title="价格指标" cols={1} className={sectionClassName}>
+          <FormField
+            label="成本价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 调料单价 + 封装加工费"
+          >
+            <ReadOnlyValue
+              value={
+                prices.costPricePerJin != null
+                  ? `¥${prices.costPricePerJin.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emptyText="自动计算得出"
             />
-          )}
-        </FormField>
+          </FormField>
 
-        <FormField
-          label="毛利率（%）"
-          readOnly={viewMode}
-          optionalHint={false}
-          labelClassName="text-primary"
-          error={errors?.grossMarginRate}
-          hint="真毛利率口径：出库价 = 成本价 ÷ (1 - 毛利率/100)；默认 0"
-        >
-          {viewMode ? (
-            <ReadOnlyValue value={`${form.grossMarginRate}%`} numeric />
-          ) : (
-            <IngredientNumberInput
-              min={0}
-              max={95}
-              step="0.01"
-              value={form.grossMarginRate}
-              onChange={(e) => onChange("grossMarginRate", e.target.value)}
-              placeholder="0"
-              className="h-11 text-base px-4"
-              disabled={viewMode}
+          <FormField
+            label="出库价（元/斤）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 成本价 ÷ (1 - 毛利率/100)，真毛利率口径"
+          >
+            <ReadOnlyValue
+              value={
+                prices.outPricePerJin != null
+                  ? `¥${prices.outPricePerJin.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emptyText="自动计算得出"
             />
-          )}
-        </FormField>
+          </FormField>
 
-        <FormField
-          label="成本价（元/斤）"
-          readOnly
-          optionalHint={false}
-          hint="= 调料单价 + 封装加工费"
-        >
-          <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
-            {prices.costPricePerJin != null
-              ? `¥${prices.costPricePerJin.toFixed(2)}`
-              : "—"}
-          </div>
-        </FormField>
-
-        <FormField
-          label="出库价（元/斤）"
-          readOnly
-          optionalHint={false}
-          hint="= 成本价 ÷ (1 - 毛利率/100)，真毛利率口径"
-        >
-          <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
-            {prices.outPricePerJin != null
-              ? `¥${prices.outPricePerJin.toFixed(2)}`
-              : "—"}
-          </div>
-        </FormField>
-
-        <FormField
-          label="标准规格价（元/份）"
-          readOnly
-          optionalHint={false}
-          hint="= 出库价 × 包装规格 ÷ 500，即每个标准规格的出库价"
-        >
-          <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground font-medium">
-            {prices.standardPackagePrice != null
-              ? `¥${prices.standardPackagePrice.toFixed(2)}`
-              : "—"}
-          </div>
-        </FormField>
-      </FormSection>
+          <FormField
+            label="标准规格价（元/份）"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="= 出库价 × 包装规格 ÷ 500，即每个标准规格的出库价"
+          >
+            <ReadOnlyValue
+              value={
+                prices.standardPackagePrice != null
+                  ? `¥${prices.standardPackagePrice.toFixed(2)}`
+                  : null
+              }
+              numeric
+              emphasis
+              emptyText="自动计算得出"
+            />
+          </FormField>
+        </FormSection>
+      </FormLayout>
     </div>
   );
 }
