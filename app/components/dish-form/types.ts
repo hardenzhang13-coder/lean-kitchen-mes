@@ -1,5 +1,5 @@
 import { validateDishForPublish } from "@/lib/shared/dish-publish";
-import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { resolveNetBomAmountG, resolvePackageSpecAmountG } from "@/lib/shared/bom-amount";
 
 export type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
@@ -15,8 +15,10 @@ export interface BomItem {
   /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
   costPrice?: number | null;
   cost?: number | null;
-  /** 份量（净料/小料口径）：小碗菜 / 社区·N份；调料/酱料为空 */
+  /** 份量（净料/小料/标准化调料口径）：小碗菜 / 社区·N份；酱料为空 */
   portion?: string | null;
+  /** 标准化调料 ID（standard_seasonings.id）：非空表示该行走标准规格口径 */
+  specId?: number | null;
   l1Code?: string;
   l2Code?: string;
 }
@@ -56,10 +58,16 @@ export interface IngredientOption {
   unitPrice: number | null;
   /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
   costPrice?: number | null;
-  /** 净料/小料封装规格（g） */
+  /** 净料/小料封装规格（g）；标准化调料的标准规格（g） */
   packageSpec?: number | null;
-  /** 份量（小碗菜 / 社区口径）：净料/小料档案的份量口径 */
+  /** 份量（小碗菜 / 社区口径）：净料/小料与标准化调料共用同一套枚举 */
   portion?: string | null;
+  /** 标准化调料 ID（standard_seasonings.id）：BOM 写入时作为 specId */
+  specId?: number | null;
+  /** 采购规格（来源调料，如 1.2kg/瓶）：标准化调料仅作对照展示 */
+  purchaseSpecText?: string | null;
+  /** 标准规格价（元/份）：出库价 × 标准规格 ÷ 500 */
+  standardPackagePrice?: number | null;
   /** 价格口径单位：净料/小料/调料为「斤」 */
   unit: string | null;
   l1Code?: string;
@@ -169,16 +177,22 @@ export interface DishDetail {
   }>;
   seasoningDetails?: Array<{
     sourceId: number;
+    /** 标准化调料 ID：为空表示存量旧口径行（直接引用采购调料） */
+    specId?: number | null;
     amountG: number | string;
     brand?: string | null;
     cost?: number | null;
     name?: string;
     unitPrice?: number | null;
-    /** 每斤单价（元/斤）：调料 BOM 成本口径 */
+    /** 每斤单价（元/斤）：存量旧口径行的 BOM 成本口径 */
     pricePerJin?: number | null;
     unit?: string | null;
-    /** 采购规格（与食材模块调料表一致，如 1.9L*6） */
+    /** 规格：标准化调料为标准规格（g），存量行为采购规格（如 1.9L*6） */
     spec?: string | null;
+    /** 标准规格（g）：标准化调料行的用量唯一真源 */
+    packageSpec?: number | null;
+    /** 份量：标准化调料共用净料/小料的份量枚举 */
+    portion?: string | null;
   }>;
   sauceDetails?: Array<{
     sauceId: number;
@@ -283,17 +297,21 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const unit = d.unit ?? "g";
     // 调料成本价 = 每斤单价（元/斤）
     const costPrice = d.pricePerJin ?? null;
+    // 标准化调料：用量以标准规格为唯一真源；存量行沿用存储用量
+    const amountG = resolvePackageSpecAmountG(d.amountG, d.packageSpec);
     bom.seasoning.push({
       id: `sea-${d.sourceId}-${Math.random().toString(36).slice(2, 7)}`,
       sourceId: d.sourceId,
       name,
       productName: d.brand,
       spec: d.spec ?? null,
-      amountG: String(d.amountG),
+      amountG: String(amountG),
       unitPrice,
       unit,
       costPrice,
-      cost: calcCost("seasoning", costPrice, d.amountG),
+      cost: calcCost("seasoning", costPrice, amountG),
+      portion: d.portion ?? null,
+      specId: d.specId ?? null,
     });
   });
 
@@ -345,6 +363,7 @@ export function bomToPayload(bom: Record<BomType, BomItem[]>) {
     })),
     seasoningDetails: bom.seasoning.map((item) => ({
       sourceId: item.sourceId,
+      specId: item.specId ?? null,
       amountG: Number(item.amountG),
       brand: item.productName || null,
     })),
@@ -506,6 +525,47 @@ export function normalizeIngredients(items: unknown[]): IngredientOption[] {
         unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
         // 调料成本价 = 每斤单价（元/斤）
         costPrice: record.pricePerJin != null ? Number(record.pricePerJin) : null,
+        unit: "斤",
+        l2Code: String(record.l2Code || ""),
+      } as IngredientOption;
+    })
+    .filter((item): item is IngredientOption => item != null);
+}
+
+export function normalizeStandardSeasonings(items: unknown[]): IngredientOption[] {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (item == null || typeof item !== "object") return null;
+      const record = item as Record<string, unknown>;
+      const id = Number(record.id);
+      if (Number.isNaN(id)) return null;
+      const packageSpec = record.packageSpec != null ? Number(record.packageSpec) : null;
+      const outPrice = record.outPricePerJin != null ? Number(record.outPricePerJin) : null;
+      const source = record.sourceIngredient as Record<string, unknown> | undefined;
+      return {
+        id,
+        code: String(record.code || ""),
+        name: String(record.name || ""),
+        productName: source?.name || "",
+        // 规格展示用标准规格（g）
+        spec: packageSpec != null ? `${packageSpec}g` : "",
+        unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
+        // 成本价口径 = 出库价（元/斤）
+        costPrice: outPrice,
+        packageSpec,
+        // 份量：与净料/小料共用同一套枚举
+        portion: record.portion != null ? String(record.portion) : null,
+        // 标准规格价（元/份）
+        standardPackagePrice:
+          record.standardPackagePrice != null
+            ? Number(record.standardPackagePrice)
+            : null,
+        // 采购规格（来源调料），仅作对照展示
+        purchaseSpecText:
+          source?.purchaseSpec != null ? String(source.purchaseSpec) : null,
+        // 标准化规格 ID：BOM 写入时作为 specId
+        specId: id,
         unit: "斤",
         l2Code: String(record.l2Code || ""),
       } as IngredientOption;

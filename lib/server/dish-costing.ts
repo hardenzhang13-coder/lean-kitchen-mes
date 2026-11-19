@@ -4,7 +4,8 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 import { computeSauceCostPrices } from "@/lib/server/sauce-utils";
 import { calcOutPricePerJin } from "@/lib/shared/net-price";
-import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { resolveNetBomAmountG, resolvePackageSpecAmountG } from "@/lib/shared/bom-amount";
+import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
 import { round2 } from "@/lib/shared/prepped-stock";
 
 type DishCostDatabase = Pick<
@@ -80,7 +81,21 @@ export async function getCurrentDishCostBreakdownMap(
       }),
       database.dishSeasoningDetail.findMany({
         where: { dishId: { in: uniqueIds } },
-        select: { dishId: true, sourceId: true, amountG: true },
+        select: {
+          dishId: true,
+          sourceId: true,
+          amountG: true,
+          spec: {
+            select: {
+              id: true,
+              packageSpec: true,
+              yieldRate: true,
+              processingFeePerJin: true,
+              grossMarginRate: true,
+              sourceIngredient: { select: { pricePerJin: true } },
+            },
+          },
+        },
       }),
       database.dishSauceDetail.findMany({
         where: { dishId: { in: uniqueIds } },
@@ -173,6 +188,14 @@ export async function getCurrentDishCostBreakdownMap(
     addCost(row.dishId, "minor", cost);
   }
   for (const row of seasoningDetails) {
+    if (row.spec) {
+      // 标准化调料：出库价口径，用量以标准规格为唯一真源
+      const prices = deriveStandardSeasoningPrices(row.spec);
+      const amountG = resolvePackageSpecAmountG(row.amountG, row.spec.packageSpec);
+      addCost(row.dishId, "seasoning", lineCost(prices.outPricePerJin, amountG));
+      continue;
+    }
+    // 存量旧口径行：每斤单价 × 用量g ÷ 500
     const cost = lineCost(
       seasoningPrice.get(row.sourceId) ?? null,
       Number(row.amountG)

@@ -16,7 +16,7 @@ export class BomSyncConflictError extends Error {
   }
 }
 
-function hasPlanProgress(cuttingJson: unknown): boolean {
+export function hasPlanProgress(cuttingJson: unknown): boolean {
   if (!Array.isArray(cuttingJson)) return false;
   return cuttingJson.some((row) => {
     if (!row || typeof row !== "object") return false;
@@ -25,7 +25,7 @@ function hasPlanProgress(cuttingJson: unknown): boolean {
   });
 }
 
-async function assertScheduleHasNoProgress(
+export async function assertScheduleHasNoProgress(
   tx: Prisma.TransactionClient,
   scheduleId: number,
   scheduleCode: string | null

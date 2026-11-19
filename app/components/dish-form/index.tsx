@@ -30,8 +30,8 @@ import {
   validatePublish,
   validateForSave,
   normalizeNetIngredients,
-  normalizeIngredients,
   normalizeSauces,
+  normalizeStandardSeasonings,
 } from "./types";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -94,8 +94,9 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       url = `/api/sauce-ingredients?${query.toString()}`;
       normalizeFn = normalizeSauces;
     } else if (type === "seasoning") {
-      url = `/api/ingredients?${query.toString()}`;
-      normalizeFn = normalizeIngredients;
+      // 调料只允许选已标准化的规格（与主料/辅料只能选净料同构）
+      url = `/api/standard-seasonings?${query.toString()}`;
+      normalizeFn = normalizeStandardSeasonings;
     } else {
       if (l1Code) query.set("l1Code", l1Code);
       if (type === "main" || type === "support") {

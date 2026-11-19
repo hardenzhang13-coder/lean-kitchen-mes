@@ -7,7 +7,8 @@ import { validateBody } from "@/lib/server/validate";
 import { calcOutPricePerJin } from "@/lib/shared/net-price";
 import { computeCostPricePerJin, resolveRecipeLines } from "@/lib/server/sauce-utils";
 import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
-import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { resolveNetBomAmountG, resolvePackageSpecAmountG } from "@/lib/shared/bom-amount";
+import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -41,7 +42,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // 查询所有食材价格
       const netIngIds = (netDetails || []).map((d) => d.netIngId);
       const minorIds = (minorDetails || []).map((d) => d.netIngId);
-      const seasoningIds = (seasoningDetails || []).map((d) => d.sourceId);
+      const seasoningIds = (seasoningDetails || [])
+        .map((d) => Number(d.sourceId))
+        .filter((id) => Number.isFinite(id) && id > 0);
+      const seasoningSpecIds = [
+        ...new Set(
+          (seasoningDetails || [])
+            .map((d) => (d.specId != null ? Number(d.specId) : null))
+            .filter((id): id is number => id != null)
+        ),
+      ];
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
     // 酱料成本（事务外按当前价格体系计算）：外购=每斤单价；自制=配方推算 → 统一转出库价（元/斤）
@@ -59,7 +69,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         })
       : [];
 
-      const [netIngs, minors, seasonings] = await Promise.all([
+      const [netIngs, minors, seasonings, standardSeasonings] = await Promise.all([
         tx.netIngredient.findMany({
           where: { id: { in: netIngIds }, deletedAt: null },
           select: {
@@ -92,6 +102,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
           // 调料为标准化采购（元/瓶、元/箱），BOM 成本按每斤单价（元/斤）口径折算
           select: { id: true, pricePerJin: true },
+        }),
+        tx.standardSeasoning.findMany({
+          where: { id: { in: seasoningSpecIds }, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            packageSpec: true,
+            portion: true,
+            yieldRate: true,
+            processingFeePerJin: true,
+            grossMarginRate: true,
+            sourceIngredientId: true,
+            sourceIngredient: { select: { pricePerJin: true } },
+          },
         }),
       ]);
 
@@ -149,6 +173,23 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const seasoningPriceMap = new Map(
         seasonings.map((i) => [i.id, i.pricePerJin != null ? Number(i.pricePerJin) : null])
       );
+      // 标准化调料：出库价（元/斤）与标准规格（g），BOM 用量强制等于标准规格
+      const standardSpecMap = new Map(
+        standardSeasonings.map((spec) => {
+          const prices = deriveStandardSeasoningPrices(spec);
+          return [
+            spec.id,
+            {
+              id: spec.id,
+              name: spec.name,
+              packageSpec: spec.packageSpec,
+              portion: spec.portion,
+              sourceIngredientId: spec.sourceIngredientId,
+              outPricePerJin: prices.outPricePerJin,
+            },
+          ] as const;
+        })
+      );
       // 酱料出库价（元/斤）：成本价 ÷ (1 - 毛利率/100)，空毛利率 = 成本价
       const saucePriceMap = new Map(
         await Promise.all(
@@ -188,6 +229,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const calcSeasoningCost = (sourceId: number, amountG: number) => {
         const price = seasoningPriceMap.get(sourceId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
+      };
+      // 标准化调料成本 = 出库价(元/斤) × 标准规格g ÷ 500
+      const calcStandardSeasoningCost = (outPricePerJin: number | null, amountG: number) => {
+        return outPricePerJin != null
+          ? Number((outPricePerJin * amountG / 500).toFixed(4))
+          : null;
       };
       // 酱料成本 = 出库价(元/斤) × 用量g ÷ 500
       const calcSauceCost = (sauceId: number, amountG: number) => {
@@ -230,14 +277,44 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
       if (seasoningDetails && seasoningDetails.length > 0) {
         await tx.dishSeasoningDetail.createMany({
-          data: seasoningDetails.map((d) => ({
-            dishId,
-            type: "seasoning",
-            sourceId: Number(d.sourceId),
-            amountG: Number(d.amountG),
-            brand: d.brand || null,
-            cost: calcSeasoningCost(Number(d.sourceId), Number(d.amountG)),
-          })),
+          data: seasoningDetails.map((d) => {
+            const specId = d.specId != null ? Number(d.specId) : null;
+            if (specId != null) {
+              const spec = standardSpecMap.get(specId);
+              if (!spec) {
+                throw new Error(`标准化调料不存在或已删除（ID ${specId}）`);
+              }
+              // 用量强制等于标准规格（唯一真源），成本按出库价折算
+              const amountG = resolvePackageSpecAmountG(d.amountG, spec.packageSpec);
+              return {
+                dishId,
+                type: "seasoning",
+                sourceId: spec.sourceIngredientId,
+                specId,
+                amountG,
+                brand: d.brand || null,
+                cost: calcStandardSeasoningCost(spec.outPricePerJin, amountG),
+              };
+            }
+            // 存量旧口径行：直接引用采购调料，用量与成本沿用原口径
+            const sourceId = Number(d.sourceId);
+            if (!Number.isFinite(sourceId) || sourceId <= 0) {
+              throw new Error("调料行缺少来源调料或标准化规格");
+            }
+            const amountG = Number(d.amountG);
+            if (!Number.isFinite(amountG) || amountG <= 0) {
+              throw new Error("调料行缺少用量");
+            }
+            return {
+              dishId,
+              type: "seasoning",
+              sourceId,
+              specId: null,
+              amountG,
+              brand: d.brand || null,
+              cost: calcSeasoningCost(sourceId, amountG),
+            };
+          }),
         });
       }
       if (sauceDetails && sauceDetails.length > 0) {

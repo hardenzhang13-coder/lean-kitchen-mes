@@ -6,6 +6,7 @@ import {
   Copy,
   Link2,
   Loader2,
+  PackageOpen,
   Pencil,
   Printer,
   Trash2,
@@ -22,6 +23,7 @@ import {
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
 import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
+import { StandardSeasoningViewDialog } from "@/app/components/ingredients/standard-seasoning-view-dialog";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -127,6 +129,8 @@ export function IngredientDetailSheet({
   onCopy,
 }: IngredientDetailSheetProps) {
   const [raw, setRaw] = useState<RawDetail | null>(null);
+  // 调料的「封装调料」查看弹窗
+  const [packagedOpen, setPackagedOpen] = useState(false);
   const [net, setNet] = useState<NetDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -421,6 +425,15 @@ export function IngredientDetailSheet({
                           关联菜品
                         </Button>
                       ) : null}
+                      {kind === "seasoning" ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setPackagedOpen(true)}
+                        >
+                          <PackageOpen className="mr-2 h-4 w-4" />
+                          查看封装调料
+                        </Button>
+                      ) : null}
                       {onCopy ? (
                         <Button
                           variant="outline"
@@ -430,7 +443,7 @@ export function IngredientDetailSheet({
                           复制
                         </Button>
                       ) : null}
-                      {kind === "raw" ? (
+                      {kind === "raw" || kind === "seasoning" ? (
                         <Button
                           variant="outline"
                           onClick={() => setEditing(true)}
@@ -454,7 +467,7 @@ export function IngredientDetailSheet({
                     onConvert ? (
                       <Button onClick={() => onConvert(data.id)}>
                         <ArrowRightLeft className="mr-2 h-4 w-4" />
-                        转净料
+                        {kind === "seasoning" ? "转调料" : "转净料"}
                       </Button>
                     ) : (kind === "net" || kind === "minor") &&
                       onPrintLabel ? (
@@ -473,9 +486,7 @@ export function IngredientDetailSheet({
                         <Printer className="mr-2 h-4 w-4" />
                         打印标签
                       </Button>
-                    ) : kind === "net" ||
-                      kind === "minor" ||
-                      kind === "seasoning" ? (
+                    ) : kind === "net" || kind === "minor" ? (
                       <Button onClick={() => setEditing(true)}>
                         <Pencil className="mr-2 h-4 w-4" />
                         编辑
@@ -521,10 +532,10 @@ export function IngredientDetailSheet({
                   </>
                 }
                 primary={
-                  kind === "raw" && onConvert ? (
+                  (kind === "raw" || kind === "seasoning") && onConvert ? (
                     <Button onClick={() => onConvert(data.id)}>
                       <ArrowRightLeft className="mr-2 h-4 w-4" />
-                      转净料
+                      {kind === "seasoning" ? "转调料" : "转净料"}
                     </Button>
                   ) : !onEdit ? (
                     <Button
@@ -547,52 +558,68 @@ export function IngredientDetailSheet({
             title="详情加载失败"
             description="请关闭后重试，或检查该食材是否已被删除"
           />
-        ) : canInlineEdit &&
-          (kind === "raw" || kind === "seasoning") ? (
-          <IngredientFormFields
-            form={rawForm}
-            onChange={handleRawChange}
-            errors={rawErrors}
-            categories={categories}
-            units={units}
-            mode={kind === "seasoning" ? "seasoning" : "ingredient"}
-            l2Open={l2Open}
-            onL2OpenChange={setL2Open}
-            viewMode={!editing}
-            layout="sheet"
-            supplierName={raw?.defaultSupplier?.name}
-          />
-        ) : canInlineEdit && (kind === "net" || kind === "minor") ? (
-          <NetIngredientFormFields
-            form={netForm}
-            onChange={handleNetChange}
-            errors={netErrors}
-            categories={categories}
-            rawIngredients={rawIngredients}
-            sourcePricePerJin={net?.sourceIngredient?.pricePerJin}
-            mode={kind === "minor" ? "minor" : "net"}
-            viewMode={!editing}
-            readOnly={{
-              l1Code: true,
-              l2Code: true,
-              sourceIngredientId: true,
-            }}
-            layout="sheet"
-          />
-        ) : kind === "raw" || kind === "seasoning" ? (
-          <RawDetailContent
-            data={raw as RawDetail}
-            categoryName={categoryName}
-            kind={kind}
-          />
         ) : (
-          <NetDetailContent
-            data={net as NetDetail}
-            kind={kind}
-            categoryName={categoryName}
-          />
+          <div className="space-y-6">
+            {canInlineEdit &&
+            (kind === "raw" || kind === "seasoning") ? (
+              <IngredientFormFields
+                form={rawForm}
+                onChange={handleRawChange}
+                errors={rawErrors}
+                categories={categories}
+                units={units}
+                mode={kind === "seasoning" ? "seasoning" : "ingredient"}
+                l2Open={l2Open}
+                onL2OpenChange={setL2Open}
+                viewMode={!editing}
+                layout="sheet"
+                supplierName={raw?.defaultSupplier?.name}
+              />
+            ) : canInlineEdit && (kind === "net" || kind === "minor") ? (
+              <NetIngredientFormFields
+                form={netForm}
+                onChange={handleNetChange}
+                errors={netErrors}
+                categories={categories}
+                rawIngredients={rawIngredients}
+                sourcePricePerJin={net?.sourceIngredient?.pricePerJin}
+                mode={kind === "minor" ? "minor" : "net"}
+                viewMode={!editing}
+                readOnly={{
+                  l1Code: true,
+                  l2Code: true,
+                  sourceIngredientId: true,
+                }}
+                layout="sheet"
+              />
+            ) : kind === "raw" || kind === "seasoning" ? (
+              <RawDetailContent
+                data={raw as RawDetail}
+                categoryName={categoryName}
+                kind={kind}
+              />
+            ) : (
+              <NetDetailContent
+                data={net as NetDetail}
+                kind={kind}
+                categoryName={categoryName}
+              />
+            )}
+
+          </div>
         )}
       </RecordSheet>
+
+      {kind === "seasoning" && data && (
+        <StandardSeasoningViewDialog
+          open={packagedOpen}
+          onOpenChange={setPackagedOpen}
+          sourceIngredientId={data.id}
+          sourceName={data.name}
+          sourceCode={data.code}
+          sourceL2Name={categoryName}
+        />
+      )}
 
       <NetIngredientDishesDialog
         key={`${data?.id ?? "none"}-${relatedDishesOpen}`}

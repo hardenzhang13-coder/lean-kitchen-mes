@@ -16,8 +16,11 @@ export const dishBomMinorDetailSchema = z.object({
 });
 
 export const dishBomSeasoningSchema = z.object({
-  sourceId: z.number().int().positive(),
-  amountG: z.number().positive(),
+  // 标准化规格（standard_seasonings.id）：新口径，用量由服务端按标准规格强制覆盖
+  specId: z.number().int().positive().nullish(),
+  // 旧口径来源调料（ingredients.id）：specId 为空时必填（存量行）
+  sourceId: z.number().int().positive().optional(),
+  amountG: z.number().positive().optional(),
   brand: z.string().max(100).nullish(),
 });
 

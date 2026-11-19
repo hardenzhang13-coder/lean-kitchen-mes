@@ -48,7 +48,7 @@ const TYPE_TITLES: Record<BomType, string> = {
   main: "选择主料",
   support: "选择辅料",
   minor: "选择小料",
-  seasoning: "选择调料",
+  seasoning: "选择调料标准规格",
   sauce: "选择酱料",
 };
 
@@ -213,7 +213,8 @@ export function BomPickerDialog({
     if (selectedItems.size === 0) return;
     const items = Array.from(selectedItems.values()).map((option) => ({
       option,
-      // 菜品 BOM 不手填用量：直接采用食材规格（净料/小料 = 封装规格；其余回退 100g）
+      // 菜品 BOM 不手填用量：直接采用食材规格
+      // （净料/小料 = 封装规格；标准化调料 = 标准规格；其余回退 100g）
       amountG: showAmountInput ? amountG : String(option.packageSpec ?? 100),
     }));
     onSelect(items);
@@ -227,7 +228,8 @@ export function BomPickerDialog({
     label: c.name,
   }));
   const isSearchMode = debouncedSearch.trim().length > 0;
-  const isSeasoningOrSauce = type === "seasoning" || type === "sauce";
+  const isSeasoning = type === "seasoning";
+  const isSauce = type === "sauce";
 
   const columns = useMemo(
     () => [
@@ -241,20 +243,33 @@ export function BomPickerDialog({
         header: "名称",
         cell: (row: IngredientOption) => <span className="font-medium">{row.name}</span>,
       },
-      ...(isSeasoningOrSauce
+      ...(isSeasoning
         ? [
             {
-              header: "商品名称",
-              cell: (row: IngredientOption) => row.productName || "—",
-            },
-          ]
-        : [
-            {
-              header: "规格",
+              // 标准规格（g）：BOM 用量的唯一真源
+              header: "标准规格",
               cell: (row: IngredientOption) => row.spec || "—",
             },
-          ]),
-      ...(isSeasoningOrSauce
+            {
+              // 采购规格：来源调料的采购包装，仅作对照
+              header: "采购规格",
+              cell: (row: IngredientOption) => row.purchaseSpecText || "—",
+            },
+          ]
+        : isSauce
+          ? [
+              {
+                header: "商品名称",
+                cell: (row: IngredientOption) => row.productName || "—",
+              },
+            ]
+          : [
+              {
+                header: "规格",
+                cell: (row: IngredientOption) => row.spec || "—",
+              },
+            ]),
+      ...(isSauce
         ? []
         : [
             {
@@ -266,18 +281,31 @@ export function BomPickerDialog({
         header: "出库价",
         className: "text-right",
         cell: (row: IngredientOption) => {
-          // 净料/小料 = 出库价（含加工费与毛利，元/斤）；调料 = 每斤单价；酱料维持原单价口径
-          const price = type === "sauce" ? row.unitPrice : (row.costPrice ?? null);
+          // 净料/小料/标准化调料 = 出库价（含加工费与毛利，元/斤）；酱料维持原单价口径
+          const price = isSauce ? row.unitPrice : (row.costPrice ?? null);
           return price != null ? `¥${Number(price).toFixed(2)}/斤` : "—";
         },
       },
-      {
-        header: "单位",
-        className: "text-center",
-        cell: (row: IngredientOption) => row.unit || "—",
-      },
+      ...(isSeasoning
+        ? [
+            {
+              header: "标准规格价",
+              className: "text-right",
+              cell: (row: IngredientOption) =>
+                row.standardPackagePrice != null
+                  ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
+                  : "—",
+            },
+          ]
+        : [
+            {
+              header: "单位",
+              className: "text-center",
+              cell: (row: IngredientOption) => row.unit || "—",
+            },
+          ]),
     ],
-    [isSeasoningOrSauce, type]
+    [isSeasoning, isSauce]
   );
 
   const renderTableContent = () => {

@@ -9,6 +9,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
 import {
   computeCostPricePerJin,
   resolveRecipeLines,
@@ -60,7 +61,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           },
         },
       },
-      seasoningDetails: true,
+      seasoningDetails: {
+        include: {
+          // 标准化调料：份量与价格口径随标准规格档案带出
+          spec: {
+            select: {
+              id: true,
+              name: true,
+              packageSpec: true,
+              portion: true,
+              yieldRate: true,
+              processingFeePerJin: true,
+              grossMarginRate: true,
+              sourceIngredient: { select: { pricePerJin: true } },
+            },
+          },
+        },
+      },
       sauceDetails: {
         include: {
               // 附价格体系字段，serializeSauce 注入成本价/出库价（元/斤）
@@ -162,16 +179,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,
     })),
-    seasoningDetails: row.seasoningDetails.map((d) => ({
-      ...d,
-      name: seasonings.find((s) => s.id === d.sourceId)?.name,
-      unitPrice: seasonings.find((s) => s.id === d.sourceId)?.latestRefPrice,
-      // 每斤单价（元/斤）：调料 BOM 成本口径
-      pricePerJin: seasonings.find((s) => s.id === d.sourceId)?.pricePerJin,
-      unit: seasonings.find((s) => s.id === d.sourceId)?.purchaseUnit,
-      // 采购规格（与食材模块调料表一致，如 1.9L*6）
-      spec: seasonings.find((s) => s.id === d.sourceId)?.purchaseSpec,
-    })),
+    seasoningDetails: row.seasoningDetails.map((d) => {
+      const source = seasonings.find((s) => s.id === d.sourceId);
+      if (d.spec) {
+        // 标准化调料：成本口径 = 出库价（元/斤），规格 = 标准规格（g）
+        const prices = deriveStandardSeasoningPrices(d.spec);
+        return {
+          ...d,
+          name: d.spec.name,
+          unitPrice: source?.latestRefPrice ?? null,
+          pricePerJin: prices.outPricePerJin,
+          unit: source?.purchaseUnit ?? null,
+          spec: `${d.spec.packageSpec}g`,
+          packageSpec: d.spec.packageSpec,
+          portion: d.spec.portion,
+          standardPackagePrice: prices.standardPackagePrice,
+        };
+      }
+      // 存量旧口径行：每斤单价（元/斤）与采购规格
+      return {
+        ...d,
+        name: source?.name,
+        unitPrice: source?.latestRefPrice,
+        pricePerJin: source?.pricePerJin,
+        unit: source?.purchaseUnit,
+        spec: source?.purchaseSpec,
+        packageSpec: null,
+        portion: null,
+        standardPackagePrice: null,
+      };
+    }),
     sauceDetails: await Promise.all(
       row.sauceDetails.map(async (d) => {
         const sauce = d.sauce;

@@ -1,0 +1,114 @@
+import type { Prisma } from "@prisma/client";
+import { buildPurchasePlans } from "@/lib/server/schedule-utils";
+import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
+import {
+  BomSyncConflictError,
+  assertScheduleHasNoProgress,
+  hasPlanProgress,
+} from "@/lib/server/incomplete-document-recalc";
+
+export interface SeasoningSpecRecalcResult {
+  scheduleIds: number[];
+  planIds: number[];
+}
+
+/**
+ * 标准化调料的标准规格变更后，重建引用它的「未完成单据」：
+ * - 待生效 / 进行中的排程：只重建采购计划（切配工单只含净料/小料，不受调料影响）；
+ * - 引用这些排程的待生效 / 进行中生产计划：三份 JSON 快照。
+ * 已完成单据、出库单、库存流水一律不动；发现任何执行进度直接抛 409 并回滚。
+ */
+export async function recalcIncompleteDocumentsForStandardSeasoning(
+  tx: Prisma.TransactionClient,
+  specId: number
+): Promise<SeasoningSpecRecalcResult> {
+  const rows = await tx.dishSeasoningDetail.findMany({
+    where: { specId },
+    select: { dishId: true },
+  });
+  const dishIds = [...new Set(rows.map((row) => row.dishId))];
+
+  const recalculatedSchedules: number[] = [];
+  const recalculatedPlans: number[] = [];
+
+  if (dishIds.length === 0) {
+    return { scheduleIds: recalculatedSchedules, planIds: recalculatedPlans };
+  }
+
+  const seasoningL2Codes = (
+    await tx.ingredientCategoryL2.findMany({
+      where: { parentCode: "SEA" },
+      select: { code: true },
+    })
+  ).map((row) => row.code);
+
+  const schedules = await tx.schedule.findMany({
+    where: {
+      status: { in: ["待生效", "进行中"] },
+      items: { some: { dishId: { in: dishIds } } },
+    },
+    select: {
+      id: true,
+      code: true,
+      items: { select: { dishId: true, quantity: true } },
+    },
+  });
+
+  for (const schedule of schedules) {
+    await assertScheduleHasNoProgress(tx, schedule.id, schedule.code);
+
+    const items = schedule.items.map((item) => ({
+      dishId: item.dishId,
+      quantity: item.quantity,
+    }));
+    const purchase = await buildPurchasePlans(tx, schedule.id, items, seasoningL2Codes);
+
+    await tx.purchasePlan.deleteMany({ where: { scheduleId: schedule.id } });
+    if (purchase.length > 0) {
+      await tx.purchasePlan.createMany({ data: purchase });
+    }
+    recalculatedSchedules.push(schedule.id);
+  }
+
+  if (recalculatedSchedules.length === 0) {
+    return { scheduleIds: recalculatedSchedules, planIds: recalculatedPlans };
+  }
+
+  const plans = await tx.productionPlan.findMany({
+    where: {
+      deletedAt: null,
+      status: { in: ["待生效", "进行中"] },
+      schedules: { some: { scheduleId: { in: recalculatedSchedules } } },
+    },
+    select: {
+      id: true,
+      code: true,
+      cuttingJson: true,
+      schedules: { select: { scheduleId: true } },
+      selfOrders: { select: { selfOrderId: true } },
+    },
+  });
+
+  for (const plan of plans) {
+    if (hasPlanProgress(plan.cuttingJson)) {
+      throw new BomSyncConflictError(
+        `生产计划 ${plan.code ?? plan.id} 已有完成确认进度，不能自动重算，请先完成或作废该计划`
+      );
+    }
+
+    const scheduleIds = plan.schedules.map((ref) => ref.scheduleId);
+    const planSelfOrderIds = plan.selfOrders.map((ref) => ref.selfOrderId);
+    const data = await buildProductionPlanData(tx, scheduleIds, planSelfOrderIds);
+    await tx.productionPlan.update({
+      where: { id: plan.id },
+      data: {
+        cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
+        purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
+        sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
+      },
+    });
+    recalculatedPlans.push(plan.id);
+  }
+
+  return { scheduleIds: recalculatedSchedules, planIds: recalculatedPlans };
+}

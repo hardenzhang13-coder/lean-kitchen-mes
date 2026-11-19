@@ -1,6 +1,6 @@
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { calcGrossNeedGrams } from "@/lib/shared/gross-need";
-import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import { resolveNetBomAmountG, resolvePackageSpecAmountG } from "@/lib/shared/bom-amount";
 import { getJinFactors, getGramsPerJin, getWeightUnitNames } from "@/lib/server/unit-factors";
 import type { Prisma, PrismaClient } from "@prisma/client";
 
@@ -296,6 +296,11 @@ export async function buildPurchasePlans(
   // 3. 获取调料 BOM
   const seasoningDetails = await prisma.dishSeasoningDetail.findMany({
     where: { dishId: { in: dishIds } },
+    include: {
+      spec: {
+        select: { id: true, packageSpec: true, yieldRate: true },
+      },
+    },
   });
   const seasoningIds = seasoningDetails.map((d) => d.sourceId);
   const seasonings = await prisma.ingredient.findMany({
@@ -431,7 +436,15 @@ export async function buildPurchasePlans(
     if (quantity == null) continue;
     const seasoning = seasonings.find((s) => s.id === detail.sourceId);
     if (!seasoning) continue;
-    const need = Number(detail.amountG) * quantity;
+    // 标准化调料：用量以标准规格为唯一真源，毛需求按出成率折算回采购口径
+    // 存量旧口径行：出成率按 100，直接用克需求
+    const amountG = detail.spec
+      ? resolvePackageSpecAmountG(detail.amountG, detail.spec.packageSpec)
+      : Number(detail.amountG);
+    const need = amountG * quantity;
+    const grossNeed = detail.spec
+      ? calcGrossNeedGrams(need, Number(detail.spec.yieldRate))
+      : need;
 
     const existing = seasoningMap.get(seasoning.id);
     if (existing) {
@@ -443,7 +456,7 @@ export async function buildPurchasePlans(
         sourceCode: seasoning.code,
         itemName: seasoning.name,
         l2Code: seasoning.l2Code,
-        grossNeed: need,
+        grossNeed,
         purchaseUnit: seasoning.purchaseUnit,
         purchaseSpec: seasoning.purchaseSpec,
         stockUnit: seasoning.stockUnit,

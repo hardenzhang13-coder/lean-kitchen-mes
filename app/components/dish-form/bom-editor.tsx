@@ -95,6 +95,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 costPrice: option.costPrice ?? null,
                 cost: calcCost(pickerType, costBase, amount),
                 portion: option.portion ?? null,
+                // 标准化调料：写入 specId，服务端按标准规格覆盖用量
+                specId: option.specId ?? null,
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;

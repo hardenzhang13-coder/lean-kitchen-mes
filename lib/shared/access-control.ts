@@ -71,6 +71,7 @@ export function canAccessApi(
     "/api/dishes",
     "/api/ingredients",
     "/api/net-ingredients",
+    "/api/standard-seasonings",
     "/api/sauce-ingredients",
     "/api/dish-categories",
     "/api/ingredient-categories",

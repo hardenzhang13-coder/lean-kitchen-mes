@@ -73,6 +73,8 @@ interface BomTableRow {
   spec: string | null;
   productName: string | null;
   amountG: string | number | null;
+  /** 份量：净料/小料与标准化调料共用同一套枚举 */
+  portion: string | null;
   cost: number | null;
 }
 
@@ -88,6 +90,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
+      portion: d.netIngredient?.portion ?? null,
       cost: calcCost("main", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.netDetails?.filter((d) => d.role === "support").map((d, idx) => ({
@@ -97,6 +100,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, d.spec),
       productName: null,
       amountG: d.amountG ?? null,
+      portion: d.netIngredient?.portion ?? null,
       cost: calcCost("support", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.minorDetails?.map((d, idx) => ({
@@ -106,6 +110,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: netSpecText(d.netIngredient, null),
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
+      portion: d.netIngredient?.portion ?? null,
       cost: calcCost("minor", d.netIngredient?.outPricePerJin, d.amountG),
     })) ?? []),
     ...(dish.seasoningDetails?.map((d, idx) => ({
@@ -115,6 +120,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: d.spec ?? null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
+      portion: d.portion ?? null,
       cost: calcCost("seasoning", d.pricePerJin, d.amountG),
     })) ?? []),
     ...(dish.sauceDetails?.map((d, idx) => ({
@@ -124,6 +130,7 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
       spec: null,
       productName: d.brand ?? null,
       amountG: d.amountG ?? null,
+      portion: null,
       cost: calcCost("sauce", d.sauce?.outPricePerJin, d.amountG),
     })) ?? []),
   ];
@@ -266,6 +273,10 @@ export function DishSheetDetail({ dish, onDelete, onUnpublish, onPublish, onEdit
                       {row.type === "sauce" ? row.productName || "—" : row.spec || "—"}
                     </span>
                   ),
+                },
+                {
+                  header: "份量",
+                  cell: (row) => <PortionTag portion={row.portion} />,
                 },
                 {
                   header: "用量",

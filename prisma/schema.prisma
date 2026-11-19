@@ -95,6 +95,7 @@ model Ingredient {
   ledger         InventoryLedger[]
   netIngredients NetIngredient[]
   receiptItems   PurchaseReceiptItem[]
+  standardSeasonings StandardSeasoning[]
 
   @@map("ingredients")
 }
@@ -267,12 +268,49 @@ model DishSeasoningDetail {
   dishId   Int      @map("dish_id")
   type     String // minor(小料) / seasoning(调料)
   sourceId Int      @map("source_id")
+  // 标准化规格（standard_seasonings.id）：空 = 存量旧口径行（直接引用采购调料）
+  specId   Int?     @map("spec_id")
   amountG  Decimal  @map("amount_g") @db.Decimal(10, 2)
   brand    String?
   cost     Decimal? @db.Decimal(10, 2)
   dish     Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
+  spec     StandardSeasoning? @relation(fields: [specId], references: [id])
 
+  @@index([specId])
   @@map("dish_seasoning_details")
+}
+
+model StandardSeasoning {
+  id                 Int               @id @default(autoincrement())
+  code               String            @unique
+  name               String
+  // 来源调料（ingredients 中 SEA 调味品体系）：标准化规格的来源档案
+  sourceIngredientId Int               @map("source_ingredient_id")
+  // 标准规格（g）：调料标准规格统一以 g 计，不引入瓶/袋等单位；是 BOM 用量的唯一真源
+  packageSpec        Int               @map("package_spec")
+  // 份量（小碗菜 / 社区口径）：与净料、小料、菜品共用同一套枚举
+  portion            String?           @map("portion") @db.VarChar(50)
+  // 出成率（%）：标准化分装的出成率，必填
+  yieldRate          Decimal           @map("yield_rate") @db.Decimal(5, 2)
+  // 单价（元/斤）：来源调料每斤单价 ÷ (出成率/100)，服务端实时派生
+  unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
+  // 封装加工费（元/斤），空 = 0
+  processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
+  // 毛利率（%），空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100)
+  grossMarginRate    Decimal?          @map("gross_margin_rate") @db.Decimal(5, 2)
+  // 二级分类：继承来源调料
+  l2Code             String            @map("l2_code")
+  storage            String            @default("常温") @map("storage")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  deletedAt          DateTime?         @map("deleted_at")
+  sourceIngredient   Ingredient        @relation(fields: [sourceIngredientId], references: [id])
+  dishSeasoningDetails DishSeasoningDetail[]
+
+  @@index([sourceIngredientId])
+  @@index([deletedAt])
+  @@index([l2Code])
+  @@map("standard_seasonings")
 }
 
 model DishSauceDetail {

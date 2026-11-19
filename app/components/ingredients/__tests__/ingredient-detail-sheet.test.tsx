@@ -280,10 +280,14 @@ describe("调料详情抽屉", () => {
       await screen.findByRole("heading", { name: "调料详情" })
     ).toBeInTheDocument();
     const editButton = screen.getByRole("button", { name: "编辑" });
-    expect(editButton).toHaveClass("bg-primary");
+    expect(editButton).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "转净料" })
     ).not.toBeInTheDocument();
+    // 底部功能区提供「查看封装调料」
+    expect(
+      screen.getByRole("button", { name: "查看封装调料" })
+    ).toBeInTheDocument();
 
     fireEvent.click(editButton);
 
@@ -291,6 +295,39 @@ describe("调料详情抽屉", () => {
       screen.getByRole("heading", { name: "编辑调料" })
     ).toBeInTheDocument();
     expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
+  });
+
+  it("提供转调料入口时，主操作是「转调料」", async () => {
+    const onConvert = jest.fn();
+    render(
+      <IngredientDetailSheet
+        open
+        onOpenChange={jest.fn()}
+        kind="seasoning"
+        ingredientId={11}
+        categories={[
+          {
+            code: "SEA",
+            name: "调味品",
+            children: [{ code: "MEA-POR", name: "酱油" }],
+          },
+        ]}
+        units={[{ id: 1, name: "斤", category: "weight" }]}
+        inlineEdit
+        onDelete={jest.fn()}
+        onConvert={onConvert}
+      />
+    );
+
+    await screen.findByRole("heading", { name: "调料详情" });
+    const convertButton = screen.getByRole("button", { name: "转调料" });
+    expect(convertButton).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "转净料" })
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(convertButton);
+    expect(onConvert).toHaveBeenCalledWith(11);
   });
 });
 

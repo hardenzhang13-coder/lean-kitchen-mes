@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Copy } from "lucide-react";
+import { Plus, Pencil, Copy, ArrowRightLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +16,7 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
+import { StandardSeasoningFormDialog } from "@/app/components/ingredients/standard-seasoning-form-dialog";
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
@@ -82,6 +83,9 @@ export default function SeasoningIngredientsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  // 「转调料」：从列表行操作发起，创建该调料的标准规格
+  const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
+  const [convertDialogOpen, setConvertDialogOpen] = useState(false);
 
   const seasoningL2Code = useMemo(
     () => findDefaultSeasoningL2Code(categories),
@@ -173,6 +177,12 @@ export default function SeasoningIngredientsPage() {
       fetchData();
     },
   });
+
+  // 「转调料」来源行：取来源调料的编号/名称/采购规格/每斤单价
+  const convertSourceRow = useMemo(
+    () => data.find((row) => row.id === convertSourceId) ?? null,
+    [data, convertSourceId]
+  );
 
   // 调料二级分类选项 = SEA（调味品）下的启用子分类
   const seasoningL2Options = useMemo(() => {
@@ -359,6 +369,19 @@ export default function SeasoningIngredientsPage() {
               rowActions={(row) => (
                 <>
                   <Button
+                    variant="default"
+                    size="icon"
+                    aria-label={`转调料 ${row.name}`}
+                    title="转调料"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setConvertSourceId(row.id);
+                      setConvertDialogOpen(true);
+                    }}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                  </Button>
+                  <Button
                     variant="ghost"
                     size="icon"
                     aria-label={`复制调料 ${row.name}`}
@@ -426,9 +449,39 @@ export default function SeasoningIngredientsPage() {
         onCopy={(record) => {
           openCopy(record as RawDetail);
         }}
+        onConvert={(id) => {
+          setDetailOpen(false);
+          setConvertSourceId(id);
+          setConvertDialogOpen(true);
+        }}
         onDelete={(id) => {
           setDetailOpen(false);
           setDeleteId(id);
+        }}
+      />
+
+      <StandardSeasoningFormDialog
+        open={convertDialogOpen}
+        onOpenChange={setConvertDialogOpen}
+        source={
+          convertSourceRow
+            ? {
+                id: convertSourceRow.id,
+                code: convertSourceRow.code,
+                name: convertSourceRow.name,
+                purchaseSpec: convertSourceRow.purchaseSpec ?? null,
+                pricePerJin:
+                  convertSourceRow.pricePerJin != null
+                    ? Number(convertSourceRow.pricePerJin)
+                    : null,
+                l2Name: l2Map[convertSourceRow.l2Code]?.name ?? null,
+              }
+            : { id: 0, code: "", name: "" }
+        }
+        onSuccess={() => {
+          setConvertDialogOpen(false);
+          setConvertSourceId(null);
+          fetchData();
         }}
       />
 
