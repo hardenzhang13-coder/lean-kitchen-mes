@@ -500,6 +500,7 @@ export default function ClassesPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
+            density="dense"
             actionsWidth="w-[380px]"
             getRowLevel={(row) => (row.kind === "l2" ? "l2" : "l1")}
             tableClassName="min-w-max"
@@ -567,8 +568,12 @@ export default function ClassesPage() {
                     row.kind === "l1" ? row.l1.description : row.l2.description;
                   return (
                     <span
-                      className="block max-w-[220px] truncate whitespace-nowrap text-muted-foreground"
-                      title={description || "—"}
+                      className={`block max-w-[220px] truncate whitespace-nowrap ${
+                        description
+                          ? "text-muted-foreground"
+                          : "select-none text-muted-foreground/40"
+                      }`}
+                      title={description || ""}
                     >
                       {description || "—"}
                     </span>

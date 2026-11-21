@@ -81,7 +81,7 @@ export function Pagination({
       )}
     >
       {totalLabel ? (
-        <span className="text-[13px] text-muted-foreground">{totalLabel}</span>
+        <span className="text-[13px] font-semibold text-primary">{totalLabel}</span>
       ) : (
         <span />
       )}
@@ -95,7 +95,7 @@ export function Pagination({
               if (Number.isFinite(next)) onPageSizeChange(next);
             }}
           >
-            <SelectTrigger className="skeu-btn h-9 rounded-full border-skeu-border-strong skeu-surface px-3 text-[13px] font-medium shadow-sk-raised">
+            <SelectTrigger className="skeu-btn h-9 rounded-[9px] border-skeu-border-strong skeu-surface px-3 text-[13px] font-medium shadow-sk-raised">
               <SelectValue>{`${pageSize ?? sizeOptions[0]} 条/页`}</SelectValue>
             </SelectTrigger>
             <SelectContent>

@@ -247,6 +247,7 @@
   --sk-scroll-thumb: #d9d5ce;
   /* 焦点：暖灰，白底对比约 4.8:1，不用发光环 */
   --sk-focus: #78716c;
+  --sk-focus-soft: #a8a29e;
   /* 控件表面：拨动开关、药丸按钮、搜索清除钮 */
   --sk-control-bg: #f6f3ef;
   --sk-control-bg-hover: #efece6;
@@ -355,8 +356,8 @@
 }
 .skeu-input:focus,
 .skeu-input:focus-visible {
-  border-color: var(--sk-focus);
-  box-shadow: var(--sk-inset), 0 0 0 2px color-mix(in srgb, var(--sk-focus) 28%, transparent);
+  border-color: var(--sk-focus-soft);
+  box-shadow: var(--sk-inset), 0 0 0 3px color-mix(in srgb, var(--sk-focus) 10%, transparent);
   outline: none;
 }
 
@@ -374,8 +375,8 @@
 }
 .skeu-trigger:hover { background: #f6f3ef; }
 .skeu-trigger:focus-visible {
-  border-color: var(--sk-focus);
-  box-shadow: var(--sk-inset), 0 0 0 2px color-mix(in srgb, var(--sk-focus) 28%, transparent);
+  border-color: var(--sk-focus-soft);
+  box-shadow: var(--sk-inset), 0 0 0 3px color-mix(in srgb, var(--sk-focus) 10%, transparent);
   outline: none;
 }
 .skeu-trigger[data-disabled] { opacity: 0.5; cursor: not-allowed; }
@@ -386,6 +387,31 @@
   border: 1px solid var(--sk-border);
   border-radius: 12px;
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
+}
+
+/* ---------- 弹窗关闭按钮：小号凸起按钮 ---------- */
+[data-slot="dialog-content"] [data-slot="dialog-close"] {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+  color: var(--muted-foreground);
+  opacity: 1;
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"]:hover {
+  background: var(--sk-control-bg-hover);
+  color: var(--foreground);
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"]:active {
+  transform: translateY(1px);
+  box-shadow: var(--sk-inset);
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"] svg {
+  width: 16px;
+  height: 16px;
 }
 
 /* ---------- 徽章：胶囊 + 顶部高光 ---------- */
@@ -567,9 +593,12 @@
 
 /* ---------- Toast（参照 v008：顶部居中、圆形渐变图标） ---------- */
 .skeu-toast {
+  left: 0 !important;
+  right: 0 !important;
   width: max-content !important;
   max-width: min(90vw, 420px) !important;
-  margin: 0 auto !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
   border-radius: 12px !important;
   border: 1px solid var(--sk-border) !important;
   background: var(--sk-surface) !important;
@@ -577,10 +606,15 @@
   padding: 10px 18px 10px 12px !important;
   gap: 10px !important;
   align-items: center !important;
+  font-family: var(--font-sans) !important;
   font-size: 14px !important;
   font-weight: 600 !important;
 }
-.skeu-toast [data-content] { font-size: 14px !important; font-weight: 600 !important; }
+.skeu-toast [data-content] {
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
 /* sonner 默认把图标槽固定为 16px，会把 30px 圆形状态图标压扁并压住文字 */
 .skeu-toast [data-icon] {
   width: 30px !important;

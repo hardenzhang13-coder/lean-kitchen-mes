@@ -315,6 +315,7 @@ export default function UnitsPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
+            density="dense"
             tableClassName="min-w-max"
             columns={[
               {

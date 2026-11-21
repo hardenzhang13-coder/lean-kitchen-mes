@@ -373,6 +373,7 @@ export default function RawIngredientsPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
+            density="dense"
             actionsWidth="w-[180px]"
             tableClassName="min-w-max"
             columns={[

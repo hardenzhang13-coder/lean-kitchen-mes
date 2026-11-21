@@ -1,16 +1,23 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
-import { Loader2Icon } from "lucide-react";
+import {
+  CheckIcon,
+  InfoIcon,
+  Loader2Icon,
+  TriangleAlertIcon,
+  XIcon,
+} from "lucide-react";
 
-/** 轻拟物 Toast 状态图标：圆形渐变底 + 单字字形（参照 v008） */
+/** 轻拟物 Toast 状态图标：圆形渐变底 + 白色线性图标（参照 v008） */
 const stateIcon = (
-  glyph: string,
+  icon: ReactNode,
   tone: "success" | "error" | "warning" | "info"
 ) => (
   <span className={`skeu-toast-ico ${tone}`} aria-hidden>
-    {glyph}
+    {icon}
   </span>
 );
 
@@ -24,10 +31,13 @@ export function Toaster(props: ToasterProps) {
       position="top-center"
       offset={84}
       icons={{
-        success: stateIcon("✓", "success"),
-        error: stateIcon("✕", "error"),
-        warning: stateIcon("!", "warning"),
-        info: stateIcon("i", "info"),
+        success: stateIcon(<CheckIcon className="size-4" strokeWidth={3} />, "success"),
+        error: stateIcon(<XIcon className="size-4" strokeWidth={3} />, "error"),
+        warning: stateIcon(
+          <TriangleAlertIcon className="size-4" strokeWidth={2.6} />,
+          "warning"
+        ),
+        info: stateIcon(<InfoIcon className="size-4" strokeWidth={2.6} />, "info"),
         loading: <Loader2Icon className="size-4 animate-spin" />,
       }}
       style={

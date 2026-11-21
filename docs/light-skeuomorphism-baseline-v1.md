@@ -10,7 +10,8 @@
 - **定位**：v008 是主要参照样本，不是逐像素合同。系统按模块推进；看板、单据、打印允许在 v008 语言基础上做模块级扩展。
 - **已落地**：暖中性 token（`app/globals.css` `:root`）、输入族统一（Input / Textarea / SelectField / DatePicker / SkeuSearch）、标签族统一（StatusBadge / CategoryTag / PortionTag / ScheduleStatusTag / DishStatusTag）、焦点可见（`--sk-focus`）、`/ui-kit` 新增「v2 材质」Tab。
 - **分层现状**：`.skeu-*` 暂留 Tailwind layer 之外。原因：shadcn 原语自带 `bg-input/50`、`border-transparent` 等工具类，直接迁入 `@layer components` 会被工具类覆盖。等按钮 / 输入 / 容器族全部包装完成、页面不再直接使用原语后，再统一迁移；在此之前通过 wrapper 与 variant 控制，不新增 `!important`。
-- **系统口径**：行高默认 52px，密集列表用 `data-density="dense"` 的 44px 变体；总数文案灰色 13px；保留完整页码、去掉首页/尾页按钮；清单行点击查看，编辑走行内按钮。
+- **系统口径**：标准清单页使用 44px 密集行高（避免 10 行时出现轻微滚动条），详情 / 大屏可用 52px；总数文案 13px、主题色加粗；保留完整页码、去掉首页/尾页按钮；清单行点击查看，编辑走行内按钮。
+- **2026-11-21 细节修订**：输入 / 搜索焦点改为暖灰细边 + 3px 10% 柔环；弹窗关闭按钮改为 34px 凸起按钮；Toast 使用系统字体、lucide 线性图标、max-content 居中；空值占位符降为 40% 透明度。
 - **下一步**：按钮族 84 文件分批替换 → 清单页逐页铺开 → 单据 / 看板模板扩展 → 打印页单独验收。
 
 ## 1. 强度边界
