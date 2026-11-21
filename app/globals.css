@@ -426,6 +426,18 @@
 .skeu-table-scroll tbody tr { background: #ffffff; }
 .skeu-table-scroll tbody tr[data-row-level="l2"] { background: var(--sk-row-l2); }
 .skeu-table-scroll tbody tr:hover { background: var(--sk-row-hover); }
+.skeu-table-scroll tbody tr[data-tone="danger"] {
+  background: color-mix(in srgb, var(--danger-muted) 70%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="warning"] {
+  background: color-mix(in srgb, var(--warning-muted) 70%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="danger"]:hover {
+  background: color-mix(in srgb, var(--danger-muted) 85%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="warning"]:hover {
+  background: color-mix(in srgb, var(--warning-muted) 85%, #ffffff);
+}
 .skeu-table-scroll [data-slot="table-row"] { border-bottom-color: var(--sk-border); }
 .skeu-table-scroll [data-slot="table-header"] { background: var(--sk-surface-muted); }
 .skeu-table-scroll [data-slot="table-head"] {

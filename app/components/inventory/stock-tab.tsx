@@ -140,6 +140,7 @@ export function StockTab() {
             title="库存加载失败"
             description={error}
             action={{ label: "重试", onClick: fetchRows }}
+            tone="danger"
             className="flex-1 py-16"
           />
         ) : (

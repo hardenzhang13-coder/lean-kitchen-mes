@@ -1,15 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Boxes, ClipboardList, History, Plus } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageTabs } from "@/app/components/ui/page-tabs";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { WorkbenchDialog } from "@/app/components/ui/workbench-dialog";
 import { StockTab } from "@/app/components/inventory/stock-tab";
 import { OutboundTab } from "@/app/components/inventory/outbound-tab";
 import { LedgerTab } from "@/app/components/inventory/ledger-tab";
+import NewOutboundPage from "@/app/inventory/outbound/new/page";
 
 type TabKey = "stock" | "outbound" | "ledger";
 
@@ -23,7 +25,7 @@ function getTab(value: string | null): TabKey {
   return value === "outbound" || value === "ledger" ? value : "stock";
 }
 
-function InventoryTabs() {
+function InventoryTabs({ refreshToken }: { refreshToken: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tab = getTab(searchParams.get("tab"));
@@ -38,7 +40,7 @@ function InventoryTabs() {
       />
       <div className="flex min-h-0 flex-1 flex-col">
         {tab === "stock" && <StockTab />}
-        {tab === "outbound" && <OutboundTab />}
+        {tab === "outbound" && <OutboundTab key={refreshToken} />}
         {tab === "ledger" && <LedgerTab />}
       </div>
     </div>
@@ -47,6 +49,8 @@ function InventoryTabs() {
 
 export default function InventoryPage() {
   const router = useRouter();
+  const [createOpen, setCreateOpen] = useState(false);
+  const [outboundVersion, setOutboundVersion] = useState(0);
 
   return (
     <PageShell
@@ -57,7 +61,7 @@ export default function InventoryPage() {
           title="库存管理"
           description="只管理切配中心加工完成的净菜（净料 + 小料），按份出入库"
           actions={
-            <SkeuButton onClick={() => router.push("/inventory/outbound/new")}>
+            <SkeuButton onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
               创建出库单
             </SkeuButton>
@@ -76,8 +80,27 @@ export default function InventoryPage() {
           </div>
         }
       >
-        <InventoryTabs />
+        <InventoryTabs refreshToken={outboundVersion} />
       </Suspense>
+
+      <WorkbenchDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        title="创建出库单"
+        description="按门店排程单或切配中心内部生产单生成，按份出库，金额按净菜档案出库价自动核算"
+      >
+        {createOpen ? (
+          <NewOutboundPage
+            embedded
+            onCancel={() => setCreateOpen(false)}
+            onDone={() => {
+              setCreateOpen(false);
+              setOutboundVersion((value) => value + 1);
+              router.replace("/inventory?tab=outbound");
+            }}
+          />
+        ) : null}
+      </WorkbenchDialog>
     </PageShell>
   );
 }

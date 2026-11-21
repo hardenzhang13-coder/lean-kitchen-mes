@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { ArrowLeft, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -12,6 +11,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
   formatPortionsCount,
@@ -65,10 +66,20 @@ function outboundBadge(requiredPortions: number, shippedPortions: number) {
   return <StatusBadge status={OUTBOUND_STATUS_LABEL[status]} variant={variant} />;
 }
 
-export default function OutboundDetailPage() {
+interface OutboundDetailPageProps {
+  /** 嵌入大弹窗时隐藏返回按钮与页面级留白 */
+  embedded?: boolean;
+  /** 弹窗内没有路由参数，由调用方直接传 id */
+  outboundId?: number;
+}
+
+export default function OutboundDetailPage({
+  embedded = false,
+  outboundId,
+}: OutboundDetailPageProps = {}) {
   const router = useRouter();
   const params = useParams();
-  const id = Number(params.id);
+  const id = outboundId ?? Number(params?.id);
 
   const [data, setData] = useState<OutboundDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -130,10 +141,21 @@ export default function OutboundDetailPage() {
   };
 
   if (loading) {
-    return <div className="flex flex-col gap-6 p-8"><div className="h-[400px] bg-muted rounded animate-pulse" /></div>;
+    return (
+      <div className={embedded ? "space-y-3" : "flex flex-col gap-6 p-8"}>
+        <div className="h-[400px] rounded-[12px] bg-muted animate-pulse" />
+      </div>
+    );
   }
   if (!data) {
-    return <div className="flex flex-col gap-6 p-8"><p className="text-muted-foreground">出库单不存在</p></div>;
+    return (
+      <EmptyState
+        title="出库单不存在"
+        description="该单据可能已被删除，或链接有误。"
+        tone="danger"
+        className={embedded ? "py-16" : "py-24"}
+      />
+    );
   }
 
   const voided = data.status === "voided";
@@ -141,19 +163,25 @@ export default function OutboundDetailPage() {
   const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center justify-between">
+    <div className={embedded ? "flex flex-col gap-6" : "flex flex-col gap-6 p-8"}>
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="返回出库单列表"
-            onClick={() => router.push("/inventory?tab=outbound")}
-          >
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          {!embedded && (
+            <SkeuButton
+              variant="ghost"
+              size="icon-sm"
+              aria-label="返回出库单列表"
+              onClick={() => router.push("/inventory?tab=outbound")}
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </SkeuButton>
+          )}
           <div>
-            <h1 className="text-2xl font-bold tracking-tight flex items-center gap-2">
+            <h1
+              className={`flex items-center gap-2 font-bold tracking-tight ${
+                embedded ? "text-lg" : "text-2xl"
+              }`}
+            >
               出库单 {data.code}
               {voided ? (
                 <StatusBadge status="已作废" variant="danger" />
@@ -174,40 +202,44 @@ export default function OutboundDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handlePrint}>
-            <Printer className="mr-2 h-4 w-4" />
+          <SkeuButton variant="outline" onClick={handlePrint}>
+            <Printer className="h-4 w-4" />
             打印出库单
-          </Button>
+          </SkeuButton>
           {!voided && (
-            <Button variant="destructive" onClick={() => setVoidOpen(true)} disabled={actionLoading}>
+            <SkeuButton
+              variant="danger"
+              onClick={() => setVoidOpen(true)}
+              disabled={actionLoading}
+            >
               作废
-            </Button>
+            </SkeuButton>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="rounded-lg border p-4">
+        <div className="rounded-xl border border-skeu-border bg-card p-4 shadow-sk-1">
           <div className="text-sm text-muted-foreground mb-1">
             {isCuttingCenter ? "出库主体" : "门店"}
           </div>
           <div className="font-medium">{data.subjectName}</div>
         </div>
-        <div className="rounded-lg border p-4">
+        <div className="rounded-xl border border-skeu-border bg-card p-4 shadow-sk-1">
           <div className="text-sm text-muted-foreground mb-1">出库总份数</div>
           <div className="font-medium">{formatPortionsCount(data.totalPortions)}</div>
         </div>
-        <div className="rounded-lg border p-4">
+        <div className="rounded-xl border border-skeu-border bg-card p-4 shadow-sk-1">
           <div className="text-sm text-muted-foreground mb-1">合计金额</div>
           <div className="font-medium text-primary">¥{data.totalAmount.toFixed(2)}</div>
         </div>
-        <div className="rounded-lg border p-4">
+        <div className="rounded-xl border border-skeu-border bg-card p-4 shadow-sk-1">
           <div className="text-sm text-muted-foreground mb-1">未切配行</div>
           <div className="font-medium">{data.items.filter((i) => i.prepStatus === "unfinished").length}</div>
         </div>
       </div>
 
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="skeu-table-scroll skeu-scroll overflow-auto rounded-[12px] border border-skeu-border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -229,12 +261,12 @@ export default function OutboundDetailPage() {
             {data.items.map((it) => (
               <TableRow
                 key={it.id}
-                className={
+                data-tone={
                   it.prepStatus === "unfinished"
-                    ? "bg-danger-muted/40"
+                    ? "danger"
                     : it.prepStatus === "insufficient"
-                      ? "bg-warning-muted/40"
-                      : ""
+                      ? "warning"
+                      : undefined
                 }
               >
                 <TableCell className="font-medium bg-muted/30">{it.l1Name}</TableCell>
@@ -279,10 +311,16 @@ export default function OutboundDetailPage() {
             onChange={(e) => setVoidReason(e.target.value)}
           />
           <DialogFooter>
-            <Button variant="outline" onClick={() => setVoidOpen(false)} className="h-11 px-6">取消</Button>
-            <Button variant="destructive" onClick={handleVoid} disabled={actionLoading} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setVoidOpen(false)}>
+              取消
+            </SkeuButton>
+            <SkeuButton
+              variant="danger"
+              onClick={handleVoid}
+              disabled={actionLoading}
+            >
               确认作废并回滚库存
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

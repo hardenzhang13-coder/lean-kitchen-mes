@@ -1,15 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertCircle, Eye } from "lucide-react";
 import { DataTable } from "@/app/components/ui/data-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { WorkbenchDialog } from "@/app/components/ui/workbench-dialog";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { formatPortionsCount } from "@/lib/shared/prepped-stock";
+import OutboundDetailPage from "@/app/inventory/outbound/[id]/page";
 
 interface OutboundRow {
   id: number;
@@ -42,11 +43,11 @@ type StatusFilter = (typeof STATUS_OPTIONS)[number]["value"];
 
 /** 出库单 Tab：按计划/状态/金额与来源单据，详情走行内主操作 */
 export function OutboundTab() {
-  const router = useRouter();
   const [rows, setRows] = useState<OutboundRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<StatusFilter>("");
+  const [detailId, setDetailId] = useState<number | null>(null);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState({ totalItems: 0, totalPages: 1 });
@@ -107,6 +108,7 @@ export function OutboundTab() {
             title="出库单加载失败"
             description={error}
             action={{ label: "重试", onClick: fetchRows }}
+            tone="danger"
             className="flex-1 py-16"
           />
         ) : (
@@ -208,7 +210,7 @@ export function OutboundTab() {
               <SkeuActionButton
                 label="详情"
                 icon={<Eye className="h-3.5 w-3.5" />}
-                onClick={() => router.push(`/inventory/outbound/${row.id}`)}
+                onClick={() => setDetailId(row.id)}
               />
             )}
             pagination={{
@@ -232,6 +234,19 @@ export function OutboundTab() {
           />
         )}
       </div>
+
+      <WorkbenchDialog
+        open={detailId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailId(null);
+        }}
+        title="出库单详情"
+        description="查看出库明细、金额与状态；作废也在这里完成"
+      >
+        {detailId !== null ? (
+          <OutboundDetailPage embedded outboundId={detailId} />
+        ) : null}
+      </WorkbenchDialog>
     </div>
   );
 }
