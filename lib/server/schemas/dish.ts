@@ -40,6 +40,7 @@ export const dishQuerySchema = z.object({
   technique: z.string().optional(),
   meatType: z.string().optional(),
   portion: z.string().optional(),
+  portionGroup: z.enum(["single", "community", "canteen"]).optional(),
   status: dishStatusSchema.optional(),
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),

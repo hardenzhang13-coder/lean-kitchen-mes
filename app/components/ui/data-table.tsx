@@ -28,6 +28,8 @@ interface DataTableProps<T> {
   loading?: boolean;
   /** 视觉形态：default 保持扁平列表；skeu 启用轻拟物表体 */
   variant?: "default" | "skeu";
+  /** skeu 行高：default 52px；tall 60px，用于菜品库等需要展示更多信息的列表 */
+  rowSize?: "default" | "tall";
   /** 行层级标记，树形列表用它区分一级行与二级行底色 */
   getRowLevel?: (row: T) => string | undefined;
   pagination?: {
@@ -71,6 +73,7 @@ export function DataTable<T extends object>({
   columns,
   loading = false,
   variant = "default",
+  rowSize = "default",
   getRowLevel,
   pagination,
   filters,
@@ -115,6 +118,9 @@ export function DataTable<T extends object>({
       <div
         data-density={
           variant === "skeu" && density === "dense" ? "dense" : undefined
+        }
+        data-row-size={
+          variant === "skeu" && rowSize === "tall" ? "tall" : undefined
         }
         className={cn(
           variant === "skeu"
