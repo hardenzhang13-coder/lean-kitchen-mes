@@ -18,6 +18,12 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import {
+  SkeuActionButton,
+  SkeuIconAction,
+} from "@/app/components/ui/skeu-row-action";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { NetIngredientFormDialog } from "@/app/components/ingredients/net-ingredient-form-dialog";
@@ -283,27 +289,34 @@ export default function RawIngredientsPage() {
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-      <div className="flex items-center justify-between">
+    <PageShell
+      variant="panel"
+      header={
         <PageHeader
+          variant="topbar"
           showBack
           title="原料清单"
           description="食材采购入库、库存管理的基本单位"
+          actions={
+            <div className="flex items-center gap-2">
+              <SkeuButton
+                variant="outline"
+                onClick={() => setImportOpen(true)}
+              >
+                <Upload className="h-4 w-4" />
+                批量导入
+              </SkeuButton>
+              <SkeuButton onClick={openCreate}>
+                <Plus className="h-4 w-4" />
+                新增原料
+              </SkeuButton>
+            </div>
+          }
         />
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={() => setImportOpen(true)}>
-            <Upload className="mr-2 h-4 w-4" />
-            批量导入
-          </Button>
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增原料
-          </Button>
-        </div>
-      </div>
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -353,13 +366,14 @@ export default function RawIngredientsPage() {
             </div>
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Ingredient>
             data={data}
             loading={loading}
             onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
+            actionsWidth="w-[180px]"
             tableClassName="min-w-max"
             columns={[
               {
@@ -481,43 +495,34 @@ export default function RawIngredientsPage() {
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
-                <Button
-                  variant="default"
-                  size="icon"
-                  aria-label={`转净料 ${row.name}`}
-                  title="转净料"
+                <SkeuIconAction
+                  label={`复制原料 ${row.name}`}
+                  tip="复制原料"
+                  icon={<Copy className="h-4 w-4" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openCopy(row);
+                  }}
+                />
+                <SkeuIconAction
+                  label={`编辑原料 ${row.name}`}
+                  tip="编辑原料"
+                  icon={<Pencil className="h-4 w-4" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                />
+                <SkeuActionButton
+                  label="转净料"
+                  tone="primary"
+                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     setConvertSourceId(row.id);
                     setConvertDialogOpen(true);
                   }}
-                >
-                  <ArrowRightLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`复制原料 ${row.name}`}
-                  title="复制原料"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openCopy(row);
-                  }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`编辑原料 ${row.name}`}
-                  title="编辑原料"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openEdit(row);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                />
               </>
             )}
           />
@@ -636,6 +641,6 @@ export default function RawIngredientsPage() {
         onValidate={handleValidateImport}
         onImport={handleImport}
       />
-    </div>
+    </PageShell>
   );
 }

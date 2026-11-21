@@ -113,6 +113,9 @@ export function DataTable<T extends object>({
       {filters && <div className="flex flex-wrap items-center gap-3">{filters}</div>}
 
       <div
+        data-density={
+          variant === "skeu" && density === "dense" ? "dense" : undefined
+        }
         className={cn(
           variant === "skeu"
             ? "skeu-table-scroll skeu-scroll overflow-auto"

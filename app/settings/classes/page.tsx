@@ -499,7 +499,6 @@ export default function ClassesPage() {
             loading={loading}
             onRowClick={openView}
             fillHeight
-            density="compact"
             variant="skeu"
             actionsWidth="w-[380px]"
             getRowLevel={(row) => (row.kind === "l2" ? "l2" : "l1")}

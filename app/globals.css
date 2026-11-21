@@ -418,6 +418,9 @@
   padding: 0 16px;
   font-size: 14px;
 }
+.skeu-table-scroll[data-density="dense"] [data-slot="table-cell"] {
+  height: 44px;
+}
 .skeu-table-scroll [data-slot="table-cell"][data-skeu-cell="plain"] {
   height: auto;
   padding: 0;

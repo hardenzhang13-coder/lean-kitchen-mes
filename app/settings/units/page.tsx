@@ -19,6 +19,8 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import {
   RecordDialog,
   RecordView,
@@ -262,21 +264,25 @@ export default function UnitsPage() {
   };
 
   return (
-    <PageShell variant="workspace">
-      <PageHeader
-        showBack
-        title="单位"
-        description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算"
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增
-          </Button>
-        }
-      />
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          showBack
+          title="单位"
+          description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -302,13 +308,13 @@ export default function UnitsPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Unit>
             data={pageItems}
             loading={loading}
             onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
             tableClassName="min-w-max"
             columns={[
               {
@@ -370,46 +376,43 @@ export default function UnitsPage() {
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={row.isActive ? `停用单位 ${row.name}` : `启用单位 ${row.name}`}
-                  title={row.isActive ? "停用单位" : "启用单位"}
+                <SkeuIconAction
+                  label={
+                    row.isActive
+                      ? `停用单位 ${row.name}`
+                      : `启用单位 ${row.name}`
+                  }
+                  tip={row.isActive ? "停用单位" : "启用单位"}
+                  icon={
+                    row.isActive ? (
+                      <Ban className="h-4 w-4 text-amber-500" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    )
+                  }
                   onClick={(event) => {
                     event.stopPropagation();
                     toggleActive(row);
                   }}
-                >
-                  {row.isActive ? (
-                    <Ban className="h-4 w-4 text-amber-500" />
-                  ) : (
-                    <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                  )}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`编辑单位 ${row.name}`}
-                  title="编辑单位"
+                />
+                <SkeuIconAction
+                  label={`编辑单位 ${row.name}`}
+                  tip="编辑单位"
+                  icon={<Pencil className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openEdit(row);
                   }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`删除单位 ${row.name}`}
-                  title="删除单位"
+                />
+                <SkeuIconAction
+                  label={`删除单位 ${row.name}`}
+                  tip="删除单位"
+                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openDelete(row);
                   }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
+                />
               </>
             )}
           />

@@ -9,7 +9,7 @@ describe("统一分页", () => {
     expect(formatPageSummary(2, 10, 48, "原料")).toBe("共 48 条 原料");
   });
 
-  it("统一提供首页、上一页、页码、下一页和尾页", () => {
+  it("统一提供上一页、页码和下一页，不单独提供首页/尾页", () => {
     const onPageChange = jest.fn();
     const { container } = render(
       <Pagination
@@ -27,11 +27,11 @@ describe("统一分页", () => {
       screen.queryByRole("combobox", { name: "每页显示条数" })
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "首页" })
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "首页" })
+    ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "尾页" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "尾页" })
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/第 1-10 条/)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /下一页/ }));

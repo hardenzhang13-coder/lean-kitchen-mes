@@ -145,8 +145,12 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     );
     expect(screen.getByText("品牌名称")).toBeInTheDocument();
     expect(screen.queryByText("商品名称")).not.toBeInTheDocument();
-    expect(screen.getByTitle("复制原料")).toBeInTheDocument();
-    expect(screen.queryByTitle("删除原料")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /复制原料/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /删除原料/ })
+    ).not.toBeInTheDocument();
   });
 
   it("列表工具栏的放大镜图标内嵌在搜索框内，不作为前置元素", async () => {
@@ -168,7 +172,7 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     await waitFor(() =>
       expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
     );
-    fireEvent.click(screen.getByTitle("复制原料"));
+    fireEvent.click(screen.getByRole("button", { name: /复制原料/ }));
 
     await waitFor(() => expect(screen.getByText("复制原料")).toBeInTheDocument());
     const nameInput = document.getElementById(

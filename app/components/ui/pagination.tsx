@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -81,7 +81,7 @@ export function Pagination({
       )}
     >
       {totalLabel ? (
-        <span className="text-sm font-semibold text-primary">{totalLabel}</span>
+        <span className="text-[13px] text-muted-foreground">{totalLabel}</span>
       ) : (
         <span />
       )}
@@ -106,20 +106,6 @@ export function Pagination({
               ))}
             </SelectContent>
           </Select>
-        )}
-
-        {fullControls && (
-          <SkeuButton
-            variant="outline"
-            size="icon-sm"
-            className="size-9 rounded-[9px]"
-            aria-label="首页"
-            title="首页"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage <= 1}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </SkeuButton>
         )}
 
         <SkeuButton
@@ -170,20 +156,6 @@ export function Pagination({
           下一页
           <ChevronRight className="h-4 w-4" />
         </SkeuButton>
-
-        {fullControls && (
-          <SkeuButton
-            variant="outline"
-            size="icon-sm"
-            className="size-9 rounded-[9px]"
-            aria-label="尾页"
-            title="尾页"
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage >= totalPages}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </SkeuButton>
-        )}
       </div>
     </div>
   );
