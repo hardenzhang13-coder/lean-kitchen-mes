@@ -496,6 +496,103 @@
   padding-top: 0;
 }
 
+/* ---------- 一级页签：一个页面承载多份列表 ---------- */
+.skeu-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--sk-surface);
+  border-bottom: 1px solid var(--sk-border);
+}
+.skeu-page-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+.skeu-page-tab:hover { background: var(--muted); color: var(--foreground); }
+.skeu-page-tab:active { transform: translateY(1px); }
+.skeu-page-tab-active,
+.skeu-page-tab-active:hover {
+  background: var(--sk-primary-soft);
+  color: #c2410c;
+  border-color: #f5b48d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 6px rgba(234, 88, 12, 0.16);
+}
+.skeu-page-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+.skeu-page-tab-active .skeu-page-tab-count {
+  background: rgba(255, 255, 255, 0.72);
+  color: #c2410c;
+}
+
+/* ---------- 二级分段控件：列表工具条内的筛选 ---------- */
+.skeu-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--sk-border);
+  border-radius: 10px;
+  background: var(--sk-surface-muted);
+  box-shadow: var(--sk-inset);
+}
+.skeu-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.skeu-segmented-btn:hover { color: var(--foreground); }
+.skeu-segmented-btn-active,
+.skeu-segmented-btn-active:hover {
+  background: var(--sk-surface);
+  color: #c2410c;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-segmented-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+.skeu-segmented-btn-active .skeu-segmented-count {
+  background: var(--sk-primary-soft-solid);
+  color: #c2410c;
+}
+
 /* ---------- 行操作按钮（v008 icon-btn / act-btn） ---------- */
 .skeu-icon-btn {
   width: 40px;
