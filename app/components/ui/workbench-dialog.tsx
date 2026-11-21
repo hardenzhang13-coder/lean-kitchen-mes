@@ -33,11 +33,11 @@ export function WorkbenchDialog({
       <AppDialogContent
         size="workbench"
         className={cn(
-          "flex max-h-[88vh] flex-col gap-0 overflow-hidden p-0",
+          "flex max-h-[calc(100dvh-24px)] flex-col gap-0 overflow-hidden p-0",
           className
         )}
       >
-        <div className="shrink-0 border-b border-skeu-border skeu-surface px-6 py-4 pr-16">
+        <div className="shrink-0 border-b border-skeu-border skeu-surface px-6 pt-6 pb-4 pr-16">
           <h2 className="text-lg font-bold tracking-tight">{title}</h2>
           {description ? (
             <p className="mt-1 text-[13px] text-muted-foreground">
@@ -46,12 +46,12 @@ export function WorkbenchDialog({
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-6 py-5">
+        <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
           {children}
         </div>
 
         {footer ? (
-          <div className="shrink-0 border-t border-skeu-border bg-white px-6 py-4">
+          <div className="shrink-0 border-t border-skeu-border bg-white px-6 pt-4 pb-5">
             {footer}
           </div>
         ) : null}
