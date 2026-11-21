@@ -117,19 +117,27 @@
   --neutral: oklch(0.53 0.012 70);
   --neutral-muted: oklch(0.965 0.006 75);
 
-  /* Semantic status colors */
+  /* Semantic status colors：唯一的语义状态 token 家族 */
   --status-success: #22c55e;
   --status-success-bg: #f0fdf4;
+  --status-success-text: #15803d;
+  --status-success-dot: #22c55e;
   --status-warning: #f59e0b;
   --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-warning-dot: #f59e0b;
   --status-danger: #ef4444;
   --status-danger-bg: #fef2f2;
+  --status-danger-text: #dc2626;
+  --status-danger-dot: #ef4444;
   --status-neutral: #6b7280;
   --status-neutral-bg: #f9fafb;
+  --status-neutral-text: #6b7280;
+  --status-neutral-dot: #6b7280;
   --status-info: #3b82f6;
   --status-info-bg: #eff6ff;
-  --status-primary: #ea580c;
-  --status-primary-bg: #fff7ed;
+  --status-info-text: #2563eb;
+  --status-info-dot: #3b82f6;
 
   /* 事件块（工作台周历）：中色系实心底 + 白字，与浅色状态标签区分开 */
   --status-warning-solid: #b45309; /* 待生效 */
@@ -181,8 +189,7 @@
   }
   input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    @apply ring-2 ring-primary/15;
+    border-color: var(--sk-focus);
   }
 }
 
@@ -246,16 +253,31 @@
   --sk-surface-muted: linear-gradient(180deg, #fbf9f6 0%, #f6f3ef 100%);
   --sk-panel-body: linear-gradient(180deg, #fcfbfa 0%, #fbf9f6 100%);
   /* 主色表面 */
-  --sk-primary-surface: linear-gradient(180deg, #f0813c 0%, #e05a1e 100%);
+  --sk-primary-from: #f0813c;
+  --sk-primary-to: #e05a1e;
+  --sk-primary-ink: #c2410c;
+  --sk-brand-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 3px 8px rgba(234, 88, 12, 0.28);
+  --sk-primary-page-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
+  --sk-primary-surface: linear-gradient(180deg, var(--sk-primary-from) 0%, var(--sk-primary-to) 100%);
   --sk-primary-soft: linear-gradient(180deg, #fbeee5 0%, #fbe7dc 100%);
   --sk-primary-soft-solid: #fff7ed;
   --sk-primary-shadow: 0 1px 2px rgba(194, 65, 12, 0.40), 0 4px 10px rgba(234, 88, 12, 0.22);
+  /* 圆角阶梯：xs 小动作 / sm 控件 / md 面板 / lg 弹窗 / xl 图标盘 */
+  --sk-radius-xs: 8px;
+  --sk-radius-sm: 10px;
+  --sk-radius-md: 12px;
+  --sk-radius-lg: 14px;
+  --sk-radius-xl: 16px;
+  --sk-radius-pill: 999px;
   /* 列表行 */
   --sk-row-hover: #fdf9f5;
   --sk-row-l2: #fcfbf9;
-  /* 表格尺寸：行高与表头高 */
+  /* 表格尺寸：默认 / 密集 / 高行 */
   --sk-row-h: 52px;
   --sk-thead-h: 42px;
+  --sk-row-h-dense: 44px;
+  --sk-row-h-tall: 60px;
+  --sk-thead-h-tall: 46px;
   /* 滚动条 */
   --sk-scroll-thumb: #d9d5ce;
   /* 焦点：完全对齐 v008，只加深边框，不加发光环 */
@@ -267,17 +289,9 @@
   --sk-thumb-surface: linear-gradient(180deg, #ffffff 0%, #efece6 100%);
   --sk-thumb-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
   --sk-thumb-shadow-on: 0 1px 3px rgba(194, 65, 12, 0.40);
-  /* 状态徽章文字与圆点：v008 取值集中管理 */
-  --sk-status-success-text: #15803d;
-  --sk-status-warning-text: #d97706;
-  --sk-status-danger-text: #dc2626;
-  --sk-status-info-text: #2563eb;
-  --sk-status-neutral-text: #6b7280;
-  --sk-status-success-dot: #22c55e;
-  --sk-status-warning-dot: #f59e0b;
-  --sk-status-danger-dot: #ef4444;
-  --sk-status-info-dot: #3b82f6;
-  --sk-status-neutral-dot: #6b7280;
+  /* 固定列边缘阴影 */
+  --sk-sticky-shadow-left: 8px 0 12px -12px rgba(0, 0, 0, 0.45);
+  --sk-sticky-shadow-right: -8px 0 12px -12px rgba(0, 0, 0, 0.45);
 }
 
 /* ---------- 表面（渐变必须走 background，Tailwind 的 bg-[var()] 只能设 background-color） ---------- */
@@ -288,7 +302,7 @@
 .skeu-panel {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
-  border-radius: 12px;
+  border-radius: var(--sk-radius-md);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
 }
 .skeu-panel-toolbar {
@@ -308,7 +322,7 @@
 .skeu-scroll::-webkit-scrollbar-track { background: transparent; }
 .skeu-scroll::-webkit-scrollbar-thumb {
   background: var(--sk-scroll-thumb);
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   border: 2px solid transparent;
   background-clip: content-box;
 }
@@ -363,7 +377,7 @@
 .skeu-input {
   background: #ffffff;
   border-color: var(--sk-border-strong);
-  border-radius: 10px;
+  border-radius: var(--sk-radius-sm);
   box-shadow: var(--sk-inset);
 }
 .skeu-input:focus,
@@ -377,7 +391,7 @@
 .skeu-trigger {
   background: #ffffff;
   border: 1px solid var(--sk-border-strong);
-  border-radius: 10px;
+  border-radius: var(--sk-radius-sm);
   box-shadow: var(--sk-inset);
   height: 44px;
   padding: 0 14px;
@@ -397,7 +411,7 @@
 .skeu-popover {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
-  border-radius: 12px;
+  border-radius: var(--sk-radius-md);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
 }
 
@@ -405,7 +419,7 @@
 [data-slot="dialog-content"] [data-slot="dialog-close"] {
   width: 34px;
   height: 34px;
-  border-radius: 9px;
+  border-radius: var(--sk-radius-xs);
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
@@ -427,10 +441,6 @@
 }
 
 /* ---------- 徽章：胶囊 + 顶部高光 ---------- */
-.skeu-badge {
-  border-radius: 999px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
-}
 
 /* ---------- 表格 ---------- */
 .skeu-table-scroll {
@@ -470,13 +480,13 @@
   font-size: 14px;
 }
 .skeu-table-scroll[data-density="dense"] [data-slot="table-cell"] {
-  height: 44px;
+  height: var(--sk-row-h-dense);
 }
 .skeu-table-scroll[data-row-size="tall"] [data-slot="table-cell"] {
-  height: 60px;
+  height: var(--sk-row-h-tall);
 }
 .skeu-table-scroll[data-row-size="tall"] [data-slot="table-head"] {
-  height: 46px;
+  height: var(--sk-thead-h-tall);
 }
 .skeu-table-scroll [data-slot="table-cell"][data-skeu-cell="plain"] {
   height: auto;
@@ -488,7 +498,7 @@
 /* ---------- 侧栏磁贴 ---------- */
 .skeu-nav-active {
   background: var(--sk-primary-soft);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   box-shadow: inset 0 2px 3px rgba(194, 65, 12, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 3px 10px rgba(234, 88, 12, 0.20);
 }
 .skeu-nav-active::after {
@@ -500,7 +510,7 @@
   width: 12px;
   height: 24px;
   background: var(--background);
-  border-radius: 12px 0 0 12px;
+  border-radius: var(--sk-radius-md) 0 0 var(--sk-radius-md);
   border-left: 1px solid var(--sk-border);
 }
 
@@ -509,7 +519,7 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.60);
 }
 .skeu-dot-all { background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%); }
@@ -545,7 +555,7 @@
   height: 38px;
   padding: 0 14px;
   border: 1px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--sk-radius-sm);
   font-size: 14px;
   font-weight: 600;
   color: var(--muted-foreground);
@@ -556,7 +566,7 @@
 .skeu-page-tab-active,
 .skeu-page-tab-active:hover {
   background: var(--sk-primary-soft);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border-color: #f5b48d;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 6px rgba(234, 88, 12, 0.16);
 }
@@ -566,7 +576,7 @@
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   background: var(--muted);
   color: var(--muted-foreground);
   font-size: 11px;
@@ -574,7 +584,7 @@
 }
 .skeu-page-tab-active .skeu-page-tab-count {
   background: rgba(255, 255, 255, 0.72);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
 }
 
 /* ---------- 二级分段控件：列表工具条内的筛选 ---------- */
@@ -584,7 +594,7 @@
   gap: 2px;
   padding: 3px;
   border: 1px solid var(--sk-border);
-  border-radius: 10px;
+  border-radius: var(--sk-radius-sm);
   background: var(--sk-surface-muted);
   box-shadow: var(--sk-inset);
 }
@@ -595,7 +605,7 @@
   height: 32px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--sk-radius-xs);
   font-size: 13px;
   font-weight: 600;
   color: var(--muted-foreground);
@@ -605,7 +615,7 @@
 .skeu-segmented-btn-active,
 .skeu-segmented-btn-active:hover {
   background: var(--sk-surface);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
 }
 .skeu-segmented-count {
@@ -614,7 +624,7 @@
   min-width: 18px;
   height: 18px;
   padding: 0 5px;
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   background: var(--muted);
   color: var(--muted-foreground);
   font-size: 11px;
@@ -622,14 +632,14 @@
 }
 .skeu-segmented-btn-active .skeu-segmented-count {
   background: var(--sk-primary-soft-solid);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
 }
 
 /* ---------- 行操作按钮（v008 icon-btn / act-btn） ---------- */
 .skeu-icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 9px;
+  border-radius: var(--sk-radius-xs);
   display: inline-grid;
   place-items: center;
   color: var(--muted-foreground);
@@ -647,7 +657,7 @@
 .skeu-act-btn {
   height: 34px;
   padding: 0 9px;
-  border-radius: 8px;
+  border-radius: var(--sk-radius-xs);
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -670,24 +680,24 @@
 /* fill：比描边高一级——浅橙实底 + 橙字 + 无描边 */
 .skeu-act-btn.fill {
   background: #fbe7dc;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid transparent;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 .skeu-act-btn.fill:hover {
   background: #f8d9c6;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
 }
 .skeu-act-btn.primary {
   background: #fbe7dc;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid #f5b48d;
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(234, 88, 12, 0.18);
 }
 .skeu-act-btn.primary:hover {
   background: #f8d9c6;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border-color: #ea580c;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 4px rgba(234, 88, 12, 0.20);
 }
@@ -698,7 +708,7 @@
 
 /* ---------- 状态徽章（v008 badge 规格） ---------- */
 .skeu-badge {
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
 }
@@ -706,13 +716,13 @@
 
 /* ---------- 行内次级强调：描边式（比 primary 填充再降一级） ---------- */
 .skeu-act-btn.soft {
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid rgba(234, 88, 12, 0.35);
   background: transparent;
 }
 .skeu-act-btn.soft:hover {
   background: #fff7ed;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border-color: rgba(234, 88, 12, 0.55);
 }
 .skeu-act-btn.soft:active {
@@ -727,7 +737,7 @@
   max-width: min(90vw, 420px) !important;
   margin-left: auto !important;
   margin-right: auto !important;
-  border-radius: 12px !important;
+  border-radius: var(--sk-radius-md) !important;
   border: 1px solid var(--sk-border) !important;
   background: var(--sk-surface) !important;
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-3) !important;

@@ -22,7 +22,7 @@ export function AppDialogContent({
 }) {
   return (
     <DialogContent
-      className={cn(dialogSizeClasses[size], "rounded-[14px] shadow-sk-3", className)}
+      className={cn(dialogSizeClasses[size], "rounded-[var(--sk-radius-lg)] shadow-sk-3", className)}
       {...props}
     />
   );

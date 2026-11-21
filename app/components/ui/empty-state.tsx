@@ -66,8 +66,8 @@ export function EmptyState({
       />
 
       <div className="relative mb-5 flex h-16 w-16 items-center justify-center">
-        <span className="absolute inset-0 rounded-[18px] border border-skeu-border skeu-surface shadow-[var(--sk-highlight-top),var(--sk-shadow-1)]" />
-        <span className="absolute inset-[3px] rounded-[15px] bg-[var(--sk-surface-muted)] shadow-[var(--sk-inset)]" />
+        <span className="absolute inset-0 rounded-[var(--sk-radius-xl)] border border-skeu-border skeu-surface shadow-[var(--sk-highlight-top),var(--sk-shadow-1)]" />
+        <span className="absolute inset-[3px] rounded-[var(--sk-radius-md)] bg-[var(--sk-surface-muted)] shadow-[var(--sk-inset)]" />
         <Icon
           className={cn(
             "relative h-6 w-6",

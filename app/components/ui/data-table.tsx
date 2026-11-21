@@ -154,9 +154,9 @@ export function DataTable<T extends object>({
                     "font-semibold",
                     col.className,
                     col.sticky === "left" &&
-                      "sticky left-0 z-20 bg-background shadow-[8px_0_12px_-12px_rgba(0,0,0,0.45)]",
+                      "sticky left-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-left)]",
                     col.sticky === "right" &&
-                      "sticky right-0 z-20 bg-background shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
+                      "sticky right-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-right)]"
                   )}
                 >
                   {col.header}
@@ -168,7 +168,7 @@ export function DataTable<T extends object>({
                     "text-right font-semibold",
                     actionsWidth,
                     stickyActions &&
-                      "sticky right-0 z-20 bg-background shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
+                      "sticky right-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-right)]"
                   )}
                 >
                   操作
@@ -215,9 +215,9 @@ export function DataTable<T extends object>({
                       className={cn(
                         col.className,
                         col.sticky === "left" &&
-                          "sticky left-0 z-10 bg-card group-hover:bg-muted shadow-[8px_0_12px_-12px_rgba(0,0,0,0.45)]",
+                          "sticky left-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-left)]",
                         col.sticky === "right" &&
-                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
+                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-right)]"
                       )}
                     >
                       {getCellValue(row, col, rowIdx)}
@@ -228,7 +228,7 @@ export function DataTable<T extends object>({
                       data-sticky={stickyActions ? true : undefined}
                       className={cn(
                         stickyActions &&
-                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
+                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-right)]"
                       )}
                     >
                       <div className="flex items-center justify-end gap-0.5">

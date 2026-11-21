@@ -4,8 +4,10 @@ import { useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
+  Boxes,
   CheckCircle2,
   ClipboardList,
+  History,
   Inbox,
   Layers3,
   PackageOpen,
@@ -74,6 +76,8 @@ import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuSearch } from "@/app/components/ui/skeu-search";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
 import { SkeuToggle } from "@/app/components/ui/skeu-toggle";
+import { PageTabs } from "@/app/components/ui/page-tabs";
+import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import {
   SkeuActionButton,
   SkeuIconAction,
@@ -115,6 +119,8 @@ function MaterialKit() {
   const [industry, setIndustry] = useState("veg");
   const [date, setDate] = useState("2026-11-21");
   const [text, setText] = useState("");
+  const [pageTab, setPageTab] = useState("stock");
+  const [segment, setSegment] = useState("all");
 
   return (
     <div className="space-y-6">
@@ -256,6 +262,50 @@ function MaterialKit() {
             label="添加二级"
             tone="primary"
             icon={<PlusCircle className="h-3.5 w-3.5" />}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">一级页签 / 二级分段</h2>
+          <p className="text-sm text-muted-foreground">
+            一级页签切换整份列表；二级分段只做状态 / 类型 / 范围筛选，放在工具条内。
+          </p>
+        </div>
+        <PageTabs
+          tabs={[
+            { value: "stock", label: "当前库存", icon: Boxes },
+            { value: "outbound", label: "出库单", icon: ClipboardList },
+            { value: "ledger", label: "出入库流水", icon: History },
+          ]}
+          value={pageTab}
+          onChange={setPageTab}
+        />
+        <SkeuSegmented
+          value={segment}
+          onChange={setSegment}
+          options={[
+            { value: "all", label: "全部" },
+            { value: "net", label: "净料" },
+            { value: "minor", label: "小料" },
+          ]}
+          ariaLabel="净菜类型"
+        />
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">缺省态</h2>
+          <p className="text-sm text-muted-foreground">
+            浮雕图标盘 + 同心环 + 说明 + 主操作；列表空态直接占满列表区。
+          </p>
+        </div>
+        <div className="rounded-xl border border-skeu-border bg-card">
+          <EmptyState
+            title="暂无原料"
+            description="录入第一条原料后，它会出现在这里；也可以先批量导入。"
+            action={<SkeuButton variant="primary">新增原料</SkeuButton>}
           />
         </div>
       </section>
