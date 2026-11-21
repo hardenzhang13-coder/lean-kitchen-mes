@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, Ban, CheckCircle2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
@@ -233,7 +232,11 @@ export default function UnitsPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");
@@ -315,7 +318,6 @@ export default function UnitsPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
-            density="dense"
             tableClassName="min-w-max"
             columns={[
               {
@@ -536,13 +538,13 @@ export default function UnitsPage() {
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setDeleteTarget(null)}>
               {deleteError ? "知道了" : "取消"}
-            </Button>
+            </SkeuButton>
             {!deleteError && (
-              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+              <SkeuButton variant="danger" onClick={handleDelete}>
                 删除
-              </Button>
+              </SkeuButton>
             )}
           </DialogFooter>
         </AppDialogContent>

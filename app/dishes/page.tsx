@@ -17,6 +17,8 @@ import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
@@ -249,20 +251,24 @@ export default function DishesPage() {
   };
 
   return (
-    <PageShell variant="workspace">
-      <PageHeader
-        title="菜品库"
-        description="管理所有菜品及其 BOM 与工艺"
-        actions={
-          <Button onClick={() => router.push("/dishes/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增菜品
-          </Button>
-        }
-      />
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="菜品库"
+          description="管理所有菜品及其 BOM 与工艺"
+          actions={
+            <SkeuButton onClick={() => router.push("/dishes/new")}>
+              <Plus className="h-4 w-4" />
+              新增菜品
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -308,13 +314,14 @@ export default function DishesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<DishDetail>
             data={dishes}
             loading={loading}
             onRowClick={openSheet}
             fillHeight
-            density="dense"
+            variant="skeu"
+            actionsWidth="w-[150px]"
             tableClassName="min-w-max"
             columns={[
               {
@@ -401,42 +408,33 @@ export default function DishesPage() {
             ]}
             rowActions={(row) => (
               <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`转化菜品 ${row.name}`}
-                  title="菜品转化"
+                <SkeuIconAction
+                  label={`转化菜品 ${row.name}`}
+                  tip="菜品转化"
+                  icon={<ArrowRightLeft className="h-4 w-4" />}
                   onClick={(e) => {
                     e.stopPropagation();
                     setScaleTarget(row);
                   }}
-                >
-                  <ArrowRightLeft className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`复制菜品 ${row.name}`}
-                  title="复制菜品"
+                />
+                <SkeuIconAction
+                  label={`复制菜品 ${row.name}`}
+                  tip="复制菜品"
+                  icon={<Copy className="h-4 w-4" />}
                   onClick={(e) => {
                     e.stopPropagation();
                     openCopy(row);
                   }}
-                >
-                  <Copy className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`编辑菜品 ${row.name}`}
-                  title="编辑"
+                />
+                <SkeuIconAction
+                  label={`编辑菜品 ${row.name}`}
+                  tip="编辑"
+                  icon={<Pencil className="h-4 w-4" />}
                   onClick={(e) => {
                     e.stopPropagation();
                     router.push(`/dishes/${row.id}/edit`);
                   }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
+                />
               </>
             )}
             pagination={

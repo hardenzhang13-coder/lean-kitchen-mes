@@ -51,7 +51,7 @@ export function SkeuDotSelect({
       <PopoverTrigger
         aria-label={rest["aria-label"] ?? "状态筛选"}
         className={cn(
-          "flex h-11 min-w-[160px] items-center gap-2.5 rounded-[10px] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:bg-muted focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
+          "flex h-11 min-w-[160px] items-center gap-2.5 rounded-[10px] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:bg-[var(--sk-control-bg)] focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
           className
         )}
       >

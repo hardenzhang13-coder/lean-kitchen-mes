@@ -8,7 +8,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   AppDialogContent,
@@ -133,27 +132,21 @@ export function RecordDialog({
             {mode === "view" ? (
               <>
                 {onDelete && (
-                  <Button
-                    variant="destructive"
-                    className="h-11 px-6 sm:mr-auto"
+                  <SkeuButton
+                    variant="danger"
+                    className="sm:mr-auto"
                     disabled={deleteDisabled}
                     title={deleteTitle}
                     onClick={onDelete}
                   >
                     删除
-                  </Button>
+                  </SkeuButton>
                 )}
-                <Button
-                  variant="outline"
-                  className="h-11 px-6"
-                  onClick={requestClose}
-                >
+                <SkeuButton variant="outline" onClick={requestClose}>
                   关闭
-                </Button>
+                </SkeuButton>
                 {onEdit && (
-                  <Button className="h-11 px-6" onClick={onEdit}>
-                    编辑
-                  </Button>
+                  <SkeuButton onClick={onEdit}>编辑</SkeuButton>
                 )}
               </>
             ) : (

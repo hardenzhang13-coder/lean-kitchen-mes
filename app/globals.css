@@ -245,9 +245,8 @@
   --sk-thead-h: 42px;
   /* 滚动条 */
   --sk-scroll-thumb: #d9d5ce;
-  /* 焦点：暖灰，白底对比约 4.8:1，不用发光环 */
-  --sk-focus: #78716c;
-  --sk-focus-soft: #a8a29e;
+  /* 焦点：完全对齐 v008，只加深边框，不加发光环 */
+  --sk-focus: #9ca3af;
   /* 控件表面：拨动开关、药丸按钮、搜索清除钮 */
   --sk-control-bg: #f6f3ef;
   --sk-control-bg-hover: #efece6;
@@ -356,8 +355,8 @@
 }
 .skeu-input:focus,
 .skeu-input:focus-visible {
-  border-color: var(--sk-focus-soft);
-  box-shadow: var(--sk-inset), 0 0 0 3px color-mix(in srgb, var(--sk-focus) 10%, transparent);
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset);
   outline: none;
 }
 
@@ -375,8 +374,8 @@
 }
 .skeu-trigger:hover { background: #f6f3ef; }
 .skeu-trigger:focus-visible {
-  border-color: var(--sk-focus-soft);
-  box-shadow: var(--sk-inset), 0 0 0 3px color-mix(in srgb, var(--sk-focus) 10%, transparent);
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset);
   outline: none;
 }
 .skeu-trigger[data-disabled] { opacity: 0.5; cursor: not-allowed; }

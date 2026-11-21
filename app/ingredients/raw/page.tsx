@@ -8,7 +8,6 @@ import {
   ArrowRightLeft,
   Copy,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogHeader,
@@ -373,7 +372,6 @@ export default function RawIngredientsPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
-            density="dense"
             actionsWidth="w-[180px]"
             tableClassName="min-w-max"
             columns={[
@@ -615,20 +613,18 @@ export default function RawIngredientsPage() {
             确定要删除这条原料吗？此操作不可撤销。
           </p>
           <DialogFooter>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() => setDeleteId(null)}
-              className="h-11 px-6"
             >
               取消
-            </Button>
-            <Button
-              variant="destructive"
+            </SkeuButton>
+            <SkeuButton
+              variant="danger"
               onClick={() => deleteId && handleDelete(deleteId)}
-              className="h-11 px-6"
             >
               删除
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

@@ -186,7 +186,11 @@ export default function NetPackagingsPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");

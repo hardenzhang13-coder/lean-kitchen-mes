@@ -221,7 +221,7 @@ export default function UsersPage() {
         toast.error(err.error || "删除失败");
         return;
       }
-      toast.success("用户已停用并移出列表");
+      toast.warning("用户已停用并移出列表");
       setDeleteId(null);
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
@@ -249,7 +249,11 @@ export default function UsersPage() {
         toast.error(err.error || "更新账号状态失败");
         return;
       }
-      toast.success(row.isActive ? "账号已停用" : "账号已启用");
+      if (row.isActive) {
+        toast.warning("账号已停用");
+      } else {
+        toast.success("账号已启用");
+      }
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
         const json = await usersRes.json();

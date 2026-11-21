@@ -12,7 +12,6 @@ import {
   Power,
   PowerOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
@@ -345,7 +344,11 @@ export default function ClassesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");
@@ -500,7 +503,6 @@ export default function ClassesPage() {
             onRowClick={openView}
             fillHeight
             variant="skeu"
-            density="dense"
             actionsWidth="w-[380px]"
             getRowLevel={(row) => (row.kind === "l2" ? "l2" : "l1")}
             tableClassName="min-w-max"
@@ -575,7 +577,7 @@ export default function ClassesPage() {
                       }`}
                       title={description || ""}
                     >
-                      {description || "—"}
+                      {description || "–"}
                     </span>
                   );
                 },
@@ -793,7 +795,7 @@ export default function ClassesPage() {
                 : []),
               {
                 label: "说明",
-                value: selectedRecord.description || "—",
+                value: selectedRecord.description || "–",
                 wide: true,
               },
             ]}
@@ -881,13 +883,13 @@ export default function ClassesPage() {
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setDeleteTarget(null)}>
               {deleteError ? "知道了" : "取消"}
-            </Button>
+            </SkeuButton>
             {!deleteError && (
-              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+              <SkeuButton variant="danger" onClick={handleDelete}>
                 删除
-              </Button>
+              </SkeuButton>
             )}
           </DialogFooter>
         </AppDialogContent>

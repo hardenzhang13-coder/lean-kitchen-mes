@@ -3,6 +3,7 @@ import { Clock3, ShieldCheck, ShoppingCart } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { TRIAL_FEATURES } from "@/lib/shared/features";
 import PurchasesView from "./purchases-view";
 
@@ -12,10 +13,18 @@ export default function PurchasesPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <PageHeader title="采购管理" description="采购单、报销与采购单图片识别" />
-
-      <Card className="border-dashed">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="采购管理"
+          description="采购单、报销与采购单图片识别"
+        />
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-auto">
+        <Card className="border-dashed">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
             <ShoppingCart className="h-5 w-5 text-primary" />
@@ -41,6 +50,7 @@ export default function PurchasesPage() {
           </Link>
         </CardContent>
       </Card>
-    </div>
+      </div>
+    </PageShell>
   );
 }

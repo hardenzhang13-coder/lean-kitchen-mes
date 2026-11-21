@@ -6,7 +6,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 interface DiscardChangesDialogProps {
@@ -37,12 +37,12 @@ export function DiscardChangesDialog({
           当前{entityLabel}有尚未保存的修改，关闭后这些内容将丢失。
         </p>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <SkeuButton variant="outline" onClick={() => onOpenChange(false)}>
             继续编辑
-          </Button>
-          <Button variant="destructive" onClick={onDiscard}>
+          </SkeuButton>
+          <SkeuButton variant="danger" onClick={onDiscard}>
             放弃并关闭
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
