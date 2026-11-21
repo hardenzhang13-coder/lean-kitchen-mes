@@ -22,7 +22,6 @@ import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import {
   RecordDialog,
-  RecordView,
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
@@ -70,7 +69,7 @@ export default function UnitsPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [recordOpen, setRecordOpen] = useState(false);
-  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [recordMode, setRecordMode] = useState<"create" | "edit">("create");
   const [selected, setSelected] = useState<Unit | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [baselineForm, setBaselineForm] = useState(emptyForm);
@@ -141,16 +140,10 @@ export default function UnitsPage() {
 
   const closeRecord = () => {
     setRecordOpen(false);
-    setRecordMode("view");
+    setRecordMode("create");
     setSelected(null);
     setForm(emptyForm);
     setBaselineForm(emptyForm);
-  };
-
-  const openView = (row: Unit) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
   };
 
   const openCreate = () => {
@@ -315,7 +308,6 @@ export default function UnitsPage() {
           <DataTable<Unit>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             variant="skeu"
             tableClassName="min-w-max"
@@ -428,50 +420,14 @@ export default function UnitsPage() {
           if (!open) closeRecord();
         }}
         mode={recordMode}
-        title={
-          recordMode === "create"
-            ? "新增单位"
-            : recordMode === "edit"
-              ? "编辑单位"
-              : selected?.name ?? "单位"
-        }
-        meta={
-          recordMode === "view" && selected ? (
-            <StatusBadge
-              status={selected.isActive ? "启用中" : "已停用"}
-              variant={selected.isActive ? "success" : "neutral"}
-            />
-          ) : undefined
-        }
-        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        title={recordMode === "create" ? "新增单位" : "编辑单位"}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
-        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        dirty={isRecordDirty(form, baselineForm)}
         submitting={submitting}
         entityLabel="单位"
       >
-        {recordMode === "view" && selected ? (
-          <RecordView
-            items={[
-              { label: "名称", value: selected.name, emphasis: true },
-              { label: "分类", value: categoryLabel(selected.category) },
-              {
-                label: "换算值",
-                value:
-                  selected.category === "weight"
-                    ? formatUnitValue(selected.gramsPerUnit, "g/单位", "未设置", " ")
-                    : "—",
-              },
-            ]}
-          />
-        ) : (
-          <SimpleForm>
+        <SimpleForm>
             <FormField id="name" label="名称" required>
               <Input
                 value={form.name}
@@ -506,7 +462,6 @@ export default function UnitsPage() {
               </FormField>
             )}
           </SimpleForm>
-        )}
       </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>

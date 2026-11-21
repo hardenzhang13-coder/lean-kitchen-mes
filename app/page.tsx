@@ -8,7 +8,9 @@ import {
   Plus,
   Undo2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { statusToVariant } from "@/app/components/ui/status-badge";
 import type { StatusVariant } from "@/app/components/ui/status-badge";
@@ -247,46 +249,44 @@ function HomeContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      {/* 顶部：问候 + 个人菜单 */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {displayName ? `${greeting}，${displayName}` : "工作台"}
-          </h1>
-          <p className="text-muted-foreground">
-            {formatCnDate(todayStr)} {WEEKDAY_NAMES[new Date().getDay()]}
-          </p>
-        </div>
-        <UserMenu user={user} />
-      </div>
-
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title={displayName ? `${greeting}，${displayName}` : "工作台"}
+          description={`${formatCnDate(todayStr)} ${WEEKDAY_NAMES[new Date().getDay()]}`}
+          actions={<UserMenu user={user} />}
+        />
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto">
       {/* 日期切换 + 状态图例（同一行） */}
       <div className="flex items-center gap-3">
-        <Button
+        <SkeuButton
           variant="outline"
           size="icon-sm"
           aria-label="上一周"
           onClick={() => applyWeek(weekOffset - 1)}
         >
           <ChevronLeft className="h-4 w-4" />
-        </Button>
+        </SkeuButton>
         <div className="text-sm font-bold tabular-nums">
           {formatCnDate(startDate)} — {formatCnDate(endDate)}
         </div>
-        <Button
+        <SkeuButton
           variant="outline"
           size="icon-sm"
           aria-label="下一周"
           onClick={() => applyWeek(weekOffset + 1)}
         >
           <ChevronRight className="h-4 w-4" />
-        </Button>
+        </SkeuButton>
         {weekOffset !== 0 && (
-          <Button variant="ghost" size="sm" onClick={() => applyWeek(0)}>
-            <Undo2 className="mr-1 h-3.5 w-3.5" />
+          <SkeuButton variant="ghost" size="sm" onClick={() => applyWeek(0)}>
+            <Undo2 className="h-3.5 w-3.5" />
             返回本周
-          </Button>
+          </SkeuButton>
         )}
 
         <div className="ml-auto flex items-center gap-4">
@@ -421,7 +421,8 @@ function HomeContent() {
           }}
         />
       )}
-    </div>
+      </div>
+    </PageShell>
   );
 }
 

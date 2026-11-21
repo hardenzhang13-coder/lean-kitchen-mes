@@ -16,6 +16,7 @@ import {
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
@@ -337,7 +338,7 @@ export default function DishesPage() {
                 header: "编号",
                 className: "w-[120px]",
                 cell: (row) => (
-                  <span className="whitespace-nowrap font-medium">{row.code}</span>
+                  <CodeText className="whitespace-nowrap">{row.code}</CodeText>
                 ),
               },
               {

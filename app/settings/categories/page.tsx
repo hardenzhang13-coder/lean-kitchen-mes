@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
@@ -156,12 +157,6 @@ export default function CategoriesPage() {
     setSelected(null);
     setForm(emptyForm);
     setBaselineForm(emptyForm);
-  };
-
-  const openView = (row: Category) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
   };
 
   const openCreate = () => {
@@ -314,7 +309,6 @@ export default function CategoriesPage() {
           <DataTable<Category>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -331,7 +325,7 @@ export default function CategoriesPage() {
               {
                 header: "编号",
                 className: "w-[110px]",
-                cell: (row) => <span className="font-medium">{row.code}</span>,
+                cell: (row) => <CodeText>{row.code}</CodeText>,
               },
               {
                 header: "名称",
@@ -474,13 +468,7 @@ export default function CategoriesPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

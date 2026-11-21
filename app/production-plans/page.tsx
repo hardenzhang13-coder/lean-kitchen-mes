@@ -3,7 +3,7 @@
 import { useEffect, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
@@ -120,23 +120,27 @@ export default function ProductionPlansPage() {
   };
 
   return (
-    <PageShell>
-      <PageHeader
-        title="生产计划单"
-        description="把各门店「进行中」的排程单与内部生产单汇总成一张执行单；切配完成后逐行确认并入库"
-        actions={
-          <>
-            <ProductionModuleSwitcher />
-            {canWrite && (
-              <Button onClick={() => setCreateState({ presetScheduleId: null })}>
-                <Plus className="mr-2 h-4 w-4" />
-                生产计划
-              </Button>
-            )}
-          </>
-        }
-      />
-
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="生产计划单"
+          description="把各门店「进行中」的排程单与内部生产单汇总成一张执行单；切配完成后逐行确认并入库"
+          actions={
+            <>
+              <ProductionModuleSwitcher />
+              {canWrite && (
+                <SkeuButton onClick={() => setCreateState({ presetScheduleId: null })}>
+                  <Plus className="h-4 w-4" />
+                  生产计划
+                </SkeuButton>
+              )}
+            </>
+          }
+        />
+      }
+    >
       <ListToolbar
         searchValue={board.search}
         onSearchChange={board.setSearch}
@@ -156,27 +160,29 @@ export default function ProductionPlansPage() {
         />
       </ListToolbar>
 
-      {board.loading && board.columns.length === 0 ? (
-        <LoadingState type="card-grid" rows={3} />
-      ) : (
-        <KanbanBoard
-          statuses={visibleStatuses}
-          columns={board.columns}
-          loading={board.loading}
-          emptyText="暂无生产计划单"
-          renderItem={(row) => (
-            <ProductionPlanCard
-              key={row.id}
-              item={row}
-              busy={actionId === row.id}
-              canWrite={canWrite}
-              onOpen={() => setPreviewId(row.id)}
-              onActivate={() => activatePlan(row.id)}
-              onComplete={() => openCompleteDialog(row.id)}
-            />
-          )}
-        />
-      )}
+      <div className="min-h-0 flex-1 overflow-auto">
+        {board.loading && board.columns.length === 0 ? (
+          <LoadingState type="card-grid" rows={3} />
+        ) : (
+          <KanbanBoard
+            statuses={visibleStatuses}
+            columns={board.columns}
+            loading={board.loading}
+            emptyText="暂无生产计划单"
+            renderItem={(row) => (
+              <ProductionPlanCard
+                key={row.id}
+                item={row}
+                busy={actionId === row.id}
+                canWrite={canWrite}
+                onOpen={() => setPreviewId(row.id)}
+                onActivate={() => activatePlan(row.id)}
+                onComplete={() => openCompleteDialog(row.id)}
+              />
+            )}
+          />
+        )}
+      </div>
 
       <ProductionPlanPreviewDialog planId={previewId} onClose={closePreview} />
 

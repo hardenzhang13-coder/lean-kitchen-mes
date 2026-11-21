@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -121,12 +122,6 @@ export default function StoresPage() {
     setSelected(null);
     setForm(emptyForm);
     setBaselineForm(emptyForm);
-  };
-
-  const openView = (row: Store) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
   };
 
   const openCreate = () => {
@@ -247,7 +242,6 @@ export default function StoresPage() {
           <DataTable<Store>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -264,9 +258,7 @@ export default function StoresPage() {
               {
                 header: "编号",
                 className: "w-[90px]",
-                cell: (row) => (
-                  <span className="font-medium text-muted-foreground">{row.code}</span>
-                ),
+                cell: (row) => <CodeText>{row.code}</CodeText>,
               },
               {
                 header: "名称",
@@ -384,13 +376,7 @@ export default function StoresPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

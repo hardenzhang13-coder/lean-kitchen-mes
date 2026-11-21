@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import {
   NetIngredientFormDialog,
@@ -225,7 +226,7 @@ export default function RawIngredientDetailPage() {
               data={netIngredients}
               loading={loading}
               columns={[
-                { header: "编号", cell: (row) => <span className="font-medium">{row.code}</span> },
+                { header: "编号", cell: (row) => <CodeText>{row.code}</CodeText> },
                 { header: "名称", accessorKey: "name" },
                 { header: "包装规格", cell: (row) => (row.packageSpec != null ? `${row.packageSpec}g` : "—") },
                 { header: "出成率", cell: (row) => `${row.yieldRate}%` },

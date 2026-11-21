@@ -137,7 +137,7 @@ describe("食材清单页的底部组件与字段展示", () => {
 });
 
 describe("食材清单页的列名、核心字段与复制能力", () => {
-  it("原料清单使用「品牌名称」列名，操作列不再提供删除", async () => {
+  it("原料清单使用「品牌名称」列名，并提供复制与删除", async () => {
     render(<RawIngredientsPage />);
 
     await waitFor(() =>
@@ -149,8 +149,8 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
       screen.getByRole("button", { name: /复制原料/ })
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /删除原料/ })
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: /删除原料/ })
+    ).toBeInTheDocument();
   });
 
   it("列表工具栏的放大镜图标内嵌在搜索框内，不作为前置元素", async () => {
@@ -191,27 +191,35 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     expect(screen.getByText("¥12.34/斤").className).toContain("text-primary");
   });
 
-  it("净料清单保留复制操作、移除列表内删除", async () => {
+  it("净料清单保留复制与删除操作", async () => {
     render(<NetIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("青椒丝")).toBeInTheDocument()
     );
-    expect(screen.getByTitle("复制净料")).toBeInTheDocument();
-    expect(screen.queryByTitle("删除净料")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /复制净料/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /删除净料/ })
+    ).toBeInTheDocument();
   });
 
-  it("详情抽屉提供删除入口", async () => {
+  it("编辑入口打开净料抽屉的编辑态", async () => {
     render(<NetIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("青椒丝")).toBeInTheDocument()
     );
-    fireEvent.click(screen.getByText("青椒丝"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "编辑净料 青椒丝" })
+    );
 
     await waitFor(() =>
-      expect(screen.getByText("净料详情")).toBeInTheDocument()
+      expect(
+        screen.getByRole("heading", { name: /编辑净料/ })
+      ).toBeInTheDocument()
     );
-    expect(screen.getByText("删除")).toBeInTheDocument();
+    expect(screen.getByText("保存")).toBeInTheDocument();
   });
 });

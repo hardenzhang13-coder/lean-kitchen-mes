@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
@@ -480,9 +481,7 @@ export default function SauceIngredientsPage() {
             <DataTable<Sauce>
               data={data}
               loading={loading}
-              onRowClick={openEdit}
               fillHeight
-              density="dense"
               tableClassName="min-w-max"
               columns={[
                 {
@@ -497,7 +496,7 @@ export default function SauceIngredientsPage() {
                 {
                   header: "编号",
                   className: "w-[85px]",
-                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                  cell: (row) => <CodeText>{row.code}</CodeText>,
                 },
                 {
                   header: "名称",

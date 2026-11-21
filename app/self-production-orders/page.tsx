@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
@@ -56,23 +56,27 @@ export default function SelfProductionOrdersPage() {
   };
 
   return (
-    <PageShell>
-      <PageHeader
-        title="内部生产单"
-        description="切配中心按日期内部生产净料/小料；确认后可与门店排程一起汇总到生产计划单"
-        actions={
-          <>
-            <ProductionModuleSwitcher />
-            {canWrite && (
-              <Button onClick={() => setCreateOpen(true)}>
-                <Plus className="mr-2 h-4 w-4" />
-                内部生产
-              </Button>
-            )}
-          </>
-        }
-      />
-
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="内部生产单"
+          description="切配中心按日期内部生产净料/小料；确认后可与门店排程一起汇总到生产计划单"
+          actions={
+            <>
+              <ProductionModuleSwitcher />
+              {canWrite && (
+                <SkeuButton onClick={() => setCreateOpen(true)}>
+                  <Plus className="h-4 w-4" />
+                  内部生产
+                </SkeuButton>
+              )}
+            </>
+          }
+        />
+      }
+    >
       <ListToolbar
         searchValue={board.search}
         onSearchChange={board.setSearch}
@@ -92,27 +96,29 @@ export default function SelfProductionOrdersPage() {
         />
       </ListToolbar>
 
-      {board.loading && board.columns.length === 0 ? (
-        <LoadingState type="card-grid" rows={3} />
-      ) : (
-        <KanbanBoard
-          statuses={visibleStatuses}
-          columns={board.columns}
-          loading={board.loading}
-          emptyText="暂无内部生产单"
-          renderItem={(row) => (
-            <SelfProductionOrderCard
-              key={row.id}
-              item={row}
-              busy={actionId === row.id}
-              canWrite={canWrite}
-              onOpen={() => setPreviewId(row.id)}
-              onActivate={() => activateOrder(row.id)}
-              onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
-            />
-          )}
-        />
-      )}
+      <div className="min-h-0 flex-1 overflow-auto">
+        {board.loading && board.columns.length === 0 ? (
+          <LoadingState type="card-grid" rows={3} />
+        ) : (
+          <KanbanBoard
+            statuses={visibleStatuses}
+            columns={board.columns}
+            loading={board.loading}
+            emptyText="暂无内部生产单"
+            renderItem={(row) => (
+              <SelfProductionOrderCard
+                key={row.id}
+                item={row}
+                busy={actionId === row.id}
+                canWrite={canWrite}
+                onOpen={() => setPreviewId(row.id)}
+                onActivate={() => activateOrder(row.id)}
+                onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
+              />
+            )}
+          />
+        )}
+      </div>
 
       <SelfProductionOrderPreviewDialog
         orderId={previewId}

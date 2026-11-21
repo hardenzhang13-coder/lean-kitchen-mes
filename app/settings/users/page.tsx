@@ -118,12 +118,6 @@ export default function UsersPage() {
     setBaselineForm(emptyForm);
   };
 
-  const openView = (row: User) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
-  };
-
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -307,7 +301,6 @@ export default function UsersPage() {
           <DataTable<User>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -451,13 +444,7 @@ export default function UsersPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

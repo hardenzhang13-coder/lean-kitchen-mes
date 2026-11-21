@@ -1,7 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Copy, ArrowRightLeft } from "lucide-react";
+import { Plus, Pencil, Copy, ArrowRightLeft, Trash2 } from "lucide-react";
+import {
+  SkeuActionButton,
+  SkeuIconAction,
+} from "@/app/components/ui/skeu-row-action";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -11,8 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
@@ -82,7 +89,6 @@ export default function SeasoningIngredientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   // 「转调料」：从列表行操作发起，创建该调料的标准规格
   const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
@@ -148,13 +154,6 @@ export default function SeasoningIngredientsPage() {
 
   const openEdit = (row: Ingredient) => {
     setDetailId(row.id);
-    setDetailStartInEditMode(true);
-    setDetailOpen(true);
-  };
-
-  const openView = (row: Ingredient) => {
-    setDetailId(row.id);
-    setDetailStartInEditMode(false);
     setDetailOpen(true);
   };
 
@@ -219,21 +218,25 @@ export default function SeasoningIngredientsPage() {
   }, [categories]);
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-      <div className="flex items-center justify-between">
+    <PageShell
+      variant="panel"
+      header={
         <PageHeader
+          variant="topbar"
           showBack
           title="调料清单"
           description="标准化产品形态的基础调味品"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增调料
+            </SkeuButton>
+          }
         />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增调料
-        </Button>
-      </div>
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -262,13 +265,13 @@ export default function SeasoningIngredientsPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Ingredient>
             data={data}
             loading={loading}
-            onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
+            actionsWidth="w-[220px]"
             tableClassName="min-w-max"
             columns={[
                 {
@@ -283,7 +286,7 @@ export default function SeasoningIngredientsPage() {
                 {
                   header: "编号",
                   className: "w-[85px]",
-                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                  cell: (row) => <CodeText>{row.code}</CodeText>,
                 },
                 {
                   header: "食材名称",
@@ -371,43 +374,43 @@ export default function SeasoningIngredientsPage() {
               emptyState={{ title: "暂无数据" }}
               rowActions={(row) => (
                 <>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    aria-label={`转调料 ${row.name}`}
-                    title="转调料"
+                  <SkeuIconAction
+                    label={`复制调料 ${row.name}`}
+                    tip="复制调料"
+                    icon={<Copy className="h-4 w-4" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openCopy(row);
+                    }}
+                  />
+                  <SkeuIconAction
+                    label={`删除调料 ${row.name}`}
+                    tip="删除调料"
+                    icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      setDeleteId(row.id);
+                    }}
+                  />
+                  <SkeuIconAction
+                    label={`编辑调料 ${row.name}`}
+                    tip="编辑调料"
+                    icon={<Pencil className="h-4 w-4" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEdit(row);
+                    }}
+                  />
+                  <SkeuActionButton
+                    label="转调料"
+                    tone="primary"
+                    icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       setConvertSourceId(row.id);
                       setConvertDialogOpen(true);
                     }}
-                  >
-                    <ArrowRightLeft className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`复制调料 ${row.name}`}
-                    title="复制调料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openCopy(row);
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`编辑调料 ${row.name}`}
-                    title="编辑调料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openEdit(row);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  />
                 </>
               )}
           />
@@ -442,7 +445,7 @@ export default function SeasoningIngredientsPage() {
         categories={categories}
         units={units}
         inlineEdit
-        startInEditMode={detailStartInEditMode}
+        startInEditMode
         categoryName={
           detailId
             ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
@@ -526,6 +529,6 @@ export default function SeasoningIngredientsPage() {
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

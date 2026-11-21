@@ -425,6 +425,7 @@
 }
 .skeu-table-scroll tbody tr { background: #ffffff; }
 .skeu-table-scroll tbody tr[data-row-level="l2"] { background: var(--sk-row-l2); }
+.skeu-table-scroll tbody tr[data-row-level="l2"] { cursor: default; }
 .skeu-table-scroll tbody tr:hover { background: var(--sk-row-hover); }
 .skeu-table-scroll [data-slot="table-row"] { border-bottom-color: var(--sk-border); }
 .skeu-table-scroll [data-slot="table-header"] { background: var(--sk-surface-muted); }
