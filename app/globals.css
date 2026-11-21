@@ -75,37 +75,37 @@
 :root {
   --font-heading: var(--font-sans);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.20 0.006 70);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.20 0.006 70);
   --primary: oklch(0.553 0.195 38.402);
   --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.006 75);
+  --secondary-foreground: oklch(0.21 0.006 70);
+  --muted: oklch(0.965 0.006 75);
+  --muted-foreground: oklch(0.53 0.012 70);
+  --accent: oklch(0.965 0.006 75);
+  --accent-foreground: oklch(0.205 0.006 70);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.915 0.008 75);
+  --input: oklch(0.915 0.008 75);
+  --ring: oklch(0.55 0.02 60);
+  --chart-1: oklch(0.87 0.004 75);
+  --chart-2: oklch(0.556 0.006 70);
+  --chart-3: oklch(0.439 0.006 70);
+  --chart-4: oklch(0.371 0.006 70);
+  --chart-5: oklch(0.269 0.006 70);
   --radius: 0.75rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.985 0.004 75);
+  --sidebar-foreground: oklch(0.20 0.006 70);
   --sidebar-primary: oklch(0.646 0.222 41.116);
   --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.965 0.006 75);
+  --sidebar-accent-foreground: oklch(0.205 0.006 70);
+  --sidebar-border: oklch(0.915 0.008 75);
+  --sidebar-ring: oklch(0.55 0.02 60);
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.20 0.006 70);
   --success: oklch(0.55 0.15 145);
   --success-muted: oklch(0.95 0.03 145);
   --warning: oklch(0.65 0.15 85);
@@ -114,8 +114,8 @@
   --danger-muted: oklch(0.95 0.05 27);
   --info: oklch(0.55 0.15 250);
   --info-muted: oklch(0.95 0.03 250);
-  --neutral: oklch(0.55 0 0);
-  --neutral-muted: oklch(0.95 0 0);
+  --neutral: oklch(0.53 0.012 70);
+  --neutral-muted: oklch(0.965 0.006 75);
 
   /* Semantic status colors */
   --status-success: #22c55e;
@@ -245,6 +245,26 @@
   --sk-thead-h: 42px;
   /* 滚动条 */
   --sk-scroll-thumb: #d9d5ce;
+  /* 焦点：暖灰，白底对比约 4.8:1，不用发光环 */
+  --sk-focus: #78716c;
+  /* 控件表面：拨动开关、药丸按钮、搜索清除钮 */
+  --sk-control-bg: #f6f3ef;
+  --sk-control-bg-hover: #efece6;
+  --sk-track-bg: #e7e2da;
+  --sk-thumb-surface: linear-gradient(180deg, #ffffff 0%, #efece6 100%);
+  --sk-thumb-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+  --sk-thumb-shadow-on: 0 1px 3px rgba(194, 65, 12, 0.40);
+  /* 状态徽章文字与圆点：v008 取值集中管理 */
+  --sk-status-success-text: #15803d;
+  --sk-status-warning-text: #d97706;
+  --sk-status-danger-text: #dc2626;
+  --sk-status-info-text: #2563eb;
+  --sk-status-neutral-text: #6b7280;
+  --sk-status-success-dot: #22c55e;
+  --sk-status-warning-dot: #f59e0b;
+  --sk-status-danger-dot: #ef4444;
+  --sk-status-info-dot: #3b82f6;
+  --sk-status-neutral-dot: #6b7280;
 }
 
 /* ---------- 表面（渐变必须走 background，Tailwind 的 bg-[var()] 只能设 background-color） ---------- */
@@ -335,9 +355,37 @@
 }
 .skeu-input:focus,
 .skeu-input:focus-visible {
-  border-color: #9ca3af;
-  box-shadow: var(--sk-inset);
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset), 0 0 0 2px color-mix(in srgb, var(--sk-focus) 28%, transparent);
   outline: none;
+}
+
+/* ---------- 选择器 / 日期触发器：与输入框同高同表面 ---------- */
+.skeu-trigger {
+  background: #ffffff;
+  border: 1px solid var(--sk-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--sk-inset);
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--foreground);
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.skeu-trigger:hover { background: #f6f3ef; }
+.skeu-trigger:focus-visible {
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset), 0 0 0 2px color-mix(in srgb, var(--sk-focus) 28%, transparent);
+  outline: none;
+}
+.skeu-trigger[data-disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- 浮层表面：下拉 / 日历 ---------- */
+.skeu-popover {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
 }
 
 /* ---------- 徽章：胶囊 + 顶部高光 ---------- */

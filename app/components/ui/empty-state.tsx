@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { LucideIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { cn } from "@/lib/shared/utils";
 
 interface EmptyStateAction {
@@ -33,15 +33,19 @@ export function EmptyState({
     const classes = "mt-4";
     if (href) {
       return (
-        <Link href={href} passHref legacyBehavior>
-          <Button variant="outline" className={classes}>{label}</Button>
-        </Link>
+        <SkeuButton
+          variant="outline"
+          className={classes}
+          render={<Link href={href} />}
+        >
+          {label}
+        </SkeuButton>
       );
     }
     return (
-      <Button variant="outline" className={classes} onClick={onClick}>
+      <SkeuButton variant="outline" className={classes} onClick={onClick}>
         {label}
-      </Button>
+      </SkeuButton>
     );
   })();
 

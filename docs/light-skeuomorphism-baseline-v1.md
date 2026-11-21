@@ -5,6 +5,14 @@
 > 定位：轻拟物是交互视觉基线 v1 的**视觉升级层**，不改变信息架构、业务语义与操作流程。
 > 上游基线：`docs/interaction-visual-baseline-v1.md`（信息架构与组件契约仍然有效）。
 
+## 0. 2026-11-21 推进记录
+
+- **定位**：v008 是主要参照样本，不是逐像素合同。系统按模块推进；看板、单据、打印允许在 v008 语言基础上做模块级扩展。
+- **已落地**：暖中性 token（`app/globals.css` `:root`）、输入族统一（Input / Textarea / SelectField / DatePicker / SkeuSearch）、标签族统一（StatusBadge / CategoryTag / PortionTag / ScheduleStatusTag / DishStatusTag）、焦点可见（`--sk-focus`）、`/ui-kit` 新增「v2 材质」Tab。
+- **分层现状**：`.skeu-*` 暂留 Tailwind layer 之外。原因：shadcn 原语自带 `bg-input/50`、`border-transparent` 等工具类，直接迁入 `@layer components` 会被工具类覆盖。等按钮 / 输入 / 容器族全部包装完成、页面不再直接使用原语后，再统一迁移；在此之前通过 wrapper 与 variant 控制，不新增 `!important`。
+- **系统口径**：行高默认 52px，密集列表用 `data-density="dense"` 的 44px 变体；总数文案灰色 13px；保留完整页码、去掉首页/尾页按钮；清单行点击查看，编辑走行内按钮。
+- **下一步**：按钮族 84 文件分批替换 → 清单页逐页铺开 → 单据 / 看板模板扩展 → 打印页单独验收。
+
 ## 1. 强度边界
 
 - 只做「轻拟物」：柔和阴影 + 表面高光 + 按压反馈，**不做**材质纹理、玻璃拟态、深度立体。

@@ -51,7 +51,7 @@ export function CategoryTag({ l2Code, l1Code, name, className }: CategoryTagProp
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "skeu-badge inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         className
       )}
       style={{ color: style.fg, backgroundColor: style.bg }}

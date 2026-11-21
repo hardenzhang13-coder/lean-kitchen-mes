@@ -43,7 +43,7 @@ export function PortionTag({
     <span
       title={option.description}
       className={cn(
-        "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium whitespace-nowrap",
+        "skeu-badge inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         PORTION_TAG_CLASSES[option.value] ??
           "bg-muted text-muted-foreground",
         className

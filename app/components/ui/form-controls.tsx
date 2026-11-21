@@ -42,6 +42,7 @@ export function Textarea({
   autoCorrect = "off",
   autoCapitalize = "none",
   spellCheck = false,
+  className,
   ...props
 }: ComponentProps<typeof BaseTextarea>) {
   return (
@@ -50,6 +51,7 @@ export function Textarea({
       autoCorrect={autoCorrect}
       autoCapitalize={autoCapitalize}
       spellCheck={spellCheck}
+      className={cn("skeu-input", className)}
       {...props}
     />
   );
