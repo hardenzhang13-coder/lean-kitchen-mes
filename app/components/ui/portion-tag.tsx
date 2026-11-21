@@ -7,16 +7,52 @@ import { getPortionOption } from "@/lib/shared/portion-scale";
  * 份量标签：净料/小料档案与菜品 BOM 选择器共用。
  *
  * 份量枚举的唯一真源是 `lib/shared/portion-scale.ts`；本组件只负责渲染，
- * 不在这里硬编码枚举值。新增份量取值时需同步补底色映射。
+ * 不在这里硬编码枚举值。新增份量取值时需同步补色板。
  */
 
-/** 份量标签的柔和底色映射：与菜品列表的份量徽标同一套语义。 */
-const PORTION_TAG_CLASSES: Record<string, string> = {
-  小碗菜: "bg-sky-100 text-sky-700",
-  "小碗菜·10份": "bg-cyan-100 text-cyan-700",
-  "社区·2份": "bg-amber-100 text-amber-700",
-  "社区·3份": "bg-emerald-100 text-emerald-700",
-  "社区·4份": "bg-violet-100 text-violet-700",
+type PortionTone = {
+  bg: string;
+  ink: string;
+  dot: string;
+};
+
+const PORTION_TONES: Record<string, PortionTone> = {
+  小碗菜: {
+    bg: "var(--portion-single-bg)",
+    ink: "var(--portion-single-ink)",
+    dot: "var(--portion-single-dot)",
+  },
+  "小碗菜·10份": {
+    bg: "var(--portion-canteen-bg)",
+    ink: "var(--portion-canteen-ink)",
+    dot: "var(--portion-canteen-dot)",
+  },
+  "社区·1份": {
+    bg: "var(--portion-comm1-bg)",
+    ink: "var(--portion-comm1-ink)",
+    dot: "var(--portion-comm1-dot)",
+  },
+  "社区·2份": {
+    bg: "var(--portion-comm2-bg)",
+    ink: "var(--portion-comm2-ink)",
+    dot: "var(--portion-comm2-dot)",
+  },
+  "社区·3份": {
+    bg: "var(--portion-comm3-bg)",
+    ink: "var(--portion-comm3-ink)",
+    dot: "var(--portion-comm3-dot)",
+  },
+  "社区·4份": {
+    bg: "var(--portion-comm4-bg)",
+    ink: "var(--portion-comm4-ink)",
+    dot: "var(--portion-comm4-dot)",
+  },
+};
+
+const FALLBACK_TONE: PortionTone = {
+  bg: "var(--muted)",
+  ink: "var(--muted-foreground)",
+  dot: "var(--muted-foreground)",
 };
 
 interface PortionTagProps {
@@ -30,25 +66,33 @@ interface PortionTagProps {
 export function PortionTag({
   portion,
   className,
-  emptyText = "—",
+  emptyText = "–",
 }: PortionTagProps) {
   const option = getPortionOption(portion);
   if (!option) {
     return (
-      <span className={cn("text-muted-foreground", className)}>{emptyText}</span>
+      <span className={cn("text-muted-foreground/60", className)}>
+        {emptyText}
+      </span>
     );
   }
+
+  const tone = PORTION_TONES[option.value] ?? FALLBACK_TONE;
 
   return (
     <span
       title={option.description}
       className={cn(
-        "skeu-badge inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        PORTION_TAG_CLASSES[option.value] ??
-          "bg-muted text-muted-foreground",
+        "skeu-badge inline-flex items-center gap-1.5 px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap",
         className
       )}
+      style={{ backgroundColor: tone.bg, color: tone.ink }}
     >
+      <span
+        aria-hidden
+        className="h-1.5 w-1.5 shrink-0 rounded-full"
+        style={{ backgroundColor: tone.dot }}
+      />
       {option.label}
     </span>
   );

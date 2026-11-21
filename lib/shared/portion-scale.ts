@@ -12,6 +12,7 @@
 export const PORTION_VALUES = [
   "小碗菜",
   "小碗菜·10份",
+  "社区·1份",
   "社区·2份",
   "社区·3份",
   "社区·4份",
@@ -32,6 +33,7 @@ export type PortionOption = {
 export const PORTION_OPTIONS: PortionOption[] = [
   { value: "小碗菜", label: "小碗菜", description: "1 份小碗菜", bowlEquivalent: 1 },
   { value: "小碗菜·10份", label: "小碗菜·10份", description: "10 份小碗菜", bowlEquivalent: 10 },
+  { value: "社区·1份", label: "社区·1份", description: "小碗菜 ×2", bowlEquivalent: 2 },
   { value: "社区·2份", label: "社区·2份", description: "小碗菜 ×4", bowlEquivalent: 4 },
   { value: "社区·3份", label: "社区·3份", description: "小碗菜 ×6", bowlEquivalent: 6 },
   { value: "社区·4份", label: "社区·4份", description: "小碗菜 ×8", bowlEquivalent: 8 },
@@ -87,4 +89,41 @@ export function portionScaleFactor(
   const targetCount = parsePortionCount(target);
   if (sourceCount == null || targetCount == null || sourceCount <= 0) return null;
   return Number((targetCount / sourceCount).toFixed(4));
+}
+
+/**
+ * 菜品库的份量分组（唯一口径）：
+ * - 小碗菜 → 单人份
+ * - 小碗菜·10份 → 团餐食堂
+ * - 其余（含社区·1/2/3/4 份、空值与历史值）→ 社区
+ */
+export const DISH_PORTION_GROUPS = {
+  single: ["小碗菜"],
+  community: ["社区·1份", "社区·2份", "社区·3份", "社区·4份"],
+  canteen: ["小碗菜·10份"],
+} as const;
+
+export type DishPortionGroup = keyof typeof DISH_PORTION_GROUPS;
+
+export const DISH_PORTION_GROUP_OPTIONS: {
+  value: DishPortionGroup;
+  label: string;
+}[] = [
+  { value: "single", label: "单人份" },
+  { value: "community", label: "社区" },
+  { value: "canteen", label: "团餐食堂" },
+];
+
+export function isDishPortionGroup(
+  value: string | null | undefined
+): value is DishPortionGroup {
+  return value === "single" || value === "community" || value === "canteen";
+}
+
+export function getDishPortionGroup(
+  portion: string | null | undefined
+): DishPortionGroup {
+  if (portion === "小碗菜") return "single";
+  if (portion === "小碗菜·10份") return "canteen";
+  return "community";
 }

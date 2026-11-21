@@ -148,6 +148,19 @@
   --tag-prc: #8b5cf6; --tag-prc-bg: #f5f3ff;
   --tag-gra: #64748b; --tag-gra-bg: #f8fafc;
   --tag-sea: #ec4899; --tag-sea-bg: #fdf2f8;
+
+  /* 菜品份量胶囊：同色系底 + 深一档文字 + 同色圆点 */
+  --portion-single-bg: #fff7ed; --portion-single-ink: #c2410c; --portion-single-dot: #ea580c;
+  --portion-comm1-bg: #ecfeff; --portion-comm1-ink: #0e7490; --portion-comm1-dot: #06b6d4;
+  --portion-comm2-bg: #eff6ff; --portion-comm2-ink: #1d4ed8; --portion-comm2-dot: #3b82f6;
+  --portion-comm3-bg: #f5f3ff; --portion-comm3-ink: #6d28d9; --portion-comm3-dot: #8b5cf6;
+  --portion-comm4-bg: #fdf2f8; --portion-comm4-ink: #be185d; --portion-comm4-dot: #ec4899;
+  --portion-canteen-bg: #fef3c7; --portion-canteen-ink: #b45309; --portion-canteen-dot: #f59e0b;
+
+  /* 荤素胶囊 */
+  --meat-bg: #fef2f2; --meat-ink: #b91c1c; --meat-dot: #ef4444;
+  --meat-mixed-bg: #fffbeb; --meat-mixed-ink: #b45309; --meat-mixed-dot: #f59e0b;
+  --veg-bg: #f0fdf4; --veg-ink: #15803d; --veg-dot: #22c55e;
 }
 
 @layer base {
@@ -457,6 +470,12 @@
 }
 .skeu-table-scroll[data-density="dense"] [data-slot="table-cell"] {
   height: 44px;
+}
+.skeu-table-scroll[data-row-size="tall"] [data-slot="table-cell"] {
+  height: 60px;
+}
+.skeu-table-scroll[data-row-size="tall"] [data-slot="table-head"] {
+  height: 46px;
 }
 .skeu-table-scroll [data-slot="table-cell"][data-skeu-cell="plain"] {
   height: auto;
