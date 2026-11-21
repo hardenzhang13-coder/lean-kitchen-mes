@@ -39,16 +39,20 @@ const statusMap: Record<string, StatusVariant> = {
 };
 
 const variantStyles: Record<StatusVariant, string> = {
-  success:
-    "bg-[var(--status-success-bg)] text-[var(--status-success)]",
-  warning:
-    "bg-[var(--status-warning-bg)] text-[var(--status-warning)]",
-  danger:
-    "bg-[var(--status-danger-bg)] text-[var(--status-danger)]",
-  info:
-    "bg-[var(--status-info-bg)] text-[var(--status-info)]",
-  neutral:
-    "bg-[var(--status-neutral-bg)] text-[var(--status-neutral)]",
+  success: "bg-[var(--status-success-bg)] text-[#15803D]",
+  warning: "bg-[var(--status-warning-bg)] text-[#D97706]",
+  danger: "bg-[var(--status-danger-bg)] text-[#DC2626]",
+  info: "bg-[var(--status-info-bg)] text-[#2563EB]",
+  neutral: "bg-[var(--status-neutral-bg)] text-[#6B7280]",
+};
+
+/** 徽章圆点用更亮的语义色，与文字色区分 */
+const dotStyles: Record<StatusVariant, string> = {
+  success: "bg-[#22C55E]",
+  warning: "bg-[#F59E0B]",
+  danger: "bg-[#EF4444]",
+  info: "bg-[#3B82F6]",
+  neutral: "bg-[#6B7280]",
 };
 
 export function StatusBadge({ status, variant, size = "default", className }: StatusBadgeProps) {
@@ -56,12 +60,13 @@ export function StatusBadge({ status, variant, size = "default", className }: St
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-md font-medium whitespace-nowrap",
-        size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs",
+        "skeu-badge inline-flex items-center whitespace-nowrap",
+        size === "sm" ? "h-5 gap-1 px-1.5 text-xs" : "h-[26px] gap-1.5 px-2.5 text-xs",
         variantStyles[resolved],
         className
       )}
     >
+      <span className={cn("dot", dotStyles[resolved])} aria-hidden />
       {status || "—"}
     </span>
   );

@@ -272,6 +272,7 @@ export function IngredientSelectorDialog({
           totalItems > 0
             ? {
                 currentPage: safePage,
+                fullControls: false,
                 totalPages,
                 totalItems,
                 pageSize,

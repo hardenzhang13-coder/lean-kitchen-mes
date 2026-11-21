@@ -22,6 +22,7 @@ export function Input({
   autoCorrect = "off",
   autoCapitalize = "none",
   spellCheck = false,
+  className,
   ...props
 }: ComponentProps<typeof BaseInput>) {
   return (
@@ -30,6 +31,7 @@ export function Input({
       autoCorrect={autoCorrect}
       autoCapitalize={autoCapitalize}
       spellCheck={spellCheck}
+      className={cn("skeu-input", className)}
       {...props}
     />
   );

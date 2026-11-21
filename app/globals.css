@@ -60,6 +60,16 @@
   --transition-normal: 0.2s;
   --transition-slow: 0.3s;
   --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-sk-1: var(--sk-shadow-1);
+  --shadow-sk-2: var(--sk-shadow-2);
+  --shadow-sk-3: var(--sk-shadow-3);
+  --shadow-sk-raised: var(--sk-highlight-top), var(--sk-shadow-1);
+  --shadow-sk-panel: var(--sk-highlight-top), var(--sk-shadow-2);
+  --shadow-sk-inset: var(--sk-inset);
+  --shadow-sk-inset-strong: var(--sk-inset-strong);
+  --color-skeu-border: var(--sk-border);
+  --color-skeu-border-strong: var(--sk-border-strong);
+  --color-skeu-primary-hover: #c2410c;
 }
 
 :root {
@@ -196,4 +206,362 @@
   body main[class*="ml-20"] {
     margin-left: 0 !important;
   }
+}
+
+
+/* ============================================================
+   轻拟物视觉层 · light-skeuomorphism-baseline-v1
+   参照原型：prototypes/v008-食材分类-完整改造.html
+   边界：只叠加阴影 / 高光 / 按压反馈，不改变信息架构与业务语义。
+   本段写在 Tailwind 各层之外，优先级高于工具类。
+   ============================================================ */
+
+:root {
+  /* 阴影阶梯 */
+  --sk-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sk-shadow-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(15, 23, 42, 0.10);
+  --sk-shadow-3: 0 4px 8px rgba(15, 23, 42, 0.08), 0 24px 48px rgba(15, 23, 42, 0.14);
+  /* 表面高光与内凹 */
+  --sk-highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.80);
+  --sk-inset: inset 0 1px 2px rgba(15, 23, 42, 0.05);
+  --sk-inset-strong: inset 0 2px 4px rgba(15, 23, 42, 0.16);
+  /* 描边 */
+  --sk-border: #e7e5e0;
+  --sk-border-strong: #d6d3cc;
+  /* 表面 */
+  --sk-surface: linear-gradient(180deg, #ffffff 0%, #fdfcfb 100%);
+  --sk-surface-muted: linear-gradient(180deg, #fbf9f6 0%, #f6f3ef 100%);
+  --sk-panel-body: linear-gradient(180deg, #fcfbfa 0%, #fbf9f6 100%);
+  /* 主色表面 */
+  --sk-primary-surface: linear-gradient(180deg, #f0813c 0%, #e05a1e 100%);
+  --sk-primary-soft: linear-gradient(180deg, #fbeee5 0%, #fbe7dc 100%);
+  --sk-primary-soft-solid: #fff7ed;
+  --sk-primary-shadow: 0 1px 2px rgba(194, 65, 12, 0.40), 0 4px 10px rgba(234, 88, 12, 0.22);
+  /* 列表行 */
+  --sk-row-hover: #fdf9f5;
+  --sk-row-l2: #fcfbf9;
+  /* 表格尺寸：行高与表头高 */
+  --sk-row-h: 52px;
+  --sk-thead-h: 42px;
+  /* 滚动条 */
+  --sk-scroll-thumb: #d9d5ce;
+}
+
+/* ---------- 表面（渐变必须走 background，Tailwind 的 bg-[var()] 只能设 background-color） ---------- */
+.skeu-surface { background: var(--sk-surface); }
+.skeu-surface-muted { background: var(--sk-surface-muted); }
+
+/* ---------- 面板 ---------- */
+.skeu-panel {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: 12px;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
+}
+.skeu-panel-toolbar {
+  background: #ffffff;
+  border-bottom: 1px solid var(--sk-border);
+}
+.skeu-panel-body {
+  background: var(--sk-panel-body);
+}
+
+/* ---------- 滚动条 ---------- */
+.skeu-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--sk-scroll-thumb) transparent;
+}
+.skeu-scroll::-webkit-scrollbar { width: 10px; height: 10px; }
+.skeu-scroll::-webkit-scrollbar-track { background: transparent; }
+.skeu-scroll::-webkit-scrollbar-thumb {
+  background: var(--sk-scroll-thumb);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+
+/* ---------- 按钮 ---------- */
+.skeu-btn {
+  transition: transform 0.08s ease, box-shadow 0.12s ease, filter 0.12s ease, background-color 0.12s ease;
+}
+.skeu-btn:active { transform: translateY(1px); }
+.skeu-btn-primary {
+  background: var(--sk-primary-surface);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), var(--sk-primary-shadow);
+}
+.skeu-btn-primary:hover { filter: brightness(1.04); }
+.skeu-btn-primary:active {
+  transform: translateY(1px);
+  box-shadow: var(--sk-inset-strong);
+}
+.skeu-btn-outline {
+  background: var(--sk-surface);
+  color: var(--foreground);
+  border-color: var(--sk-border-strong);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-btn-outline:hover { background: #f6f3ef; }
+.skeu-btn-outline:active {
+  transform: translateY(1px);
+  box-shadow: var(--sk-inset);
+}
+.skeu-btn-secondary {
+  background: var(--sk-surface-muted);
+  color: var(--foreground);
+  border-color: var(--sk-border);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-btn-secondary:hover { background: #f1ede7; }
+.skeu-btn-ghost {
+  background: transparent;
+  color: var(--muted-foreground);
+}
+.skeu-btn-ghost:hover { background: var(--muted); color: var(--foreground); }
+.skeu-btn-danger {
+  background: #fef2f2;
+  color: #dc2626;
+  border-color: #fecaca;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-btn-danger:hover { background: #fee2e2; }
+
+/* ---------- 输入控件：内凹 ---------- */
+.skeu-input {
+  background: #ffffff;
+  border-color: var(--sk-border-strong);
+  border-radius: 10px;
+  box-shadow: var(--sk-inset);
+}
+.skeu-input:focus,
+.skeu-input:focus-visible {
+  border-color: #9ca3af;
+  box-shadow: var(--sk-inset);
+  outline: none;
+}
+
+/* ---------- 徽章：胶囊 + 顶部高光 ---------- */
+.skeu-badge {
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+/* ---------- 表格 ---------- */
+.skeu-table-scroll {
+  background-color: var(--sk-panel-body);
+}
+.skeu-table-scroll tbody tr { background: #ffffff; }
+.skeu-table-scroll tbody tr[data-row-level="l2"] { background: var(--sk-row-l2); }
+.skeu-table-scroll tbody tr:hover { background: var(--sk-row-hover); }
+.skeu-table-scroll [data-slot="table-row"] { border-bottom-color: var(--sk-border); }
+.skeu-table-scroll [data-slot="table-header"] { background: var(--sk-surface-muted); }
+.skeu-table-scroll [data-slot="table-head"] {
+  height: var(--sk-thead-h);
+  padding: 12px 16px;
+  background: var(--sk-surface-muted);
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.60);
+}
+.skeu-table-scroll [data-slot="table-cell"] {
+  height: var(--sk-row-h);
+  padding: 0 16px;
+  font-size: 14px;
+}
+.skeu-table-scroll [data-slot="table-cell"][data-skeu-cell="plain"] {
+  height: auto;
+  padding: 0;
+  border-bottom: 0;
+}
+.skeu-table-scroll [data-slot="table-cell"][data-sticky] { background-color: inherit; }
+
+/* ---------- 侧栏磁贴 ---------- */
+.skeu-nav-active {
+  background: var(--sk-primary-soft);
+  color: #c2410c;
+  box-shadow: inset 0 2px 3px rgba(194, 65, 12, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 3px 10px rgba(234, 88, 12, 0.20);
+}
+.skeu-nav-active::after {
+  content: "";
+  position: absolute;
+  right: -12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 24px;
+  background: var(--background);
+  border-radius: 12px 0 0 12px;
+  border-left: 1px solid var(--sk-border);
+}
+
+/* ---------- 语义圆点 ---------- */
+.skeu-dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 999px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.60);
+}
+.skeu-dot-all { background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%); }
+.skeu-dot-success { background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%); }
+.skeu-dot-warning { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
+
+/* ---------- 面板底部（分页区） ---------- */
+.skeu-panel-foot {
+  background: #ffffff;
+  border-top: 1px solid var(--sk-border);
+  padding: 12px 20px;
+}
+.skeu-panel-foot [data-slot="pagination"] {
+  height: auto;
+  border-top: 0;
+  padding-top: 0;
+}
+
+/* ---------- 行操作按钮（v008 icon-btn / act-btn） ---------- */
+.skeu-icon-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 9px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--muted-foreground);
+  transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease, box-shadow 0.12s ease;
+}
+.skeu-icon-btn svg { width: 16px; height: 16px; }
+.skeu-icon-btn:hover {
+  background: #f3f1ec;
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+.skeu-icon-btn:active { transform: translateY(1px); }
+.skeu-icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.skeu-act-btn {
+  height: 34px;
+  padding: 0 9px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease, transform 0.08s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.skeu-act-btn svg { width: 14px; height: 14px; }
+.skeu-act-btn:hover { background: #f3f1ec; color: var(--foreground); }
+.skeu-act-btn:active { transform: translateY(1px); }
+.skeu-act-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.skeu-act-btn.danger { color: #ef4444; }
+.skeu-act-btn.danger:hover { background: #fef2f2; color: #dc2626; }
+.skeu-act-btn.warn { color: #d97706; }
+.skeu-act-btn.warn:hover { background: #fffbeb; }
+.skeu-act-btn.ok { color: #059669; }
+.skeu-act-btn.ok:hover { background: #ecfdf5; }
+/* fill：比描边高一级——浅橙实底 + 橙字 + 无描边 */
+.skeu-act-btn.fill {
+  background: #fbe7dc;
+  color: #c2410c;
+  border: 1px solid transparent;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+.skeu-act-btn.fill:hover {
+  background: #f8d9c6;
+  color: #c2410c;
+}
+.skeu-act-btn.primary {
+  background: #fbe7dc;
+  color: #c2410c;
+  border: 1px solid #f5b48d;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(234, 88, 12, 0.18);
+}
+.skeu-act-btn.primary:hover {
+  background: #f8d9c6;
+  color: #c2410c;
+  border-color: #ea580c;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 4px rgba(234, 88, 12, 0.20);
+}
+.skeu-act-btn.primary:active {
+  transform: translateY(1px);
+  box-shadow: inset 0 2px 3px rgba(194, 65, 12, 0.18);
+}
+
+/* ---------- 状态徽章（v008 badge 规格） ---------- */
+.skeu-badge {
+  border-radius: 999px;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+.skeu-badge .dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+
+/* ---------- 行内次级强调：描边式（比 primary 填充再降一级） ---------- */
+.skeu-act-btn.soft {
+  color: #c2410c;
+  border: 1px solid rgba(234, 88, 12, 0.35);
+  background: transparent;
+}
+.skeu-act-btn.soft:hover {
+  background: #fff7ed;
+  color: #c2410c;
+  border-color: rgba(234, 88, 12, 0.55);
+}
+.skeu-act-btn.soft:active {
+  background: #ffedd5;
+}
+
+/* ---------- Toast（参照 v008：顶部居中、圆形渐变图标） ---------- */
+.skeu-toast {
+  width: max-content !important;
+  max-width: min(90vw, 420px) !important;
+  margin: 0 auto !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--sk-border) !important;
+  background: var(--sk-surface) !important;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-3) !important;
+  padding: 10px 18px 10px 12px !important;
+  gap: 10px !important;
+  align-items: center !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+.skeu-toast [data-content] { font-size: 14px !important; font-weight: 600 !important; }
+/* sonner 默认把图标槽固定为 16px，会把 30px 圆形状态图标压扁并压住文字 */
+.skeu-toast [data-icon] {
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+.skeu-toast-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 15px;
+  flex: none;
+}
+.skeu-toast-ico.success {
+  background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(34, 197, 94, 0.3);
+}
+.skeu-toast-ico.error {
+  background: linear-gradient(180deg, #f87171 0%, #dc2626 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(220, 38, 38, 0.3);
+}
+.skeu-toast-ico.warning {
+  background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(217, 119, 6, 0.3);
+}
+.skeu-toast-ico.info {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(59, 130, 246, 0.3);
 }

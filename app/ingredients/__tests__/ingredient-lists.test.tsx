@@ -107,10 +107,11 @@ describe("食材清单页的底部组件与字段展示", () => {
 
     await waitFor(() =>
       expect(
-        screen.getByText("第 1-10 条，共 42 条 原料")
+        screen.getByText("共 42 条 原料")
       ).toBeInTheDocument()
     );
-    expect(screen.getByText("每页显示")).toBeInTheDocument();
+    // 每页条数为胶囊触发器，文案「N 条/页」
+    expect(screen.getByText(/\d+ 条\/页/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /下一页/ })).toBeInTheDocument();
   });
 
@@ -148,14 +149,17 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     expect(screen.queryByTitle("删除原料")).not.toBeInTheDocument();
   });
 
-  it("列表工具栏的搜索框前不再显示放大镜图标", async () => {
+  it("列表工具栏的放大镜图标内嵌在搜索框内，不作为前置元素", async () => {
     render(<RawIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
     );
     const input = screen.getByPlaceholderText("搜索名称...");
-    expect(input.parentElement?.querySelector("svg")).toBeNull();
+    const icon = input.parentElement?.querySelector("svg");
+    expect(icon).not.toBeNull();
+    // 内嵌图标用绝对定位覆盖在输入框左侧，不是输入框前的独立元素
+    expect(icon).toHaveClass("absolute");
   });
 
   it("点击复制打开复制表单并回填来源档案内容", async () => {

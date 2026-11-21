@@ -2,8 +2,9 @@
 
 import { ReactNode } from "react";
 import { RotateCcw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/app/components/ui/form-controls";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuSearch } from "@/app/components/ui/skeu-search";
+import { cn } from "@/lib/shared/utils";
 
 // 列表页表头标准工具栏：搜索框 + 筛选项 + 重置按钮。
 // 用法：放在 Card > CardHeader.pb-3 内；其余筛选控件（Select/DatePicker/Tabs 等）作为 children 传入。
@@ -32,26 +33,23 @@ export function ListToolbar({
   hasFilters = false,
   children,
   trailing,
-  className = "",
+  className,
 }: ListToolbarProps) {
   const showReset = searchValue.trim() !== "" || hasFilters;
 
   return (
-    <div className={`flex items-center gap-2 flex-wrap ${className}`}>
-      <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-sm">
-        <Input
-          placeholder={searchPlaceholder}
-          value={searchValue}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="w-full"
-        />
-      </div>
+    <div className={cn("flex flex-wrap items-center gap-2", className)}>
+      <SkeuSearch
+        value={searchValue}
+        onChange={onSearchChange}
+        placeholder={searchPlaceholder}
+      />
       {children}
       {showReset && (
-        <Button variant="ghost" onClick={onReset}>
-          <RotateCcw className="mr-1 h-3.5 w-3.5" />
+        <SkeuButton variant="ghost" size="sm" onClick={onReset}>
+          <RotateCcw className="h-3.5 w-3.5" />
           重置
-        </Button>
+        </SkeuButton>
       )}
       {trailing && <div className="ml-auto flex items-center gap-2">{trailing}</div>}
     </div>

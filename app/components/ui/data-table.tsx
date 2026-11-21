@@ -26,6 +26,10 @@ interface DataTableProps<T> {
   data: T[];
   columns: ColumnDef<T>[];
   loading?: boolean;
+  /** 视觉形态：default 保持扁平列表；skeu 启用轻拟物表体 */
+  variant?: "default" | "skeu";
+  /** 行层级标记，树形列表用它区分一级行与二级行底色 */
+  getRowLevel?: (row: T) => string | undefined;
   pagination?: {
     currentPage: number;
     totalPages: number;
@@ -39,6 +43,8 @@ interface DataTableProps<T> {
     totalLabel?: string;
     /** 是否展示每页条数选择器（默认不展示） */
     showPageSize?: boolean;
+    /** 是否展示完整翻页控件（首页/尾页 + 全部页码）；抽屉内参照列表传 false */
+    fullControls?: boolean;
   };
   filters?: React.ReactNode;
   emptyState?: EmptyStateProps;
@@ -56,12 +62,16 @@ interface DataTableProps<T> {
   fillHeight?: boolean;
   /** 透传给 table，例如 table-fixed */
   tableClassName?: string;
+  /** 操作列宽度，默认 132px；含行内主操作按钮时放宽 */
+  actionsWidth?: string;
 }
 
 export function DataTable<T extends object>({
   data,
   columns,
   loading = false,
+  variant = "default",
+  getRowLevel,
   pagination,
   filters,
   emptyState,
@@ -74,6 +84,7 @@ export function DataTable<T extends object>({
   tableMaxHeight,
   fillHeight = false,
   tableClassName,
+  actionsWidth = "w-[132px]",
 }: DataTableProps<T>) {
   const resolvedEmptyState: EmptyStateProps = emptyState || {
     title: "暂无数据",
@@ -90,12 +101,22 @@ export function DataTable<T extends object>({
   };
 
   return (
-    <div className={cn("flex min-h-0 flex-col gap-4", fillHeight && "h-full", className)}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-col gap-4",
+        // 拟物形态：面板撑满可用高度，表格区填满剩余空间，分页吸底（参照 demo 表格高度）
+        variant === "skeu" && "gap-0",
+        fillHeight && "h-full",
+        className
+      )}
+    >
       {filters && <div className="flex flex-wrap items-center gap-3">{filters}</div>}
 
       <div
         className={cn(
-          "rounded-md border",
+          variant === "skeu"
+            ? "skeu-table-scroll skeu-scroll overflow-auto"
+            : "rounded-md border",
           (tableMaxHeight || fillHeight) &&
             "overflow-auto [&_[data-slot=table-container]]:overflow-visible",
           fillHeight && "min-h-0 flex-1"
@@ -123,7 +144,8 @@ export function DataTable<T extends object>({
               {rowActions && (
                 <TableHead
                   className={cn(
-                    "w-[132px] text-right font-semibold",
+                    "text-right font-semibold",
+                    actionsWidth,
                     stickyActions &&
                       "sticky right-0 z-20 bg-background shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
                   )}
@@ -136,7 +158,10 @@ export function DataTable<T extends object>({
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={columns.length + (rowActions ? 1 : 0)}>
+                <TableCell
+                  colSpan={columns.length + (rowActions ? 1 : 0)}
+                  data-skeu-cell="plain"
+                >
                   <LoadingState type="inline" />
                 </TableCell>
               </TableRow>
@@ -145,6 +170,7 @@ export function DataTable<T extends object>({
                 <TableCell
                   colSpan={columns.length + (rowActions ? 1 : 0)}
                   className="p-0"
+                  data-skeu-cell="plain"
                 >
                   <EmptyState {...resolvedEmptyState} />
                 </TableCell>
@@ -153,6 +179,7 @@ export function DataTable<T extends object>({
               data.map((row, rowIdx) => (
                 <TableRow
                   key={rowIdx}
+                  data-row-level={getRowLevel?.(row)}
                   onClick={() => onRowClick?.(row)}
                   tabIndex={onRowClick ? 0 : undefined}
                   onKeyDown={(event) => {
@@ -173,6 +200,7 @@ export function DataTable<T extends object>({
                   {columns.map((col, colIdx) => (
                     <TableCell
                       key={colIdx}
+                      data-sticky={col.sticky ? true : undefined}
                       className={cn(
                         col.className,
                         col.sticky === "left" &&
@@ -186,12 +214,13 @@ export function DataTable<T extends object>({
                   ))}
                   {rowActions && (
                     <TableCell
+                      data-sticky={stickyActions ? true : undefined}
                       className={cn(
                         stickyActions &&
                           "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_rgba(0,0,0,0.45)]"
                       )}
                     >
-                      <div className="flex items-center justify-end gap-1">
+                      <div className="flex items-center justify-end gap-0.5">
                         {rowActions(row)}
                       </div>
                     </TableCell>
@@ -204,7 +233,7 @@ export function DataTable<T extends object>({
       </div>
 
       {pagination && pagination.totalItems > 0 && (
-        <div className="shrink-0">
+        <div className={cn("shrink-0", variant === "skeu" && "skeu-panel-foot")}>
           <Pagination
             currentPage={pagination.currentPage}
             totalPages={pagination.totalPages}
@@ -215,6 +244,7 @@ export function DataTable<T extends object>({
             pageSizeOptions={pagination.pageSizeOptions}
             totalLabel={pagination.totalLabel}
             showPageSize={pagination.showPageSize}
+            fullControls={pagination.fullControls}
           />
         </div>
       )}

@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   AppDialogContent,
   type AppDialogSize,
@@ -118,7 +119,7 @@ export function RecordDialog({
           className={cn("[&>button]:cursor-pointer", className)}
         >
           <DialogHeader>
-            <DialogTitle className="text-lg">{title}</DialogTitle>
+            <DialogTitle className="text-lg font-bold">{title}</DialogTitle>
             {meta && (
               <div className="flex flex-wrap items-center gap-2 pt-1 text-sm text-muted-foreground">
                 {meta}
@@ -157,15 +158,13 @@ export function RecordDialog({
               </>
             ) : (
               <>
-                <Button
+                <SkeuButton
                   variant="outline"
-                  className="h-11 px-6"
                   onClick={requestCancel}
                 >
                   取消
-                </Button>
-                <Button
-                  className="h-11 px-6"
+                </SkeuButton>
+                <SkeuButton
                   onClick={onSubmit}
                   disabled={submitting}
                 >
@@ -175,7 +174,7 @@ export function RecordDialog({
                     )}
                     {submitLabel}
                   </span>
-                </Button>
+                </SkeuButton>
               </>
             )}
           </DialogFooter>
