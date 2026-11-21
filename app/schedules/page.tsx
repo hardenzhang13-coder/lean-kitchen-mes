@@ -3,7 +3,7 @@
 import { useEffect, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
@@ -90,20 +90,24 @@ export default function SchedulesPage() {
   };
 
   return (
-    <PageShell>
-      <PageHeader
-        title="菜品排程单"
-        description="门店按日期报菜品与份数；确认后进入进行中，由切配中心汇总成生产计划单"
-        actions={
-          canWrite ? (
-            <Button onClick={() => setCreateState({ copyFromId: null })}>
-              <Plus className="mr-2 h-4 w-4" />
-              菜品排程
-            </Button>
-          ) : undefined
-        }
-      />
-
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="菜品排程单"
+          description="门店按日期报菜品与份数；确认后进入进行中，由切配中心汇总成生产计划单"
+          actions={
+            canWrite ? (
+              <SkeuButton onClick={() => setCreateState({ copyFromId: null })}>
+                <Plus className="h-4 w-4" />
+                菜品排程
+              </SkeuButton>
+            ) : undefined
+          }
+        />
+      }
+    >
       <ListToolbar
         searchValue={board.search}
         onSearchChange={board.setSearch}
@@ -134,27 +138,29 @@ export default function SchedulesPage() {
         />
       </ListToolbar>
 
-      {board.loading && board.columns.length === 0 ? (
-        <LoadingState type="card-grid" rows={3} />
-      ) : (
-        <KanbanBoard
-          statuses={visibleStatuses}
-          columns={board.columns}
-          loading={board.loading}
-          emptyText="暂无排程单"
-          renderItem={(row) => (
-            <ScheduleCard
-              key={row.id}
-              item={row}
-              busy={actionId === row.id}
-              canWrite={canWrite}
-              onOpen={() => setPreviewId(row.id)}
-              onActivate={() => activateSchedule(row.id)}
-              onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
-            />
-          )}
-        />
-      )}
+      <div className="min-h-0 flex-1 overflow-auto">
+        {board.loading && board.columns.length === 0 ? (
+          <LoadingState type="card-grid" rows={3} />
+        ) : (
+          <KanbanBoard
+            statuses={visibleStatuses}
+            columns={board.columns}
+            loading={board.loading}
+            emptyText="暂无排程单"
+            renderItem={(row) => (
+              <ScheduleCard
+                key={row.id}
+                item={row}
+                busy={actionId === row.id}
+                canWrite={canWrite}
+                onOpen={() => setPreviewId(row.id)}
+                onActivate={() => activateSchedule(row.id)}
+                onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
+              />
+            )}
+          />
+        )}
+      </div>
 
       <SchedulePreviewDialog
         scheduleId={previewId}

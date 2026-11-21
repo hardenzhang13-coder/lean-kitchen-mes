@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Calculator } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { PageShell } from "@/app/components/ui/page-shell";
 import {
   Dialog,
   DialogHeader,
@@ -265,18 +266,26 @@ export default function IngredientsPage() {
   };
 
   return (
-    <div className="p-8">
-      <PageHeader
-        title="食材库"
-        description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
-        actions={
-          <Button variant="outline" onClick={() => setPricingOpen(true)}>
-            <Calculator className="mr-2 h-4 w-4" />
-            计价规则
-          </Button>
-        }
-      />
-
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="食材库"
+          description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
+          actions={
+            <SkeuButton
+              variant="outline"
+              onClick={() => setPricingOpen(true)}
+            >
+              <Calculator className="h-4 w-4" />
+              计价规则
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <div className="min-h-0 flex-1 overflow-auto">
       {/* 主体：五个食材清单与转化流 */}
       {/* pt-4 是给卡片 hover 上浮预留的空间：滚动容器会裁切越界内容，
           没有这段内边距，卡片上浮时顶部边框会被切掉 */}
@@ -346,11 +355,12 @@ export default function IngredientsPage() {
           </div>
         </div>
       </div>
+      </div>
 
       <PricingRulesDialog
         open={pricingOpen}
         onOpenChange={setPricingOpen}
       />
-    </div>
+    </PageShell>
   );
 }

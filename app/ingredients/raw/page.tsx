@@ -7,6 +7,7 @@ import {
   Upload,
   ArrowRightLeft,
   Copy,
+  Trash2,
 } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +33,7 @@ import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-s
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import {
   DEFAULT_PAGE_SIZE,
@@ -111,7 +113,6 @@ export default function RawIngredientsPage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
 
   const fetchMeta = async () => {
     try {
@@ -193,13 +194,6 @@ export default function RawIngredientsPage() {
 
   const openEdit = (row: Ingredient) => {
     setDetailId(row.id);
-    setDetailStartInEditMode(true);
-    setDetailOpen(true);
-  };
-
-  const openView = (row: Ingredient) => {
-    setDetailId(row.id);
-    setDetailStartInEditMode(false);
     setDetailOpen(true);
   };
 
@@ -369,10 +363,9 @@ export default function RawIngredientsPage() {
           <DataTable<Ingredient>
             data={data}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[180px]"
+            actionsWidth="w-[220px]"
             tableClassName="min-w-max"
             columns={[
               {
@@ -387,7 +380,7 @@ export default function RawIngredientsPage() {
               {
                 header: "编号",
                 className: "w-[85px]",
-                cell: (row) => <span className="font-medium">{row.code}</span>,
+                cell: (row) => <CodeText>{row.code}</CodeText>,
               },
               {
                 header: "食材名称",
@@ -504,6 +497,15 @@ export default function RawIngredientsPage() {
                   }}
                 />
                 <SkeuIconAction
+                  label={`删除原料 ${row.name}`}
+                  tip="删除原料"
+                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setDeleteId(row.id);
+                  }}
+                />
+                <SkeuIconAction
                   label={`编辑原料 ${row.name}`}
                   tip="编辑原料"
                   icon={<Pencil className="h-4 w-4" />}
@@ -536,7 +538,7 @@ export default function RawIngredientsPage() {
         categories={categories}
         units={units}
         inlineEdit
-        startInEditMode={detailStartInEditMode}
+        startInEditMode
         categoryName={
           detailId
             ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name

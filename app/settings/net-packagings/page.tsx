@@ -117,12 +117,6 @@ export default function NetPackagingsPage() {
     setBaselineForm(emptyForm);
   };
 
-  const openView = (row: NetPackaging) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
-  };
-
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -266,7 +260,6 @@ export default function NetPackagingsPage() {
           <DataTable<NetPackaging>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -386,13 +379,7 @@ export default function NetPackagingsPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

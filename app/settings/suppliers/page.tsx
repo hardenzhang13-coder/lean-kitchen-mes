@@ -110,12 +110,6 @@ export default function SuppliersPage() {
     setBaselineForm(emptyForm);
   };
 
-  const openView = (row: Supplier) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
-  };
-
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -219,7 +213,6 @@ export default function SuppliersPage() {
           <DataTable<Supplier>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
             density="dense"
             tableClassName="min-w-max"
@@ -321,13 +314,7 @@ export default function SuppliersPage() {
               : selected?.name ?? "供应商"
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}
