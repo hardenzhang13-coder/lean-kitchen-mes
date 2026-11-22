@@ -1,20 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Printer, Copy } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Plus, Pencil, Printer, Eye } from "lucide-react";
+import { SkeuIconAction, SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { CategoryFilter } from "@/app/components/ui/category-filter";
+import { EmptyValue } from "@/app/components/ui/empty-value";
+import { DeleteConfirmDialog } from "@/app/components/ui/delete-confirm-dialog";
 import {
   NetIngredientFormDialog,
 } from "@/app/components/ingredients/net-ingredient-form-dialog";
@@ -30,7 +29,6 @@ import {
   formatPageSummary,
 } from "@/lib/client/use-pagination";
 import { useRecordCopy } from "@/lib/client/use-record-copy";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 import { formatMoney, formatPercent } from "@/lib/shared/display-format";
 
@@ -90,11 +88,10 @@ export default function MinorIngredientsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [detailStartInEditMode, setDetailStartInEditMode] = useState(false);
+  const [detailEdit, setDetailEdit] = useState(false);
   const [labelTarget, setLabelTarget] = useState<NetLabelTarget | null>(null);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchMeta = async () => {
     try {
@@ -156,15 +153,15 @@ export default function MinorIngredientsPage() {
     setCreateDialogOpen(true);
   };
 
-  const openEdit = (row: NetIngredient) => {
+  const openView = (row: NetIngredient) => {
     setDetailId(row.id);
-    setDetailStartInEditMode(true);
+    setDetailEdit(false);
     setDetailOpen(true);
   };
 
-  const openView = (row: NetIngredient) => {
+  const openEdit = (row: NetIngredient) => {
     setDetailId(row.id);
-    setDetailStartInEditMode(false);
+    setDetailEdit(true);
     setDetailOpen(true);
   };
 
@@ -193,7 +190,6 @@ export default function MinorIngredientsPage() {
 
   const handleDelete = async () => {
     if (!deleteRow) return;
-    setDeleteLoading(true);
     try {
       const res = await fetch(`/api/net-ingredients/${deleteRow.id}`, {
         method: "DELETE",
@@ -208,27 +204,29 @@ export default function MinorIngredientsPage() {
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "删除失败";
       toast.error(message);
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-      <div className="flex items-center justify-between">
+    <PageShell
+      variant="panel"
+      header={
         <PageHeader
+          variant="topbar"
           showBack
           title="小料清单"
           description="原料初加工转化的增香/去腥/提味食材，与净料同口径"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增小料
+            </SkeuButton>
+          }
         />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增小料
-        </Button>
-      </div>
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -243,33 +241,28 @@ export default function MinorIngredientsPage() {
             }}
             hasFilters={!!l2Filter}
           >
-            <SelectTileMode
-              options={
-                (categories.find((c) => c.code === "MIN")?.children || []).map((c) => ({
-                  value: c.code,
-                  label: c.name,
-                }))
-              }
-              value={l2Filter}
-              onChange={(v) => {
-                setL2Filter(v);
+            <CategoryFilter
+              categories={categories}
+              fixedL1="MIN"
+              l1=""
+              l2={l2Filter}
+              onChange={(_l1, nextL2) => {
+                setL2Filter(nextL2);
                 setPage(1);
               }}
-              placeholder="全部二级分类"
-              title="选择二级分类"
-              searchable={false}
-              className="w-[180px]"
+              className="w-[220px]"
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<NetIngredient>
             data={data}
             loading={loading}
-            onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
+            actionsWidth="w-[200px]"
             tableClassName="min-w-max"
+            onRowClick={openView}
             columns={[
                 {
                   header: "序号",
@@ -283,7 +276,7 @@ export default function MinorIngredientsPage() {
                 {
                   header: "编号",
                   className: "w-[85px]",
-                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                  cell: (row) => <CodeText>{row.code}</CodeText>,
                 },
                 {
                   header: "名称",
@@ -308,19 +301,31 @@ export default function MinorIngredientsPage() {
                   header: "包装规格",
                   className: "w-[80px]",
                   cell: (row) =>
-                    row.packageSpec != null ? `${row.packageSpec}g` : "—",
+                    row.packageSpec != null ? (
+                      <span className="tabular-nums">{row.packageSpec}g</span>
+                    ) : (
+                      <EmptyValue />
+                    ),
                 },
                 {
                   header: "来源原料",
                   className: "w-[130px]",
                   cell: (row) =>
-                    row.sourceIngredient?.name || row.sourceIngredientId || "—",
+                    row.sourceIngredient?.name ? (
+                      row.sourceIngredient.name
+                    ) : (
+                      <EmptyValue />
+                    ),
                 },
                 {
                   header: "出成率",
                   className: "w-[70px]",
                   cell: (row) =>
-                    row.yieldRate != null ? `${row.yieldRate}%` : "—",
+                    row.yieldRate != null ? (
+                      <span className="tabular-nums">{row.yieldRate}%</span>
+                    ) : (
+                      <EmptyValue />
+                    ),
                 },
                 {
                   header: "小料单价",
@@ -358,12 +363,7 @@ export default function MinorIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
-                      totalLabel: formatPageSummary(
-                        page,
-                        pageSize,
-                        pagination.totalItems,
-                        "小料"
-                      ),
+                      totalLabel: formatPageSummary(pagination.totalItems),
                       showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
@@ -375,15 +375,14 @@ export default function MinorIngredientsPage() {
               emptyState={{ title: "暂无数据" }}
               rowActions={(row) => (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`打印小料标签 ${row.name}`}
-                    title={
+                  <SkeuIconAction
+                    label={`打印小料标签 ${row.name}`}
+                    tip={
                       row.packageSpec != null && row.packageSpec > 0
                         ? "打印标签"
                         : "缺少包装规格，无法打印标签"
                     }
+                    icon={<Printer className="h-4 w-4" />}
                     disabled={row.packageSpec == null || row.packageSpec <= 0}
                     onClick={(event) => {
                       event.stopPropagation();
@@ -393,33 +392,25 @@ export default function MinorIngredientsPage() {
                         packageSpec: row.packageSpec,
                       });
                     }}
-                  >
-                    <Printer className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`复制小料 ${row.name}`}
-                    title="复制小料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openCopy(row);
-                    }}
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`编辑小料 ${row.name}`}
-                    title="编辑小料"
+                  />
+                  <SkeuIconAction
+                    label={`编辑小料 ${row.name}`}
+                    tip="编辑小料"
+                    icon={<Pencil className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openEdit(row);
                     }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
+                  />
+                  <SkeuActionButton
+                    label="查看"
+                    tone="primary"
+                    icon={<Eye className="h-3.5 w-3.5" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openView(row);
+                    }}
+                  />
                 </>
               )}
           />
@@ -453,7 +444,7 @@ export default function MinorIngredientsPage() {
         categories={categories}
         rawIngredients={rawIngredients}
         inlineEdit
-        startInEditMode={detailStartInEditMode}
+        startInEditMode={detailEdit}
         onUpdated={fetchIngredients}
         categoryName={
           detailId
@@ -488,37 +479,12 @@ export default function MinorIngredientsPage() {
         }}
       />
 
-      <Dialog
+      <DeleteConfirmDialog
         open={deleteRow !== null}
         onOpenChange={() => setDeleteRow(null)}
-      >
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除小料“{deleteRow?.name}”吗？此操作不可撤销。
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteRow(null)}
-              disabled={deleteLoading}
-              className="h-11 px-6"
-            >
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteLoading}
-              className="h-11 px-6"
-            >
-              删除
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
-    </div>
+        message={`确定要删除小料「${deleteRow?.name}」吗？此操作不可撤销。`}
+        onConfirm={handleDelete}
+      />
+    </PageShell>
   );
 }

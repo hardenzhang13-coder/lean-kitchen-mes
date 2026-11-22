@@ -11,6 +11,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { downloadCSV } from "@/lib/client/csv";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import type { ScheduleDocMeta } from "./schedule-cutting-table";
 
 export interface PurchasePlanRow {
@@ -154,7 +155,7 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
                     {row.suggestedPurchase > 0 ? row.suggestedPurchase.toLocaleString("zh-CN") : "0"}
                   </TableCell>
                   <TableCell>{row.priceUnit || row.unit}</TableCell>
-                  <TableCell>{row.supplierName || <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell>{row.supplierName || <EmptyValue />}</TableCell>
                   <TableCell className="text-right">
                     {row.estimatedAmount != null ? "¥" + row.estimatedAmount.toFixed(2) : "—"}
                   </TableCell>

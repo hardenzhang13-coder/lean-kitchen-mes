@@ -6,6 +6,7 @@ import { Input } from "@/app/components/ui/form-controls";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import { BomItem, BomType, calcCost, formatCost } from "./types";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import { cn } from "@/lib/shared/utils";
 
 interface BomItemRowProps {
@@ -74,7 +75,7 @@ export function BomItemRow({
         ) : item.portion ? (
           <PortionTag portion={item.portion} />
         ) : (
-          <span className="text-sm text-muted-foreground">—</span>
+          <EmptyValue className="text-sm" />
         )}
       </div>
 

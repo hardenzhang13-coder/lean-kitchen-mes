@@ -5,6 +5,134 @@
 > 定位：轻拟物是交互视觉基线 v1 的**视觉升级层**，不改变信息架构、业务语义与操作流程。
 > 上游基线：`docs/interaction-visual-baseline-v1.md`（信息架构与组件契约仍然有效）。
 
+## 0. 2026-11-21 推进记录
+
+- **定位**：v008 是主要参照样本，不是逐像素合同。系统按模块推进；看板、单据、打印允许在 v008 语言基础上做模块级扩展。
+- **已落地**：暖中性 token（`app/globals.css` `:root`）、输入族统一（Input / Textarea / SelectField / DatePicker / SkeuSearch）、标签族统一（StatusBadge / CategoryTag / PortionTag / ScheduleStatusTag / DishStatusTag）、焦点可见（`--sk-focus`）、`/ui-kit` 新增「v2 材质」Tab。
+- **分层现状**：`.skeu-*` 暂留 Tailwind layer 之外。原因：shadcn 原语自带 `bg-input/50`、`border-transparent` 等工具类，直接迁入 `@layer components` 会被工具类覆盖。等按钮 / 输入 / 容器族全部包装完成、页面不再直接使用原语后，再统一迁移；在此之前通过 wrapper 与 variant 控制，不新增 `!important`。
+- **系统口径**：标准清单页默认 52px 行高；`dense` 44px 仅作可选变体，不默认启用（启用后行数少时会出现大面积空白）。总数文案 13px、主题色加粗；保留完整页码、去掉首页/尾页按钮；清单行点击查看，编辑走行内按钮。
+- **2026-11-21 细节修订**：输入 / 搜索焦点完全对齐 v008——只把边框加深为 `#9CA3AF`，不加发光环；弹窗关闭按钮改为 34px 凸起按钮；Toast 使用系统字体、lucide 线性图标、绝对居中，停用用 warning、启用用 success；空值占位符用短横线 `–` 并降为 40% 透明度；弹窗底栏统一用 `SkeuButton`。
+- **页面头部**：一级菜单的标准清单页与二级页面一致，使用 `PageHeader variant="topbar"`（首批：菜品库、原料、单位、食材分类、采购管理占位页、库存）。
+- **双 Tab 规则**：顶栏放标题与主操作；第一层页面级 Tab（如库存的当前库存 / 出库单 / 流水）固定在顶栏下方；第二层内容筛选放在面板工具条内，用分段控件；两层不要同时使用全宽下划线样式；页面本身不滚动，只有内容区滚动。
+- **多列表页模板（库存样板）**：结构为 `PageHeader topbar` → `skeu-panel` → `PageTabs`（一级）→ 页签内容（`skeu-panel-toolbar` + `DataTable variant="skeu"` + 吸底分页）。一级页签用 `PageTabs`，选中态是橙色磁贴，可选图标与计数；二级筛选用 `SkeuSegmented` 或 `SelectField`，放在工具条内。页签、工具条、分页固定，只有表格区滚动。后续菜品库可把「小碗菜 / 社区 / 食堂」做成一级 `PageTabs`，复用同一模板。
+- **筛选控件分工**：选项多或层级型（类别、门店、供应商）用 `SelectField` 下拉；枚举少且互斥（状态、荤素、流水类型）用 `SkeuSegmented` 平铺；搜索用 `SkeuSearch`。低频筛选（如做法）默认不进工具栏，避免工具条拥挤。
+- **菜品库（2026-11-21）**：一级页签按份量分组——单人份（小碗菜）/ 社区（社区·1–4 份及其余）/ 团餐食堂（小碗菜·10 份）；类别只保留下拉筛选，列表去掉类别胶囊列；份量与荤素胶囊共用「同色系底 + 深一档文字 + 同色圆点 + `skeu-badge`」色板；行高用 `rowSize="tall"` 的 60px，与设置模块 52px 区分。
+- **三级页面（记录操作）**：默认不新开整页。创建 / 编辑 / 查看详情用 `WorkbenchDialog`，尺寸与「原料清单 → 转净料」弹窗一致：workbench 1200px、`max-h-[calc(100dvh-24px)]`、头部 `px-6 pt-6 pb-4`、底部 `px-6 pt-4 pb-5`，头尾固定、内容区滚动。列表页头主操作与行内「详情」都打开弹窗，成功后就地关闭并刷新当前列表。只有打印、超长多步向导保留独立路由。弹窗底栏用 `SkeuButton`，取消为描边、提交为主色、危险动作为 danger。
+- **缺省态**：`EmptyState` 统一为「浮雕图标盘 + 低对比同心环 + 标题 / 说明 + 主操作」；空态由 `DataTable` 直接占满整个列表区（不再放进表格行），加载失败用 `tone="danger"`，列表空态用默认色调。空态、错误态、重试都走同一个组件，不再页面各自拼。
+- **下一步**：按钮族 84 文件分批替换 → 清单页逐页铺开 → 单据 / 看板模板扩展 → 打印页单独验收。
+- **2026-11-22 简单表收口**：新增 `SimpleListPage` 整页模板与 `DeleteConfirmDialog`，设置 6 个平铺页（单位 / 菜品类别 / 净菜包装 / 门店 / 供应商 / 用户）全部迁入；`SkeuDotSelect` 选中项去掉背景；表单枚举 ≤5 个改平铺；行操作统一「删除→启停→编辑」带文字幽灵态（Power 系图标）。规格见 §0.5.F，`/ui-kit`「标准简单表」样张同步更新。
+- **2026-11-22 细节修订**：设置模块主字段改为**只加粗不上主题色**（非业务模块）；配置类枚举统一色标——单位分类（重量橙 / 体积蓝 / 计数紫 / 其他灰）、用户角色（管理员红 / 运营蓝 / 厨师长橙 / 采购绿），列表 `SkeuChipTag`、表单 `SkeuChipSelect`（渐变面 + 按压内凹）；单位新增表单不预选分类、换算克数改为选填；`EmptyValue` 收敛为唯一占位实现并覆盖各列表 / 详情；底栏汇总统一「共 N 条」不带名词后缀。
+
+## 0.5 收束后的系统规范（2026-11-21）
+
+> 这一节是当前唯一判断依据；与上文迭代记录冲突时，以本节为准。
+
+### A. Token 家族
+
+| 家族 | 唯一来源 | 说明 |
+|---|---|---|
+| 表面 / 层级 | `--sk-surface`、`--sk-surface-muted`、`--sk-panel-body`、`--sk-shadow-1/2/3`、`--sk-highlight-top`、`--sk-inset(-strong)` | 凸起 = 顶部高光 + 底部投影；凹陷 = 顶部内阴影；同一元素不可既凹又凸 |
+| 语义状态 | `--status-{success\|warning\|danger\|neutral\|info}` + `-bg` + `-text` + `-dot` | 不再新增 `--sk-status-*`；StatusBadge 只读这一套 |
+| 分类色板 | `--tag-*` | 食材 / 菜品分类胶囊 |
+| 份量色板 | `--portion-*` | 份量胶囊；与分类色板同构（bg / ink / dot） |
+| 荤素色板 | `--meat-*`、`--veg-*` | 荤 / 混合 / 素胶囊 |
+| 主色 | `--sk-primary-from/-to/-ink/-surface/-soft/-shadow` | 按钮渐变、Logo、当前页码都走 token，不写 hex |
+| 圆角 | `--sk-radius-xs 8 / sm 10 / md 12 / lg 14 / xl 16 / pill` | 小动作 xs、控件 sm、面板 md、弹窗 lg、图标盘 xl |
+| 行高 | `--sk-row-h 52 / -dense 44 / -tall 60`；表头 42 / tall 46 | 默认 52；菜品库 tall 60；仅高密度参照表用 dense 44 |
+| 焦点 | `--sk-focus #9CA3AF` | 输入 / 下拉只加深边框；按钮用 2px outline + offset |
+| 动效 | 80ms 按压 / 120ms hover / 180ms 展开 | 只动 transform / shadow / opacity；reduced-motion 全关 |
+
+### B. 组件角色
+
+| 场景 | 唯一选择 | 约束 |
+|---|---|---|
+| 业务按钮 | `SkeuButton` | shadcn `Button` 只允许出现在 shadcn 原语内部；业务页面不再新增 |
+| 一级页签 | `PageTabs` | 切换整份列表；橙色磁贴选中态，可带图标 / 计数 |
+| 二级筛选 | `SkeuSegmented` / `SelectField` / `SkeuSearch` | 枚举少用分段；选项多用下拉；搜索用 SkeuSearch |
+| 详情分区 | `SectionTabs` | 只用于详情页内部，视觉低于一级页签 |
+| 列表 | `DataTable variant="skeu"` | 默认 52；`rowSize="tall"` 60；`density="dense"` 44 仅限高密度参照表 |
+| 只读大表 | 原生 `Table` | 只允许在打印、预览、详情只读区使用 |
+| 记录创建 / 编辑 / 查看 | `WorkbenchDialog` | 1200px、头尾固定、内容滚动；与「转净料」同尺寸 |
+| 设置简单表整页 | `SimpleListPage` | 骨架 / 搜索 / 状态筛选 / 分页 / 序号 / 空态全部内置；页面只声明列、行操作与弹窗 |
+| 删除确认 | `DeleteConfirmDialog` | 确认态（描边取消 + danger 删除）+ 引用拦截态（无法删除 + 明细 + 引导停用） |
+| 简单确认 / 小表单 | `AppDialogContent` compact / form / wide | 取消描边、提交主色、危险 danger |
+| 设置 CRUD | `RecordDialog` | 领域包装，内部遵守上面的弹窗与按钮规范 |
+| 通用状态 | `StatusBadge` | 只读 `--status-*`；文字 + 圆点，不以颜色为唯一信号 |
+| 分类 / 份量 / 荤素 / 排程状态 | `CategoryTag` / `PortionTag` / `MeatTypeTag` / `ScheduleStatusTag` | 各自只读对应色板；DishStatusTag 仅包装 StatusBadge |
+| 空态 / 加载 | `EmptyState` / `LoadingState` | 空态占满列表区；错误态 `tone="danger"` |
+| 空值占位 | `EmptyValue` | 短横线 + 40% 对比，可带 `title` 说明 |
+| 编号 | `CodeText` | 12px、等宽、弱对比；数字统计仍用等宽加粗 |
+| 有色枚举 | `SkeuChipTag` / `SkeuChipSelect` | 列表只读 / 表单选择，共用同一色板 |
+
+### C. 页面模板
+
+| 模板 | 结构 |
+|---|---|
+| 清单 | `panel + topbar` → `ListToolbar` → `DataTable skeu` → 吸底分页 |
+| 多列表 | `panel + topbar` → `PageTabs` → 工具条 + `DataTable skeu` |
+| 看板 | `panel + topbar` → 列 / 卡片；不使用行高 |
+| 单据 / 详情 | `WorkbenchDialog` 或 `panel + topbar` 内容区 |
+| 设置 | `panel + topbar` → `DataTable skeu`；简单表不点行查看 |
+| 工作台 / 总览 | `panel + topbar` → 卡片 / 周历 |
+| 打印 | 平面：无阴影、无渐变，仅字体 / 橙色 / Logo |
+
+### D. 交互规则
+
+1. 简单表不点行查看；编辑 / 删除走行内操作，主操作最右。
+2. 菜品、食材等有详情语义的列表可点行打开详情；编辑仍走行内或详情内操作。
+3. 创建 / 编辑 / 详情默认大弹窗；成功后就地关闭并刷新当前列表；只有打印和超长向导保留独立路由。
+4. 筛选：搜索 `SkeuSearch`；选项多 / 层级型 `SelectField`；枚举少且互斥 `SkeuSegmented`。
+5. 确认弹窗：`AppDialogContent compact` + 描边取消 + danger 确认；不再直接用 shadcn destructive。
+6. 焦点必须可见；状态不能只靠颜色，必须带文字或圆点。
+7. 打印页禁用阴影 / 渐变，单独验收。
+
+### E. 已知收束缺口（按优先级）
+
+1. **按钮双轨**：仍约 61 个业务文件直接使用 shadcn `Button`（设置 6 页已随模板迁移清零），分批迁移到 `SkeuButton`。
+2. **直拼表格**：约 14 个业务文件仍用 shadcn `Table` 组件；列表页迁到 `DataTable`，打印 / 详情只读区保留（裸 `<table>` 仅剩 3 处残留）。
+3. **确认弹窗**：约 9 处内联确认（设置模块已统一到 `DeleteConfirmDialog`）；抽 `ConfirmDialog` 后统一迁移。
+4. **页面骨架**：采购报销、profile 仍未 panel + topbar，按模块迁移。
+5. **编号弱化**：约 25 个业务文件仍直接写编号，逐步换 `CodeText`。
+6. **空态 / 加载**：仍有约 47 处内联「暂无」，逐步换 `EmptyState` / `LoadingState`。
+7. **三级路由**：`purchases/new`、报销新建、菜品新建 / 编辑、排程编辑仍为独立页，后续换 `WorkbenchDialog`；打印路由豁免。
+8. **硬编码色板**：食材首页、设置首页、菜品详情、工艺卡片等仍有 hex，逐步换 token。
+9. **打印 CSS 重复**：三处打印样式近重复，后续抽共享打印样式。
+
+### F. 设置简单表统一规格（2026-11-22 定稿）
+
+> 用户第一原则：不重复造轮子，简单表在全系统普遍存在，一律走模板复用。
+
+1. **整页模板**：设置类简单 CRUD 清单统一用 `SimpleListPage`
+   （`app/components/ui/simple-list-page.tsx`）：panel + topbar 骨架、数据加载
+   （`listUrl` 或 `loader`）、搜索（`searchIn` 声明匹配字段）、三态状态筛选、
+   分页、序号列与空态全部内置；页面只声明 `columns`、`rowActions(row, ctx)`
+   与弹窗（children 可为函数拿 `ctx.refresh`）。已接入：单位、菜品类别、
+   净菜包装、门店、供应商、用户。食材分类为树形特化页，不进模板，只复用原子件。
+2. **行操作**：带文字幽灵态 `SkeuActionButton`，从左到右固定顺序
+   排序（纯图标 `SkeuIconAction`，仅树形）→ 删除（danger 红 / Trash2）→
+   启停（停用 warn 琥珀 / PowerOff，启用 ok 绿 / Power）→ 编辑（default / Pencil），
+   行内主操作（fill）最右。三操作列宽 `w-[260px]`，两操作 `w-[180px]`，
+   树形六操作 `w-[380px]`。
+3. **状态筛选**：`SkeuDotSelect` 三态圆点（全部灰 / 启用中绿 / 已停用琥珀）；
+   选中项**无背景**，加粗 + 右侧勾（2026-11-22 修订）。
+4. **表单枚举**：选项 ≤5 个平铺；有识别色的枚举（单位分类、用户角色）用
+   `SkeuChipSelect` 彩色选择片（白到色的渐变面 + 顶部高光，选中为按压内凹 + 深一档描边），
+   列表同值用 `SkeuChipTag`，两者共用同一色板；无语义色的短枚举（门店状态）用 `SkeuSegmented`。
+   >5 个用 `SelectField` 下拉。**新增表单不预选默认值**（如单位分类留空，必须由用户选择）；
+   单位换算克数为**选填**，仅重量类展示、填写后参与换算。
+5. **值排印**：业务列表主字段（名称 / 姓名）统一 `font-semibold text-primary`；
+   **设置等非业务模块主字段只加粗**（`font-semibold`，不上主题色）。
+   编号用 `CodeText`；数字统计等宽。空值一律用 `EmptyValue`（短横线 + 40% 对比），
+   禁止各模块自建 `—` 文本。
+6. **底栏汇总**：只显示「共 N 条」，**不带业务名词后缀**，13px 主题色加粗。
+7. **列宽口径**（`DataTable` 的 `className` 逐列声明，无全局默认）：
+   序号 48 / 编号 90–110 / 主字段 120–200 / 中间字段 100–140 / 状态 100 /
+   操作 180（两个动作）、260（三个动作）、380（树形六动作）；
+   **长文本列（说明 / 备注 / 地址）不设宽度**，自适应吃掉剩余宽度。
+8. **删除确认**：`DeleteConfirmDialog` 统一——确认态「取消描边 + 删除 danger」；
+   被引用拦截态「无法删除 + 引用明细 + 引导改停用」。
+9. **启停反馈**：停用 `toast.warning`（琥珀）、启用 `toast.success`（绿），文案带实体名。
+
 ## 1. 强度边界
 
 - 只做「轻拟物」：柔和阴影 + 表面高光 + 按压反馈，**不做**材质纹理、玻璃拟态、深度立体。
@@ -209,3 +337,43 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 - **P3** 样板页：食材分类（`app/settings/classes`）✅
 - **P4** 全站铺开：食材库 → 菜品 → 排程 → 生产 → 库存 → 采购 → 设置，
   逐页把 `DataTable variant` 切到 `skeu`、把 `PageShell` 切到 `panel`。
+## 8. 2026-11-21 设置模块升级
+
+- **一级页面标题**：所有一级菜单页面统一 `PageShell variant="panel"` + `PageHeader variant="topbar"`，标题、描述、主操作与二级页面一致；看板页的内容区由 `min-h-0 flex-1 overflow-auto` 承担滚动。
+- **简单表去查看**：设置类简单 CRUD 表（单位、食材分类、菜品类别、净菜包装、门店、供应商、用户）移除行点击查看；编辑统一走行内「编辑」操作。
+- **树形列表**：食材分类点击一级行即展开/收起，且同一时间只展开一个；二级行不触发展开，光标恢复默认。
+- **编号弱化**：列表中的编号/编码统一用 `CodeText`（12px、等宽、70% 对比），不再使用 `font-medium`；数字统计仍保留等宽加粗。
+- **一级页面清单**：菜品库、食材库、库存、采购、排程、生产计划、内部生产单、工作台、设置。
+
+## 9. 2026-11-22 食材库标准表
+
+适用：原料 / 净料 / 小料 / 调料四个清单页；食材库首页不改。
+
+### 9.1 查看与编辑入口
+
+- **行点击 = 查看**：打开详情抽屉的只读态。
+- **操作列「查看」= 主操作**：浅橙底 + 橙字主按钮，放在最右。
+- **「编辑」= 辅助图标**：直接打开抽屉的编辑态；抽屉内仍可再切编辑 / 取消。
+
+### 9.2 操作列（最多三个）
+
+| 位置 | 形态 | 内容 |
+|---|---|---|
+| 左 | 辅助图标 | 至多两个：编辑 / 打印标签 / 转净料 / 转调料 |
+| 右 | 主操作（文字） | 查看 |
+
+- 复制、删除等**危险或低频动作不进列表**，收进详情抽屉底部操作区（抽屉已有删除 / 复制 / 关联菜品 / 转料）。
+- 列宽 `w-[200px]`；图标用 `SkeuIconAction`，主操作用 `SkeuActionButton tone="primary"`。
+
+### 9.3 分类筛选器（`CategoryFilter`）
+
+- **一二级分类**用同一个轻拟物触发器 + 弹层分栏：左栏一级分类（带二级数量），右栏该一级下的二级网格；选一级不关闭，选二级关闭。
+- **选项超过 5 个自动出现搜索框**，替代长下拉；不再并排两个原生下拉。
+- 只有二级的清单（小料 `MIN`、调料 `SEA`）传 `fixedL1`，退化为单栏二级选择。
+- 触发文案：一级已选显示一级名，二级已选显示「一级 · 二级」，未筛选显示占位；弹层内提供「清除筛选」。
+
+### 9.4 值与汇总
+
+- 主字段（名称）`font-semibold text-primary`；编号 `CodeText`。
+- 空值统一 `EmptyValue`（短横线 + 40% 对比），不再手写 `—`。
+- 底栏汇总只显示「共 N 条」，不带业务名词后缀。

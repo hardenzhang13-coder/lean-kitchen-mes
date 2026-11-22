@@ -25,6 +25,7 @@ import {
   type PlanCuttingConfirmStatus,
 } from "@/lib/shared/prepped-stock";
 import { calculatePrepLabelCopies } from "@/lib/shared/prep-label";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 
 export interface CuttingOrderRow {
   id?: number;
@@ -210,7 +211,7 @@ export function ScheduleCuttingTable({
                   )}
                   <TableCell className="font-mono text-xs">{row.sourceCode || "—"}</TableCell>
                   <TableCell className="font-medium">{row.itemName}</TableCell>
-                  <TableCell>{row.packageSpec != null ? row.packageSpec + "g" : <span className="text-muted-foreground">—</span>}</TableCell>
+                  <TableCell>{row.packageSpec != null ? row.packageSpec + "g" : <EmptyValue />}</TableCell>
                   <TableCell className="text-right font-semibold text-primary">{row.portionsText || "—"}</TableCell>
                   <TableCell className="text-right">{Number(row.requiredQty).toLocaleString("zh-CN")} g</TableCell>
                   {showConfirmColumns && (

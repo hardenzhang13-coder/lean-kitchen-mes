@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -81,7 +81,7 @@ export function Pagination({
       )}
     >
       {totalLabel ? (
-        <span className="text-sm font-semibold text-primary">{totalLabel}</span>
+        <span className="text-[13px] font-semibold text-primary">{totalLabel}</span>
       ) : (
         <span />
       )}
@@ -95,7 +95,7 @@ export function Pagination({
               if (Number.isFinite(next)) onPageSizeChange(next);
             }}
           >
-            <SelectTrigger className="skeu-btn h-9 rounded-full border-skeu-border-strong skeu-surface px-3 text-[13px] font-medium shadow-sk-raised">
+            <SelectTrigger className="skeu-btn h-9 rounded-[9px] border-skeu-border-strong skeu-surface px-3 text-[13px] font-medium shadow-sk-raised">
               <SelectValue>{`${pageSize ?? sizeOptions[0]} 条/页`}</SelectValue>
             </SelectTrigger>
             <SelectContent>
@@ -106,20 +106,6 @@ export function Pagination({
               ))}
             </SelectContent>
           </Select>
-        )}
-
-        {fullControls && (
-          <SkeuButton
-            variant="outline"
-            size="icon-sm"
-            className="size-9 rounded-[9px]"
-            aria-label="首页"
-            title="首页"
-            onClick={() => onPageChange(1)}
-            disabled={currentPage <= 1}
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </SkeuButton>
         )}
 
         <SkeuButton
@@ -149,9 +135,9 @@ export function Pagination({
                 aria-label={`第 ${page} 页`}
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "skeu-btn grid h-9 min-w-9 place-items-center rounded-[9px] px-2 text-sm",
+                  "skeu-btn grid h-9 min-w-9 place-items-center rounded-[var(--sk-radius-xs)] px-2 text-sm",
                   page === currentPage
-                    ? "bg-gradient-to-b from-[#f0813c] to-[#e05a1e] font-semibold text-white shadow-[0_2px_6px_rgba(234,88,12,0.25)]"
+                    ? "bg-[image:var(--sk-primary-surface)] font-semibold text-white shadow-[var(--sk-primary-page-shadow)]"
                     : "skeu-btn-outline font-medium"
                 )}
               >
@@ -170,20 +156,6 @@ export function Pagination({
           下一页
           <ChevronRight className="h-4 w-4" />
         </SkeuButton>
-
-        {fullControls && (
-          <SkeuButton
-            variant="outline"
-            size="icon-sm"
-            className="size-9 rounded-[9px]"
-            aria-label="尾页"
-            title="尾页"
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage >= totalPages}
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </SkeuButton>
-        )}
       </div>
     </div>
   );

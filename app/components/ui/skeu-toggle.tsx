@@ -32,7 +32,7 @@ export function SkeuToggle({
       disabled={disabled}
       onClick={() => onCheckedChange(!checked)}
       className={cn(
-        "inline-flex h-11 items-center gap-3 rounded-full border border-skeu-border-strong bg-[#f6f3ef] px-4 transition-[transform,box-shadow,background-color] duration-150 shadow-sk-raised hover:bg-[#efece6] active:translate-y-px active:shadow-sk-inset-strong disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex h-11 items-center gap-3 rounded-full border border-skeu-border-strong bg-[var(--sk-control-bg)] px-4 transition-[transform,box-shadow,background-color] duration-150 shadow-sk-raised hover:bg-[var(--sk-control-bg-hover)] active:translate-y-px active:shadow-sk-inset-strong disabled:pointer-events-none disabled:opacity-50",
         className
       )}
       {...rest}
@@ -40,12 +40,12 @@ export function SkeuToggle({
       {label ? (
         <span className="text-[13px] font-semibold whitespace-nowrap">{label}</span>
       ) : null}
-      <span className="relative block h-[26px] w-[46px] shrink-0 rounded-full bg-[#e7e2da] shadow-sk-inset-strong">
+      <span className="relative block h-[26px] w-[46px] shrink-0 rounded-full bg-[var(--sk-track-bg)] shadow-sk-inset-strong">
         <span
           className={cn(
-            "absolute top-[3px] left-[3px] size-5 rounded-full bg-gradient-to-b from-white to-[#efece6] shadow-[0_1px_3px_rgba(15,23,42,0.28)] transition-[left,background-color,box-shadow] duration-200",
+            "absolute top-[3px] left-[3px] size-5 rounded-full bg-[image:var(--sk-thumb-surface)] shadow-[var(--sk-thumb-shadow)] transition-[left,background-color,box-shadow] duration-200",
             checked &&
-              "left-[23px] bg-gradient-to-b from-[#f0813c] to-[#e05a1e] shadow-[0_1px_3px_rgba(194,65,12,0.4)]"
+              "left-[23px] bg-[image:var(--sk-primary-surface)] shadow-[var(--sk-thumb-shadow-on)]"
           )}
         />
       </span>

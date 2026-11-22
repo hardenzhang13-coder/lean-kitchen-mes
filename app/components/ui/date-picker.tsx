@@ -53,10 +53,7 @@ export function DatePicker({
       <PopoverTrigger
         disabled={disabled}
         className={cn(
-          "flex h-11 w-full items-center justify-start overflow-hidden whitespace-nowrap rounded-md border border-input bg-background px-4 text-left text-base font-normal shadow-sm transition-colors",
-          "hover:bg-accent hover:text-accent-foreground",
-          "focus:outline-none focus:border-primary",
-          !value && "text-muted-foreground",
+          "flex w-full items-center justify-start overflow-hidden whitespace-nowrap text-left skeu-trigger",
           disabled && "cursor-not-allowed opacity-50",
           className
         )}
@@ -72,10 +69,10 @@ export function DatePicker({
             )}
           </>
         ) : (
-          <span>{placeholder}</span>
+          <span className="text-muted-foreground">{placeholder}</span>
         )}
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="skeu-popover w-auto p-0" align="start">
         <Calendar
           mode="single"
           selected={selectedDate}

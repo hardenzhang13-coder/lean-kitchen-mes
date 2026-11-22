@@ -34,7 +34,7 @@ const TONE_CLASS: Record<SkeuDotTone, string> = {
 
 /**
  * 轻拟物状态筛选：圆点 + 文字的下拉。
- * 触发器与选项共用圆点语义色；选中项浅橙底 + 加粗 + 右侧勾。
+ * 触发器与选项共用圆点语义色；选中项加粗 + 右侧勾，不加背景。
  */
 export function SkeuDotSelect({
   value,
@@ -51,7 +51,7 @@ export function SkeuDotSelect({
       <PopoverTrigger
         aria-label={rest["aria-label"] ?? "状态筛选"}
         className={cn(
-          "flex h-11 min-w-[160px] items-center gap-2.5 rounded-[10px] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:bg-[#f6f3ef] focus-visible:border-[#9ca3af] focus-visible:outline-none",
+          "flex h-11 min-w-[160px] items-center gap-2.5 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:bg-[var(--sk-control-bg)] focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
           className
         )}
       >
@@ -67,7 +67,7 @@ export function SkeuDotSelect({
       <PopoverContent
         align="start"
         sideOffset={6}
-        className="w-[220px] gap-0 rounded-[12px] border-skeu-border skeu-surface p-2 shadow-sk-2 ring-0"
+        className="w-[220px] gap-0 rounded-[var(--sk-radius-md)] border-skeu-border skeu-surface p-2 shadow-sk-2 ring-0"
       >
         {options.map((option) => {
           const isSelected = option.value === value;
@@ -80,8 +80,8 @@ export function SkeuDotSelect({
                 setOpen(false);
               }}
               className={cn(
-                "flex h-10 w-full items-center gap-2.5 rounded-[9px] px-3 text-left text-sm transition-colors focus-visible:bg-[var(--sk-primary-soft-solid)] focus-visible:outline-none",
-                isSelected && "bg-[var(--sk-primary-soft-solid)] font-semibold"
+                "flex h-10 w-full items-center gap-2.5 rounded-[var(--sk-radius-xs)] px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-[var(--sk-primary-soft-solid)] focus-visible:outline-none",
+                isSelected && "font-semibold"
               )}
             >
               <span className={cn("skeu-dot", TONE_CLASS[option.tone ?? "all"])} />

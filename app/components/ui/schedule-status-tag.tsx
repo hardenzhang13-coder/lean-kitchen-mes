@@ -33,7 +33,7 @@ export function ScheduleStatusTag({
   return (
     <span
       className={cn(
-        "inline-flex items-center whitespace-nowrap rounded-md font-medium text-white",
+        "skeu-badge inline-flex items-center whitespace-nowrap font-medium text-white",
         size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-0.5 text-xs",
         SOLID_TONE[variant],
         className

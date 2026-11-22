@@ -40,7 +40,7 @@ export function FormField({
     <div className={cn("grid gap-2", className)}>
       <Label
         htmlFor={id}
-        className={cn("text-base flex items-center gap-1", labelClassName)}
+        className={cn("text-sm font-semibold flex items-center gap-1", labelClassName)}
       >
         {label}
         {required && !readOnly && <span className="text-destructive">*</span>}

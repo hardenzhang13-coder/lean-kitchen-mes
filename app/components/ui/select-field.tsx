@@ -37,12 +37,10 @@ export function SelectField({
   const selectedLabel = options.find((o) => o.value === value)?.label;
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)} disabled={disabled}>
-      {/* 默认高度与搜索输入框（Input h-11）保持一致。SelectTrigger 自带的
-          data-[size=default]:h-8 优先级高于普通 h-11，必须用 important 才能覆盖。 */}
-      <SelectTrigger className={cn("h-11!", className)}>
+      <SelectTrigger className={cn("skeu-trigger", className)}>
         <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="skeu-popover">
         {options.map((opt) => (
           <SelectItem key={opt.value} value={opt.value} disabled={opt.disabled}>
             {opt.label}

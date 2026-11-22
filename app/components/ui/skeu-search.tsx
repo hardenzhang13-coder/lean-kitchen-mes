@@ -29,7 +29,7 @@ export function SkeuSearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="skeu-input h-11 w-full rounded-[10px] border pr-10 pl-9 text-sm outline-none transition-colors duration-150 placeholder:text-[#9CA3AF]"
+        className="skeu-input h-11 w-full rounded-[var(--sk-radius-sm)] border pr-10 pl-9 text-sm outline-none transition-colors duration-150 placeholder:text-muted-foreground"
         {...rest}
       />
       {value ? (
@@ -37,7 +37,7 @@ export function SkeuSearch({
           type="button"
           aria-label="清除搜索"
           onClick={() => onChange("")}
-          className="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-[#efece6] hover:text-foreground"
+          className="absolute top-1/2 right-2 grid size-7 -translate-y-1/2 place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
           <X className="h-3.5 w-3.5" />
         </button>

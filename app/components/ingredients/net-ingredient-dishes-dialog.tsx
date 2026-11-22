@@ -136,6 +136,7 @@ export function NetIngredientDishesDialog({
               pagination && pagination.totalItems > PAGE_SIZE
                 ? {
                     currentPage: page,
+                    fullControls: false,
                     totalPages: pagination.totalPages,
                     totalItems: pagination.totalItems,
                     pageSize: PAGE_SIZE,

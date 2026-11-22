@@ -24,6 +24,7 @@
 - `technique` — 做法
 - `meatType` — 荤素类型
 - `portion` — 份量规格
+- `portionGroup` — 份量分组：`single`（小碗菜）/ `community`（社区·1–4 份及其余）/ `canteen`（小碗菜·10 份）
 - `status` — 状态（draft / published / inactive）
 - `q` — 按名称或编码模糊搜索
 - `page` / `pageSize` — 分页

@@ -28,6 +28,8 @@ interface DataTableProps<T> {
   loading?: boolean;
   /** 视觉形态：default 保持扁平列表；skeu 启用轻拟物表体 */
   variant?: "default" | "skeu";
+  /** skeu 行高：default 52px；tall 60px，用于菜品库等需要展示更多信息的列表 */
+  rowSize?: "default" | "tall";
   /** 行层级标记，树形列表用它区分一级行与二级行底色 */
   getRowLevel?: (row: T) => string | undefined;
   pagination?: {
@@ -71,6 +73,7 @@ export function DataTable<T extends object>({
   columns,
   loading = false,
   variant = "default",
+  rowSize = "default",
   getRowLevel,
   pagination,
   filters,
@@ -112,7 +115,25 @@ export function DataTable<T extends object>({
     >
       {filters && <div className="flex flex-wrap items-center gap-3">{filters}</div>}
 
+      {!loading && data.length === 0 ? (
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 items-center justify-center",
+            variant === "skeu"
+              ? "skeu-table-scroll skeu-scroll overflow-auto"
+              : "rounded-md border"
+          )}
+        >
+          <EmptyState {...resolvedEmptyState} className="w-full" />
+        </div>
+      ) : (
       <div
+        data-density={
+          variant === "skeu" && density === "dense" ? "dense" : undefined
+        }
+        data-row-size={
+          variant === "skeu" && rowSize === "tall" ? "tall" : undefined
+        }
         className={cn(
           variant === "skeu"
             ? "skeu-table-scroll skeu-scroll overflow-auto"
@@ -133,9 +154,9 @@ export function DataTable<T extends object>({
                     "font-semibold",
                     col.className,
                     col.sticky === "left" &&
-                      "sticky left-0 z-20 bg-background shadow-[8px_0_12px_-12px_rgba(15,23,42,0.16)]",
+                      "sticky left-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-left)]",
                     col.sticky === "right" &&
-                      "sticky right-0 z-20 bg-background shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.16)]"
+                      "sticky right-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-right)]"
                   )}
                 >
                   {col.header}
@@ -147,7 +168,7 @@ export function DataTable<T extends object>({
                     "text-right font-semibold",
                     actionsWidth,
                     stickyActions &&
-                      "sticky right-0 z-20 bg-background shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.16)]"
+                      "sticky right-0 z-20 bg-background shadow-[var(--sk-sticky-shadow-right)]"
                   )}
                 >
                   操作
@@ -163,16 +184,6 @@ export function DataTable<T extends object>({
                   data-skeu-cell="plain"
                 >
                   <LoadingState type="inline" />
-                </TableCell>
-              </TableRow>
-            ) : data.length === 0 ? (
-              <TableRow>
-                <TableCell
-                  colSpan={columns.length + (rowActions ? 1 : 0)}
-                  className="p-0"
-                  data-skeu-cell="plain"
-                >
-                  <EmptyState {...resolvedEmptyState} />
                 </TableCell>
               </TableRow>
             ) : (
@@ -204,9 +215,9 @@ export function DataTable<T extends object>({
                       className={cn(
                         col.className,
                         col.sticky === "left" &&
-                          "sticky left-0 z-10 bg-card group-hover:bg-muted shadow-[8px_0_12px_-12px_rgba(15,23,42,0.16)]",
+                          "sticky left-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-left)]",
                         col.sticky === "right" &&
-                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.16)]"
+                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-right)]"
                       )}
                     >
                       {getCellValue(row, col, rowIdx)}
@@ -217,7 +228,7 @@ export function DataTable<T extends object>({
                       data-sticky={stickyActions ? true : undefined}
                       className={cn(
                         stickyActions &&
-                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[-8px_0_12px_-12px_rgba(15,23,42,0.16)]"
+                          "sticky right-0 z-10 bg-card group-hover:bg-muted shadow-[var(--sk-sticky-shadow-right)]"
                       )}
                     >
                       <div className="flex items-center justify-end gap-0.5">
@@ -231,6 +242,7 @@ export function DataTable<T extends object>({
           </TableBody>
         </Table>
       </div>
+      )}
 
       {pagination && pagination.totalItems > 0 && (
         <div className={cn("shrink-0", variant === "skeu" && "skeu-panel-foot")}>

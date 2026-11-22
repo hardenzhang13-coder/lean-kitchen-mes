@@ -15,6 +15,7 @@ import { Dialog, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui
 import { BomType, DishDetail, formatCost, calcGrossMarginPercent, netSpecText, calcCost } from "@/app/components/dish-form/types";
 import { ProcessAccordion } from "@/app/components/dish-form/process-accordion";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 
 interface DishSheetDetailProps {
   dish: DishDetail;
@@ -53,7 +54,7 @@ const formatDateTime = (dateStr: string | Date | null | undefined) => {
 };
 
 function MeatTypeBadge({ type }: { type?: string | null }) {
-  if (!type) return <span className="text-muted-foreground">—</span>;
+  if (!type) return <EmptyValue />;
   const classes: Record<string, string> = {
     荤菜: "bg-red-100 text-red-700 hover:bg-red-100",
     素菜: "bg-green-100 text-green-700 hover:bg-green-100",

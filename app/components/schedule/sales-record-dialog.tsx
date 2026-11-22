@@ -13,6 +13,7 @@ import { Input } from "@/app/components/ui/form-controls";
 import { toast } from "sonner";
 import { parseCSV, downloadCSV } from "@/lib/client/csv";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 
 /** 排程明细行（含回录字段，与 /api/schedules/[id] items 一致） */
 export interface SalesRecordItem {
@@ -549,7 +550,7 @@ export function SalesRecordDialog({
                                 <option value="ignore">忽略本行</option>
                               </select>
                             ) : (
-                              <span className="text-xs text-muted-foreground">—</span>
+                              <EmptyValue className="text-xs" />
                             )}
                           </td>
                         </tr>

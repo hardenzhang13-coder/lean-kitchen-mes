@@ -37,7 +37,7 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
   const pathname = usePathname();
 
   return (
-    <aside className="fixed left-0 top-0 z-40 flex h-full w-20 flex-col items-center border-r border-border bg-card py-4">
+    <aside className="fixed left-0 top-0 z-40 flex h-full w-20 flex-col items-center border-r border-skeu-border skeu-surface py-4 shadow-sk-raised">
       <div className="mb-6 flex flex-col items-center gap-1">
         <div className="flex h-10 w-10 items-center justify-center transition-all hover:brightness-105">
           <Logo className="h-10 w-10" />
@@ -56,10 +56,10 @@ export function Sidebar({ user }: { user: { username: string; name?: string | nu
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center w-16 h-16 rounded-md gap-1 transition-colors relative",
+                "relative flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-[10px] transition-[background-color,color,box-shadow,transform] duration-150",
                 isActive
-                  ? "bg-primary/10 text-primary before:absolute before:left-1 before:top-1/2 before:-translate-y-1/2 before:w-1 before:h-6 before:rounded-full before:bg-primary"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  ? "skeu-nav-active"
+                  : "text-muted-foreground hover:-translate-y-px hover:bg-muted hover:text-foreground"
               )}
               title={item.unavailable ? `${item.label}（试运行暂未开放）` : item.label}
             >

@@ -12,7 +12,6 @@ import {
   Power,
   PowerOff,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
@@ -26,10 +25,10 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
-import { SkeuToggle } from "@/app/components/ui/skeu-toggle";
 import {
   SkeuActionButton,
   SkeuIconAction,
@@ -37,7 +36,6 @@ import {
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
   RecordDialog,
-  RecordView,
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
@@ -97,10 +95,10 @@ export default function ClassesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const [recordOpen, setRecordOpen] = useState(false);
-  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [recordMode, setRecordMode] = useState<"create" | "edit">("create");
   const [dialogType, setDialogType] = useState<RecordType>("l1");
   const [selected, setSelected] = useState<SelectedRecord | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -183,57 +181,31 @@ export default function ClassesPage() {
     const rows: DisplayRow[] = [];
     pageL1Items.forEach((l1, l1Idx) => {
       rows.push({ kind: "l1", l1, l1Idx });
-      if (expanded.has(l1.id)) {
+      if (expandedId === l1.id) {
         l1.children.forEach((l2, l2Idx) => {
           rows.push({ kind: "l2", l1, l1Idx, l2, l2Idx });
         });
       }
     });
     return rows;
-  }, [pageL1Items, expanded]);
+  }, [pageL1Items, expandedId]);
 
   const l1Options = useMemo(
     () => data.map((d) => ({ value: d.code, label: d.name, description: d.code })),
     [data]
   );
 
-  const parentName = useMemo(() => {
-    if (!selected || selected.type !== "l2") return "";
-    const l2 = selected.record as L2;
-    return data.find((d) => d.code === l2.parentCode)?.name || l2.parentCode;
-  }, [data, selected]);
-
   const toggleExpand = (id: number) => {
-    const next = new Set(expanded);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpanded(next);
-  };
-
-  // 全部展开 / 全部收起：拨动开关统一控制树形展开状态，默认收起
-  const allExpanded = data.length > 0 && expanded.size >= data.length;
-  const handleExpandAll = (next: boolean) => {
-    setExpanded(next ? new Set(data.map((d) => d.id)) : new Set<number>());
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   const closeRecord = () => {
     setRecordOpen(false);
-    setRecordMode("view");
+    setRecordMode("create");
     setSelected(null);
     setDialogType("l1");
     setForm(emptyForm);
     setBaselineForm(emptyForm);
-  };
-
-  const openView = (row: DisplayRow) => {
-    setSelected(
-      row.kind === "l1"
-        ? { type: "l1", record: row.l1 }
-        : { type: "l2", record: row.l2 }
-    );
-    setDialogType(row.kind);
-    setRecordMode("view");
-    setRecordOpen(true);
   };
 
   const openCreateL1 = () => {
@@ -345,7 +317,11 @@ export default function ClassesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");
@@ -438,7 +414,6 @@ export default function ClassesPage() {
     }
   };
 
-  const selectedRecord = selected?.record;
   const selectedType = selected?.type ?? dialogType;
 
   return (
@@ -474,14 +449,6 @@ export default function ClassesPage() {
               setCurrentPage(1);
             }}
             hasFilters={statusFilter !== "all"}
-            trailing={
-              <SkeuToggle
-                checked={allExpanded}
-                onCheckedChange={handleExpandAll}
-                label={allExpanded ? "全部收起" : "全部展开"}
-                aria-label="展开或收起全部二级分类"
-              />
-            }
           >
             <SkeuDotSelect
               value={statusFilter}
@@ -497,9 +464,10 @@ export default function ClassesPage() {
           <DataTable<DisplayRow>
             data={displayRows}
             loading={loading}
-            onRowClick={openView}
+            onRowClick={(row) => {
+              if (row.kind === "l1") toggleExpand(row.l1.id);
+            }}
             fillHeight
-            density="compact"
             variant="skeu"
             actionsWidth="w-[380px]"
             getRowLevel={(row) => (row.kind === "l2" ? "l2" : "l1")}
@@ -521,11 +489,11 @@ export default function ClassesPage() {
                 className: "w-[150px]",
                 cell: (row) =>
                   row.kind === "l1" ? (
-                    <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center gap-1">
                       <button
                         type="button"
                         aria-label={
-                          expanded.has(row.l1.id)
+                          expandedId === row.l1.id
                             ? `收起 ${row.l1.name}`
                             : `展开 ${row.l1.name}`
                         }
@@ -535,18 +503,18 @@ export default function ClassesPage() {
                         }}
                         className="grid size-[26px] shrink-0 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:bg-muted"
                       >
-                        {expanded.has(row.l1.id) ? (
+                        {expandedId === row.l1.id ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </button>
-                      {row.l1.code}
+                      <CodeText>{row.l1.code}</CodeText>
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center gap-1">
                       <span className="inline-block w-[26px] shrink-0" />
-                      <span className="text-muted-foreground">{row.l2.code}</span>
+                      <CodeText>{row.l2.code}</CodeText>
                     </span>
                   ),
               },
@@ -568,10 +536,14 @@ export default function ClassesPage() {
                     row.kind === "l1" ? row.l1.description : row.l2.description;
                   return (
                     <span
-                      className="block max-w-[220px] truncate whitespace-nowrap text-muted-foreground"
-                      title={description || "—"}
+                      className={`block max-w-[220px] truncate whitespace-nowrap ${
+                        description
+                          ? "text-muted-foreground"
+                          : "select-none text-muted-foreground/40"
+                      }`}
+                      title={description || ""}
                     >
-                      {description || "—"}
+                      {description || "–"}
                     </span>
                   );
                 },
@@ -596,7 +568,7 @@ export default function ClassesPage() {
               totalItems,
               pageSize,
               onPageChange: setCurrentPage,
-              totalLabel: formatPageSummary(currentPage, pageSize, totalItems),
+              totalLabel: formatPageSummary(totalItems),
               showPageSize: true,
               onPageSizeChange: setPageSize,
             }}
@@ -743,59 +715,15 @@ export default function ClassesPage() {
         title={
           recordMode === "create"
             ? `新增${typeLabel(dialogType)}`
-            : recordMode === "edit"
-              ? `编辑${typeLabel(dialogType)}`
-              : selectedRecord?.name ?? typeLabel(selectedType)
+            : `编辑${typeLabel(dialogType)}`
         }
-        meta={
-          recordMode === "view" && selectedRecord ? (
-            <>
-              <span className="tabular-nums">{selectedRecord.code}</span>
-              {selectedType === "l2" && <span>所属：{parentName}</span>}
-              <StatusBadge
-                status={selectedRecord.isActive ? "启用中" : "已停用"}
-                variant={selectedRecord.isActive ? "success" : "neutral"}
-              />
-            </>
-          ) : undefined
-        }
-        onEdit={
-          recordMode === "view" && selectedRecord
-            ? () =>
-                selectedType === "l1"
-                  ? openEditL1(selectedRecord as L1)
-                  : openEditL2(selectedRecord as L2)
-            : undefined
-        }
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
-        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        dirty={isRecordDirty(form, baselineForm)}
         submitting={submitting}
         entityLabel={typeLabel(selectedType)}
       >
-        {recordMode === "view" && selectedRecord ? (
-          <RecordView
-            items={[
-              { label: "编号", value: selectedRecord.code, emphasis: true },
-              { label: "名称", value: selectedRecord.name },
-              ...(selectedType === "l2"
-                ? [{ label: "所属一级分类", value: parentName }]
-                : []),
-              {
-                label: "说明",
-                value: selectedRecord.description || "—",
-                wide: true,
-              },
-            ]}
-          />
-        ) : (
-          <SimpleForm>
+        <SimpleForm>
             {dialogType === "l2" && (
               <FormField label="所属一级分类" required>
                 <SelectTileMode
@@ -844,7 +772,6 @@ export default function ClassesPage() {
               />
             </FormField>
           </SimpleForm>
-        )}
       </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -877,13 +804,13 @@ export default function ClassesPage() {
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setDeleteTarget(null)}>
               {deleteError ? "知道了" : "取消"}
-            </Button>
+            </SkeuButton>
             {!deleteError && (
-              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+              <SkeuButton variant="danger" onClick={handleDelete}>
                 删除
-              </Button>
+              </SkeuButton>
             )}
           </DialogFooter>
         </AppDialogContent>

@@ -75,37 +75,37 @@
 :root {
   --font-heading: var(--font-sans);
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
+  --card-foreground: oklch(0.20 0.006 70);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
+  --popover-foreground: oklch(0.20 0.006 70);
   --primary: oklch(0.553 0.195 38.402);
   --primary-foreground: oklch(0.98 0.016 73.684);
-  --secondary: oklch(0.967 0.001 286.375);
-  --secondary-foreground: oklch(0.21 0.006 285.885);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --secondary: oklch(0.965 0.006 75);
+  --secondary-foreground: oklch(0.21 0.006 70);
+  --muted: oklch(0.965 0.006 75);
+  --muted-foreground: oklch(0.53 0.012 70);
+  --accent: oklch(0.965 0.006 75);
+  --accent-foreground: oklch(0.205 0.006 70);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --border: oklch(0.915 0.008 75);
+  --input: oklch(0.915 0.008 75);
+  --ring: oklch(0.55 0.02 60);
+  --chart-1: oklch(0.87 0.004 75);
+  --chart-2: oklch(0.556 0.006 70);
+  --chart-3: oklch(0.439 0.006 70);
+  --chart-4: oklch(0.371 0.006 70);
+  --chart-5: oklch(0.269 0.006 70);
   --radius: 0.75rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar: oklch(0.985 0.004 75);
+  --sidebar-foreground: oklch(0.20 0.006 70);
   --sidebar-primary: oklch(0.646 0.222 41.116);
   --sidebar-primary-foreground: oklch(0.98 0.016 73.684);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --sidebar-accent: oklch(0.965 0.006 75);
+  --sidebar-accent-foreground: oklch(0.205 0.006 70);
+  --sidebar-border: oklch(0.915 0.008 75);
+  --sidebar-ring: oklch(0.55 0.02 60);
   --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --foreground: oklch(0.20 0.006 70);
   --success: oklch(0.55 0.15 145);
   --success-muted: oklch(0.95 0.03 145);
   --warning: oklch(0.65 0.15 85);
@@ -114,22 +114,30 @@
   --danger-muted: oklch(0.95 0.05 27);
   --info: oklch(0.55 0.15 250);
   --info-muted: oklch(0.95 0.03 250);
-  --neutral: oklch(0.55 0 0);
-  --neutral-muted: oklch(0.95 0 0);
+  --neutral: oklch(0.53 0.012 70);
+  --neutral-muted: oklch(0.965 0.006 75);
 
-  /* Semantic status colors */
+  /* Semantic status colors：唯一的语义状态 token 家族 */
   --status-success: #22c55e;
   --status-success-bg: #f0fdf4;
+  --status-success-text: #15803d;
+  --status-success-dot: #22c55e;
   --status-warning: #f59e0b;
   --status-warning-bg: #fffbeb;
+  --status-warning-text: #d97706;
+  --status-warning-dot: #f59e0b;
   --status-danger: #ef4444;
   --status-danger-bg: #fef2f2;
+  --status-danger-text: #dc2626;
+  --status-danger-dot: #ef4444;
   --status-neutral: #6b7280;
   --status-neutral-bg: #f9fafb;
+  --status-neutral-text: #6b7280;
+  --status-neutral-dot: #6b7280;
   --status-info: #3b82f6;
   --status-info-bg: #eff6ff;
-  --status-primary: #ea580c;
-  --status-primary-bg: #fff7ed;
+  --status-info-text: #2563eb;
+  --status-info-dot: #3b82f6;
 
   /* 事件块（工作台周历）：中色系实心底 + 白字，与浅色状态标签区分开 */
   --status-warning-solid: #b45309; /* 待生效 */
@@ -148,6 +156,19 @@
   --tag-prc: #8b5cf6; --tag-prc-bg: #f5f3ff;
   --tag-gra: #64748b; --tag-gra-bg: #f8fafc;
   --tag-sea: #ec4899; --tag-sea-bg: #fdf2f8;
+
+  /* 菜品份量胶囊：同色系底 + 深一档文字 + 同色圆点 */
+  --portion-single-bg: #fff7ed; --portion-single-ink: #c2410c; --portion-single-dot: #ea580c;
+  --portion-comm1-bg: #ecfeff; --portion-comm1-ink: #0e7490; --portion-comm1-dot: #06b6d4;
+  --portion-comm2-bg: #eff6ff; --portion-comm2-ink: #1d4ed8; --portion-comm2-dot: #3b82f6;
+  --portion-comm3-bg: #f5f3ff; --portion-comm3-ink: #6d28d9; --portion-comm3-dot: #8b5cf6;
+  --portion-comm4-bg: #fdf2f8; --portion-comm4-ink: #be185d; --portion-comm4-dot: #ec4899;
+  --portion-canteen-bg: #fef3c7; --portion-canteen-ink: #b45309; --portion-canteen-dot: #f59e0b;
+
+  /* 荤素胶囊 */
+  --meat-bg: #fef2f2; --meat-ink: #b91c1c; --meat-dot: #ef4444;
+  --meat-mixed-bg: #fffbeb; --meat-mixed-ink: #b45309; --meat-mixed-dot: #f59e0b;
+  --veg-bg: #f0fdf4; --veg-ink: #15803d; --veg-dot: #22c55e;
 }
 
 @layer base {
@@ -159,9 +180,6 @@
   }
   html {
     @apply font-sans;
-    /* 固定浅色渲染：系统深色模式下画布/滚动条会渲染成深色，与浅色页面之间形成一条深色边线 */
-    color-scheme: light;
-    background-color: var(--background);
   }
   a, button, [role="button"], input[type="submit"], input[type="button"], label, select, summary {
     cursor: pointer;
@@ -171,8 +189,7 @@
   }
   input:focus, select:focus, textarea:focus {
     outline: none;
-    border-color: var(--primary);
-    @apply ring-2 ring-primary/15;
+    border-color: var(--sk-focus);
   }
 }
 
@@ -236,18 +253,45 @@
   --sk-surface-muted: linear-gradient(180deg, #fbf9f6 0%, #f6f3ef 100%);
   --sk-panel-body: linear-gradient(180deg, #fcfbfa 0%, #fbf9f6 100%);
   /* 主色表面 */
-  --sk-primary-surface: linear-gradient(180deg, #f0813c 0%, #e05a1e 100%);
+  --sk-primary-from: #f0813c;
+  --sk-primary-to: #e05a1e;
+  --sk-primary-ink: #c2410c;
+  --sk-brand-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.40), 0 3px 8px rgba(234, 88, 12, 0.28);
+  --sk-primary-page-shadow: 0 2px 6px rgba(234, 88, 12, 0.25);
+  --sk-primary-surface: linear-gradient(180deg, var(--sk-primary-from) 0%, var(--sk-primary-to) 100%);
   --sk-primary-soft: linear-gradient(180deg, #fbeee5 0%, #fbe7dc 100%);
   --sk-primary-soft-solid: #fff7ed;
   --sk-primary-shadow: 0 1px 2px rgba(194, 65, 12, 0.40), 0 4px 10px rgba(234, 88, 12, 0.22);
+  /* 圆角阶梯：xs 小动作 / sm 控件 / md 面板 / lg 弹窗 / xl 图标盘 */
+  --sk-radius-xs: 8px;
+  --sk-radius-sm: 10px;
+  --sk-radius-md: 12px;
+  --sk-radius-lg: 14px;
+  --sk-radius-xl: 16px;
+  --sk-radius-pill: 999px;
   /* 列表行 */
   --sk-row-hover: #fdf9f5;
   --sk-row-l2: #fcfbf9;
-  /* 表格尺寸：行高与表头高 */
+  /* 表格尺寸：默认 / 密集 / 高行 */
   --sk-row-h: 52px;
   --sk-thead-h: 42px;
+  --sk-row-h-dense: 44px;
+  --sk-row-h-tall: 60px;
+  --sk-thead-h-tall: 46px;
   /* 滚动条 */
   --sk-scroll-thumb: #d9d5ce;
+  /* 焦点：完全对齐 v008，只加深边框，不加发光环 */
+  --sk-focus: #9ca3af;
+  /* 控件表面：拨动开关、药丸按钮、搜索清除钮 */
+  --sk-control-bg: #f6f3ef;
+  --sk-control-bg-hover: #efece6;
+  --sk-track-bg: #e7e2da;
+  --sk-thumb-surface: linear-gradient(180deg, #ffffff 0%, #efece6 100%);
+  --sk-thumb-shadow: 0 1px 3px rgba(15, 23, 42, 0.28);
+  --sk-thumb-shadow-on: 0 1px 3px rgba(194, 65, 12, 0.40);
+  /* 固定列边缘阴影 */
+  --sk-sticky-shadow-left: 8px 0 12px -12px rgba(0, 0, 0, 0.45);
+  --sk-sticky-shadow-right: -8px 0 12px -12px rgba(0, 0, 0, 0.45);
 }
 
 /* ---------- 表面（渐变必须走 background，Tailwind 的 bg-[var()] 只能设 background-color） ---------- */
@@ -258,7 +302,7 @@
 .skeu-panel {
   background: var(--sk-surface);
   border: 1px solid var(--sk-border);
-  border-radius: 12px;
+  border-radius: var(--sk-radius-md);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
 }
 .skeu-panel-toolbar {
@@ -267,6 +311,14 @@
 }
 .skeu-panel-body {
   background: var(--sk-panel-body);
+}
+
+/* ---------- 桌面层：承载入口卡 / 磁贴的浅色凹陷面 ---------- */
+.skeu-desk {
+  background: var(--sk-surface-muted);
+  border: 1px solid var(--sk-border);
+  border-radius: 14px;
+  box-shadow: var(--sk-inset);
 }
 
 /* ---------- 滚动条 ---------- */
@@ -278,7 +330,7 @@
 .skeu-scroll::-webkit-scrollbar-track { background: transparent; }
 .skeu-scroll::-webkit-scrollbar-thumb {
   background: var(--sk-scroll-thumb);
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   border: 2px solid transparent;
   background-clip: content-box;
 }
@@ -333,21 +385,70 @@
 .skeu-input {
   background: #ffffff;
   border-color: var(--sk-border-strong);
-  border-radius: 10px;
+  border-radius: var(--sk-radius-sm);
   box-shadow: var(--sk-inset);
 }
 .skeu-input:focus,
 .skeu-input:focus-visible {
-  border-color: #9ca3af;
+  border-color: var(--sk-focus);
   box-shadow: var(--sk-inset);
   outline: none;
 }
 
-/* ---------- 徽章：胶囊 + 顶部高光 ---------- */
-.skeu-badge {
-  border-radius: 999px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
+/* ---------- 选择器 / 日期触发器：与输入框同高同表面 ---------- */
+.skeu-trigger {
+  background: #ffffff;
+  border: 1px solid var(--sk-border-strong);
+  border-radius: var(--sk-radius-sm);
+  box-shadow: var(--sk-inset);
+  height: 44px;
+  padding: 0 14px;
+  font-size: 14px;
+  color: var(--foreground);
+  transition: background-color 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
 }
+.skeu-trigger:hover { background: #f6f3ef; }
+.skeu-trigger:focus-visible {
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset);
+  outline: none;
+}
+.skeu-trigger[data-disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* ---------- 浮层表面：下拉 / 日历 ---------- */
+.skeu-popover {
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-md);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-2);
+}
+
+/* ---------- 弹窗关闭按钮：小号凸起按钮 ---------- */
+[data-slot="dialog-content"] [data-slot="dialog-close"] {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--sk-radius-xs);
+  background: var(--sk-surface);
+  border: 1px solid var(--sk-border);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+  color: var(--muted-foreground);
+  opacity: 1;
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"]:hover {
+  background: var(--sk-control-bg-hover);
+  color: var(--foreground);
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"]:active {
+  transform: translateY(1px);
+  box-shadow: var(--sk-inset);
+}
+[data-slot="dialog-content"] [data-slot="dialog-close"] svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ---------- 徽章：胶囊 + 顶部高光 ---------- */
 
 /* ---------- 表格 ---------- */
 .skeu-table-scroll {
@@ -355,7 +456,20 @@
 }
 .skeu-table-scroll tbody tr { background: #ffffff; }
 .skeu-table-scroll tbody tr[data-row-level="l2"] { background: var(--sk-row-l2); }
+.skeu-table-scroll tbody tr[data-row-level="l2"] { cursor: default; }
 .skeu-table-scroll tbody tr:hover { background: var(--sk-row-hover); }
+.skeu-table-scroll tbody tr[data-tone="danger"] {
+  background: color-mix(in srgb, var(--danger-muted) 70%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="warning"] {
+  background: color-mix(in srgb, var(--warning-muted) 70%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="danger"]:hover {
+  background: color-mix(in srgb, var(--danger-muted) 85%, #ffffff);
+}
+.skeu-table-scroll tbody tr[data-tone="warning"]:hover {
+  background: color-mix(in srgb, var(--warning-muted) 85%, #ffffff);
+}
 .skeu-table-scroll [data-slot="table-row"] { border-bottom-color: var(--sk-border); }
 .skeu-table-scroll [data-slot="table-header"] { background: var(--sk-surface-muted); }
 .skeu-table-scroll [data-slot="table-head"] {
@@ -373,6 +487,15 @@
   padding: 0 16px;
   font-size: 14px;
 }
+.skeu-table-scroll[data-density="dense"] [data-slot="table-cell"] {
+  height: var(--sk-row-h-dense);
+}
+.skeu-table-scroll[data-row-size="tall"] [data-slot="table-cell"] {
+  height: var(--sk-row-h-tall);
+}
+.skeu-table-scroll[data-row-size="tall"] [data-slot="table-head"] {
+  height: var(--sk-thead-h-tall);
+}
 .skeu-table-scroll [data-slot="table-cell"][data-skeu-cell="plain"] {
   height: auto;
   padding: 0;
@@ -383,7 +506,7 @@
 /* ---------- 侧栏磁贴 ---------- */
 .skeu-nav-active {
   background: var(--sk-primary-soft);
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   box-shadow: inset 0 2px 3px rgba(194, 65, 12, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 3px 10px rgba(234, 88, 12, 0.20);
 }
 .skeu-nav-active::after {
@@ -395,7 +518,7 @@
   width: 12px;
   height: 24px;
   background: var(--background);
-  border-radius: 12px 0 0 12px;
+  border-radius: var(--sk-radius-md) 0 0 var(--sk-radius-md);
   border-left: 1px solid var(--sk-border);
 }
 
@@ -404,7 +527,7 @@
   width: 8px;
   height: 8px;
   flex: none;
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.60);
 }
 .skeu-dot-all { background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%); }
@@ -423,11 +546,108 @@
   padding-top: 0;
 }
 
+/* ---------- 一级页签：一个页面承载多份列表 ---------- */
+.skeu-page-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  background: var(--sk-surface);
+  border-bottom: 1px solid var(--sk-border);
+}
+.skeu-page-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: var(--sk-radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease, transform 0.08s ease;
+}
+.skeu-page-tab:hover { background: var(--muted); color: var(--foreground); }
+.skeu-page-tab:active { transform: translateY(1px); }
+.skeu-page-tab-active,
+.skeu-page-tab-active:hover {
+  background: var(--sk-primary-soft);
+  color: var(--sk-primary-ink);
+  border-color: #f5b48d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 6px rgba(234, 88, 12, 0.16);
+}
+.skeu-page-tab-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--sk-radius-pill);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+.skeu-page-tab-active .skeu-page-tab-count {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--sk-primary-ink);
+}
+
+/* ---------- 二级分段控件：列表工具条内的筛选 ---------- */
+.skeu-segmented {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--sk-border);
+  border-radius: var(--sk-radius-sm);
+  background: var(--sk-surface-muted);
+  box-shadow: var(--sk-inset);
+}
+.skeu-segmented-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--sk-radius-xs);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted-foreground);
+  transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+}
+.skeu-segmented-btn:hover { color: var(--foreground); }
+.skeu-segmented-btn-active,
+.skeu-segmented-btn-active:hover {
+  background: var(--sk-surface);
+  color: var(--sk-primary-ink);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-segmented-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--sk-radius-pill);
+  background: var(--muted);
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 700;
+}
+.skeu-segmented-btn-active .skeu-segmented-count {
+  background: var(--sk-primary-soft-solid);
+  color: var(--sk-primary-ink);
+}
+
 /* ---------- 行操作按钮（v008 icon-btn / act-btn） ---------- */
 .skeu-icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 9px;
+  border-radius: var(--sk-radius-xs);
   display: inline-grid;
   place-items: center;
   color: var(--muted-foreground);
@@ -445,7 +665,7 @@
 .skeu-act-btn {
   height: 34px;
   padding: 0 9px;
-  border-radius: 8px;
+  border-radius: var(--sk-radius-xs);
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -468,24 +688,24 @@
 /* fill：比描边高一级——浅橙实底 + 橙字 + 无描边 */
 .skeu-act-btn.fill {
   background: #fbe7dc;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid transparent;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
 }
 .skeu-act-btn.fill:hover {
   background: #f8d9c6;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
 }
 .skeu-act-btn.primary {
   background: #fbe7dc;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid #f5b48d;
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75), 0 1px 2px rgba(234, 88, 12, 0.18);
 }
 .skeu-act-btn.primary:hover {
   background: #f8d9c6;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border-color: #ea580c;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.80), 0 2px 4px rgba(234, 88, 12, 0.20);
 }
@@ -496,7 +716,7 @@
 
 /* ---------- 状态徽章（v008 badge 规格） ---------- */
 .skeu-badge {
-  border-radius: 999px;
+  border-radius: var(--sk-radius-pill);
   font-weight: 600;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 1px 2px rgba(15, 23, 42, 0.08);
 }
@@ -504,13 +724,13 @@
 
 /* ---------- 行内次级强调：描边式（比 primary 填充再降一级） ---------- */
 .skeu-act-btn.soft {
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border: 1px solid rgba(234, 88, 12, 0.35);
   background: transparent;
 }
 .skeu-act-btn.soft:hover {
   background: #fff7ed;
-  color: #c2410c;
+  color: var(--sk-primary-ink);
   border-color: rgba(234, 88, 12, 0.55);
 }
 .skeu-act-btn.soft:active {
@@ -519,20 +739,28 @@
 
 /* ---------- Toast（参照 v008：顶部居中、圆形渐变图标） ---------- */
 .skeu-toast {
+  left: 0 !important;
+  right: 0 !important;
   width: max-content !important;
   max-width: min(90vw, 420px) !important;
-  margin: 0 auto !important;
-  border-radius: 12px !important;
+  margin-left: auto !important;
+  margin-right: auto !important;
+  border-radius: var(--sk-radius-md) !important;
   border: 1px solid var(--sk-border) !important;
   background: var(--sk-surface) !important;
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-3) !important;
   padding: 10px 18px 10px 12px !important;
   gap: 10px !important;
   align-items: center !important;
+  font-family: var(--font-sans) !important;
   font-size: 14px !important;
   font-weight: 600 !important;
 }
-.skeu-toast [data-content] { font-size: 14px !important; font-weight: 600 !important; }
+.skeu-toast [data-content] {
+  font-family: var(--font-sans) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
 /* sonner 默认把图标槽固定为 16px，会把 30px 圆形状态图标压扁并压住文字 */
 .skeu-toast [data-icon] {
   width: 30px !important;
@@ -563,4 +791,8 @@
 .skeu-toast-ico.warning {
   background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(217, 119, 6, 0.3);
+}
+.skeu-toast-ico.info {
+  background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 2px 5px rgba(59, 130, 246, 0.3);
 }

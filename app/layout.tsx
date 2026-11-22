@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/app/components/ui/app-toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LayoutWrapper } from "@/app/components/ui/layout-wrapper";
 import { getCurrentUser } from "@/lib/server/session";

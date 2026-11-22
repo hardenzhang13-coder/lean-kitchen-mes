@@ -16,9 +16,13 @@ import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/app/components/ui/status-badge";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeletonTable } from "@/app/components/ui/skeleton-table";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
@@ -442,26 +446,34 @@ export default function SauceIngredientsPage() {
 
   const typeBadge = (type: string) => {
     if (type === "自制") {
-      return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">自制</Badge>;
+      return <StatusBadge status="自制" variant="info" />;
     }
     if (type === "外购") {
-      return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">外购</Badge>;
+      return <StatusBadge status="外购" variant="success" />;
     }
-    return <Badge>{type}</Badge>;
+    return <StatusBadge status={type} variant="neutral" />;
   };
 
   return (
-    <div className="flex h-dvh min-h-0 flex-col gap-4 overflow-hidden p-4 sm:p-6">
-      <div className="flex items-center justify-between">
-        <PageHeader showBack title="酱料清单" description="复合调味半成品：自制酱料由配方明细自动核算成本" />
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增酱料
-        </Button>
-      </div>
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          showBack
+          title="酱料清单"
+          description="复合调味半成品：自制酱料由配方明细自动核算成本"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增酱料
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -475,16 +487,15 @@ export default function SauceIngredientsPage() {
             }}
           />
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           {loading ? (
             <SkeletonTable cols={10} rows={pageSize} />
           ) : (
             <DataTable<Sauce>
               data={data}
               loading={loading}
-              onRowClick={openEdit}
               fillHeight
-              density="dense"
+              variant="skeu"
               tableClassName="min-w-max"
               columns={[
                 {
@@ -499,7 +510,7 @@ export default function SauceIngredientsPage() {
                 {
                   header: "编号",
                   className: "w-[85px]",
-                  cell: (row) => <span className="font-medium">{row.code}</span>,
+                  cell: (row) => <CodeText>{row.code}</CodeText>,
                 },
                 {
                   header: "名称",
@@ -553,12 +564,7 @@ export default function SauceIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
-                      totalLabel: formatPageSummary(
-                        page,
-                        pageSize,
-                        pagination.totalItems,
-                        "酱料"
-                      ),
+                      totalLabel: formatPageSummary(pagination.totalItems),
                       showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
@@ -937,25 +943,23 @@ export default function SauceIngredientsPage() {
             确定要删除酱料“{deleteRow?.name}”吗？被菜品引用时无法删除。
           </p>
           <DialogFooter>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() => setDeleteRow(null)}
               disabled={deleteLoading}
-              className="h-11 px-6"
             >
               取消
-            </Button>
-            <Button
-              variant="destructive"
+            </SkeuButton>
+            <SkeuButton
+              variant="danger"
               onClick={handleDelete}
               disabled={deleteLoading}
-              className="h-11 px-6"
             >
               删除
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
-    </div>
+    </PageShell>
   );
 }

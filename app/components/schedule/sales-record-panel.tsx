@@ -2,6 +2,7 @@
 
 import { ClipboardList, PencilLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import type { SalesRecordItem } from "./sales-record-dialog";
 
 const fmtMoney = (n: number | null) =>
@@ -179,7 +180,7 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
                   </td>
                   <td className="py-2.5 px-3 text-right tabular-nums">
                     {diff == null ? (
-                      <span className="text-muted-foreground">—</span>
+                      <EmptyValue />
                     ) : diff > 0 ? (
                       <span className="text-[var(--status-danger)] font-semibold">+{diff}</span>
                     ) : diff < 0 ? (

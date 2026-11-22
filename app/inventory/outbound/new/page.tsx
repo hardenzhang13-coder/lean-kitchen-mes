@@ -13,7 +13,6 @@ import {
   RefreshCw,
   Search,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Table,
@@ -24,6 +23,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import { toast } from "sonner";
 import {
@@ -141,15 +141,27 @@ function InlineError({
       <AlertCircle className="mb-3 h-6 w-6 text-destructive" />
       <p className="font-medium">数据加载失败</p>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">{message}</p>
-      <Button variant="outline" className="mt-4" onClick={onRetry}>
+      <SkeuButton variant="outline" className="mt-4" onClick={onRetry}>
         <RefreshCw className="mr-2 h-4 w-4" />
         重试
-      </Button>
+      </SkeuButton>
     </div>
   );
 }
 
-export default function NewOutboundPage() {
+interface NewOutboundPageProps {
+  /** 嵌入大弹窗时隐藏返回按钮与页头，由弹窗提供外框 */
+  embedded?: boolean;
+  /** 创建成功回调；不传则保持独立页面的跳转行为 */
+  onDone?: (id: number) => void;
+  onCancel?: () => void;
+}
+
+export default function NewOutboundPage({
+  embedded = false,
+  onDone,
+  onCancel,
+}: NewOutboundPageProps = {}) {
   const router = useRouter();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [stores, setStores] = useState<StoreItem[]>([]);
@@ -416,6 +428,10 @@ export default function NewOutboundPage() {
         return;
       }
       toast.success(`出库单 ${json.data.code} 已创建，库存已扣减`);
+      if (onDone) {
+        onDone(json.data.id);
+        return;
+      }
       router.push("/inventory/outbound/" + json.data.id);
     } catch {
       toast.error("创建出错，请稍后重试");
@@ -435,21 +451,23 @@ export default function NewOutboundPage() {
     summary.shipP > 0;
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div className="flex items-center gap-3">
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="返回出库单列表"
-          onClick={() => router.push("/inventory?tab=outbound")}
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <PageHeader
-          title="创建出库单"
-          description="按门店排程单或切配中心内部生产单生成，按份出库，金额按净菜档案出库价自动核算"
-        />
-      </div>
+    <div className={embedded ? "flex flex-col gap-6" : "flex flex-col gap-6 p-8"}>
+      {!embedded && (
+        <div className="flex items-center gap-3">
+          <SkeuButton
+            variant="ghost"
+            size="icon-sm"
+            aria-label="返回出库单列表"
+            onClick={() => router.push("/inventory?tab=outbound")}
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </SkeuButton>
+          <PageHeader
+            title="创建出库单"
+            description="按门店排程单或切配中心内部生产单生成，按份出库，金额按净菜档案出库价自动核算"
+          />
+        </div>
+      )}
 
       <div className="flex items-center gap-3 text-sm" aria-label="创建出库单步骤">
         {([
@@ -594,9 +612,9 @@ export default function NewOutboundPage() {
                   onChange={(event) => setSourceSearch(event.target.value)}
                 />
               </div>
-              <Button type="button" variant="outline" onClick={() => setStep(1)}>
+              <SkeuButton type="button" variant="outline" onClick={() => setStep(1)}>
                 更换主体
-              </Button>
+              </SkeuButton>
             </div>
           </div>
 
@@ -838,13 +856,22 @@ export default function NewOutboundPage() {
           )}
 
           <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => setStep(2)}>
+            {embedded && (
+              <SkeuButton
+                type="button"
+                variant="outline"
+                onClick={() => onCancel?.()}
+              >
+                取消
+              </SkeuButton>
+            )}
+            <SkeuButton type="button" variant="outline" onClick={() => setStep(2)}>
               上一步
-            </Button>
-            <Button type="button" onClick={() => void submit()} disabled={!canSubmit}>
+            </SkeuButton>
+            <SkeuButton type="button" onClick={() => void submit()} disabled={!canSubmit}>
               {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {submitting ? "提交中…" : "确认出库"}
-            </Button>
+            </SkeuButton>
           </div>
         </div>
       )}
