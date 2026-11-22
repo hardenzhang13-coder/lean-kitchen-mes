@@ -367,7 +367,7 @@
 .skeu-btn-outline {
   background: var(--sk-surface);
   color: var(--foreground);
-  border-color: var(--sk-border-strong);
+  border: 1px solid var(--sk-border-strong);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
 }
 .skeu-btn-outline:hover { background: #f6f3ef; }
@@ -378,7 +378,7 @@
 .skeu-btn-secondary {
   background: var(--sk-surface-muted);
   color: var(--foreground);
-  border-color: var(--sk-border);
+  border: 1px solid var(--sk-border);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
 }
 .skeu-btn-secondary:hover { background: #f1ede7; }
@@ -390,7 +390,7 @@
 .skeu-btn-danger {
   background: #fef2f2;
   color: #dc2626;
-  border-color: #fecaca;
+  border: 1px solid #fecaca;
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
 }
 .skeu-btn-danger:hover { background: #fee2e2; }

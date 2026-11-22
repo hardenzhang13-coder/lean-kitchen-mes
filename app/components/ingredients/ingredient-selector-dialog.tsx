@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
@@ -165,17 +165,17 @@ export function IngredientSelectorDialog({
       footer={
         <RecordActions
           secondary={
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <SkeuButton variant="outline" onClick={() => onOpenChange(false)}>
               取消
-            </Button>
+            </SkeuButton>
           }
           primary={
-            <Button
+            <SkeuButton
               onClick={handleConfirm}
               disabled={!selectedIngredientId}
             >
               确认选择
-            </Button>
+            </SkeuButton>
           }
         />
       }

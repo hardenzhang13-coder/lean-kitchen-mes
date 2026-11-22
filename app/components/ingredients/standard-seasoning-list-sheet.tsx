@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Dialog,
   DialogFooter,
@@ -381,20 +382,18 @@ export function StandardSeasoningListSheet({
             吗？删除后不再可用于菜品 BOM。
           </p>
           <DialogFooter>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() => setDeleteTarget(null)}
-              className="h-11 px-6"
             >
               取消
-            </Button>
-            <Button
-              variant="destructive"
+            </SkeuButton>
+            <SkeuButton
+              variant="danger"
               onClick={() => {
                 void handleDelete();
               }}
               disabled={deleting}
-              className="h-11 px-6"
             >
               <span aria-live="polite" className="inline-flex items-center">
                 {deleting && (
@@ -402,7 +401,7 @@ export function StandardSeasoningListSheet({
                 )}
                 删除
               </span>
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

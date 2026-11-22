@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Download, FileUp, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   DialogHeader,
   DialogTitle,
@@ -245,23 +246,21 @@ export function ImportDialog<T extends Record<string, string> = Record<string, s
         </div>
 
         <DialogFooter>
-          <Button
+          <SkeuButton
             variant="outline"
             onClick={() => handleOpenChange(false)}
-            className="h-11 px-6"
           >
             取消
-          </Button>
-          <Button
+          </SkeuButton>
+          <SkeuButton
             onClick={handleImport}
             disabled={validRows.length === 0 || importing}
-            className="h-11 px-6"
           >
-            <FileUp className="mr-2 h-4 w-4" />
+            <FileUp className="h-4 w-4" />
             {importing
               ? "导入中..."
               : `确认导入${validRows.length > 0 ? `（${validRows.length} 条）` : ""}`}
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
     </FormDialog>

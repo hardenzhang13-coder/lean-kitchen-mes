@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   DialogHeader,
   DialogTitle,
@@ -106,28 +106,25 @@ export function NetIngredientEditDialog({
 
         <DialogFooter className="px-6 pt-0 pb-6">
           {view ? (
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() => onOpenChange(false)}
-              className="h-11 px-6"
             >
               关闭
-            </Button>
+            </SkeuButton>
           ) : (
             <>
-              <Button
+              <SkeuButton
                 variant="outline"
                 onClick={() => onOpenChange(false)}
-                className="h-11 px-6"
               >
                 取消
-              </Button>
-              <Button
+              </SkeuButton>
+              <SkeuButton
                 onClick={() => {
                   void submit();
                 }}
                 disabled={submitting}
-                className="h-11 px-6"
               >
                 <span aria-live="polite" className="inline-flex items-center">
                   {submitting && (
@@ -135,7 +132,7 @@ export function NetIngredientEditDialog({
                   )}
                   保存
                 </span>
-              </Button>
+              </SkeuButton>
             </>
           )}
         </DialogFooter>

@@ -430,3 +430,12 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
   - 关「已完成」→「进行中」2/3；关「进行中」→「待生效」2/3；关「待生效」→「已完成」2/3。
 - 只剩一列：撑满整行（3/3），列内卡片**三列平铺**。
 - 卡片平铺只为保持卡片恒定舒适宽度（约 420–450px），窄屏（<lg）始终单列。
+
+## 11. 设置首页入口卡（2026-11-22）
+
+- **组件**：`app/components/ui/entry-card.tsx` 的 `EntryCard`，设置首页与 `/ui-kit` 共用，不得在页面内复制一套卡片样式。
+- **分组**：基础数据 / 账号与权限；组头 15px / 600 + 13px 描述 + 右侧项数。
+- **网格**：sm 2 列、xl 3 列，gap 12px，最大宽 1080px 居中。
+- **卡片**：min-h 108px、12px 圆角、1px `--sk-border`、`skeu-surface`、`shadow-sk-raised`；hover 上浮 2px + `shadow-sk-2`；active 内凹。
+- **图标**：44px 内凹磁贴，默认 muted；hover 浅橙底 + 主色。禁止彩虹色图标。
+- **弹窗底栏**：取消 / 保存统一 `SkeuButton`；outline 必须有 1px `--sk-border-strong` 描边（v008），不得再用 shadcn `Button` 作为弹窗取消。
