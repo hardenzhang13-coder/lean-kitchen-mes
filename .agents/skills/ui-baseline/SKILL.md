@@ -5,7 +5,7 @@ description: 新增或修改页面、弹窗、表格、表单、列表筛选等�
 
 # 交互视觉基线 v1
 
-唯一基线：`docs/interaction-visual-baseline-v1.md`（视觉交互）。工程与架构契约（枚举字典、模块形态、能力复用边界）见 `docs/system-iteration-foundation-v1.md`。所有更早的 UI 规范文档（ui-ux-standardization-*、component-layer-optimization-spec 等）一律作废，不得作为依据。
+唯一基线：`docs/interaction-visual-baseline-v1.md`（视觉交互）。工程与架构契约（枚举字典、模块形态、能力复用边界）见 `docs/system-iteration-foundation-v1.md`。所有更早的 UI 规范文档（ui-ux-standardization-*、component-layer-optimization-spec 等，已移入 `docs/archive/2026-06/`）一律作废，不得作为依据。
 
 ## 页面骨架
 
