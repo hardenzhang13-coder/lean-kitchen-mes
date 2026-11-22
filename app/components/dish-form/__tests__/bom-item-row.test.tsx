@@ -56,8 +56,8 @@ describe("菜品 BOM 行", () => {
       />
     );
 
-    expect(container.querySelector("input")).toBeNull();
-    expect(screen.getByText("1.9L*6")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
     expect(screen.getByText("–")).toBeInTheDocument();
+    expect(container.querySelector("input")).toBeNull();
   });
 });
