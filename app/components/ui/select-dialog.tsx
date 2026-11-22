@@ -1,7 +1,6 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
@@ -12,6 +11,7 @@ import {
   AppDialogContent,
   type AppDialogSize,
 } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { cn } from "@/lib/shared/utils";
 
 interface SelectDialogProps {
@@ -73,9 +73,9 @@ export function SelectDialog({
         </div>
         <div className="flex items-center justify-end gap-2 pt-2">
           {footer}
-          <Button variant="outline" onClick={onCancel} className="h-11 px-6">
+          <SkeuButton variant="outline" onClick={onCancel}>
             取消
-          </Button>
+          </SkeuButton>
         </div>
       </AppDialogContent>
     </Dialog>

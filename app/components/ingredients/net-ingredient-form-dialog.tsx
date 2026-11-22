@@ -7,7 +7,7 @@ import {
   PackageOpen,
   Pencil,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   DialogHeader,
   DialogTitle,
@@ -579,9 +579,9 @@ export function NetIngredientFormDialog({
           <span className="text-muted-foreground">未选择来源原料</span>
         )}
         {!isConvert && (
-          <Button
+          <SkeuButton
             type="button"
-            variant={selectedSource ? "outline" : "default"}
+            variant={selectedSource ? "outline" : "primary"}
             size="sm"
             className={
               selectedSource
@@ -591,11 +591,11 @@ export function NetIngredientFormDialog({
             onClick={() => setSourceSelectorOpen(true)}
           >
             {selectedSource ? "更换来源" : "选择来源原料"}
-          </Button>
+          </SkeuButton>
         )}
       </div>
 
-      <Button
+      <SkeuButton
         type="button"
         variant="outline"
         size="sm"
@@ -606,7 +606,7 @@ export function NetIngredientFormDialog({
         <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
         {isMinor ? "查看已有小料" : "查看已有净料"}
         {existingCount != null ? `（${existingCount}）` : ""}
-      </Button>
+      </SkeuButton>
     </div>
   );
 
@@ -657,14 +657,14 @@ export function NetIngredientFormDialog({
                 <h4 className="text-sm font-semibold text-muted-foreground">
                   已创建的小料规格
                 </h4>
-                <Button
+                <SkeuButton
                   variant="ghost"
                   size="icon"
                   title="完整预览"
                   onClick={() => setPreviewOpen(true)}
                 >
                   <Maximize2 className="h-4 w-4" />
-                </Button>
+                </SkeuButton>
               </div>
               <div className="flex-1 overflow-auto">
                 {loadingList ? (
@@ -736,14 +736,14 @@ export function NetIngredientFormDialog({
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <Button
+                            <SkeuButton
                               variant="ghost"
                               size="icon"
                               title="编辑"
                               onClick={() => handleEditFromList(row)}
                             >
                               <Pencil className="h-4 w-4" />
-                            </Button>
+                            </SkeuButton>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -756,14 +756,14 @@ export function NetIngredientFormDialog({
         )}
 
         <DialogFooter className="border-t px-6 pt-4 pb-5">
-          <Button
+          <SkeuButton
             variant="outline"
             onClick={() => onOpenChange(false)}
             className="h-11 px-6"
           >
             取消
-          </Button>
-          <Button
+          </SkeuButton>
+          <SkeuButton
             onClick={() => {
               void handleSubmit();
             }}
@@ -776,7 +776,7 @@ export function NetIngredientFormDialog({
               )}
               保存
             </span>
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
 
@@ -797,9 +797,9 @@ export function NetIngredientFormDialog({
             </span>
           }
           footer={
-            <Button onClick={() => setListOpen(false)}>
+            <SkeuButton onClick={() => setListOpen(false)}>
               关闭
-            </Button>
+            </SkeuButton>
           }
           bodyClassName="overflow-hidden"
         >
