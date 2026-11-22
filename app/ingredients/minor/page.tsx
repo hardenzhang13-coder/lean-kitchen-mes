@@ -250,7 +250,7 @@ export default function MinorIngredientsPage() {
                 setL2Filter(nextL2);
                 setPage(1);
               }}
-              className="w-[220px]"
+              className="w-[200px]"
             />
           </ListToolbar>
         </CardHeader>

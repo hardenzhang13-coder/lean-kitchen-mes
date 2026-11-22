@@ -266,7 +266,7 @@ export default function NetIngredientsPage() {
                 setL2Filter(nextL2);
                 setPage(1);
               }}
-              className="w-[260px]"
+              className="w-[200px]"
             />
           </ListToolbar>
         </CardHeader>
