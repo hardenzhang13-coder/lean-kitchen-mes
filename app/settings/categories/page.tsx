@@ -16,7 +16,9 @@ import { SelectField } from "@/app/components/ui/select-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
@@ -158,12 +160,6 @@ export default function CategoriesPage() {
     setBaselineForm(emptyForm);
   };
 
-  const openView = (row: Category) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
-  };
-
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -235,7 +231,11 @@ export default function CategoriesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");
@@ -266,21 +266,25 @@ export default function CategoriesPage() {
   };
 
   return (
-    <PageShell variant="workspace">
-      <PageHeader
-        showBack
-        title="菜品类别"
-        description="管理菜品分类字典；被菜品引用的类别不可删除/改编号，可停用使新单据不再可选"
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增
-          </Button>
-        }
-      />
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          showBack
+          title="菜品类别"
+          description="管理菜品分类字典；被菜品引用的类别不可删除/改编号，可停用使新单据不再可选"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -306,13 +310,12 @@ export default function CategoriesPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Category>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
             tableClassName="min-w-max"
             columns={[
               {
@@ -327,7 +330,7 @@ export default function CategoriesPage() {
               {
                 header: "编号",
                 className: "w-[110px]",
-                cell: (row) => <span className="font-medium">{row.code}</span>,
+                cell: (row) => <CodeText>{row.code}</CodeText>,
               },
               {
                 header: "名称",
@@ -470,13 +473,7 @@ export default function CategoriesPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

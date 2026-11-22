@@ -15,6 +15,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import {
@@ -110,12 +111,6 @@ export default function SuppliersPage() {
     setBaselineForm(emptyForm);
   };
 
-  const openView = (row: Supplier) => {
-    setSelected(row);
-    setRecordMode("view");
-    setRecordOpen(true);
-  };
-
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -187,21 +182,25 @@ export default function SuppliersPage() {
   };
 
   return (
-    <PageShell variant="workspace">
-      <PageHeader
-        showBack
-        title="供应商"
-        description="管理采购供应商信息"
-        actions={
-          <Button onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增
-          </Button>
-        }
-      />
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          showBack
+          title="供应商"
+          description="管理采购供应商信息"
+          actions={
+            <SkeuButton onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              新增
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -215,13 +214,12 @@ export default function SuppliersPage() {
             }}
           />
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Supplier>
             data={pageItems}
             loading={loading}
-            onRowClick={openView}
             fillHeight
-            density="dense"
+            variant="skeu"
             tableClassName="min-w-max"
             columns={[
               {
@@ -321,13 +319,7 @@ export default function SuppliersPage() {
               : selected?.name ?? "供应商"
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

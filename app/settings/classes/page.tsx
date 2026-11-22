@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronRight, Ban, CheckCircle2, ArrowUp, ArrowDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  CirclePlus,
+  Power,
+  PowerOff,
+} from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Dialog,
@@ -16,12 +25,17 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
+import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { SelectField } from "@/app/components/ui/select-field";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
+import {
+  SkeuActionButton,
+  SkeuIconAction,
+} from "@/app/components/ui/skeu-row-action";
 import { StatusBadge } from "@/app/components/ui/status-badge";
 import {
   RecordDialog,
-  RecordView,
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
@@ -63,10 +77,10 @@ type DisplayRow =
 /** 后端引用检查返回的引用明细 */
 type CategoryReferences = Record<string, number>;
 
-const statusFilters = [
-  { value: "all", label: "全部" },
-  { value: "active", label: "启用中" },
-  { value: "inactive", label: "已停用" },
+const statusFilters: SkeuDotOption[] = [
+  { value: "all", label: "全部", tone: "all" },
+  { value: "active", label: "启用中", tone: "success" },
+  { value: "inactive", label: "已停用", tone: "warning" },
 ];
 
 const emptyForm = { code: "", name: "", parentCode: "", description: "" };
@@ -81,10 +95,10 @@ export default function ClassesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [expanded, setExpanded] = useState<Set<number>>(new Set());
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const [recordOpen, setRecordOpen] = useState(false);
-  const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
+  const [recordMode, setRecordMode] = useState<"create" | "edit">("create");
   const [dialogType, setDialogType] = useState<RecordType>("l1");
   const [selected, setSelected] = useState<SelectedRecord | null>(null);
   const [form, setForm] = useState(emptyForm);
@@ -98,8 +112,10 @@ export default function ClassesPage() {
   // 排序仅在未搜索时可用（搜索会隐藏部分行，上下移动语义不明确）
   const sortDisabled = !!search.trim() || reordering;
 
+  // 刷新时保留当前列表数据，避免整表清空后重新渲染造成的列表抖动
+  const sortHint = "搜索时不可排序";
+
   const refresh = () => {
-    setLoading(true);
     setReloadKey((k) => k + 1);
   };
 
@@ -165,51 +181,31 @@ export default function ClassesPage() {
     const rows: DisplayRow[] = [];
     pageL1Items.forEach((l1, l1Idx) => {
       rows.push({ kind: "l1", l1, l1Idx });
-      if (expanded.has(l1.id)) {
+      if (expandedId === l1.id) {
         l1.children.forEach((l2, l2Idx) => {
           rows.push({ kind: "l2", l1, l1Idx, l2, l2Idx });
         });
       }
     });
     return rows;
-  }, [pageL1Items, expanded]);
+  }, [pageL1Items, expandedId]);
 
   const l1Options = useMemo(
     () => data.map((d) => ({ value: d.code, label: d.name, description: d.code })),
     [data]
   );
 
-  const parentName = useMemo(() => {
-    if (!selected || selected.type !== "l2") return "";
-    const l2 = selected.record as L2;
-    return data.find((d) => d.code === l2.parentCode)?.name || l2.parentCode;
-  }, [data, selected]);
-
   const toggleExpand = (id: number) => {
-    const next = new Set(expanded);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setExpanded(next);
+    setExpandedId((prev) => (prev === id ? null : id));
   };
 
   const closeRecord = () => {
     setRecordOpen(false);
-    setRecordMode("view");
+    setRecordMode("create");
     setSelected(null);
     setDialogType("l1");
     setForm(emptyForm);
     setBaselineForm(emptyForm);
-  };
-
-  const openView = (row: DisplayRow) => {
-    setSelected(
-      row.kind === "l1"
-        ? { type: "l1", record: row.l1 }
-        : { type: "l2", record: row.l2 }
-    );
-    setDialogType(row.kind);
-    setRecordMode("view");
-    setRecordOpen(true);
   };
 
   const openCreateL1 = () => {
@@ -321,7 +317,11 @@ export default function ClassesPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
+      if (row.isActive) {
+        toast.warning(`已停用「${row.name}」`);
+      } else {
+        toast.success(`已启用「${row.name}」`);
+      }
       refresh();
     } catch {
       toast.error("操作失败");
@@ -414,25 +414,28 @@ export default function ClassesPage() {
     }
   };
 
-  const selectedRecord = selected?.record;
   const selectedType = selected?.type ?? dialogType;
 
   return (
-    <PageShell variant="workspace">
-      <PageHeader
-        showBack
-        title="食材分类"
-        description="管理食材一级和二级分类体系；被食材引用的分类不可删除/改编号，可停用使新单据不再可选"
-        actions={
-          <Button onClick={openCreateL1}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增一级分类
-          </Button>
-        }
-      />
-
-      <Card className="flex min-h-0 flex-1 flex-col">
-        <CardHeader className="shrink-0 pb-0">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          showBack
+          title="食材分类"
+          description="管理食材一级和二级分类体系；被食材引用的分类不可删除/改编号，可停用使新单据不再可选"
+          actions={
+            <SkeuButton onClick={openCreateL1}>
+              <Plus className="h-4 w-4" strokeWidth={2.4} />
+              新增一级分类
+            </SkeuButton>
+          }
+        />
+      }
+    >
+      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
+        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -447,24 +450,27 @@ export default function ClassesPage() {
             }}
             hasFilters={statusFilter !== "all"}
           >
-            <SelectField
+            <SkeuDotSelect
               value={statusFilter}
               onChange={(v) => {
                 setStatusFilter(v);
                 setCurrentPage(1);
               }}
               options={statusFilters}
-              className="w-[160px]"
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
+        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<DisplayRow>
             data={displayRows}
             loading={loading}
-            onRowClick={openView}
+            onRowClick={(row) => {
+              if (row.kind === "l1") toggleExpand(row.l1.id);
+            }}
             fillHeight
-            density="dense"
+            variant="skeu"
+            actionsWidth="w-[380px]"
+            getRowLevel={(row) => (row.kind === "l2" ? "l2" : "l1")}
             tableClassName="min-w-max"
             columns={[
               {
@@ -483,26 +489,32 @@ export default function ClassesPage() {
                 className: "w-[150px]",
                 cell: (row) =>
                   row.kind === "l1" ? (
-                    <span className="inline-flex items-center gap-1 font-medium">
+                    <span className="inline-flex items-center gap-1">
                       <button
                         type="button"
-                        aria-label={expanded.has(row.l1.id) ? `收起 ${row.l1.name}` : `展开 ${row.l1.name}`}
+                        aria-label={
+                          expandedId === row.l1.id
+                            ? `收起 ${row.l1.name}`
+                            : `展开 ${row.l1.name}`
+                        }
                         onClick={(event) => {
                           event.stopPropagation();
                           toggleExpand(row.l1.id);
                         }}
+                        className="grid size-[26px] shrink-0 place-items-center rounded-[7px] text-muted-foreground transition-colors hover:bg-muted"
                       >
-                        {expanded.has(row.l1.id) ? (
+                        {expandedId === row.l1.id ? (
                           <ChevronDown className="h-4 w-4" />
                         ) : (
                           <ChevronRight className="h-4 w-4" />
                         )}
                       </button>
-                      {row.l1.code}
+                      <CodeText>{row.l1.code}</CodeText>
                     </span>
                   ) : (
-                    <span className="inline-block pl-6 text-muted-foreground">
-                      {row.l2.code}
+                    <span className="inline-flex items-center gap-1">
+                      <span className="inline-block w-[26px] shrink-0" />
+                      <CodeText>{row.l2.code}</CodeText>
                     </span>
                   ),
               },
@@ -513,37 +525,41 @@ export default function ClassesPage() {
                   row.kind === "l1" ? (
                     <span className="font-semibold">{row.l1.name}</span>
                   ) : (
-                    <span className="inline-block pl-6">{row.l2.name}</span>
+                    <span className="inline-block pl-[26px]">{row.l2.name}</span>
                   ),
               },
               {
                 header: "说明",
                 className: "w-[220px]",
-                cell: (row) =>
-                  row.kind === "l1" ? (
-                    <span className="whitespace-nowrap text-muted-foreground">
-                      {row.l1.description || "—"}
+                cell: (row) => {
+                  const description =
+                    row.kind === "l1" ? row.l1.description : row.l2.description;
+                  return (
+                    <span
+                      className={`block max-w-[220px] truncate whitespace-nowrap ${
+                        description
+                          ? "text-muted-foreground"
+                          : "select-none text-muted-foreground/40"
+                      }`}
+                      title={description || ""}
+                    >
+                      {description || "–"}
                     </span>
-                  ) : (
-                    <span className="inline-block whitespace-nowrap pl-6 text-muted-foreground">
-                      {row.l2.description || "—"}
-                    </span>
-                  ),
+                  );
+                },
               },
               {
                 header: "状态",
                 className: "w-[110px]",
-                cell: (row) => (
-                  <StatusBadge
-                    status={
-                      (row.kind === "l1" ? row.l1 : row.l2).isActive ? "启用中" : "已停用"
-                    }
-                    variant={
-                      (row.kind === "l1" ? row.l1 : row.l2).isActive ? "success" : "neutral"
-                    }
-                    className={row.kind === "l2" ? "ml-6" : undefined}
-                  />
-                ),
+                cell: (row) => {
+                  const record = row.kind === "l1" ? row.l1 : row.l2;
+                  return (
+                    <StatusBadge
+                      status={record.isActive ? "启用中" : "已停用"}
+                      variant={record.isActive ? "success" : "neutral"}
+                    />
+                  );
+                },
               },
             ]}
             pagination={{
@@ -552,7 +568,7 @@ export default function ClassesPage() {
               totalItems,
               pageSize,
               onPageChange: setCurrentPage,
-              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "一级分类"),
+              totalLabel: formatPageSummary(currentPage, pageSize, totalItems),
               showPageSize: true,
               onPageSizeChange: setPageSize,
             }}
@@ -563,84 +579,67 @@ export default function ClassesPage() {
                 const dataIdx = data.findIndex((d) => d.code === l1.code);
                 return (
                   <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`上移 ${l1.name}`}
-                      title={sortDisabled ? "搜索时不可排序" : "上移"}
+                    <SkeuIconAction
+                      label={`上移 ${l1.name}`}
+                      tip={sortDisabled ? sortHint : "上移"}
                       disabled={sortDisabled || dataIdx <= 0}
+                      icon={<ChevronUp className="h-4 w-4" />}
                       onClick={(event) => {
                         event.stopPropagation();
                         moveL1(l1, -1);
                       }}
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`下移 ${l1.name}`}
-                      title={sortDisabled ? "搜索时不可排序" : "下移"}
+                    />
+                    <SkeuIconAction
+                      label={`下移 ${l1.name}`}
+                      tip={sortDisabled ? sortHint : "下移"}
                       disabled={sortDisabled || dataIdx >= data.length - 1 || dataIdx < 0}
+                      icon={<ChevronDown className="h-4 w-4" />}
                       onClick={(event) => {
                         event.stopPropagation();
                         moveL1(l1, 1);
                       }}
-                    >
-                      <ArrowDown className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={l1.isActive ? `停用一级分类 ${l1.name}` : `启用一级分类 ${l1.name}`}
-                      title={l1.isActive ? "停用" : "启用"}
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        toggleActive(l1, "l1");
-                      }}
-                    >
-                      {l1.isActive ? (
-                        <Ban className="h-4 w-4 text-amber-500" />
-                      ) : (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`为 ${l1.name} 添加二级分类`}
-                      title="添加二级分类"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openCreateL2(l1.code);
-                      }}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`编辑一级分类 ${l1.name}`}
-                      title="编辑一级分类"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openEditL1(l1);
-                      }}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      aria-label={`删除一级分类 ${l1.name}`}
-                      title="删除一级分类"
+                    />
+                    <SkeuActionButton
+                      label="删除"
+                      tone="danger"
+                      icon={<Trash2 className="h-3.5 w-3.5" />}
                       onClick={(event) => {
                         event.stopPropagation();
                         openDelete(l1, "l1");
                       }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                    />
+                    <SkeuActionButton
+                      label={l1.isActive ? "停用" : "启用"}
+                      tone={l1.isActive ? "warn" : "ok"}
+                      icon={
+                        l1.isActive ? (
+                          <PowerOff className="h-3.5 w-3.5" />
+                        ) : (
+                          <Power className="h-3.5 w-3.5" />
+                        )
+                      }
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        toggleActive(l1, "l1");
+                      }}
+                    />
+                    <SkeuActionButton
+                      label="编辑"
+                      icon={<Pencil className="h-3.5 w-3.5" />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openEditL1(l1);
+                      }}
+                    />
+                    <SkeuActionButton
+                      label="添加二级"
+                      tone="fill"
+                      icon={<CirclePlus className="h-3.5 w-3.5" />}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openCreateL2(l1.code);
+                      }}
+                    />
                   </>
                 );
               }
@@ -648,72 +647,58 @@ export default function ClassesPage() {
               const l2 = row.l2;
               return (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`上移 ${l2.name}`}
-                    title={sortDisabled ? "搜索时不可排序" : "上移"}
+                  <SkeuIconAction
+                    label={`上移 ${l2.name}`}
+                    tip={sortDisabled ? sortHint : "上移"}
                     disabled={sortDisabled || row.l2Idx === 0}
+                    icon={<ChevronUp className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       moveL2(l2, -1);
                     }}
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`下移 ${l2.name}`}
-                    title={sortDisabled ? "搜索时不可排序" : "下移"}
+                  />
+                  <SkeuIconAction
+                    label={`下移 ${l2.name}`}
+                    tip={sortDisabled ? sortHint : "下移"}
                     disabled={sortDisabled || row.l2Idx === row.l1.children.length - 1}
+                    icon={<ChevronDown className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       moveL2(l2, 1);
                     }}
-                  >
-                    <ArrowDown className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={l2.isActive ? `停用二级分类 ${l2.name}` : `启用二级分类 ${l2.name}`}
-                    title={l2.isActive ? "停用" : "启用"}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      toggleActive(l2, "l2");
-                    }}
-                  >
-                    {l2.isActive ? (
-                      <Ban className="h-4 w-4 text-amber-500" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`编辑二级分类 ${l2.name}`}
-                    title="编辑二级分类"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openEditL2(l2);
-                    }}
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`删除二级分类 ${l2.name}`}
-                    title="删除二级分类"
+                  />
+                  <SkeuActionButton
+                    label="删除"
+                    tone="danger"
+                    icon={<Trash2 className="h-3.5 w-3.5" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openDelete(l2, "l2");
                     }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
+                  />
+                  <SkeuActionButton
+                    label={l2.isActive ? "停用" : "启用"}
+                    tone={l2.isActive ? "warn" : "ok"}
+                    icon={
+                      l2.isActive ? (
+                        <PowerOff className="h-3.5 w-3.5" />
+                      ) : (
+                        <Power className="h-3.5 w-3.5" />
+                      )
+                    }
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      toggleActive(l2, "l2");
+                    }}
+                  />
+                  <SkeuActionButton
+                    label="编辑"
+                    icon={<Pencil className="h-3.5 w-3.5" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openEditL2(l2);
+                    }}
+                  />
                 </>
               );
             }}
@@ -730,59 +715,15 @@ export default function ClassesPage() {
         title={
           recordMode === "create"
             ? `新增${typeLabel(dialogType)}`
-            : recordMode === "edit"
-              ? `编辑${typeLabel(dialogType)}`
-              : selectedRecord?.name ?? typeLabel(selectedType)
+            : `编辑${typeLabel(dialogType)}`
         }
-        meta={
-          recordMode === "view" && selectedRecord ? (
-            <>
-              <span className="tabular-nums">{selectedRecord.code}</span>
-              {selectedType === "l2" && <span>所属：{parentName}</span>}
-              <StatusBadge
-                status={selectedRecord.isActive ? "启用中" : "已停用"}
-                variant={selectedRecord.isActive ? "success" : "neutral"}
-              />
-            </>
-          ) : undefined
-        }
-        onEdit={
-          recordMode === "view" && selectedRecord
-            ? () =>
-                selectedType === "l1"
-                  ? openEditL1(selectedRecord as L1)
-                  : openEditL2(selectedRecord as L2)
-            : undefined
-        }
-        onCancel={() => {
-          if (recordMode === "create") closeRecord();
-          else {
-            setRecordMode("view");
-            setForm(baselineForm);
-          }
-        }}
+        onCancel={closeRecord}
         onSubmit={handleSubmit}
-        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+        dirty={isRecordDirty(form, baselineForm)}
         submitting={submitting}
         entityLabel={typeLabel(selectedType)}
       >
-        {recordMode === "view" && selectedRecord ? (
-          <RecordView
-            items={[
-              { label: "编号", value: selectedRecord.code, emphasis: true },
-              { label: "名称", value: selectedRecord.name },
-              ...(selectedType === "l2"
-                ? [{ label: "所属一级分类", value: parentName }]
-                : []),
-              {
-                label: "说明",
-                value: selectedRecord.description || "—",
-                wide: true,
-              },
-            ]}
-          />
-        ) : (
-          <SimpleForm>
+        <SimpleForm>
             {dialogType === "l2" && (
               <FormField label="所属一级分类" required>
                 <SelectTileMode
@@ -831,7 +772,6 @@ export default function ClassesPage() {
               />
             </FormField>
           </SimpleForm>
-        )}
       </RecordDialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
@@ -864,13 +804,13 @@ export default function ClassesPage() {
             </p>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setDeleteTarget(null)}>
               {deleteError ? "知道了" : "取消"}
-            </Button>
+            </SkeuButton>
             {!deleteError && (
-              <Button variant="destructive" onClick={handleDelete} className="h-11 px-6">
+              <SkeuButton variant="danger" onClick={handleDelete}>
                 删除
-              </Button>
+              </SkeuButton>
             )}
           </DialogFooter>
         </AppDialogContent>
