@@ -453,6 +453,16 @@ export default function RawIngredientsPage() {
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
+                <SkeuActionButton
+                  label="转净料"
+                  tone="primary"
+                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setConvertSourceId(row.id);
+                    setConvertDialogOpen(true);
+                  }}
+                />
                 <SkeuIconAction
                   label={`编辑原料 ${row.name}`}
                   tip="编辑原料"
@@ -463,19 +473,9 @@ export default function RawIngredientsPage() {
                   }}
                 />
                 <SkeuIconAction
-                  label={`转净料 ${row.name}`}
-                  tip="转净料"
-                  icon={<ArrowRightLeft className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setConvertSourceId(row.id);
-                    setConvertDialogOpen(true);
-                  }}
-                />
-                <SkeuActionButton
-                  label="查看"
-                  tone="primary"
-                  icon={<Eye className="h-3.5 w-3.5" />}
+                  label={`查看原料 ${row.name}`}
+                  tip="查看原料"
+                  icon={<Eye className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openView(row);

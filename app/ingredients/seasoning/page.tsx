@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, ArrowRightLeft, Eye } from "lucide-react";
 import {
-  SkeuActionButton,
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -395,10 +394,10 @@ export default function SeasoningIngredientsPage() {
                       openEdit(row);
                     }}
                   />
-                  <SkeuActionButton
-                    label="查看"
-                    tone="primary"
-                    icon={<Eye className="h-3.5 w-3.5" />}
+                  <SkeuIconAction
+                    label={`查看调料 ${row.name}`}
+                    tip="查看"
+                    icon={<Eye className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openView(row);

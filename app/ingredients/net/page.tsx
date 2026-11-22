@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Printer, Eye } from "lucide-react";
-import { SkeuIconAction, SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -335,16 +335,6 @@ export default function NetIngredientsPage() {
                   row.sourceIngredient?.name || <EmptyValue />,
               },
               {
-                header: "包装规格",
-                className: "w-[90px]",
-                cell: (row) =>
-                  row.packageSpec != null ? (
-                    <span className="tabular-nums">{row.packageSpec}g</span>
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-              {
                 header: "出成率",
                 className: "w-[80px]",
                 cell: (row) =>
@@ -431,10 +421,10 @@ export default function NetIngredientsPage() {
                     openEdit(row);
                   }}
                 />
-                <SkeuActionButton
-                  label="查看"
-                  tone="primary"
-                  icon={<Eye className="h-3.5 w-3.5" />}
+                <SkeuIconAction
+                  label={`查看净料 ${row.name}`}
+                  tip="查看"
+                  icon={<Eye className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openView(row);
