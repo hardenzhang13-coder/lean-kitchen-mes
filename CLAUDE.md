@@ -10,11 +10,13 @@
 
 | 命令 | 用途 |
 |------|------|
-| `npm run dev` | 启动开发服务器（先 `prisma generate`，保证进程里的 Prisma Client 与 schema 一致），http://localhost:3000 |
-| `npm run build` | 生产构建（执行 `prisma generate && next build`） |
+| `npm run dev` | 启动开发服务器，http://localhost:3000 |
+| `npm run build` | 生产构建 |
+| `npm run verify` | **提交档一键校验**（tsc + ESLint + 全量 Jest）；已配 pre-push 钩子，push 时自动执行 |
 | `npm run start` | 启动生产服务器（需先构建） |
 | `npm run lint` | 运行 ESLint |
 | `npm test` | 运行 Jest 测试 |
+| `npm run db:generate` | 重新生成 Prisma Client（`prisma generate`） |
 | `npx prisma migrate dev` | 生成迁移文件（**仅本地开发**，禁止对生产使用） |
 | `npx prisma migrate deploy` | 应用已有迁移（生产部署由 compose 的 `migrate` 服务执行） |
 | `npx prisma migrate diff --from-migrations prisma/migrations --to-schema prisma/schema.prisma --script` | **提交前必跑**：输出必须为空迁移 |
@@ -22,6 +24,8 @@
 | `npx prisma generate` | 重新生成 Prisma Client |
 
 **注意：** 已配置 Jest 测试框架。核心算法测试见 `lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`。如需新增，建议从核心算法和纯函数开始。
+
+**Prisma Client 生成时机：** `dev` / `build` 不再自动前置 `prisma generate`。修改 `prisma/schema.prisma` 后需手动执行 `npm run db:generate`，并重启 dev server（否则 Client 与 schema 不一致）。
 
 ## 架构
 
@@ -224,13 +228,17 @@ export async function POST(req: NextRequest) { /* ... */ }
 
 ### 提交前强制检查
 
-所有代码提交前应执行：
+分三档执行（与 `verify-change` Skill 口径一致，**不再要求每次提交前全量 build**）：
 
-```bash
-npx tsc --noEmit
-npm run build
-npm run lint
-```
+- **快速档（每次修改后）**：`npx tsc --noEmit`（约 13 秒）
+- **提交档（git commit 前）**：`npm run verify`（tsc + ESLint + 全量 Jest，全量测试约 100 秒）；pre-push 钩子已自动执行，提交前可只跑定向 Jest
+- **发布档（以下任一情况时追加）**：`npm run build` + Prisma 零差异校验
+  - 修改 `prisma/schema.prisma` 或新增迁移
+  - 修改 `next.config.ts`、`package.json`、构建 / Docker 配置
+  - 新增依赖
+  - 准备部署生产
+
+提交约定：进度 / 备忘类 `docs:` 记录**不单独开提交**，随对应功能提交或批次收尾合并提交；临时脚本用完即删，或放入 `scripts/tmp/`（已 gitignore）。
 
 ### 新增 API 必选清单
 
@@ -257,12 +265,12 @@ npm run lint
 - **生产数据待办（已复核关闭）**：存量净料/小料 `package_spec` 已全部回填 —— 2026-11-15 生产库只读复核 70 条全部有效（5g~2000g，0 NULL / 0 负值），原方案文档 `docs/production-data-package-spec-plan.md` 保留为备查
 - **旧库存表并存**：`inventory` / `inventory_ledger` 已停用但未清理，待定下线时点
 - **采购模块锁定**：试运行期间 `TRIAL_FEATURES.purchases = false`，采购链路未在生产验证
-- **测试覆盖**：现有 49 套件 / 253 用例，集中在纯函数、工具层与通用组件；API 路由与业务组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
+- **测试覆盖**：测试集中在纯函数、工具层与通用组件（当前规模以 `npm test` 输出为准）；API 路由与业务组件覆盖仍薄，建议从 `lib/server/schedule-utils.ts`、`lib/server/production-plan-utils.ts` 和净菜库存链路补起
 - **客户端组件化**：大量 `"use client"` + `fetch()`，服务端组件化可逐步推进
 
 ## 重要说明
 
 - **Next.js 破坏性变更：** 这是 Next.js 16 配合 React 19。API 和约定可能与旧版本不同。不确定时，请查阅 `node_modules/next/dist/docs/`。详见 `AGENTS.md`。
 - **菜品状态生命周期：** `draft` 草稿 → `published` 已发布 → `inactive` 已停用（`pending` 已废弃）。只有草稿可编辑；发布与恢复发布必须通过 `POST /api/dishes/[id]/status` 的服务端校验；停用只影响新建排程，历史排程与生产计划保留。
-- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前 49 套件 / 253 用例全绿。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
+- **测试已配置：** Jest 30 + @testing-library/react + supertest，当前全绿（规模以 `npm test` 输出为准，不在文档中写死）。新增测试优先覆盖纯函数与核心算法（`lib/server/__tests__/`、`lib/shared/__tests__/`、`lib/client/__tests__/`）。
 - **部署：** `next.config.ts` 设置 `output: "standalone"`。构建需要 `DATABASE_URL` 环境变量。

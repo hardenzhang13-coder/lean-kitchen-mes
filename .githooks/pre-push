@@ -1,0 +1,12 @@
+#!/bin/sh
+# 提交档校验：tsc + ESLint + 全量 Jest
+# 启用方式：git config core.hooksPath .githooks
+
+echo "pre-push: running npm run verify (tsc + eslint + jest)..."
+npm run verify
+status=$?
+if [ $status -ne 0 ]; then
+  echo "pre-push: verify failed, push aborted." >&2
+  exit $status
+fi
+echo "pre-push: verify passed."

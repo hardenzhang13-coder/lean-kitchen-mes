@@ -58,6 +58,9 @@ next-env.d.ts
 tmp-*.json
 .tabbit-run/
 
+# scratch scripts (临时脚本用完即删，或放这里)
+/scripts/tmp/
+
 # receipt test images
 *.receipt-test.*
 receipt-test.*

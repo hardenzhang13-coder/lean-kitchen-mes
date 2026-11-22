@@ -51,22 +51,18 @@ npm run build
 **要求**：
 - [ ] 所有检查通过后才能提交
 - [ ] 提交信息遵循规范（feat/fix/docs/refactor）
+- [ ] 进度 / 备忘类 `docs:` 记录不单独开提交，随对应功能提交或批次收尾合并提交
+- [ ] 临时脚本用完即删，或放入 `scripts/tmp/`（已 gitignore），不留根目录
 
-### ⚡ 快速通道（纯样式/文案修改）
+### ⚡ 提交档与快速档口径
 
-**适用场景**：
-- 修改按钮文案
-- 调整颜色/间距
-- 修改注释/文档
-- 修改静态文本
+校验分档以 `CLAUDE.md`「提交前强制检查」与 `verify-change` Skill 为准：
 
-**流程**：
-```bash
-# 仅执行 TypeScript 检查
-npx tsc --noEmit
+- **快速档（每次修改后）**：`npx tsc --noEmit`
+- **提交档（git commit 前）**：`npm run verify`（tsc + ESLint + 全量 Jest）；pre-push 钩子自动执行
+- **发布档**：改 schema / 构建配置 / 新增依赖 / 部署前追加 `npm run build`
 
-# 立即提交（跳过 build 和 lint）
-```
+**不允许以「改动小」为由跳过 lint 或测试。**
 
 ---
 

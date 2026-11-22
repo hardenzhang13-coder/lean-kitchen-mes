@@ -26,7 +26,8 @@ npx jest <本次改动相关的测试路径>
 ```
 
 - 定向跑测试，不每次全量（全量约 100 秒）。
-- 最终提交前至少跑一次全量 `npm test`。
+- 最终提交前至少跑一次全量 `npm test`，或直接 `npm run verify` 一键跑完提交档（tsc + lint + 全量 Jest）。
+- push 时 pre-push 钩子会自动执行 `npm run verify`（钩子位于 `.githooks/`，通过 `git config core.hooksPath .githooks` 启用）。
 - 要求 0 error；warning 不阻断，但要确认没有新增。
 
 ### 3. 发布档 —— 涉及以下任一情况时追加
