@@ -50,8 +50,49 @@ describe("菜品 BOM 选择器的份量标签", () => {
     );
 
     await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
-    expect(screen.getByText("份量")).toBeInTheDocument();
+    expect(screen.getByText("包装份量")).toBeInTheDocument();
     expect(screen.getByText("社区·2份")).toBeInTheDocument();
+  });
+
+  it("净料选择弹窗按「包装规格 / 标准规格价 / 包装份量 / 来源原料」展示", async () => {
+    render(
+      <BomPickerDialog
+        open
+        onOpenChange={jest.fn()}
+        type="main"
+        onSelect={jest.fn()}
+        refs={refs}
+        onLoadItems={async () => [netOption]}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
+    expect(screen.getByText("包装规格")).toBeInTheDocument();
+    expect(screen.getByText("标准规格价")).toBeInTheDocument();
+    expect(screen.getByText("包装份量")).toBeInTheDocument();
+    expect(screen.getByText("来源原料")).toBeInTheDocument();
+    expect(screen.getByText("青椒")).toBeInTheDocument();
+  });
+
+  it("分类筛选与搜索在同一行", async () => {
+    render(
+      <BomPickerDialog
+        open
+        onOpenChange={jest.fn()}
+        type="main"
+        onSelect={jest.fn()}
+        refs={refs}
+        onLoadItems={async () => [netOption]}
+      />
+    );
+
+    await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
+    expect(screen.getByPlaceholderText("搜索名称...")).toBeInTheDocument();
+    // 一级/二级分类做成筛选控件（combobox），与清单页一致
+    const filters = screen.getAllByRole("combobox");
+    expect(filters).toHaveLength(2);
+    expect(filters[0]).toHaveTextContent("蔬菜");
+    expect(filters[1]).toHaveTextContent("全部二级分类");
   });
 
   it("净料无份量时显示占位符", async () => {

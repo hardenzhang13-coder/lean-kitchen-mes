@@ -43,6 +43,19 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
     updateType(type, next);
   };
 
+  /** 行内编辑（调料改克数）：合并补丁并即时重算行成本 */
+  const handleUpdateItem = (
+    type: BomType,
+    index: number,
+    patch: Partial<BomItem>
+  ) => {
+    const next = [...bom[type]];
+    const current = next[index];
+    if (!current) return;
+    next[index] = { ...current, ...patch };
+    updateType(type, next);
+  };
+
   const totalCost = totalBomCost(bom);
 
   return (
@@ -66,6 +79,7 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
             items={bom[type]}
             onAdd={() => openPicker(type)}
             onRemove={(idx) => handleRemove(type, idx)}
+            onUpdate={(idx, patch) => handleUpdateItem(type, idx, patch)}
             readOnly={readOnly}
           />
         ))}
@@ -80,7 +94,11 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           onSelect={(items) => {
             if (!pickerType) return;
             const newItems = items.map(({ option, amountG }) => {
-              const amount = Number(amountG) || 100;
+              // 调料按克需求手填（弹窗默认值 10g）；其余类型沿用食材规格
+              const parsed = Number(amountG);
+              const fallback = pickerType === "seasoning" ? 10 : 100;
+              const amount =
+                Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
               // 统一元/斤口径：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
               const costBase = option.costPrice ?? null;
               return {
@@ -95,8 +113,6 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 costPrice: option.costPrice ?? null,
                 cost: calcCost(pickerType, costBase, amount),
                 portion: option.portion ?? null,
-                // 标准化调料：写入 specId，服务端按标准规格覆盖用量
-                specId: option.specId ?? null,
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;
@@ -106,7 +122,9 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           }}
           refs={refs}
           onLoadItems={onLoadItems}
-          showAmountInput={false}
+          // 调料按克需求手填：弹窗底部给出默认克数（10g），行内仍可改
+          showAmountInput={pickerType === "seasoning"}
+          defaultAmountG="10"
           singleSelect
         />
       )}
@@ -119,12 +137,14 @@ function BomSection({
   items,
   onAdd,
   onRemove,
+  onUpdate,
   readOnly,
 }: {
   type: BomType;
   items: BomItem[];
   onAdd: () => void;
   onRemove: (index: number) => void;
+  onUpdate: (index: number, patch: Partial<BomItem>) => void;
   readOnly?: boolean;
 }) {
   return (
@@ -155,6 +175,7 @@ function BomSection({
               index={idx}
               item={item}
               onRemove={() => onRemove(idx)}
+              onChange={(next) => onUpdate(idx, next)}
               readOnly={readOnly}
             />
           ))

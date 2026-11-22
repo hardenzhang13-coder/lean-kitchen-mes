@@ -312,6 +312,8 @@ export default function SauceIngredientsPage() {
       if (params.q) query.set("q", params.q);
       if (params.l2Code) query.set("l2Code", params.l2Code);
       else if (params.l1Code) query.set("l1Code", params.l1Code);
+      // 与菜品 BOM 弹窗一致：按分类一次性取回，弹窗内客户端分页
+      query.set("pageSize", "100");
       let url: string;
       let normalizeFn: (items: unknown[]) => IngredientOption[];
       if (pickerMode === "seasoning") {

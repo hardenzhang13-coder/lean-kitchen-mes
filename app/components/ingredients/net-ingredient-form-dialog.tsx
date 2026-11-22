@@ -876,6 +876,7 @@ export function NetIngredientFormDialog({
               listPagination && listPagination.totalItems > 0
                 ? {
                     currentPage: listPage,
+                    fullControls: false,
                     totalPages: listPagination.totalPages,
                     totalItems: listPagination.totalItems,
                     pageSize: RIGHT_LIST_PAGE_SIZE,

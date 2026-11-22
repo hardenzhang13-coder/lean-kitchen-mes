@@ -31,7 +31,7 @@ import {
   validateForSave,
   normalizeNetIngredients,
   normalizeSauces,
-  normalizeStandardSeasonings,
+  normalizeIngredients,
 } from "./types";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -85,7 +85,10 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     const { type, l1Code, l2Code, q } = params;
     const query = new URLSearchParams();
     if (l2Code) query.set("l2Code", l2Code);
+    if (l1Code) query.set("l1Code", l1Code);
     if (q) query.set("q", q);
+    // 选择弹窗按分类一次性取回该分类下的全部食材，弹窗内做客户端分页
+    query.set("pageSize", "100");
 
     let url: string;
     let normalizeFn: (items: unknown[]) => IngredientOption[];
@@ -94,11 +97,11 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       url = `/api/sauce-ingredients?${query.toString()}`;
       normalizeFn = normalizeSauces;
     } else if (type === "seasoning") {
-      // 调料只允许选已标准化的规格（与主料/辅料只能选净料同构）
-      url = `/api/standard-seasonings?${query.toString()}`;
-      normalizeFn = normalizeStandardSeasonings;
+      // 调料直接选采购档案（SEA 调味品体系），选中后按克需求计成本
+      query.set("kind", "seasoning");
+      url = `/api/ingredients?${query.toString()}`;
+      normalizeFn = normalizeIngredients;
     } else {
-      if (l1Code) query.set("l1Code", l1Code);
       if (type === "main" || type === "support") {
         if (!l1Code && !l2Code && !q) query.set("excludeMinor", "true");
       }
@@ -222,7 +225,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   };
 
   const handleSave = async () => {
-    const error = validateForSave(form, currentCost);
+    const error = validateForSave(form, currentCost, bom);
     if (error) {
       toast.error(error);
       return;

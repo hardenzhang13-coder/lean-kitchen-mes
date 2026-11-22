@@ -143,11 +143,9 @@ export async function createDishVariant(
         create: source.seasoningDetails.map((detail) => ({
           type: detail.type,
           sourceId: detail.sourceId,
-          // 标准化调料：用量恒等于标准规格，不随份量倍率缩放（与净料/小料同口径）
+          // 调料按克需求随份量倍率缩放
           specId: detail.specId,
-          amountG: detail.specId
-            ? detail.amountG
-            : scaleValue(detail.amountG, factor) ?? 0,
+          amountG: scaleValue(detail.amountG, factor) ?? 0,
           brand: detail.brand,
           cost: scaleValue(detail.cost, factor),
         })),

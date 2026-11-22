@@ -30,17 +30,33 @@ describe("菜品 BOM 行", () => {
     expect(container.querySelector("input")).toBeNull();
   });
 
-  it("无份量的调料/酱料显示占位符", () => {
-    render(
+  it("调料行展示克数输入框", () => {
+    const { container } = render(
+      <BomItemRow
+        item={{ ...item, portion: null, spec: "1.9L*6", amountG: "10" }}
+        type="seasoning"
+        index={0}
+        onRemove={jest.fn()}
+        onChange={jest.fn()}
+      />
+    );
+
+    expect(screen.getByText("1.9L*6")).toBeInTheDocument();
+    expect(container.querySelector("input")).not.toBeNull();
+    expect(screen.queryByText("—")).not.toBeInTheDocument();
+  });
+
+  it("无份量的酱料显示占位符", () => {
+    const { container } = render(
       <BomItemRow
         item={{ ...item, portion: null, spec: "1.9L*6" }}
-        type="seasoning"
+        type="sauce"
         index={0}
         onRemove={jest.fn()}
       />
     );
 
-    expect(screen.getByText("1.9L*6")).toBeInTheDocument();
-    expect(screen.getByText("—")).toBeInTheDocument();
+    expect(screen.getAllByText("—").length).toBeGreaterThan(0);
+    expect(container.querySelector("input")).toBeNull();
   });
 });

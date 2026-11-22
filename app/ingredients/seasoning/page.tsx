@@ -18,6 +18,7 @@ import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-fo
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { StandardSeasoningFormDialog } from "@/app/components/ingredients/standard-seasoning-form-dialog";
 import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
+import { STANDARD_SEASONING_ENABLED } from "@/app/components/ingredients/standard-seasoning-flag";
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
@@ -371,19 +372,21 @@ export default function SeasoningIngredientsPage() {
               emptyState={{ title: "暂无数据" }}
               rowActions={(row) => (
                 <>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    aria-label={`转调料 ${row.name}`}
-                    title="转调料"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setConvertSourceId(row.id);
-                      setConvertDialogOpen(true);
-                    }}
-                  >
-                    <ArrowRightLeft className="h-4 w-4" />
-                  </Button>
+                  {STANDARD_SEASONING_ENABLED && (
+                    <Button
+                      variant="default"
+                      size="icon"
+                      aria-label={`转调料 ${row.name}`}
+                      title="转调料"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setConvertSourceId(row.id);
+                        setConvertDialogOpen(true);
+                      }}
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
+                  )}
                   <Button
                     variant="ghost"
                     size="icon"
@@ -452,53 +455,61 @@ export default function SeasoningIngredientsPage() {
         onCopy={(record) => {
           openCopy(record as RawDetail);
         }}
-        onConvert={(id) => {
-          setDetailOpen(false);
-          setConvertSourceId(id);
-          setConvertDialogOpen(true);
-        }}
+        onConvert={
+          STANDARD_SEASONING_ENABLED
+            ? (id) => {
+                setDetailOpen(false);
+                setConvertSourceId(id);
+                setConvertDialogOpen(true);
+              }
+            : undefined
+        }
         onDelete={(id) => {
           setDetailOpen(false);
           setDeleteId(id);
         }}
       />
 
-      <StandardSeasoningFormDialog
-        open={convertDialogOpen}
-        onOpenChange={setConvertDialogOpen}
-        source={
-          convertSourceRow
-            ? {
-                id: convertSourceRow.id,
-                code: convertSourceRow.code,
-                name: convertSourceRow.name,
-                purchaseSpec: convertSourceRow.purchaseSpec ?? null,
-                pricePerJin:
-                  convertSourceRow.pricePerJin != null
-                    ? Number(convertSourceRow.pricePerJin)
-                    : null,
-                l2Name: l2Map[convertSourceRow.l2Code]?.name ?? null,
-              }
-            : { id: 0, code: "", name: "" }
-        }
-        onSuccess={() => {
-          setConvertDialogOpen(false);
-          setConvertSourceId(null);
-          fetchData();
-        }}
-        onViewExisting={() => setPackagedOpen(true)}
-      />
+      {STANDARD_SEASONING_ENABLED && (
+        <>
+          <StandardSeasoningFormDialog
+            open={convertDialogOpen}
+            onOpenChange={setConvertDialogOpen}
+            source={
+              convertSourceRow
+                ? {
+                    id: convertSourceRow.id,
+                    code: convertSourceRow.code,
+                    name: convertSourceRow.name,
+                    purchaseSpec: convertSourceRow.purchaseSpec ?? null,
+                    pricePerJin:
+                      convertSourceRow.pricePerJin != null
+                        ? Number(convertSourceRow.pricePerJin)
+                        : null,
+                    l2Name: l2Map[convertSourceRow.l2Code]?.name ?? null,
+                  }
+                : { id: 0, code: "", name: "" }
+            }
+            onSuccess={() => {
+              setConvertDialogOpen(false);
+              setConvertSourceId(null);
+              fetchData();
+            }}
+            onViewExisting={() => setPackagedOpen(true)}
+          />
 
-      <StandardSeasoningListSheet
-        open={packagedOpen}
-        onOpenChange={setPackagedOpen}
-        sourceIngredientId={convertSourceId}
-        sourceName={convertSourceRow?.name ?? null}
-        sourceCode={convertSourceRow?.code ?? null}
-        sourceL2Name={
-          convertSourceRow ? l2Map[convertSourceRow.l2Code]?.name ?? null : null
-        }
-      />
+          <StandardSeasoningListSheet
+            open={packagedOpen}
+            onOpenChange={setPackagedOpen}
+            sourceIngredientId={convertSourceId}
+            sourceName={convertSourceRow?.name ?? null}
+            sourceCode={convertSourceRow?.code ?? null}
+            sourceL2Name={
+              convertSourceRow ? l2Map[convertSourceRow.l2Code]?.name ?? null : null
+            }
+          />
+        </>
+      )}
 
       <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
         <AppDialogContent size="compact" className="[&>button]:cursor-pointer">

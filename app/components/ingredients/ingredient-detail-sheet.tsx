@@ -24,6 +24,7 @@ import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
 import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
 import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
+import { STANDARD_SEASONING_ENABLED } from "@/app/components/ingredients/standard-seasoning-flag";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -425,7 +426,7 @@ export function IngredientDetailSheet({
                           关联菜品
                         </Button>
                       ) : null}
-                      {kind === "seasoning" ? (
+                      {kind === "seasoning" && STANDARD_SEASONING_ENABLED ? (
                         <Button
                           variant="outline"
                           onClick={() => setPackagedOpen(true)}
@@ -464,7 +465,8 @@ export function IngredientDetailSheet({
                     </>
                   }
                   primary={
-                    onConvert ? (
+                    onConvert &&
+                    !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                       <Button onClick={() => onConvert(data.id)}>
                         <ArrowRightLeft className="mr-2 h-4 w-4" />
                         {kind === "seasoning" ? "转调料" : "转净料"}
@@ -532,7 +534,9 @@ export function IngredientDetailSheet({
                   </>
                 }
                 primary={
-                  (kind === "raw" || kind === "seasoning") && onConvert ? (
+                  (kind === "raw" || kind === "seasoning") &&
+                  onConvert &&
+                  !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                     <Button onClick={() => onConvert(data.id)}>
                       <ArrowRightLeft className="mr-2 h-4 w-4" />
                       {kind === "seasoning" ? "转调料" : "转净料"}
@@ -610,7 +614,7 @@ export function IngredientDetailSheet({
         )}
       </RecordSheet>
 
-      {kind === "seasoning" && data && (
+      {kind === "seasoning" && data && STANDARD_SEASONING_ENABLED && (
         <StandardSeasoningListSheet
           open={packagedOpen}
           onOpenChange={setPackagedOpen}

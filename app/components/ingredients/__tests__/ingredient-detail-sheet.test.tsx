@@ -284,10 +284,10 @@ describe("调料详情抽屉", () => {
     expect(
       screen.queryByRole("button", { name: "转净料" })
     ).not.toBeInTheDocument();
-    // 底部功能区提供「查看封装调料」
+    // 调料转标准规格功能暂时下线：底部不再提供「查看封装调料」
     expect(
-      screen.getByRole("button", { name: "查看封装调料" })
-    ).toBeInTheDocument();
+      screen.queryByRole("button", { name: "查看封装调料" })
+    ).not.toBeInTheDocument();
 
     fireEvent.click(editButton);
 
@@ -297,7 +297,7 @@ describe("调料详情抽屉", () => {
     expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
   });
 
-  it("提供转调料入口时，主操作是「转调料」", async () => {
+  it("调料转标准规格功能暂时下线：不展示「转调料」入口", async () => {
     const onConvert = jest.fn();
     render(
       <IngredientDetailSheet
@@ -320,14 +320,13 @@ describe("调料详情抽屉", () => {
     );
 
     await screen.findByRole("heading", { name: "调料详情" });
-    const convertButton = screen.getByRole("button", { name: "转调料" });
-    expect(convertButton).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "转调料" })
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "转净料" })
     ).not.toBeInTheDocument();
-
-    fireEvent.click(convertButton);
-    expect(onConvert).toHaveBeenCalledWith(11);
+    expect(onConvert).not.toHaveBeenCalled();
   });
 });
 

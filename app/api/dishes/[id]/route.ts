@@ -9,7 +9,7 @@ import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
-import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
+
 import {
   computeCostPricePerJin,
   resolveRecipeLines,
@@ -179,34 +179,17 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,
     })),
+    // 调料统一按来源调料口径：名称 / 采购规格 / 每斤单价；克需求直接取存储值
     seasoningDetails: row.seasoningDetails.map((d) => {
       const source = seasonings.find((s) => s.id === d.sourceId);
-      if (d.spec) {
-        // 标准化调料：成本口径 = 出库价（元/斤），规格 = 标准规格（g）
-        const prices = deriveStandardSeasoningPrices(d.spec);
-        return {
-          ...d,
-          name: d.spec.name,
-          unitPrice: source?.latestRefPrice ?? null,
-          pricePerJin: prices.outPricePerJin,
-          unit: source?.purchaseUnit ?? null,
-          spec: `${d.spec.packageSpec}g`,
-          packageSpec: d.spec.packageSpec,
-          portion: d.spec.portion,
-          standardPackagePrice: prices.standardPackagePrice,
-        };
-      }
-      // 存量旧口径行：每斤单价（元/斤）与采购规格
       return {
         ...d,
-        name: source?.name,
-        unitPrice: source?.latestRefPrice,
-        pricePerJin: source?.pricePerJin,
-        unit: source?.purchaseUnit,
-        spec: source?.purchaseSpec,
-        packageSpec: null,
+        name: source?.name ?? d.spec?.name ?? null,
+        unitPrice: source?.latestRefPrice ?? null,
+        pricePerJin: source?.pricePerJin ?? null,
+        unit: source?.purchaseUnit ?? null,
+        spec: source?.purchaseSpec ?? null,
         portion: null,
-        standardPackagePrice: null,
       };
     }),
     sauceDetails: await Promise.all(
