@@ -24,8 +24,8 @@ export function DetailSection({
   }[cols];
 
   return (
-    <section className="overflow-hidden rounded-lg border bg-card">
-      <h3 className="border-b bg-muted/40 px-4 py-3 text-sm font-semibold">
+    <section className="overflow-hidden rounded-xl border border-skeu-border bg-card skeu-surface shadow-sk-raised">
+      <h3 className="skeu-surface-muted border-b border-skeu-border px-4 py-3 text-sm font-semibold">
         {title}
       </h3>
       <dl className={cn("grid gap-x-8 gap-y-5 p-4", colClass)}>
