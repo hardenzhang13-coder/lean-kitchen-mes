@@ -11,7 +11,7 @@ import {
   Printer,
   Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { DetailSection, InfoCell } from "@/app/components/ui/detail-section";
 import { EmptyState } from "@/app/components/ui/empty-state";
@@ -377,101 +377,100 @@ export function IngredientDetailSheet({
               editing ? (
                 <RecordActions
                   secondary={
-                    <Button
+                    <SkeuButton size="sm"
                       variant="outline"
                       onClick={cancelEdit}
                       disabled={activeSubmitting}
                     >
                       取消
-                    </Button>
+                    </SkeuButton>
                   }
                   primary={
-                    <Button
+                    <SkeuButton size="sm"
                       onClick={() => {
                         void activeSubmit();
                       }}
                       disabled={activeSubmitting}
                     >
                       {activeSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        <Loader2 className="h-4 w-4 animate-spin" />
                       )}
                       保存
-                    </Button>
+                    </SkeuButton>
                   }
                 />
               ) : (
                 <RecordActions
                   destructive={
                     onDelete ? (
-                      <Button
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
+                      <SkeuButton size="sm"
+                        variant="danger"
                         onClick={() => onDelete(data.id)}
                       >
-                        <Trash2 className="mr-2 h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                         删除
-                      </Button>
+                      </SkeuButton>
                     ) : undefined
                   }
                   secondary={
                     <>
                       {kind === "net" || kind === "minor" ? (
-                        <Button
+                        <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setRelatedDishesOpen(true)}
                         >
-                          <Link2 className="mr-2 h-4 w-4" />
+                          <Link2 className="h-4 w-4" />
                           关联菜品
-                        </Button>
+                        </SkeuButton>
                       ) : null}
                       {kind === "seasoning" && STANDARD_SEASONING_ENABLED ? (
-                        <Button
+                        <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setPackagedOpen(true)}
                         >
-                          <PackageOpen className="mr-2 h-4 w-4" />
+                          <PackageOpen className="h-4 w-4" />
                           查看封装调料
-                        </Button>
+                        </SkeuButton>
                       ) : null}
                       {onCopy ? (
-                        <Button
+                        <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => onCopy(data)}
                         >
-                          <Copy className="mr-2 h-4 w-4" />
+                          <Copy className="h-4 w-4" />
                           复制
-                        </Button>
+                        </SkeuButton>
                       ) : null}
                       {kind === "raw" || kind === "seasoning" ? (
-                        <Button
+                        <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setEditing(true)}
                         >
-                          <Pencil className="mr-2 h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                           编辑
-                        </Button>
+                        </SkeuButton>
                       ) : (kind === "net" || kind === "minor") &&
                         onPrintLabel ? (
-                        <Button
+                        <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setEditing(true)}
                         >
-                          <Pencil className="mr-2 h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                           编辑
-                        </Button>
+                        </SkeuButton>
                       ) : null}
                     </>
                   }
                   primary={
                     onConvert &&
                     !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
-                      <Button onClick={() => onConvert(data.id)}>
-                        <ArrowRightLeft className="mr-2 h-4 w-4" />
+                      <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
+                        <ArrowRightLeft className="h-4 w-4" />
                         {kind === "seasoning" ? "转调料" : "转净料"}
-                      </Button>
+                      </SkeuButton>
                     ) : (kind === "net" || kind === "minor") &&
                       onPrintLabel ? (
-                      <Button
+                      <SkeuButton size="sm"
                         onClick={() => onPrintLabel(data.id)}
                         disabled={
                           net?.packageSpec == null ||
@@ -483,14 +482,14 @@ export function IngredientDetailSheet({
                             : "缺少包装规格，无法打印标签"
                         }
                       >
-                        <Printer className="mr-2 h-4 w-4" />
+                        <Printer className="h-4 w-4" />
                         打印标签
-                      </Button>
+                      </SkeuButton>
                     ) : kind === "net" || kind === "minor" ? (
-                      <Button onClick={() => setEditing(true)}>
-                        <Pencil className="mr-2 h-4 w-4" />
+                      <SkeuButton size="sm" onClick={() => setEditing(true)}>
+                        <Pencil className="h-4 w-4" />
                         编辑
-                      </Button>
+                      </SkeuButton>
                     ) : undefined
                   }
                 />
@@ -499,35 +498,34 @@ export function IngredientDetailSheet({
               <RecordActions
                 destructive={
                   onDelete ? (
-                    <Button
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
+                    <SkeuButton size="sm"
+                      variant="danger"
                       onClick={() => onDelete(data.id)}
                     >
-                      <Trash2 className="mr-2 h-4 w-4" />
+                      <Trash2 className="h-4 w-4" />
                       删除
-                    </Button>
+                    </SkeuButton>
                   ) : undefined
                 }
                 secondary={
                   <>
                     {onCopy ? (
-                      <Button
+                      <SkeuButton size="sm"
                         variant="outline"
                         onClick={() => onCopy(data)}
                       >
-                        <Copy className="mr-2 h-4 w-4" />
+                        <Copy className="h-4 w-4" />
                         复制
-                      </Button>
+                      </SkeuButton>
                     ) : null}
                     {onEdit ? (
-                      <Button
+                      <SkeuButton size="sm"
                         variant="outline"
                         onClick={() => onEdit(data.id)}
                       >
-                        <Pencil className="mr-2 h-4 w-4" />
+                        <Pencil className="h-4 w-4" />
                         编辑
-                      </Button>
+                      </SkeuButton>
                     ) : null}
                   </>
                 }
@@ -535,17 +533,17 @@ export function IngredientDetailSheet({
                   (kind === "raw" || kind === "seasoning") &&
                   onConvert &&
                   !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
-                    <Button onClick={() => onConvert(data.id)}>
-                      <ArrowRightLeft className="mr-2 h-4 w-4" />
+                    <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
+                      <ArrowRightLeft className="h-4 w-4" />
                       {kind === "seasoning" ? "转调料" : "转净料"}
-                    </Button>
+                    </SkeuButton>
                   ) : !onEdit ? (
-                    <Button
+                    <SkeuButton size="sm"
                       variant="outline"
                       onClick={() => onOpenChange(false)}
                     >
                       关闭
-                    </Button>
+                    </SkeuButton>
                   ) : undefined
                 }
               />
