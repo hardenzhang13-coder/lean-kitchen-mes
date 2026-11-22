@@ -162,8 +162,6 @@ export function IngredientDetailSheet({
   const {
     form: rawForm,
     errors: rawErrors,
-    l2Open,
-    setL2Open,
     submitting: rawSubmitting,
     isDirty: rawIsDirty,
     handleChange: handleRawChange,
@@ -573,8 +571,6 @@ export function IngredientDetailSheet({
                 categories={categories}
                 units={units}
                 mode={kind === "seasoning" ? "seasoning" : "ingredient"}
-                l2Open={l2Open}
-                onL2OpenChange={setL2Open}
                 viewMode={!editing}
                 layout="sheet"
                 supplierName={raw?.defaultSupplier?.name}

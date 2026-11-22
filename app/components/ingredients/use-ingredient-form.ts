@@ -173,7 +173,6 @@ export function useIngredientForm({
   mode,
   onSaved,
 }: UseIngredientFormOptions) {
-  const [l2Open, setL2Open] = useState(false);
   const [pricePerJinDirty, setPricePerJinDirty] = useState(false);
   /** 最近一次保存成功的记录：供 onSaved 回调回传给调用方 */
   const savedRef = useRef<SavedIngredientRecord | null>(null);
@@ -365,7 +364,6 @@ export function useIngredientForm({
       onSaved(saved, continued);
     },
     onReset: () => {
-      setL2Open(false);
       setPricePerJinDirty(false);
     },
   });
@@ -403,8 +401,6 @@ export function useIngredientForm({
   return {
     form,
     errors,
-    l2Open,
-    setL2Open,
     submitting,
     isDirty,
     handleChange,

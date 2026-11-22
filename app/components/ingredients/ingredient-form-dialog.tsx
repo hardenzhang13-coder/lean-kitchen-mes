@@ -54,8 +54,6 @@ export function IngredientFormDialog({
   const {
     form,
     errors,
-    l2Open,
-    setL2Open,
     submitting,
     handleChange,
     submit,
@@ -105,8 +103,6 @@ export function IngredientFormDialog({
             categories={categories}
             units={units}
             mode={mode}
-            l2Open={l2Open}
-            onL2OpenChange={setL2Open}
             viewMode={view}
             layout="workbench"
           />

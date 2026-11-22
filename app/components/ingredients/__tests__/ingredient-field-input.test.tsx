@@ -94,8 +94,6 @@ describe("食材域输入控件", () => {
         ]}
         units={[{ id: 1, name: "斤", category: "weight" }]}
         mode="ingredient"
-        l2Open={false}
-        onL2OpenChange={jest.fn()}
         viewMode
         layout="sheet"
         supplierName="京鲜肉联配送中心"
@@ -169,8 +167,6 @@ describe("食材域输入控件", () => {
         ]}
         units={[{ id: 1, name: "斤", category: "weight" }]}
         mode="ingredient"
-        l2Open={false}
-        onL2OpenChange={jest.fn()}
         viewMode
         layout="sheet"
       />

@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import {
   FormField,
   FormLayout,
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { CategoryCascadeSelect } from "@/app/components/ui/category-cascade-select";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
@@ -50,8 +51,6 @@ export interface IngredientFormFieldsProps {
   categories: CategoryL1[];
   units: Unit[];
   mode: "ingredient" | "seasoning" | "auto";
-  l2Open: boolean;
-  onL2OpenChange: (open: boolean) => void;
   /** 查看模式：所有输入控件只读，仅用于展示 */
   viewMode?: boolean;
   /** 新增弹窗使用三列工作台布局，详情抽屉使用纵向布局 */
@@ -67,13 +66,10 @@ export function IngredientFormFields({
   categories,
   units,
   mode,
-  l2Open,
-  onL2OpenChange,
   viewMode = false,
   layout = "workbench",
   supplierName,
 }: IngredientFormFieldsProps) {
-  const [l1Open, setL1Open] = useState(false);
   const unitOptions = useMemo(
     () => units.map((u) => ({ value: u.name, label: u.name })),
     [units]
@@ -94,12 +90,6 @@ export function IngredientFormFields({
     ) as CategoryL1[];
   }, [categories, mode]);
 
-  const l2Options = useMemo(() => {
-    if (!form.l1Code) return [];
-    const l1 = filteredCategories.find((c) => c.code === form.l1Code);
-    return (l1?.children || []).map((c) => ({ value: c.code, label: c.name }));
-  }, [form.l1Code, filteredCategories]);
-
   const selectedL2 = (() => {
     if (!form.l2Code) return undefined;
     for (const l1 of categories) {
@@ -114,14 +104,6 @@ export function IngredientFormFields({
   const aliasLabel = mode === "ingredient" ? "品牌名称" : "商品名称";
   const hidePlaceholderOnFocus = mode === "ingredient";
 
-  const selectedL1 = filteredCategories.find(
-    (category) => category.code === form.l1Code
-  );
-
-  const l1Options = useMemo(
-    () => filteredCategories.map((c) => ({ value: c.code, label: c.name })),
-    [filteredCategories]
-  );
 
   // 规格可换算性即时反馈：换算系数来自单位字典，字典为空时回退内置兜底值
   const jinFactors = useMemo(() => {
@@ -171,62 +153,21 @@ export function IngredientFormFields({
         <FormLayout variant={layout}>
           <FormSection title="基础信息" cols={groupCols} className="h-full">
             <FormField
-              label="一级分类"
+              label="食材分类"
               required
               readOnly={viewMode}
-              error={errors.l1Code}
+              error={errors.l1Code || errors.l2Code}
             >
-              {viewMode ? (
-                <ReadOnlyValue value={selectedL1?.name} />
-              ) : (
-                <SelectTileMode
-                  options={l1Options}
-                  value={form.l1Code}
-                  onChange={(value) => {
-                    onChange("l1Code", value);
-                    onChange("l2Code", "");
-                    setL1Open(false);
-                    onL2OpenChange(true);
-                  }}
-                  placeholder="请选择"
-                  title="选择一级分类"
-                  searchable={false}
-                  required
-                  open={l1Open}
-                  onOpenChange={setL1Open}
-                  cascade={{
-                    enabled: true,
-                    onLevelSelected: () => onL2OpenChange(true),
-                  }}
-                />
-              )}
-            </FormField>
-
-            <FormField
-              label="二级分类"
-              required
-              readOnly={viewMode}
-              error={errors.l2Code}
-            >
-              {viewMode ? (
-                <ReadOnlyValue value={selectedL2?.name} />
-              ) : (
-                <SelectTileMode
-                  options={l2Options}
-                  value={form.l2Code}
-                  onChange={(value) => {
-                    onChange("l2Code", value);
-                    onL2OpenChange(false);
-                  }}
-                  placeholder="请选择"
-                  title="选择二级分类"
-                  open={l2Open}
-                  onOpenChange={onL2OpenChange}
-                  disabled={!form.l1Code}
-                  searchable={false}
-                  required
-                />
-              )}
+              <CategoryCascadeSelect
+                categories={filteredCategories}
+                l1Code={form.l1Code}
+                l2Code={form.l2Code}
+                onChange={(l1, l2) => {
+                  onChange("l1Code", l1);
+                  onChange("l2Code", l2);
+                }}
+                viewMode={viewMode}
+              />
             </FormField>
 
             <FormField
@@ -426,55 +367,18 @@ export function IngredientFormFields({
           label="食材分类"
           required
           className="col-span-2"
-          error={errors.l2Code}
+          error={errors.l1Code || errors.l2Code}
         >
-          {viewMode ? (
-            <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
-              {selectedL2
-                ? `${selectedL2.parentName} / ${selectedL2.name}`
-                : "—"}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {!isSeasoning && (
-                <SelectTileMode
-                  options={l1Options}
-                  value={form.l1Code}
-                  onChange={(v) => {
-                    onChange("l1Code", v);
-                    onChange("l2Code", "");
-                    setL1Open(false);
-                    onL2OpenChange(true);
-                  }}
-                  placeholder="请选择"
-                  title="选择一级分类"
-                  searchable={false}
-                  required
-                  open={l1Open}
-                  onOpenChange={setL1Open}
-                  cascade={{
-                    enabled: true,
-                    onLevelSelected: () => onL2OpenChange(true),
-                  }}
-                />
-              )}
-              <SelectTileMode
-                options={l2Options}
-                value={form.l2Code}
-                onChange={(v) => {
-                  onChange("l2Code", v);
-                  onL2OpenChange(false);
-                }}
-                placeholder="请选择"
-                title="选择二级分类"
-                open={l2Open}
-                onOpenChange={onL2OpenChange}
-                disabled={!form.l1Code && !isSeasoning}
-                searchable={false}
-                required
-              />
-            </div>
-          )}
+          <CategoryCascadeSelect
+            categories={filteredCategories}
+            l1Code={form.l1Code}
+            l2Code={form.l2Code}
+            onChange={(l1, l2) => {
+              onChange("l1Code", l1);
+              onChange("l2Code", l2);
+            }}
+            viewMode={viewMode}
+          />
         </FormField>
         <FormField label="食材名称" required error={errors.name}>
           <IngredientFieldInput
