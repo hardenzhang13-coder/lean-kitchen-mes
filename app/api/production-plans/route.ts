@@ -8,7 +8,6 @@ import { validateBody, validateQuery } from "@/lib/server/validate";
 import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
 import {
   lockSchedulesForProductionPlan,
-  lockSelfOrdersForProductionPlan,
   nextProductionPlanCode,
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
@@ -45,23 +44,58 @@ export async function GET(req: NextRequest) {
     ]);
 
     const nameMap = await resolveUsernamesToNames(rows.map((r) => r.operator).filter((x): x is string => !!x));
-    const data = rows.map((r) => ({
-      id: r.id,
-      code: r.code,
-      title: r.title,
-      planDate: r.planDate.toISOString(),
-      status: r.status,
-      operator: r.operator,
-      operatorName: r.operator ? nameMap.get(r.operator) || r.operator : null,
-      createdAt: r.createdAt.toISOString(),
-      scheduleCount: r._count.schedules,
-      selfOrderCount: r._count.selfOrders,
-    }));
+    const data = rows.map((r) => {
+      const cutting = Array.isArray(r.cuttingJson) ? (r.cuttingJson as { l1Name?: string; portions?: number }[]) : [];
+      const l1Set = new Set<string>();
+      let portionSum = 0;
+      for (const row of cutting) {
+        if (row.l1Name) l1Set.add(row.l1Name);
+        portionSum += Number(row.portions) || 0;
+      }
+      // 卡片中间区按门店展示「门店名 + 需求份数」，取自来源快照（v1/v2 同构）
+      const snapshot = r.sourceScheduleJson as {
+        stores?: Array<{
+          storeName?: string;
+          schedules?: Array<{ items?: Array<{ quantity?: number }> }>;
+        }>;
+      } | null;
+      const stores: Array<{ name: string; portions: number }> = [];
+      if (snapshot && Array.isArray(snapshot.stores)) {
+        for (const store of snapshot.stores) {
+          let portions = 0;
+          for (const schedule of store.schedules ?? []) {
+            for (const item of schedule.items ?? []) {
+              portions += Number(item.quantity) || 0;
+            }
+          }
+          stores.push({
+            name: store.storeName ?? "未知门店",
+            portions: Math.round(portions * 100) / 100,
+          });
+        }
+      }
+      return {
+        id: r.id,
+        code: r.code,
+        title: r.title,
+        planDate: r.planDate.toISOString(),
+        status: r.status,
+        operator: r.operator,
+        operatorName: r.operator ? nameMap.get(r.operator) || r.operator : null,
+        remark: r.remark,
+        createdAt: r.createdAt.toISOString(),
+        scheduleCount: r._count.schedules,
+        selfOrderCount: r._count.selfOrders,
+        categoryCount: l1Set.size,
+        totalPortions: Math.round(portionSum * 100) / 100,
+        stores,
+      };
+    });
     const totalPages = Math.ceil(totalItems / pageSize);
     return paginated(data, { page, pageSize, totalItems, totalPages });
   } catch (err) {
     logger.error({ err }, "GET /api/production-plans failed");
-    return internalError("获取生产计划单失败");
+    return internalError("获取切配计划单失败");
   }
 }
 
@@ -70,10 +104,9 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validation = validateBody(createProductionPlanSchema, body);
     if (!validation.success) return validation.response;
-    const { planDate, scheduleIds, selfOrderIds } = validation.data;
+    const { planDate, remark, scheduleIds, adjustments } = validation.data;
 
     const uniqueIds = [...new Set(scheduleIds)];
-    const uniqueSelfIds = [...new Set(selfOrderIds)];
     const user = getUserFromRequest(req);
     const operator = user?.username || null;
     const planDateObj = new Date(planDate);
@@ -84,14 +117,9 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 5 && !result; attempt++) {
       try {
         result = await prisma.$transaction(async (tx) => {
-          if (uniqueIds.length > 0) {
-            await lockSchedulesForProductionPlan(tx, uniqueIds);
-          }
-          if (uniqueSelfIds.length > 0) {
-            await lockSelfOrdersForProductionPlan(tx, uniqueSelfIds);
-          }
-          const code = await nextProductionPlanCode(tx, planDateObj);
-          const data = await buildProductionPlanData(tx, uniqueIds, uniqueSelfIds);
+          await lockSchedulesForProductionPlan(tx, uniqueIds);
+          const code = await nextProductionPlanCode(tx);
+          const data = await buildProductionPlanData(tx, uniqueIds, adjustments ?? []);
           return await tx.productionPlan.create({
             data: {
               code,
@@ -99,11 +127,11 @@ export async function POST(req: NextRequest) {
               planDate: planDateObj,
               status: "待生效",
               operator,
+              remark: remark ?? null,
               cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
               purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
               sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
               schedules: { create: uniqueIds.map((scheduleId) => ({ scheduleId })) },
-              selfOrders: { create: uniqueSelfIds.map((selfOrderId) => ({ selfOrderId })) },
             },
           });
         });
@@ -113,16 +141,16 @@ export async function POST(req: NextRequest) {
         throw e;
       }
     }
-    if (!result) return internalError("创建生产计划单失败");
+    if (!result) return internalError("创建切配计划单失败");
 
     await logOperation(req, {
       action: "CREATE",
       entity: "ProductionPlan",
       entityId: result.id,
       description:
-        "创建生产计划单: " +
+        "创建切配计划单: " +
         result.title +
-        `（汇总 ${uniqueIds.length} 张排程单 / ${uniqueSelfIds.length} 张内部生产单）`,
+        `（汇总 ${uniqueIds.length} 张排程单${adjustments?.length ? `，${adjustments.length} 行份数调整` : ""}）`,
     });
     return created(result);
   } catch (err) {
@@ -130,6 +158,6 @@ export async function POST(req: NextRequest) {
       return error(err.message, err.status, err.status === 409 ? "CONFLICT" : "BAD_REQUEST");
     }
     logger.error({ err }, "POST /api/production-plans failed");
-    return internalError("创建生产计划单失败");
+    return internalError("创建切配计划单失败");
   }
 }

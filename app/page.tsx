@@ -18,7 +18,6 @@ import { UserMenu } from "@/app/components/ui/user-menu";
 import { SchedulePreviewDialog } from "@/app/components/ui/schedule-preview-dialog";
 import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { ScheduleCreateDialog } from "@/app/components/schedule/schedule-create-dialog";
-import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { parseObject } from "@/lib/client/api";
 import { canAccessApi } from "@/lib/shared/access-control";
 import { useCurrentRole } from "@/lib/client/use-current-role";
@@ -171,7 +170,6 @@ function HomeContent() {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [loading, setLoading] = useState(true);
   const [scheduleDialogDate, setScheduleDialogDate] = useState<string | null>(null);
-  const [planDialogDate, setPlanDialogDate] = useState<string | null>(null);
   const [previewScheduleId, setPreviewScheduleId] = useState<number | null>(null);
   const [previewPlanId, setPreviewPlanId] = useState<number | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -361,7 +359,7 @@ function HomeContent() {
             );
           })}
 
-          <RowLabel title="生产计划单" />
+          <RowLabel title="切配计划单" />
           {weekDays.map((day) => {
             const ds = formatDate(day);
             const items = plansByDate.get(ds) ?? [];
@@ -372,8 +370,8 @@ function HomeContent() {
                 date={ds}
                 loading={loading}
                 itemCount={items.length}
-                createLabel="新增计划"
-                onCreate={canCreatePlan ? () => setPlanDialogDate(ds) : undefined}
+                createLabel="新增切配计划"
+                onCreate={canCreatePlan ? () => router.push(`/production-plans?create=1&date=${ds}`) : undefined}
               >
                 {loading ? (
                   <ColumnSkeleton />
@@ -407,16 +405,6 @@ function HomeContent() {
           onClose={() => setScheduleDialogDate(null)}
           onCreated={() => {
             setScheduleDialogDate(null);
-            setRefreshKey((value) => value + 1);
-          }}
-        />
-      )}
-      {planDialogDate && (
-        <ProductionPlanCreateDialog
-          presetDate={planDialogDate}
-          onClose={() => setPlanDialogDate(null)}
-          onCreated={() => {
-            setPlanDialogDate(null);
             setRefreshKey((value) => value + 1);
           }}
         />
@@ -622,7 +610,7 @@ function PlanCard({
         style.card
       )}
     >
-      <div className="truncate text-sm font-semibold">生产计划</div>
+      <div className="truncate text-sm font-semibold">切配计划</div>
       <CardStats
         firstLabel="净菜"
         firstValue={String(item.netKinds)}

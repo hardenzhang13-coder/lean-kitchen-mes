@@ -12,6 +12,9 @@ jest.mock("../schedule-utils", () => ({
 }));
 jest.mock("../production-plan-utils", () => ({
   buildProductionPlanData: jest.fn(),
+  planAdjustmentsFromCuttingJson: jest.requireActual<typeof import("../production-plan-utils")>(
+    "../production-plan-utils"
+  ).planAdjustmentsFromCuttingJson,
 }));
 
 const mockedCutting = buildCuttingOrders as jest.Mock;

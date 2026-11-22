@@ -1,17 +1,10 @@
 import { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
-import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
-import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
-import {
-  createSelfProductionOrderSchema,
-  selfProductionOrderQuerySchema,
-} from "@/lib/server/schemas/self-production-order";
-import { validateBody, validateQuery } from "@/lib/server/validate";
-import { resolveSelfProductionItems } from "@/lib/server/self-production-order-utils";
-import { nextSelfProductionOrderCode } from "@/lib/server/production-plan-assignment";
+import { paginated, internalError } from "@/lib/server/api-response";
+import { selfProductionOrderQuerySchema } from "@/lib/server/schemas/self-production-order";
+import { validateQuery } from "@/lib/server/validate";
 import { resolveUsernamesToNames } from "@/lib/server/user-resolve";
-import { buildSelfProductionOrderTitle } from "@/lib/shared/self-production-title";
 import { logger } from "@/lib/server/logger";
 
 export async function GET(req: NextRequest) {
@@ -88,58 +81,3 @@ export async function GET(req: NextRequest) {
   }
 }
 
-export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const validation = validateBody(createSelfProductionOrderSchema, body);
-    if (!validation.success) return validation.response;
-    const { produceDate, items, remark } = validation.data;
-
-    const produceDateObj = new Date(produceDate);
-    const generatedTitle = buildSelfProductionOrderTitle(produceDate);
-    const user = getUserFromRequest(req);
-    const operator = user?.username || null;
-
-    let result: Awaited<ReturnType<typeof prisma.selfProductionOrder.create>> | null = null;
-    for (let attempt = 0; attempt < 5 && !result; attempt++) {
-      try {
-        result = await prisma.$transaction(async (tx) => {
-          const resolved = await resolveSelfProductionItems(tx, items);
-          const code = await nextSelfProductionOrderCode(tx, produceDateObj);
-          return await tx.selfProductionOrder.create({
-            data: {
-              code,
-              title: generatedTitle,
-              produceDate: produceDateObj,
-              status: "待生效",
-              operator,
-              remark: remark?.trim() || null,
-              items: {
-                create: resolved.map((item) => ({
-                  sourceType: item.sourceType,
-                  sourceId: item.sourceId,
-                  portions: item.portions,
-                })),
-              },
-            },
-          });
-        });
-      } catch (e) {
-        if ((e as { code?: string }).code === "P2002" && attempt < 4) continue;
-        throw e;
-      }
-    }
-    if (!result) return internalError("创建内部生产单失败");
-
-    await logOperation(req, {
-      action: "CREATE",
-      entity: "SelfProductionOrder",
-      entityId: result.id,
-      description: "创建内部生产单: " + result.title,
-    });
-    return created(result);
-  } catch (err) {
-    logger.warn({ err }, "POST /api/self-production-orders failed");
-    return badRequest(err instanceof Error ? err.message : "创建内部生产单失败");
-  }
-}

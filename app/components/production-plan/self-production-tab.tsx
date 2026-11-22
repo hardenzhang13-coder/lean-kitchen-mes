@@ -1,8 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { ExternalLink, FileStack } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { FileStack } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -24,19 +22,18 @@ interface ProductionPlanSelfProductionProps {
   selfOrders: SelfOrderState[];
 }
 
-/** 生产计划「内部生产」页签：展示生成时快照 + 来源单据的实时状态。 */
+/** 生产计划「内部生产」页签：历史来源快照展示（内部生产单页面已下线，仅保留只读快照）。 */
 export function ProductionPlanSelfProduction({
   snapshot,
   selfOrders,
 }: ProductionPlanSelfProductionProps) {
-  const router = useRouter();
   const statusByOrderId = new Map(selfOrders.map((order) => [order.id, order.status]));
   const selfProduction = snapshot.version === 2 ? snapshot.selfProduction : [];
 
   if (selfProduction.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-        本生产计划单没有来源内部生产数据
+      <div className="rounded-[var(--sk-radius-md)] border border-dashed border-skeu-border py-12 text-center text-sm text-muted-foreground">
+        本切配计划单没有来源内部生产数据
       </div>
     );
   }
@@ -47,8 +44,8 @@ export function ProductionPlanSelfProduction({
         const totalPortions =
           Math.round(order.items.reduce((sum, item) => sum + item.portions, 0) * 100) / 100;
         return (
-          <section key={order.orderId} className="overflow-hidden rounded-lg border">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b bg-muted/40 px-4 py-3">
+          <section key={order.orderId} className="skeu-panel overflow-hidden">
+            <div className="skeu-panel-toolbar flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="font-medium">{order.title}</h4>
@@ -66,14 +63,6 @@ export function ProductionPlanSelfProduction({
                   {order.remark && <span>备注：{order.remark}</span>}
                 </p>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => router.push(`/self-production-orders/${order.orderId}`)}
-              >
-                <ExternalLink className="mr-1 h-4 w-4" />
-                查看内部生产单
-              </Button>
             </div>
 
             <div className="overflow-x-auto">
@@ -131,7 +120,7 @@ export function ProductionPlanSelfProduction({
       })}
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <FileStack className="h-3.5 w-3.5" />
-        明细为生产计划生成时快照，来源内部生产单状态为当前实时状态。
+        明细为切配计划生成时快照，来源内部生产单状态为当前实时状态（内部生产单已并入切配计划新建流程，此页仅作历史备查）。
       </p>
     </div>
   );

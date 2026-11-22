@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FileQuestion } from "lucide-react";
+import { Ban, FileQuestion } from "lucide-react";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Dialog,
@@ -24,6 +24,8 @@ import type {
   ScheduleQuickDetail,
 } from "@/app/components/schedule/list-types";
 import { formatDate, getWeekDay } from "@/lib/shared/date-format";
+import { canAccessApi } from "@/lib/shared/access-control";
+import { useCurrentRole } from "@/lib/client/use-current-role";
 import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
@@ -42,10 +44,34 @@ export function SchedulePreviewDialog({
   onClose,
 }: SchedulePreviewDialogProps) {
   const router = useRouter();
+  const role = useCurrentRole();
+  const canWrite = canAccessApi("/api/schedules", "POST", role);
   const [detail, setDetail] = useState<ScheduleQuickDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
   const [tab, setTab] = useState<QuickTab>("menu");
+  const [voidOpen, setVoidOpen] = useState(false);
+  const [voiding, setVoiding] = useState(false);
+
+  const handleVoid = async () => {
+    if (!detail) return;
+    setVoiding(true);
+    try {
+      const res = await fetch(`/api/schedules/${detail.id}/void`, { method: "PUT" });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "操作失败");
+        return;
+      }
+      toast.success("排程单已作废，回退到待生效");
+      setVoidOpen(false);
+      setDetail({ ...detail, status: "待生效" });
+    } catch {
+      toast.error("操作出错");
+    } finally {
+      setVoiding(false);
+    }
+  };
 
   /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
   useEffect(() => {
@@ -155,13 +181,47 @@ export function SchedulePreviewDialog({
         </div>
 
         <DialogFooter className="border-t px-6 pb-5 pt-4">
-          <SkeuButton
-            onClick={() => detail && router.push(`/schedules/${detail.id}`)}
-            disabled={!detail}
-          >
-            查看完整详情
-          </SkeuButton>
+          <div className="flex w-full items-center justify-between">
+            <div>
+              {detail?.status === "进行中" && canWrite && (
+                <SkeuButton
+                  variant="ghost"
+                  className="text-[#b42318] hover:bg-[#fdecea] hover:text-[#b42318]"
+                  onClick={() => setVoidOpen(true)}
+                >
+                  <Ban className="h-4 w-4" />
+                  作废
+                </SkeuButton>
+              )}
+            </div>
+            <SkeuButton
+              onClick={() => detail && router.push(`/schedules/${detail.id}`)}
+              disabled={!detail}
+            >
+              查看完整详情
+            </SkeuButton>
+          </div>
         </DialogFooter>
+
+        <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+          <AppDialogContent size="compact">
+            <DialogHeader>
+              <DialogTitle className="text-lg">作废排程单</DialogTitle>
+            </DialogHeader>
+            <p className="text-base text-muted-foreground">
+              作废后排程单回退到「待生效」，可以重新编辑修改；已有切配完成记录，
+              或已纳入未删除的切配计划单时不能作废。
+            </p>
+            <DialogFooter>
+              <SkeuButton variant="outline" onClick={() => setVoidOpen(false)}>
+                取消
+              </SkeuButton>
+              <SkeuButton variant="danger" onClick={handleVoid} disabled={voiding}>
+                {voiding ? "作废中…" : "确认作废"}
+              </SkeuButton>
+            </DialogFooter>
+          </AppDialogContent>
+        </Dialog>
       </AppDialogContent>
     </Dialog>
   );

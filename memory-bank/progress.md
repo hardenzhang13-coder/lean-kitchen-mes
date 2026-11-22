@@ -3,6 +3,68 @@
 > 按日期记录核心推进过程，包括技术决策、问题解决、功能交付。
 
 ---
+
+---
+
+## 2026-11-23 — 生产模块第二轮：菜单改名「切配」+ 索引卡重构 + 新建改弹窗两视图
+
+### 背景与决策
+- 用户对 11-22 整页向导体验后提出五点修订：① 一级菜单「生产」→「切配」，页面标题「切配计划单」；② 卡片参照排菜模块拟物索引卡（`skeu-index-card` 三态换肤），编号即简称、日期盒显示创建时刻「月日-时分」、明细区 = 备注（无查看更多）、统计 = N 类 / M 份；③ 新建改回弹窗（复用排菜模块，无步进条）：备注必填、需求份数只读 + 计划切配份数可编辑（默认回显需求份数）、库存重点展示（≥ 需求给绿色「可以移除」标识 + 移除按钮）；④ 「新增净菜」→「添加切配净菜」走右侧抽屉（RecordSheet）；⑤ 无排程单也可直接建单（纯手工切配计划）。
+- 已确认：编号规则 `PPL-月日-时分`（同分钟冲突 `-N` 后缀）；新建/编辑都走同款弹窗，删除整页向导。
+
+### 交付
+- **服务端**：`production-plan` schema——`remark` 必填、`scheduleIds` min(0) + superRefine（空排程时要求至少一行份数 > 0）；preview query schema 允许空；`nextProductionPlanCode(tx)` 改为创建时刻规则；列表 API 增 `categoryCount` / `totalPortions` 计算字段；preview API 增全量 `stockMap` / `stockById`；标题文案 `切配中心·周X（M月d日）切配计划`。
+- **前端**：新弹窗 `production-plan-create-dialog.tsx`（workbench 两视图 picking + 抽屉加净菜）；**删除** `production-plan-wizard.tsx`、`wizard-steps.tsx`、`/production-plans/new`、`[id]/edit`；卡片重写为索引卡（label 切配中心 / 编号 / 创建时间日期盒 / 备注区 / N 类 M 份 / 待生效 = 编辑 + 确认生产）；列表页 URL 参数 `?create=1&date=` / `?scheduleId=` / `?editId=` 驱动弹窗；详情页「修改」就地开弹窗；侧栏「生产」→「切配」；排程详情 / 首页 / 打印 / 标签文案同步。
+
+### 验证
+- `npx tsc --noEmit` 0 error；定向 Jest（编号 / 标题 / utils / schema）全绿。
+
+### 后续修订（2026-11-23 用户反馈）
+- 卡片：索引卡基类去掉 262px 固定最小高度（切配/排菜统一，不足 3 行即收缩，self-start 不被同行拉齐）；日期盒改展示生产日期；中间区改来源门店 + 需求份数行（超 3 行可展开），门店行下方弱化备注贴底；完成生产文案改「完成切配」；编号规则改 `PPL-年月日-时分`（如 PPL-20261126-1230）。
+- 逻辑修复：`lockSchedulesForProductionPlan` 空数组放行——不选排程单可完整创建纯手工切配计划（此前提交被「请至少选择一张排程单」拦截）。
+- 剩余页面 skeu 化（对照排菜）：详情页（SkeuButton / PageTabs / skeu 提示条 / 确认弹窗）、预览弹窗（SkeuButton / PageTabs / workbench 定高）、完成切配弹窗（SkeuSearch / SkeuSegmented / skeu 表格容器与汇总条）、来源排程与内部生产页签（skeu-panel 体系）；打印/标签页保持纯纸面风格不动。
+- 全量 verify：73 套件 / 390 用例全绿（含本轮 skeu 批次与空排程放行修复）。
+
+---
+
+## 2026-11-23 — 进行中单据「作废」回退待生效（排菜 + 切配）
+
+### 背景与决策
+- 用户要求：排菜与切配模块中，进行中的单据可在**预览弹窗与详情页**作废，作废后回退「待生效」恢复编辑。
+- 用户拍板两道守卫：① 已有切配完成记录（净菜已入库 / 工单已回写实际量）→ 禁止作废；② 排程单已纳入未删除切配计划单 → 禁止作废。
+
+### 交付
+- 新端点 `PUT /api/schedules/[id]/void`、`PUT /api/production-plans/[id]/void`：事务 + 行锁 + logOperation；状态校验（仅进行中）、完成记录守卫、排程单纳入计划守卫；409 冲突提示。权限复用既有 `/api/schedules`、`/api/production-plans` 前缀登记（写 = admin/chef）。
+- 前端四处入口（ghost 危险样式「作废」+ compact 确认弹窗）：排程详情页、排程预览弹窗、切配详情页、切配预览弹窗；成功后回显「待生效」或刷新详情。
+- 文档：`app/api/schedules/CLAUDE.md` 状态机补作废回流；`memory-bank/Database.md` 增补作废规则。
+
+### 验证
+- `npx tsc --noEmit` 0 error；全量 verify 随后随用户实测一并跑。
+
+---
+
+## 2026-11-22 — 生产模块改造：生产计划单两步向导 + 内部生产单下线
+
+### 背景与决策
+- 原「新建生产计划单」单弹窗 + 独立的「内部生产单」前置单据，流程冗余：业务正确路径是切配中心先合并进行中门店排程得出净菜清单，再按需微调生成计划单。
+- 用户拍板四项：① 内部生产单**下线页面**，模型与历史数据保留可读；② 第二步修改/新增净菜后切配工单与采购计划**全部按修改后重算**（delta 并入原料毛需求）；③ 库存信息**仅参考展示**不抵扣；④ 排程选择**不按生产日期过滤**，搜索支持门店名 / 单号 / 菜品名。
+
+### 交付
+- **新建整页向导** `/production-plans/new`（`production-plan-wizard.tsx` + 通用 `app/components/ui/wizard-steps.tsx`）：第一步 生产日期 + 备注（新字段 `production_plans.remark`，迁移 `20261122160514_production_plan_remark`）+ 双栏选排程；第二步 合并净菜行内改份数（step 0.5）+ 手工追加净菜（`origin: "manual"`，基线份数落 `originalPortions`）+ 库存参考列 + 超基线「只入库不回写门店」提示。编辑页 `[id]/edit` 复用同一组件走 PUT；预览端点 `GET /api/production-plans/preview`（静态段优先于 [id]）。
+- **`buildProductionPlanData(prisma, scheduleIds, adjustments)`** 重写：删全部 selfOrder 逻辑；行级 delta = `(finalPortions − basePortions) × packageSpec × 100 ÷ yieldRate` 并入采购（clamp ≥0），与历史内部生产单折算同构；新增 `planAdjustmentsFromCuttingJson()` 供规格变更重算还原用户调整。`PlanCuttingRow` 增加 `origin` / `originalPortions`。
+- **内部生产单下线**：列表/详情页、新建/编辑/激活路由、`production-module-switcher`、出库新建页切配中心卡片全删；API 仅留 GET 只读（历史计划单「内部生产」页签依赖）；`createOutboundSchema.superRefine` 拒绝 `selfOrderId` 并给下线文案；`access-control` API 分支改 `return !write`。
+- `/api/schedules` 的 `q` 扩展为 title / code / 门店名 / 菜品名 OR 搜索。
+- 测试：`production-plan-utils` 重写（7 用例覆盖手工行/覆盖+delta/调零 clamp/出成率 0/缺封装规格拒绝/无来源原料）+ `planAdjustmentsFromCuttingJson` + schema 与权限用例更新。
+
+### 验证
+- `npx tsc --noEmit` 0 error；`npm run verify`（tsc + ESLint + Jest 73 套 / 380 用例）全绿。
+- 发布档：`npm run build` 通过；`prisma migrate diff` 零差异校验输出空迁移。
+- 兼容：历史 v2 快照单（含自产数据）详情/打印/标签零改动；编辑历史单时 `cuttingJson` 行份数作 adjustments 提交，delta 重算在数学上还原采购。
+
+### 恢复方式
+内部生产单模型/API/渲染代码均保留；恢复需重建页面与写路由（可参考 git 历史），并把计划单向导第二步的手工行能力评估是否保留双轨。
+
+---
 ---
 ## 2026-11-21 — 调料口径回退：菜品 BOM 改回「直接选调料 + 填克数」
 

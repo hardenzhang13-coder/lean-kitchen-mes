@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
+  Ban,
   CalendarDays,
   ChefHat,
   Clock,
@@ -107,6 +108,7 @@ export default function ScheduleDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [activateOpen, setActivateOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("menu");
   const [recordOpen, setRecordOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
@@ -153,6 +155,25 @@ export default function ScheduleDetailPage() {
       }
       toast.success("已确认生产，排程进入进行中");
       setActivateOpen(false);
+      refresh();
+    } catch {
+      toast.error("操作出错");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleVoid = async () => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`/api/schedules/${id}/void`, { method: "PUT" });
+      if (!res.ok) {
+        const result = await res.json();
+        toast.error(result.error || "操作失败");
+        return;
+      }
+      toast.success("排程单已作废，回退到待生效");
+      setVoidOpen(false);
       refresh();
     } catch {
       toast.error("操作出错");
@@ -277,15 +298,26 @@ export default function ScheduleDetailPage() {
               </>
             )}
             {canWrite && data.status === "进行中" && !plan && (
-              <SkeuButton onClick={() => router.push(`/production-plans/new?scheduleId=${id}`)}>
+              <SkeuButton onClick={() => router.push(`/production-plans?scheduleId=${id}`)}>
                 <Plus className="h-4 w-4" />
-                纳入生产计划单
+                纳入切配计划单
               </SkeuButton>
             )}
             {data.status === "进行中" && plan && (
               <SkeuButton variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
                 <FileStack className="h-4 w-4" />
-                查看生产计划
+                查看切配计划
+              </SkeuButton>
+            )}
+            {canWrite && data.status === "进行中" && (
+              <SkeuButton
+                variant="ghost"
+                className="text-[#b42318] hover:bg-[#fdecea] hover:text-[#b42318]"
+                onClick={() => setVoidOpen(true)}
+                disabled={actionLoading}
+              >
+                <Ban className="h-4 w-4" />
+                作废
               </SkeuButton>
             )}
           </>
@@ -322,13 +354,13 @@ export default function ScheduleDetailPage() {
         <div className="flex flex-wrap items-center gap-3 rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] px-4 py-3 text-sm shadow-sk-raised">
           <FileStack className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1">
-            已纳入生产计划单{" "}
+            已纳入切配计划单{" "}
             <span className="font-mono text-xs">{plan.code ?? `PPL-${plan.id}`}</span>
             {" · "}
             {plan.title}
           </span>
           <SkeuButton size="sm" variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
-            查看生产计划
+            查看切配计划
           </SkeuButton>
         </div>
       ) : (
@@ -336,10 +368,10 @@ export default function ScheduleDetailPage() {
           <div className="flex flex-wrap items-center gap-3 rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] px-4 py-3 text-sm shadow-sk-raised">
             <FileStack className="h-4 w-4 text-muted-foreground" />
             <span className="flex-1 text-muted-foreground">
-              尚未纳入生产计划单，切配中心汇总后才会开始切配与入库。
+              尚未纳入切配计划单，切配中心汇总后才会开始切配与入库。
             </span>
-            <SkeuButton size="sm" variant="outline" onClick={() => router.push(`/production-plans/new?scheduleId=${id}`)}>
-              纳入生产计划单
+            <SkeuButton size="sm" variant="outline" onClick={() => router.push(`/production-plans?scheduleId=${id}`)}>
+              纳入切配计划单
             </SkeuButton>
           </div>
         )
@@ -483,7 +515,7 @@ export default function ScheduleDetailPage() {
           </DialogHeader>
           <p className="text-base text-muted-foreground">
             确认后排程进入「进行中」，菜品、份数、门店和售卖日期不可再修改，也不能删除；
-            下一步把它纳入生产计划单，切配中心才会开始执行。
+            下一步把它纳入切配计划单，切配中心才会开始执行。
           </p>
           <DialogFooter>
             <SkeuButton variant="outline" onClick={() => setActivateOpen(false)}>
@@ -491,6 +523,26 @@ export default function ScheduleDetailPage() {
             </SkeuButton>
             <SkeuButton onClick={handleActivate} disabled={actionLoading}>
               确认并进入生产
+            </SkeuButton>
+          </DialogFooter>
+        </AppDialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <AppDialogContent size="compact">
+          <DialogHeader>
+            <DialogTitle className="text-lg">作废排程单</DialogTitle>
+          </DialogHeader>
+          <p className="text-base text-muted-foreground">
+            作废后排程单回退到「待生效」，可以重新编辑修改；已有切配完成记录，
+            或已纳入未删除的切配计划单时不能作废。
+          </p>
+          <DialogFooter>
+            <SkeuButton variant="outline" onClick={() => setVoidOpen(false)}>
+              取消
+            </SkeuButton>
+            <SkeuButton variant="danger" onClick={handleVoid} disabled={actionLoading}>
+              确认作废
             </SkeuButton>
           </DialogFooter>
         </AppDialogContent>

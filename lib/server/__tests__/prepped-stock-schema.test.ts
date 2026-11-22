@@ -28,13 +28,18 @@ describe("createOutboundSchema", () => {
     expect(result.success).toBe(true);
   });
 
-  it("允许仅指定内部生产单（切配中心主体）", () => {
+  it("拒绝内部生产单来源（切配中心出库已下线）", () => {
     const result = createOutboundSchema.safeParse({
       selfOrderId: 3,
       items: [{ sourceType: "net", sourceId: 1, shippedPortions: 1 }],
     });
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues[0]?.message).toBe(
+        "切配中心来源出库已下线：内部生产单已并入生产计划单流程，新出库单请按门店排程单创建"
+      );
+    }
   });
 
   it("拒绝未指定任何来源单据", () => {
@@ -44,7 +49,7 @@ describe("createOutboundSchema", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe("请选择排程单或内部生产单（二选一）");
+      expect(result.error.issues[0]?.message).toBe("请选择排程单");
     }
   });
 
@@ -57,7 +62,9 @@ describe("createOutboundSchema", () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe("请选择排程单或内部生产单（二选一）");
+      expect(result.error.issues[0]?.message).toBe(
+        "切配中心来源出库已下线：内部生产单已并入生产计划单流程，新出库单请按门店排程单创建"
+      );
     }
   });
 });

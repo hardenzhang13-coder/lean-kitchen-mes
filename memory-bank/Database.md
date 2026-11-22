@@ -37,7 +37,7 @@
 | | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
 | | `outbound_orders` | 净菜出库单主表（主体：门店 / 切配中心） | ✅ v002 |
 | | `outbound_order_items` | 净菜出库单明细 | ✅ v002 |
-| **生产计划** | `production_plans` | 生产计划单（汇总快照） | ✅ |
+| **生产计划（切配计划单）** | `production_plans` | 切配计划单（汇总快照；一级菜单「切配」） | ✅ |
 | | `production_plan_schedules` | 计划 ↔ 来源门店排程 | ✅ |
 | | `self_production_orders` | 内部生产单主表 | ✅ 2026-11 |
 | | `self_production_items` | 内部生产单明细 | ✅ 2026-11 |
@@ -468,7 +468,7 @@ UNIQUE(sauce_id, line_type, ref_id)
 | title | varchar(200) | 排程标题 |
 | schedule_date | date | 排程日期 |
 | store_id | int FK | 关联门店（stores.id），原 scope 自由文本字段已废弃 |
-| status | varchar(20) | 进行中 / 已完成 |
+| status | varchar(20) | 待生效 / 进行中 / 已完成；进行中的单可「作废」回退待生效恢复可编辑（已有切配完成记录或已纳入未删除切配计划单时拦截） |
 | operator | varchar(50) | 操作人 |
 | created_at | timestamp | |
 | updated_at | timestamp | |
@@ -691,6 +691,16 @@ await prisma.ingredient.update({
 - 来源快照 `source_schedule_json` 升级为 v2：`{ version: 2, stores[], selfProduction[] }`；v1 只读兼容。
 - `PreppedStock` 仍为全局单仓，不按生产主体隔离；完成生产入库时 `store_id` 为空。
 - 完成生产时门店 `cutting_orders.actual_qty` 的分摊分母只取门店工单合计，内部生产量不稀释各店实际量。
+
+*增补：2026-11-22 内部生产单页面下线 + 生产计划两步向导*：
+- `SelfProductionOrder` / `SelfProductionItem` / `ProductionPlanSelfOrder` **停止新写入**：页面删除，API 仅保留 GET 只读（历史计划单「内部生产」页签快照展示依赖）；来源出库入口同步关闭（`createOutboundSchema` 拒绝 `selfOrderId`）。
+- `production_plans.remark` 新增（可空，`20261122160514_production_plan_remark`）。
+- 新建/编辑生产计划单改弹窗两视图（视图一选排程 + 备注必填，视图二确认切配量：需求份数只读、计划切配份数可编辑、库存仅参考）：行级份数调整与手工追加净菜落 `cutting_json` 行（`origin: "schedule" | "manual"`、`originalPortions` 基线份数）；规格变更重算经 `planAdjustmentsFromCuttingJson()` 还原用户调整。
+- 编号规则改为 `PPL-年月日-时分`（创建时刻，如 `PPL-20261126-1230`，同分钟第 N 张追加 `-N` 后缀），编号即卡片简称、编辑不变更；历史 `PPL-日期-序号` 编号保留不动。`schedule_ids` 可为空 = 纯手工切配计划（schema 要求 adjustments 至少一行份数 > 0）。
+
+*增补：2026-11-23 进行中单据「作废」回退待生效*：
+- 排程单 / 切配计划单在「进行中」均可作废回退「待生效」恢复编辑（`PUT /api/schedules/[id]/void`、`PUT /api/production-plans/[id]/void`），入口在预览弹窗与详情页。
+- 守卫：排程单已纳入未删除切配计划单、或已有非 pending 切配工单 → 409 拦截；切配计划单 `cutting_json` 已有完成/未完成行（净菜已入库） → 409 拦截。全部待确认才可作废。作废仅改状态，不清历史行。
 
 ---
 

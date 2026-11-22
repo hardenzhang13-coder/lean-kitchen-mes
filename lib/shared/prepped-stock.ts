@@ -15,9 +15,13 @@ export interface PlanCuttingRow {
   packageSpec: number | null;
   requiredQty: number; // g
   unit: string;
-  portions: number | null; // 计划份数 = requiredQty ÷ packageSpec
+  portions: number | null; // 计划份数 = requiredQty ÷ packageSpec（新建/编辑时为最终确认份数）
   portionsText: string | null;
   grossNeedJin: number | null;
+  /** 行来源：schedule = 排程合并基线（缺省，历史快照兼容）；manual = 用户在新建/编辑时手工追加 */
+  origin?: "schedule" | "manual";
+  /** 排程合并基线份数（origin=schedule 且被修改过时有值，用于「已修改」标记与采购 delta） */
+  originalPortions?: number | null;
   // 完成生产确认态（v002，快照内演进）
   confirmStatus?: "pending" | "completed" | "unfinished";
   actualPortions?: number | null;

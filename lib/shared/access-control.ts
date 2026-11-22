@@ -18,10 +18,9 @@ export function canAccessPage(pathname: string, role?: string | null): boolean {
   if (pathname.startsWith("/settings")) return isAdmin(role) || isOperations(role);
   if (
     pathname.startsWith("/schedules") ||
-    pathname.startsWith("/production-plans") ||
-    pathname.startsWith("/self-production-orders")
+    pathname.startsWith("/production-plans")
   ) {
-    // 业务运营需要查看排程、计划单与内部生产进度；写操作仍由 API 层限制为 admin/chef。
+    // 业务运营需要查看排程与计划单；写操作仍由 API 层限制为 admin/chef。
     return isAdmin(role) || isChef(role) || isOperations(role);
   }
   if (
@@ -57,10 +56,14 @@ export function canAccessApi(
 
   if (
     pathname.startsWith("/api/schedules") ||
-    pathname.startsWith("/api/production-plans") ||
-    pathname.startsWith("/api/self-production-orders")
+    pathname.startsWith("/api/production-plans")
   ) {
     return !write || isAdmin(role) || isChef(role);
+  }
+
+  // 内部生产单页面已下线，API 仅保留只读（历史计划单快照展示依赖），写入口全部关闭
+  if (pathname.startsWith("/api/self-production-orders")) {
+    return !write;
   }
 
   if (pathname.startsWith("/api/outbound-orders") || pathname.startsWith("/api/prepped-stock")) {

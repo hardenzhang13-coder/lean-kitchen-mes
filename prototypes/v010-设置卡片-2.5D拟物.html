@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>设置卡片 · 中度拟物 / 2.5D v010</title>
+<style>
+  :root {
+    --primary: #EA580C;
+    --primary-hover: #C2410C;
+    --primary-soft: #FFF7ED;
+    --background: #FFFFFF;
+    --foreground: #1F2328;
+    --muted-foreground: #6B7280;
+    --muted: #F7F7F7;
+    --border: #E7E5E0;
+    --border-strong: #D6D3CC;
+
+    --shadow-1: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --shadow-2: 0 2px 4px rgba(15, 23, 42, 0.06), 0 12px 28px rgba(15, 23, 42, 0.10);
+    --highlight-top: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    --surface: linear-gradient(180deg, #FFFFFF 0%, #FDFCFB 100%);
+    --surface-muted: linear-gradient(180deg, #FBF9F6 0%, #F6F3EF 100%);
+    --radius: 12px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+    background: var(--background); color: var(--foreground); font-size: 14px; line-height: 1.5;
+    -webkit-font-smoothing: antialiased; overflow: hidden;
+  }
+  button { font: inherit; cursor: pointer; color: inherit; background: none; border: 0; }
+  a { color: inherit; text-decoration: none; }
+  .num { font-variant-numeric: tabular-nums; }
+
+  .app { display: flex; height: 100vh; overflow: hidden; }
+
+  /* ===== 左侧图标栏 ===== */
+  .sidebar {
+    flex: none; width: 80px; display: flex; flex-direction: column; align-items: center;
+    padding: 16px 0; background: var(--surface); border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-1);
+  }
+  .brand { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 22px; }
+  .logo {
+    width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+    background: linear-gradient(180deg, #F0813C 0%, #E05A1E 100%); color: #fff; font-weight: 800; font-size: 18px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 3px 8px rgba(234, 88, 12, .28);
+  }
+  .brand span { font-size: 12px; font-weight: 500; letter-spacing: -0.02em; color: var(--muted-foreground); }
+  .nav { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .nav-item {
+    width: 64px; height: 64px; border-radius: 10px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; color: var(--muted-foreground);
+    transition: background .15s, color .15s, box-shadow .15s, transform .12s;
+  }
+  .nav-item svg { width: 20px; height: 20px; }
+  .nav-item span { font-size: 12px; font-weight: 700; }
+  .nav-item:hover { background: var(--muted); color: var(--foreground); transform: translateY(-1px); }
+  .nav-item.active {
+    background: linear-gradient(180deg, #FBEEE5 0%, #FBE7DC 100%);
+    color: var(--primary-hover);
+    box-shadow: inset 0 2px 3px rgba(194, 65, 12, .12), inset 0 1px 0 rgba(255,255,255,.8), 0 2px 6px rgba(234, 88, 12, .14);
+  }
+
+  .frame { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .topbar {
+    flex: none; display: flex; align-items: center; gap: 16px; padding: 16px 24px;
+    background: var(--surface); border-bottom: 1px solid var(--border); box-shadow: var(--shadow-1); position: relative; z-index: 5;
+  }
+  .title-col { min-width: 0; flex: 1; }
+  .title-col h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.3; }
+  .title-col .desc { font-size: 13px; color: var(--muted-foreground); margin-top: 2px; }
+  .topbar .actions { display: flex; align-items: center; gap: 8px; flex: none; }
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px;
+    border-radius: 10px; font-weight: 600; font-size: 13px;
+    background: var(--surface); border: 1px solid var(--border-strong); color: var(--foreground);
+    box-shadow: var(--highlight-top), var(--shadow-1);
+    transition: transform .08s, box-shadow .12s, background .12s;
+  }
+  .btn:active { transform: translateY(1px); }
+
+  .body { flex: 1; min-height: 0; overflow: auto; padding: 24px; background: linear-gradient(180deg, #FCFBFA 0%, #FBF9F6 100%); }
+  .body::-webkit-scrollbar { width: 10px; }
+  .body::-webkit-scrollbar-thumb { background: #D9D5CE; border-radius: 999px; border: 2px solid #FBF9F6; }
+
+  /* ===== 演示控制条 ===== */
+  .controls {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px 28px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 12px 16px; margin-bottom: 22px;
+    box-shadow: var(--highlight-top), 0 2px 4px rgba(15,23,42,.05), 0 12px 26px -18px rgba(15,23,42,.30);
+  }
+  .ctrl { display: flex; align-items: center; gap: 10px; }
+  .ctrl-label { font-size: 12px; font-weight: 700; color: var(--muted-foreground); letter-spacing: .02em; }
+  .seg { display: inline-flex; padding: 3px; gap: 3px; background: #F3F0EB; border-radius: 10px; box-shadow: inset 0 1px 3px rgba(15,23,42,.12); }
+  .seg button {
+    height: 30px; padding: 0 12px; border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--muted-foreground);
+    transition: background .14s, color .14s, box-shadow .14s;
+  }
+  .seg button:hover { color: var(--foreground); }
+  .seg button.on {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F6F3EF 100%); color: var(--primary-hover);
+    box-shadow: 0 1px 2px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  .ctrl-note { font-size: 12px; color: var(--muted-foreground); }
+
+  /* ===== 卡片网格 ===== */
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+  @media (max-width: 1180px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 820px)  { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  .card {
+    position: relative; display: flex; flex-direction: column; gap: 14px;
+    padding: 20px 20px 22px; border-radius: 16px; min-height: 156px;
+    transition: transform .18s cubic-bezier(.3,.8,.3,1), box-shadow .18s, background .18s, border-color .18s;
+    cursor: pointer;
+  }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .ico { position: relative; display: grid; place-items: center; flex: none; }
+  .ico svg { width: 24px; height: 24px; color: #fff; position: relative; z-index: 1; }
+  .card-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .card-desc-row { margin-top: 4px; min-height: 20px; display: flex; align-items: center; }
+  .c-full { font-size: 13px; color: var(--muted-foreground); }
+  .c-short { font-size: 13px; color: var(--muted-foreground); }
+  .c-badge {
+    display: none; align-items: center; gap: 5px; height: 22px; padding: 0 9px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; color: var(--primary-hover); background: var(--primary-soft);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 1px 2px rgba(15,23,42,.06);
+  }
+  .c-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: #F0813C; }
+  .c-full, .c-short { display: none; }
+  body[data-copy="full"]  .c-full  { display: block; }
+  body[data-copy="short"] .c-short { display: block; }
+  body[data-copy="badge"] .c-badge { display: inline-flex; }
+
+  .arrow {
+    flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+    color: #B9B4AB; transition: transform .18s, color .18s, background .18s;
+  }
+  .arrow svg { width: 15px; height: 15px; }
+
+  /* ---------- 方案 A：中度拟物（厚卡板 + 浮雕徽章） ---------- */
+  body[data-style="skeu"] .card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #FBF8F3 100%);
+    border: 1px solid #E4E0D8;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.95),
+      inset 0 -1px 0 rgba(255,255,255,.75),
+      0 1px 1px rgba(15,23,42,.05),
+      0 6px 0 0 #E3DDD2,
+      0 7px 1px 0 #D2CABE,
+      0 18px 30px -18px rgba(15,23,42,.42);
+  }
+  body[data-style="skeu"] .card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.95),
+      inset 0 -1px 0 rgba(255,255,255,.75),
+      0 1px 1px rgba(15,23,42,.05),
+      0 10px 0 0 #E3DDD2,
+      0 11px 1px 0 #D2CABE,
+      0 30px 42px -20px rgba(15,23,42,.46);
+  }
+  body[data-style="skeu"] .card:active {
+    transform: translateY(3px);
+    box-shadow:
+      inset 0 2px 5px rgba(15,23,42,.14),
+      0 3px 0 0 #E3DDD2,
+      0 4px 1px 0 #D2CABE,
+      0 10px 18px -12px rgba(15,23,42,.34);
+  }
+  body[data-style="skeu"] .ico {
+    width: 54px; height: 54px; border-radius: 15px;
+    background: var(--c1);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.45),
+      inset 0 -3px 6px rgba(0,0,0,.14),
+      0 2px 3px rgba(15,23,42,.14),
+      0 10px 18px -8px rgba(15,23,42,.35);
+  }
+  body[data-style="skeu"] .ico::after {
+    content: ""; position: absolute; inset: 0; border-radius: 15px;
+    background: linear-gradient(180deg, rgba(255,255,255,.28) 0%, rgba(255,255,255,0) 46%);
+  }
+  body[data-style="skeu"] .card:hover .arrow { color: var(--primary); transform: translateX(2px); }
+
+  /* ---------- 方案 B：2.5D（立体图标块 + 平面卡） ---------- */
+  body[data-style="d5"] .card {
+    background: linear-gradient(180deg, #FFFFFF 0%, #F7F4EF 100%);
+    border: 1px solid #E7E3DB;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.95),
+      0 1px 2px rgba(15,23,42,.06),
+      0 14px 26px -20px rgba(15,23,42,.45);
+  }
+  body[data-style="d5"] .card:hover {
+    transform: translateY(-2px);
+    border-color: #DFDACF;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.95),
+      0 1px 2px rgba(15,23,42,.06),
+      0 22px 34px -22px rgba(15,23,42,.52);
+  }
+  body[data-style="d5"] .card:active { transform: translateY(1px); }
+  body[data-style="d5"] .ico {
+    width: 60px; height: 60px; border-radius: 14px;
+    background: var(--c1);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.5),
+      inset 0 -8px 12px rgba(0,0,0,.16),
+      0 5px 0 0 var(--c2),
+      0 6px 1px 0 var(--c3),
+      0 18px 26px -12px rgba(15,23,42,.45);
+    transition: transform .18s cubic-bezier(.3,.8,.3,1), box-shadow .18s;
+  }
+  body[data-style="d5"] .ico::after {
+    content: ""; position: absolute; inset: 0; border-radius: 14px;
+    background: linear-gradient(135deg, rgba(255,255,255,.30) 0%, rgba(255,255,255,0) 44%);
+  }
+  body[data-style="d5"] .card:hover .ico {
+    transform: translate(-1px, -3px);
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,.5),
+      inset 0 -8px 12px rgba(0,0,0,.16),
+      0 8px 0 0 var(--c2),
+      0 9px 1px 0 var(--c3),
+      0 26px 34px -12px rgba(15,23,42,.50);
+  }
+  body[data-style="d5"] .card:hover .arrow { color: var(--primary); transform: translateX(2px); }
+  body[data-style="d5"] .card-title { font-size: 16.5px; }
+
+  /* ---------- 方案 C：轻拟物基线（对照组） ---------- */
+  body[data-style="flat"] .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--highlight-top), var(--shadow-1);
+  }
+  body[data-style="flat"] .card:hover {
+    background: linear-gradient(180deg, #FBF9F6 0%, #F6F3EF 100%);
+    border-color: var(--border-strong);
+    box-shadow: var(--highlight-top), 0 2px 4px rgba(15,23,42,.06), 0 12px 26px -18px rgba(15,23,42,.34);
+  }
+  body[data-style="flat"] .card:active { transform: translateY(1px); }
+  body[data-style="flat"] .ico {
+    width: 46px; height: 46px; border-radius: 13px; background: var(--c1);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.35), 0 2px 4px rgba(15,23,42,.12);
+  }
+  body[data-style="flat"] .card:hover .arrow { color: var(--primary); transform: translateX(2px); }
+
+  /* ===== 说明区 ===== */
+  .notes { margin-top: 28px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 16px; }
+  @media (max-width: 1180px) { .notes { grid-template-columns: 1fr; } }
+  .note {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 16px 18px;
+    box-shadow: var(--highlight-top), var(--shadow-1);
+  }
+  .note h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+  .note p, .note li { font-size: 13px; color: var(--muted-foreground); line-height: 1.7; }
+  .note ul { padding-left: 18px; margin-top: 4px; }
+  .note code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px;
+    background: var(--muted); padding: 1px 5px; border-radius: 5px; color: #4B5563;
+  }
+  .tagline { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:700; color:var(--primary-hover); background:var(--primary-soft); padding:2px 8px; border-radius:999px; }
+</style>
+</head>
+<body data-style="skeu" data-copy="short">
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">厨</div>
+      <span>精益厨房</span>
+    </div>
+    <nav class="nav">
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span>总览</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v16h18"/><path d="M3 9h5l2 2h11"/><path d="M12 11v8"/></svg><span>分类</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.6 2.6a2 2 0 0 0-1.2 0l-7 2A2 2 0 0 0 3 6.5v5c0 5 3.8 9.4 8.4 10.5a2 2 0 0 0 1.2 0c4.6-1.1 8.4-5.5 8.4-10.5v-5a2 2 0 0 0-1.4-1.9z"/></svg><span>菜品</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span>排程</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 9.4 7.5 4.2"/><path d="M21 16V8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="M3.3 7 12 12l8.7-5"/><path d="M12 22V12"/></svg><span>库存</span></a>
+      <a class="nav-item" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 18V6a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h2"/><path d="M14 9h4l4 4v4a1 1 0 0 1-1 1h-1"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg><span>采购</span></a>
+      <a class="nav-item active" href="#"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>设置</span></a>
+    </nav>
+  </aside>
+
+  <div class="frame">
+    <header class="topbar">
+      <div class="title-col">
+        <h1>设置</h1>
+        <div class="desc">管理系统基础数据与用户账号</div>
+      </div>
+      <div class="actions">
+        <button class="btn">重置演示参数</button>
+      </div>
+    </header>
+
+    <div class="body">
+      <div class="controls">
+        <div class="ctrl">
+          <span class="ctrl-label">卡片形态</span>
+          <div class="seg" id="segStyle">
+            <button data-v="skeu" class="on">中度拟物</button>
+            <button data-v="d5">2.5D</button>
+            <button data-v="flat">轻拟物基线</button>
+          </div>
+        </div>
+        <div class="ctrl">
+          <span class="ctrl-label">辅助文案</span>
+          <div class="seg" id="segCopy">
+            <button data-v="full">原文</button>
+            <button data-v="short" class="on">精简</button>
+            <button data-v="badge">数量徽章</button>
+            <button data-v="none">无</button>
+          </div>
+        </div>
+        <span class="ctrl-note">仅演示视觉层；不改任何功能与文案语义</span>
+      </div>
+
+      <div class="grid" id="grid"></div>
+
+      <div class="notes">
+        <div class="note">
+          <h3><span class="tagline">方案 A</span> 中度拟物</h3>
+          <ul>
+            <li>卡片本体做 <code>6px</code> 硬边厚度，形成实体卡板感，hover 时厚度变 <code>10px</code>、卡片抬起 4px。</li>
+            <li>图标为浮雕徽章：顶部内高光 + 底部内暗面 + 柔和落影。</li>
+            <li>信息密度最低，适合"图标即说明"的导航型卡片。</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3><span class="tagline">方案 B</span> 2.5D</h3>
+          <ul>
+            <li>卡片保持平面，立体感全部交给 <code>60px</code> 图标块：硬边侧壁 + 斜向长投影 + 内部暗面。</li>
+            <li>斜向高光让图标呈现"斜 45° 光源"的实体块感。</li>
+            <li>视觉冲击最强，但 7 张并排时整体偏"重"。</li>
+          </ul>
+        </div>
+        <div class="note">
+          <h3><span class="tagline">文案</span> 缩减建议</h3>
+          <ul>
+            <li>原文案是"管理 XX"句式，信息量为零，删掉不影响判断。</li>
+            <li>建议改成 <code>数量徽章</code>（24 项 / 12 项），用真实数据替代废话。</li>
+            <li>若后续能取到统计数量，优先徽章，其次 4-6 字精简，最后才是删掉。</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  var ICONS = {
+    folderTree: '<path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/><path d="M3 5a2 2 0 0 0 2 2h3"/><path d="M3 3v13a2 2 0 0 0 2 2h3"/>',
+    tags: '<path d="M13.172 2a2 2 0 0 1 1.414.586l6.71 6.71a2.4 2.4 0 0 1 0 3.408l-4.592 4.592a2.4 2.4 0 0 1-3.408 0l-6.71-6.71A2 2 0 0 1 6 9.172V3a1 1 0 0 1 1-1z"/><path d="M2 7v6.172a2 2 0 0 0 .586 1.414l6.71 6.71a2.4 2.4 0 0 0 3.191.193"/><circle cx="10.5" cy="6.5" r=".5" fill="currentColor"/>',
+    package: '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><polyline points="3.29 7 12 12 20.71 7"/><path d="m7.5 4.27 9 5.15"/>',
+    ruler: '<path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z"/><path d="m14.5 12.5 2-2"/><path d="m11.5 9.5 2-2"/><path d="m8.5 6.5 2-2"/><path d="m17.5 15.5 2-2"/>',
+    store: '<path d="M15 21v-5a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v5"/><path d="M17.774 10.31a1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.451 0 1.12 1.12 0 0 0-1.548 0 2.5 2.5 0 0 1-3.452 0 1.12 1.12 0 0 0-1.549 0 2.5 2.5 0 0 1-3.77-3.248l2.889-4.184A2 2 0 0 1 7 2h10a2 2 0 0 1 1.653.873l2.895 4.192a2.5 2.5 0 0 1-3.774 3.244"/><path d="M4 10.95V19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8.05"/>',
+    truck: '<path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a2 2 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/>'
+  };
+
+  var ITEMS = [
+    { label: "食材分类", full: "管理食材一级和二级分类体系", short: "一级 / 二级分类", count: 24,
+      icon: "folderTree",
+      c1: "#34D399", c2: "#059669", c3: "#047857" },
+    { label: "菜品类别", full: "管理菜品分类，如猪肉类、牛肉类、蔬菜类等", short: "猪 / 牛 / 蔬菜类", count: 12,
+      icon: "tags",
+      c1: "#FB7185", c2: "#E11D48", c3: "#BE123C" },
+    { label: "净菜包装", full: "管理净料封装使用的包装名称与尺寸", short: "包装名称与尺寸", count: 8,
+      icon: "package",
+      c1: "#22D3EE", c2: "#0891B2", c3: "#0E7490" },
+    { label: "单位", full: "管理重量、体积、计数等单位", short: "重量 / 体积 / 计数", count: 16,
+      icon: "ruler",
+      c1: "#60A5FA", c2: "#2563EB", c3: "#1D4ED8" },
+    { label: "门店管理", full: "管理门店信息，排程按门店组织生产", short: "门店与排程组织", count: 5,
+      icon: "store",
+      c1: "#A78BFA", c2: "#7C3AED", c3: "#6D28D9" },
+    { label: "供应商", full: "管理采购供应商信息", short: "采购供应商", count: 31,
+      icon: "truck",
+      c1: "#FBBF24", c2: "#D97706", c3: "#B45309" },
+    { label: "用户管理", full: "管理系统用户账号与角色权限", short: "账号与角色权限", count: 6,
+      icon: "users",
+      c1: "#818CF8", c2: "#4F46E5", c3: "#4338CA" }
+  ];
+
+  var CHEVRON = "m9 18 6-6-6-6";
+
+  function build() {
+    var grid = document.getElementById("grid");
+    var html = "";
+    for (var i = 0; i < ITEMS.length; i++) {
+      var it = ITEMS[i];
+      html +=
+        '<a class="card" href="#" style="--c1:' + it.c1 + ';--c2:' + it.c2 + ';--c3:' + it.c3 + '">' +
+          '<div class="card-top">' +
+            '<span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICONS[it.icon] + '</svg></span>' +
+            '<span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="' + CHEVRON + '"/></svg></span>' +
+          '</div>' +
+          '<div>' +
+            '<div class="card-title">' + it.label + '</div>' +
+            '<div class="card-desc-row">' +
+              '<span class="c-full">' + it.full + '</span>' +
+              '<span class="c-short">' + it.short + '</span>' +
+              '<span class="c-badge"><span class="dot"></span>' + it.count + ' 项</span>' +
+            '</div>' +
+          '</div>' +
+        '</a>';
+    }
+    grid.innerHTML = html;
+  }
+
+  function bindSeg(id, attr) {
+    var box = document.getElementById(id);
+    box.addEventListener("click", function (e) {
+      var btn = e.target.closest("button");
+      if (!btn) return;
+      var all = box.querySelectorAll("button");
+      for (var i = 0; i < all.length; i++) all[i].classList.remove("on");
+      btn.classList.add("on");
+      document.body.setAttribute(attr, btn.getAttribute("data-v"));
+    });
+  }
+
+  build();
+  bindSeg("segStyle", "data-style");
+  bindSeg("segCopy", "data-copy");
+</script>
+</body>
+</html>

@@ -33,7 +33,7 @@ const STATUS_ACTION_META: Record<
   deactivate: {
     label: "停用",
     confirmTitle: "确认停用",
-    confirmText: "确定要停用该菜品吗？停用后新排程不再可选，历史排程与生产计划不受影响。",
+    confirmText: "确定要停用该菜品吗？停用后新排程不再可选，历史排程与切配计划不受影响。",
   },
   restore: {
     label: "恢复发布",

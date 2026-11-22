@@ -568,6 +568,7 @@ model ProductionPlan {
   planDate    DateTime @map("plan_date") @db.Date
   status      String   @default("待生效") // 与排程单一致：待生效 / 进行中 / 已完成
   operator    String?
+  remark      String? // 备注（新建/编辑时填写）
   cuttingJson Json?    @map("cutting_json") // 汇总切配工单明细快照
   purchaseJson Json?   @map("purchase_json") // 汇总采购计划明细快照
   sourceScheduleJson Json? @map("source_schedule_json") // 来源门店排程及菜单快照

@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { buildPurchasePlans } from "@/lib/server/schedule-utils";
-import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
+import {
+  buildProductionPlanData,
+  planAdjustmentsFromCuttingJson,
+} from "@/lib/server/production-plan-utils";
 import {
   BomSyncConflictError,
   assertScheduleHasNoProgress,
@@ -97,8 +100,11 @@ export async function recalcIncompleteDocumentsForStandardSeasoning(
     }
 
     const scheduleIds = plan.schedules.map((ref) => ref.scheduleId);
-    const planSelfOrderIds = plan.selfOrders.map((ref) => ref.selfOrderId);
-    const data = await buildProductionPlanData(tx, scheduleIds, planSelfOrderIds);
+    const data = await buildProductionPlanData(
+      tx,
+      scheduleIds,
+      planAdjustmentsFromCuttingJson(plan.cuttingJson)
+    );
     await tx.productionPlan.update({
       where: { id: plan.id },
       data: {

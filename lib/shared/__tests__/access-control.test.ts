@@ -10,7 +10,8 @@ describe("access control", () => {
 
   it("allows chefs to manage schedules but not master data", () => {
     expect(canAccessApi("/api/schedules", "POST", "厨师长")).toBe(true);
-    expect(canAccessApi("/api/self-production-orders/1/activate", "PUT", "厨师长")).toBe(true);
+    expect(canAccessApi("/api/self-production-orders/1/activate", "PUT", "厨师长")).toBe(false);
+    expect(canAccessApi("/api/self-production-orders", "GET", "厨师长")).toBe(true);
     expect(canAccessApi("/api/ingredients", "POST", "厨师长")).toBe(false);
     expect(canAccessApi("/api/ingredients", "GET", "厨师长")).toBe(true);
   });
@@ -23,7 +24,5 @@ describe("access control", () => {
     // 业务运营可查看排程与计划单进度，但写操作仍限 admin/chef（见上一条用例）
     expect(canAccessPage("/schedules", "业务运营")).toBe(true);
     expect(canAccessPage("/production-plans", "业务运营")).toBe(true);
-    expect(canAccessPage("/self-production-orders", "业务运营")).toBe(true);
-    expect(canAccessPage("/self-production-orders/1", "厨师长")).toBe(true);
   });
 });

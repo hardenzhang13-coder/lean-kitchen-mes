@@ -405,6 +405,12 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 - 看板卡片形态：卡册舌 `.skeu-index-tab` + 状态色头部 `.skeu-index-head` + 日期盒 `.skeu-datebox`。
 - 三态（待生效 / 进行中 / 已完成）用 `data-status` 驱动整套 CSS 变量（`--ic-*`），**着色只落舌片与头部，卡身保持中性纸面**。
 - 菜品预览默认前 3 行，超出「还有 N 道 / 查看更多」行内展开。
+- **三态卡片样式（2026-11-23 升级，只加样式，不改色系与字段）**：
+  - 待生效 = 活页本：顶部装订条 `.skeu-index-binding`（19px  cream 条盖住卡顶边）+ 5 枚吊环 `.skeu-index-ring`（7×16px 金属渐变，下垂 6px 落在内容内边距区；环数固定 5，左右各留 26px `space-between` 自适应卡宽）。
+  - 进行中 = 保持原样（无装订条、无撕边）。
+  - 已完成 = 撕边便签：卡底 `.skeu-index-tear`（9px 高，底色 `--ic-p2` 与卡纸同色，`clip-path` 锯齿收底）。
+  - 两个装饰件由 `data-status` 门控显隐，卡片 JSX 三态统一挂结构、不写条件渲染；卡册舌 `z-index: 1` 压在装订条之上。
+  - 排菜（`schedule-card`）与切配（`production-plan-card`）共用同一套骨架与规格。
 
 ### 10.5 排菜模块交互收口（2026-11-23）
 

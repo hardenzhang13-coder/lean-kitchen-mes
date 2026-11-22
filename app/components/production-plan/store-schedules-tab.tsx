@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ExternalLink, FileStack, MapPin } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Table,
   TableBody,
@@ -35,8 +35,8 @@ export function ProductionPlanStoreSchedules({
 
   if (snapshot.stores.length === 0) {
     return (
-      <div className="rounded-lg border border-dashed py-12 text-center text-sm text-muted-foreground">
-        本生产计划单没有来源排程数据
+      <div className="rounded-[var(--sk-radius-md)] border border-dashed border-skeu-border py-12 text-center text-sm text-muted-foreground">
+        本切配计划单没有来源排程数据
       </div>
     );
   }
@@ -55,8 +55,8 @@ export function ProductionPlanStoreSchedules({
         );
 
         return (
-          <section key={store.storeId} className="rounded-lg border overflow-hidden">
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 border-b bg-muted/40 px-4 py-3">
+          <section key={store.storeId} className="skeu-panel overflow-hidden">
+            <div className="skeu-panel-toolbar flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-3">
               <h3 className="flex items-center gap-2 font-semibold">
                 <MapPin className="h-4 w-4 text-primary" />
                 {store.storeName}
@@ -79,8 +79,11 @@ export function ProductionPlanStoreSchedules({
                   0
                 );
                 return (
-                  <div key={schedule.scheduleId} className="rounded-lg border">
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b px-4 py-3">
+                  <div
+                    key={schedule.scheduleId}
+                    className="overflow-hidden rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] shadow-sk-raised"
+                  >
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-skeu-border px-4 py-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <h4 className="font-medium">{schedule.title}</h4>
@@ -99,14 +102,14 @@ export function ProductionPlanStoreSchedules({
                           <span>{scheduleTotal} 份</span>
                         </p>
                       </div>
-                      <Button
+                      <SkeuButton
                         variant="outline"
                         size="sm"
                         onClick={() => router.push(`/schedules/${schedule.scheduleId}`)}
                       >
                         <ExternalLink className="mr-1 h-4 w-4" />
                         查看排程
-                      </Button>
+                      </SkeuButton>
                     </div>
 
                     <div className="overflow-x-auto">
@@ -156,7 +159,7 @@ export function ProductionPlanStoreSchedules({
       })}
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <FileStack className="h-3.5 w-3.5" />
-        菜单内容为生产计划生成时快照，来源排程状态为当前实时状态。
+        菜单内容为切配计划生成时快照，来源排程状态为当前实时状态。
       </p>
     </div>
   );

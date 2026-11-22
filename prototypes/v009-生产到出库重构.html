@@ -1,0 +1,1728 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>生产到出库流程重构 v009 · 精益厨房</title>
+<style>
+:root{
+  --primary:#d3540c; --primary-hover:#b8460a; --primary-bg:#fff7ed; --primary-border:#fdba74;
+  --bg:#fafafa; --card:#ffffff; --border:#e5e5e5; --border-2:#d4d4d4;
+  --text:#0f172a; --muted:#737373; --muted-2:#a3a3a3; --surface:#fafafa;
+  --success:#16a34a; --success-bg:#f0fdf4;
+  --warning:#d97706; --warning-bg:#fffbeb;
+  --danger:#dc2626; --danger-bg:#fef2f2;
+  --info:#2563eb; --info-bg:#eff6ff;
+  --solid-warning:#b45309; --solid-progress:#047857; --solid-done:#6b7280; --solid-neutral:#4b5563;
+  --radius:12px; --radius-md:8px; --radius-sm:4px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"PingFang SC","Microsoft YaHei",system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+.app{display:flex;min-height:100vh}
+/* ============ 侧栏 ============ */
+.side{width:80px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;position:sticky;top:0;height:100vh}
+.brand{width:44px;height:44px;border-radius:10px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:6px}
+.brand-name{font-size:10px;color:var(--muted);margin-bottom:16px}
+.nav-item{width:64px;height:64px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;cursor:pointer;color:var(--muted);margin-bottom:6px;border:none;background:none;font-size:11px;font-family:inherit}
+.nav-item .ico{font-size:18px}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--primary-bg);color:var(--primary);font-weight:600}
+.nav-item.locked{opacity:.45}
+.main{flex:1;padding:24px 32px 64px;min-width:0;max-width:1600px}
+/* ============ 页头 ============ */
+.page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+.page-head h1{font-size:24px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:10px}
+.page-head .sub{color:var(--muted);font-size:13px;margin-top:4px;max-width:720px}
+.head-actions{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.back{display:inline-flex;align-items:center;gap:6px;color:var(--muted);cursor:pointer;margin-bottom:10px;font-size:13px;border:none;background:none;font-family:inherit}
+.back:hover{color:var(--text)}
+/* ============ 模块页签 ============ */
+.mod-switch{display:inline-flex;background:var(--surface);border-radius:var(--radius-md);padding:3px;margin-bottom:14px;gap:2px}
+.mod-switch button{border:none;background:none;padding:6px 14px;border-radius:6px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit}
+.mod-switch button.active{background:var(--card);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+/* ============ 工具条 ============ */
+.toolbar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+.toolbar .spacer{flex:1}
+.search{display:flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-md);padding:0 12px;background:#fff;min-width:280px;height:38px}
+.search input{border:none;outline:none;font-size:13px;flex:1;font-family:inherit;background:none;height:100%}
+.picker{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border);border-radius:var(--radius-md);padding:0 12px;background:#fff;height:38px;font-size:13px;color:var(--text);cursor:pointer;min-width:190px;justify-content:space-between}
+.picker.wide{min-width:380px}
+.picker .ph{color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:var(--radius-md);font-size:13px;cursor:pointer;border:1px solid transparent;background:var(--primary);color:#fff;font-weight:500;font-family:inherit;white-space:nowrap}
+.btn:hover{background:var(--primary-hover)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.outline{background:#fff;border-color:var(--border);color:var(--text)}
+.btn.outline:hover{background:var(--bg)}
+.btn.ghost{background:none;color:var(--muted)}
+.btn.ghost:hover{background:var(--bg);color:var(--text)}
+.btn.danger{background:#fff;border-color:var(--danger);color:var(--danger)}
+.btn.danger:hover{background:var(--danger-bg)}
+.btn.sm{padding:6px 12px;font-size:12px}
+.btn.xs{padding:4px 10px;font-size:12px;border-radius:6px}
+/* ============ 看板 ============ */
+.board{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;align-items:start}
+.col{background:var(--surface);border-radius:var(--radius);padding:12px;min-height:220px}
+.col-head{display:flex;align-items:flex-start;gap:8px;padding:2px 4px 12px}
+.col-head .dot{width:9px;height:9px;border-radius:50%;margin-top:7px;flex-shrink:0}
+.col-head .t{font-weight:700;font-size:14px}
+.col-head .d{font-size:12px;color:var(--muted);line-height:1.5}
+.col-head .cnt{margin-left:auto;font-size:12px;color:var(--muted);background:var(--card);border-radius:999px;padding:1px 9px;flex-shrink:0}
+.col-list{display:flex;flex-direction:column;gap:10px}
+/* ============ 单据卡（通用件） ============ */
+.dcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;cursor:pointer;transition:border-color .15s}
+.dcard:hover{border-color:var(--primary-border)}
+.dcard-num{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted-2);letter-spacing:.02em}
+.dcard-title{font-size:15px;font-weight:600;margin-top:2px;line-height:1.4}
+.dcard-metrics{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;font-size:13px;color:var(--muted)}
+.dcard-metrics b{font-family:ui-monospace,Consolas,monospace;font-size:15px;color:var(--text);font-weight:700;margin-right:3px}
+.dcard-prog{margin-top:10px}
+.dcard-prog .line{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px}
+.dcard-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)}
+.dcard-foot .who{font-size:12px;color:var(--muted)}
+.bar{height:5px;background:var(--surface);border-radius:999px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--primary);border-radius:999px}
+.bar.ok i{background:var(--success)}
+/* ============ 状态徽标（实底） ============ */
+.badge{display:inline-flex;align-items:center;white-space:nowrap;border-radius:var(--radius-sm);padding:2px 9px;font-size:12px;font-weight:600;color:#fff}
+.badge.pending{background:var(--solid-warning)}
+.badge.doing{background:var(--solid-progress)}
+.badge.done{background:var(--solid-done)}
+.badge.neutral{background:var(--solid-neutral)}
+.badge.soft{background:#f5f5f5;color:#525252;font-weight:500;border:1px solid var(--border)}
+.badge.danger{background:var(--danger)}
+.tag{display:inline-block;padding:1px 8px;border-radius:var(--radius-sm);font-size:12px}
+.tag.veg{background:#f0fdf4;color:#16a34a}.tag.mea{background:#fef2f2;color:#dc2626}.tag.aqu{background:#eff6ff;color:#2563eb}.tag.pou{background:#fffbeb;color:#d97706}.tag.dry{background:#fff7ed;color:#ea580c}.tag.bea{background:#ecfeff;color:#0891b2}
+.tag.soft{background:#f5f5f5;color:#525252;border:1px solid var(--border)}
+/* ============ 摘要信息块 ============ */
+.info-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.tile{border:1px solid var(--border);background:var(--card);border-radius:var(--radius-md);padding:12px 14px}
+.tile .lb{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px}
+.tile .vl{font-size:15px;font-weight:600;margin-top:4px;line-height:1.4}
+.tile .hl{font-size:12px;color:var(--muted);margin-top:2px}
+/* ============ 页签 ============ */
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tabs button{border:none;background:none;padding:9px 16px;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit}
+.tabs button.active{color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+.tabs button .n{font-size:12px;color:var(--muted-2);margin-left:5px}
+/* ============ 表格 ============ */
+.tbl-wrap{border:1px solid var(--border);border-radius:var(--radius-md);overflow-x:auto;background:#fff}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{background:#fafafa;padding:9px 12px;text-align:left;font-weight:600;color:var(--muted);white-space:nowrap;border-bottom:1px solid var(--border)}
+.tbl td{padding:9px 12px;border-bottom:1px solid #f5f5f5;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:#fcfcfc}
+.tbl tr.done td{background:var(--success-bg)}
+.tbl tr.unfinished td{background:var(--danger-bg)}
+.tbl tr.excluded td{background:#fafafa;color:var(--muted-2);text-decoration:line-through}
+.tbl tr.excluded td .no-strike{text-decoration:none}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}
+.strong{font-weight:600}
+.dim{color:var(--muted)}
+.small{font-size:12px}
+/* ============ 弹窗 ============ */
+.overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;align-items:flex-start;justify-content:center;z-index:50;padding:40px 16px;overflow-y:auto}
+.dialog{background:var(--card);border-radius:14px;width:100%;max-width:1200px;box-shadow:0 20px 60px rgba(0,0,0,.2);display:flex;flex-direction:column;max-height:calc(100vh - 80px)}
+.dialog.compact{max-width:400px}
+.dialog.form{max-width:560px}
+.dialog.wide{max-width:880px}
+.dialog-head{padding:18px 22px 12px;border-bottom:1px solid var(--border)}
+.dialog-head h3{font-size:16px;font-weight:600}
+.dialog-head .dsub{font-size:13px;color:var(--muted);margin-top:4px}
+.dialog-body{padding:16px 22px;overflow-y:auto;flex:1}
+.dialog-foot{padding:12px 22px 16px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.dialog-foot .spacer{flex:1}
+/* ============ 表单 ============ */
+.field{display:flex;flex-direction:column;gap:6px}
+.field .lb{font-size:13px;font-weight:500}
+.field .lb .req{color:var(--danger);margin-left:2px}
+.input{width:100%;border:1px solid var(--border);border-radius:var(--radius-md);padding:8px 12px;font-size:13px;outline:none;background:#fff;font-family:inherit;height:38px}
+.input:focus{border-color:var(--primary);box-shadow:0 0 0 3px rgba(211,84,12,.12)}
+.input.num-in{width:84px;text-align:right;font-variant-numeric:tabular-nums;height:32px;padding:4px 8px}
+.input.err{border-color:var(--danger)}
+select.input{cursor:pointer}
+.row1{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+/* ============ 汇总条 ============ */
+.summary{display:flex;gap:22px;align-items:center;background:#fafafa;border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px;font-size:13px;flex-wrap:wrap}
+.summary .item{display:flex;align-items:baseline;gap:5px}
+.summary .item .lb{color:var(--muted);font-size:12px}
+.summary .item b{font-size:17px;font-variant-numeric:tabular-nums}
+.summary .item b.ok{color:var(--success)}.summary .item b.bad{color:var(--danger)}
+.summary .sep{width:1px;height:20px;background:var(--border)}
+/* ============ 提示条 ============ */
+.banner{display:flex;gap:10px;align-items:flex-start;border-radius:var(--radius-md);padding:10px 14px;font-size:13px;margin-bottom:14px;line-height:1.7}
+.banner.info{background:var(--info-bg);border:1px solid #bfdbfe;color:#1e40af}
+.banner.warn{background:var(--warning-bg);border:1px solid #fde68a;color:#92400e}
+.banner.primary{background:var(--primary-bg);border:1px solid var(--primary-border);color:#9a3412}
+.banner b{font-weight:700}
+.banner .x{margin-left:auto;cursor:pointer;color:inherit;opacity:.6;border:none;background:none;font-size:15px;line-height:1}
+/* ============ 来源选择（4:6） ============ */
+.src-grid{display:grid;grid-template-columns:4fr 6fr;gap:16px;margin-bottom:18px}
+.panel{border:1px solid var(--border);border-radius:var(--radius-md);display:flex;flex-direction:column;overflow:hidden;background:#fff}
+.panel-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--border);background:#fafafa;font-size:13px;font-weight:600}
+.panel-head .cnt{margin-left:auto;font-weight:400;color:var(--muted);font-size:12px}
+.panel-body{padding:10px;overflow-y:auto;max-height:280px}
+.pick{border:1px solid var(--border);border-radius:var(--radius-md);padding:10px 12px;margin-bottom:8px;cursor:pointer;background:#fff}
+.pick:hover{border-color:var(--primary-border)}
+.pick.sel{border-color:var(--primary);background:var(--primary-bg)}
+.pick .pt{font-size:13px;font-weight:600;display:flex;align-items:center;gap:8px}
+.pick .pm{font-size:12px;color:var(--muted);margin-top:3px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.pick .pm .rm{margin-left:auto;color:var(--danger);font-size:12px}
+.pick.locked{opacity:.6;cursor:not-allowed;background:var(--surface)}
+/* ============ 明细编辑器 ============ */
+.editor{font-size:13px}
+.editor th{padding:8px 10px}
+.editor td{padding:6px 10px}
+.editor .cell-in{border:1px solid var(--border);border-radius:6px;padding:3px 6px;background:#fff;font-family:inherit;font-size:13px;width:100%;text-align:right;font-variant-numeric:tabular-nums}
+.editor .cell-in:hover{border-color:var(--border)}
+.editor .cell-in:focus{outline:none;border-color:var(--primary);background:#fff;box-shadow:0 0 0 3px rgba(211,84,12,.1)}
+.editor .cell-in.locked{color:var(--muted);background:var(--surface)}
+.editor .cell-in:disabled{opacity:.55;background:var(--surface);cursor:not-allowed}
+.editor td.act{text-align:right;white-space:nowrap}
+.row-del{color:var(--danger);cursor:pointer;font-size:12px;border:none;background:none;font-family:inherit}
+.row-del:hover{text-decoration:underline}
+.editor-bar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.editor-bar .spacer{flex:1}
+/* ============ 分段三态控件 ============ */
+.seg{display:inline-flex;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:#fff}
+.seg button{padding:5px 12px;font-size:12px;border:none;background:#fff;cursor:pointer;color:var(--muted);font-family:inherit;border-right:1px solid var(--border);white-space:nowrap}
+.seg button:last-child{border-right:none}
+.seg button.on-done{background:var(--success-bg);color:#15803d;font-weight:600}
+.seg button.on-undone{background:var(--danger-bg);color:#b91c1c;font-weight:600}
+.seg button.on-hold{background:#e5e7eb;color:var(--muted-2);font-weight:600}
+.seg button:hover{background:#fafafa}
+/* ============ 底部操作区（三槽） ============ */
+.actions-bar{position:sticky;bottom:0;background:var(--card);border-top:1px solid var(--border);margin:20px -32px -64px;padding:12px 32px;display:flex;align-items:center;gap:8px}
+.actions-bar .spacer{flex:1}
+.actions-bar .slot-mid{display:flex;gap:8px;margin-left:auto}
+/* ============ 空态 / 提示 ============ */
+.empty{text-align:center;padding:56px 0;color:var(--muted)}
+.empty .big{font-size:32px;margin-bottom:8px;opacity:.4}
+.toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);background:#0f172a;color:#fff;padding:10px 22px;border-radius:var(--radius-md);font-size:13px;z-index:99;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:70vw}
+.toast .sub{display:block;color:#cbd5e1;font-size:12px;margin-top:3px}
+/* ============ part1 追加 ============ */
+.steps{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.steps .s{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.steps .s .n{width:22px;height:22px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.steps .s.on{color:var(--text);font-weight:600}
+.steps .s.on .n{background:var(--primary);border-color:var(--primary);color:#fff}
+.steps .s.done .n{background:var(--success-bg);border-color:var(--success);color:var(--success)}
+.steps .sep{width:30px;height:1px;background:var(--border)}
+.hint{font-size:12px;color:var(--muted);line-height:1.6}
+.hint.bad{color:var(--danger);font-weight:600}
+.hint.ok{color:var(--success)}
+.hint.warn{color:var(--warning);font-weight:600}
+.tbl tr.hold td{background:var(--warning-bg)}
+.tbl tr.short td{background:var(--danger-bg)}
+.chk{width:16px;height:16px;border-radius:4px;border:1px solid var(--border-2);display:inline-flex;align-items:center;justify-content:center;background:#fff;color:#fff;font-size:11px;line-height:1;flex-shrink:0}
+.chk.on{background:var(--primary);border-color:var(--primary)}
+.chk.off{background:#fff}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.store-card{border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;background:#fff;cursor:pointer}
+.store-card:hover{border-color:var(--primary-border)}
+.store-card.sel{border-color:var(--primary);background:var(--primary-bg)}
+.store-card .sn{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.store-card .sm{display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--muted)}
+.store-card .sm b{font-size:17px;font-variant-numeric:tabular-nums;color:var(--text);display:inline-block;margin:0 2px 0 0}
+.kv{display:flex;gap:10px;font-size:13px;padding:7px 0;border-bottom:1px dashed var(--border)}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--muted);width:104px;flex-shrink:0}
+.kv .v{font-weight:500;font-variant-numeric:tabular-nums}
+.foot-note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.8}
+.foot-note b{color:var(--text)}
+.link{color:var(--primary);cursor:pointer;text-decoration:none;font-family:inherit;border:none;background:none;padding:0;font-size:12px}
+.link:hover{text-decoration:underline}
+.rowhint{display:block;font-size:12px;margin-top:3px;color:var(--muted)}
+.rowhint.bad{color:var(--danger);font-weight:600}
+.rowhint.ok{color:var(--success)}
+.expander{border:none;background:none;cursor:pointer;color:var(--muted);font-size:11px;font-family:inherit;padding:0 4px 0 0}
+.subrow td{background:#fcfcfc;padding:0 12px 12px 12px}
+.subbox{border:1px dashed var(--border);border-radius:var(--radius-md);padding:10px 12px;background:#fff}
+.subbox .sh{font-size:12px;color:var(--muted);margin-bottom:6px}
+.dlgtpl{border:1px solid var(--border);border-radius:var(--radius-md);padding:16px 18px;background:#fff;font-size:13px}
+.dlgtpl h4{font-size:15px;text-align:center;margin-bottom:4px}
+.dlgtpl .dn{text-align:center;color:var(--muted);font-size:12px;margin-bottom:12px}
+#p1-main > .main{padding:0}
+#page-root{flex:1;min-width:0}
+@media (max-width:1280px){ .info-grid{grid-template-columns:repeat(3,1fr)} .src-grid{grid-template-columns:1fr} }
+@media (max-width:980px){ .board{grid-template-columns:1fr} .info-grid{grid-template-columns:repeat(2,1fr)} .main{padding:16px} .grid3{grid-template-columns:1fr} }
+</style>
+<style>
+.fulfill{display:flex;flex-direction:column;gap:10px}
+.fulfill-step{display:grid;grid-template-columns:92px 1fr 142px;align-items:center;gap:12px}
+.fulfill-step .fs-lb{font-size:13px;color:var(--muted)}
+.fulfill-bar{height:8px;border-radius:99px;background:var(--surface);overflow:hidden;border:1px solid var(--border)}
+.fulfill-bar i{display:block;height:100%;border-radius:99px;background:var(--solid-progress);transition:width .2s cubic-bezier(.4,0,.2,1)}
+.fulfill-bar.warn i{background:var(--solid-warning)}
+.fulfill-bar.danger i{background:var(--danger)}
+.fulfill-step .fs-vl{font-size:13px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.fulfill-step .fs-vl b{color:var(--text);font-weight:600}
+.fulfill-step .fs-vl .gap{color:var(--danger);font-weight:600}
+.fnote{margin-top:14px;border:1px solid var(--primary-border);border-left:3px solid var(--primary);border-radius:var(--radius-md);padding:10px 14px;background:var(--primary-bg);font-size:13px;line-height:1.6}
+.fnote b{font-weight:600}
+.rule-note{display:flex;align-items:flex-start;gap:9px;border:1px dashed var(--border-2);border-radius:var(--radius-md);padding:9px 13px;background:var(--surface);font-size:12px;color:var(--muted);margin-top:14px;line-height:1.65}
+.rule-note .rn-ico{flex-shrink:0;width:16px;height:16px;border-radius:50%;background:var(--info-bg);color:var(--info);font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:700;margin-top:2px}
+.rule-note b{color:var(--text);font-weight:600}
+.rule-note code{background:#f0f0f0;padding:1px 5px;border-radius:3px;font-size:11px;color:var(--text)}
+tr.gap-row td{background:var(--danger-bg)}
+</style>
+</head>
+<body>
+
+<div class="app" id="p1-app">
+  <aside class="side">
+    <div class="brand">🍳</div>
+    <div class="brand-name">精益厨房</div>
+    <button class="nav-item" onclick="P1.stub('工作台')"><span class="ico">⊞</span>工作台</button>
+    <button class="nav-item" onclick="P1.stub('排程')"><span class="ico">📋</span>排程</button>
+    <button class="nav-item" id="nav-batch" onclick="P1.go('batch-list')"><span class="ico">🍱</span>生产批次</button>
+    <button class="nav-item locked" onclick="P1.stub('采购')"><span class="ico">🛒</span>采购</button>
+    <button class="nav-item" id="nav-stock" onclick="P1.go('inventory')"><span class="ico">📦</span>库存</button>
+    <button class="nav-item" onclick="P1.stub('菜品')"><span class="ico">🍽️</span>菜品</button>
+    <button class="nav-item" onclick="P1.stub('食材')"><span class="ico">🥬</span>食材</button>
+    <button class="nav-item" onclick="P1.stub('设置')"><span class="ico">⚙️</span>设置</button>
+  </aside>
+  <main class="main" id="p1-main"></main>
+</div>
+<div id="p1-dialog-root"></div>
+<div id="p1-toast-root"></div>
+
+<script>
+
+/* ==================================================================
+   part1 · 生产批次模块 原型（纯前端 mock，不连后端）
+   模型要点：
+   1) 生产计划单 = 一个生产批次（一天可多个批次）
+   2) 批次行可编辑，库存参与计算：建议生产 = max(0, 需求 − 可用库存)
+   3) 「内部生产单」实体取消 → 批次内的「自主备货行」（无排程单来源）
+   4) 出库主体恒为门店；一张排程单只能对应一张出库单
+   ================================================================== */
+(function(){
+"use strict";
+
+/* ---------- 全局桥接：主会话提供则复用，否则本地兜底 ---------- */
+var _esc = (typeof esc === "function") ? esc : function(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); };
+var _num = (typeof num === "function") ? num : function(n){
+  var v = Math.round((Number(n)||0)*100)/100; return Number.isInteger(v)?String(v):String(v); };
+var _fmtDate = (typeof fmtDate === "function") ? fmtDate : function(s){
+  var d = new Date(s+"T00:00:00"); var w = ["日","一","二","三","四","五","六"][d.getDay()];
+  return (d.getMonth()+1)+"月"+d.getDate()+"日 周"+w; };
+function E(s){ return _esc(s); }
+function N(n){ return _num(n); }
+function FD(s){ return _fmtDate(s); }
+function TT(msg, sub){
+  if (typeof toast === "function"){ try{ toast(msg, sub); return; }catch(e){} }
+  let r = document.getElementById("toast-root") || document.getElementById("p1-toast-root");
+  if(!r){ r=document.createElement("div"); r.id="p1-toast-root"; document.body.appendChild(r); }
+  r.innerHTML = '<div class="toast">'+E(msg)+(sub?'<span class="sub">'+E(sub)+'</span>':'')+'</div>';
+  clearTimeout(window.__p1tt); window.__p1tt = setTimeout(function(){ r.innerHTML=""; },3200);
+}
+function DG(html){
+  if (typeof openDialog === "function" && document.getElementById("dialog-root")){ openDialog(html); return; }
+  const r = document.getElementById("p1-dialog-root");
+  r.innerHTML = '<div class="overlay" onclick="if(event.target===this)P1.close()">'+html+'</div>';
+}
+function CL(){
+  if (typeof closeDialog === "function"){ try{ closeDialog(); }catch(e){} }
+  const r = document.getElementById("p1-dialog-root"); if(r) r.innerHTML="";
+}
+const R = function(n){ return Math.round((Number(n)||0)*100)/100; };
+
+/* ==================== 主数据 ==================== */
+var TODAY = "2026-11-20";
+var STORES = [
+  {id:"S1", name:"新金食堂"},
+  {id:"S2", name:"明天吃啥首店"},
+  {id:"S3", name:"示例第三店"}
+];
+var NETS = [
+  {id:"N1", code:"NET-0018", name:"青椒丝", spec:200, l1:"蔬菜",  l2:"椒类", price:3.5, raw:"青椒",   yld:82, rawPrice:3.2},
+  {id:"N2", code:"NET-0003", name:"肉丝",   spec:300, l1:"畜肉",  l2:"猪肉", price:9.8, raw:"猪里脊", yld:78, rawPrice:22},
+  {id:"N3", code:"SML-0002", name:"蒜末",   spec:50,  l1:"蔬菜",  l2:"葱蒜", price:1.2, raw:"大蒜",   yld:90, rawPrice:6},
+  {id:"N4", code:"NET-0025", name:"豆腐块", spec:250, l1:"豆制品",l2:"豆制品",price:2.8, raw:"豆腐",   yld:88, rawPrice:3.5},
+  {id:"N5", code:"NET-0021", name:"豆芽",   spec:150, l1:"蔬菜",  l2:"叶菜", price:1.8, raw:"绿豆芽", yld:85, rawPrice:2.2},
+  {id:"N6", code:"NET-0030", name:"土豆丝", spec:200, l1:"蔬菜",  l2:"薯类", price:2.5, raw:"土豆",   yld:86, rawPrice:2},
+  {id:"N7", code:"SML-0005", name:"姜丝",   spec:30,  l1:"蔬菜",  l2:"葱蒜", price:1.0, raw:"生姜",   yld:90, rawPrice:8},
+  {id:"N8", code:"NET-0033", name:"蒜苗",   spec:100, l1:"蔬菜",  l2:"葱蒜", price:3.0, raw:"蒜苗",   yld:88, rawPrice:4.5}
+];
+/* 净料档案：spec = 每份克重；pkg 为同名别名（沿用 v003 命名，便于跨分片复用） */
+NETS.forEach(function(n){ n.pkg = n.spec; });
+/* 净菜成品库存（份，记账主单位）—— 全模块共用这一份数据 */
+var STOCK = {
+  N1:{total:100, last:"2026-11-20 08:40"}, N2:{total:60, last:"2026-11-20 08:40"},
+  N3:{total:30,  last:"2026-11-19 16:20"}, N4:{total:18, last:"2026-11-19 16:20"},
+  N5:{total:60,  last:"2026-11-20 08:40"}, N6:{total:45, last:"2026-11-19 16:20"},
+  N7:{total:30,  last:"2026-11-18 15:10"}, N8:{total:18, last:"2026-11-20 08:40"}
+};
+/* 兼容：允许外部脚本按数组方式遍历库存（netId / total / last） */
+Object.defineProperty(STOCK,"forEach",{enumerable:false, value:function(fn){
+  Object.keys(STOCK).forEach(function(k){ fn({netId:k, total:STOCK[k].total, last:STOCK[k].last}); });
+}});
+/* 门店排程单（需求来源）。生产日 = 需求日 D-1 */
+var SCHEDULES = [
+  {id:1, code:"SCH-20261120-001", storeId:"S1", demandDate:"2026-11-20", status:"已确认", dishes:3,
+   items:[{netId:"N1",dish:"青椒炒肉丝",portions:18},{netId:"N6",dish:"醋溜土豆丝",portions:14},{netId:"N3",dish:"蒜泥白肉",portions:10}]},
+  {id:2, code:"SCH-20261121-001", storeId:"S1", demandDate:"2026-11-21", status:"已确认", dishes:4,
+   items:[{netId:"N1",dish:"青椒肉丝",portions:30},{netId:"N2",dish:"鱼香肉丝",portions:26},{netId:"N3",dish:"蒜泥白肉",portions:22},{netId:"N4",dish:"麻婆豆腐",portions:18}]},
+  {id:3, code:"SCH-20261121-002", storeId:"S2", demandDate:"2026-11-21", status:"已确认", dishes:3,
+   items:[{netId:"N1",dish:"虎皮青椒",portions:24},{netId:"N5",dish:"醋溜豆芽",portions:20},{netId:"N6",dish:"酸辣土豆丝",portions:16}]},
+  {id:4, code:"SCH-20261122-001", storeId:"S1", demandDate:"2026-11-22", status:"已确认", dishes:5,
+   items:[{netId:"N2",dish:"回锅肉片",portions:34},{netId:"N1",dish:"青椒肉丝",portions:26},{netId:"N6",dish:"干煸土豆丝",portions:22},{netId:"N7",dish:"姜汁肉丝",portions:18},{netId:"N4",dish:"麻婆豆腐",portions:20}]},
+  {id:5, code:"SCH-20261122-002", storeId:"S3", demandDate:"2026-11-22", status:"已确认", dishes:2,
+   items:[{netId:"N5",dish:"醋溜豆芽",portions:26},{netId:"N8",dish:"蒜苗回锅肉",portions:22}]},
+  {id:6, code:"SCH-20261123-001", storeId:"S2", demandDate:"2026-11-23", status:"已确认", dishes:3,
+   items:[{netId:"N3",dish:"蒜蓉粉丝",portions:28},{netId:"N6",dish:"酸辣土豆丝",portions:24},{netId:"N1",dish:"虎皮青椒",portions:20}]},
+  {id:7, code:"SCH-20261123-002", storeId:"S3", demandDate:"2026-11-23", status:"已确认", dishes:2,
+   items:[{netId:"N8",dish:"蒜苗回锅肉",portions:24},{netId:"N5",dish:"凉拌豆芽",portions:26}]},
+  {id:8, code:"SCH-20261124-001", storeId:"S1", demandDate:"2026-11-24", status:"已确认", dishes:4,
+   items:[{netId:"N1",dish:"青椒肉丝",portions:28},{netId:"N2",dish:"鱼香肉丝",portions:30},{netId:"N6",dish:"酸辣土豆丝",portions:26},{netId:"N4",dish:"麻婆豆腐",portions:22}]}
+];
+/* 生产批次（= 生产批次单）。rows[].planned 为「计划生产份数」，可编辑 */
+var BATCHES = [
+  {id:1, code:"BC-000120", productionDate:"2026-11-22", shift:"中班", status:"草稿", operator:"杨厨", createdAt:"2026-11-20 08:05", scheduleIds:[6],
+   rows:[{netId:"N1",planned:0},{netId:"N3",planned:16},{netId:"N6",planned:0}]},
+  {id:2, code:"BC-000121", productionDate:"2026-11-19", shift:"早班", status:"已完成", operator:"杨厨", createdAt:"2026-11-18 17:20", scheduleIds:[1],
+   rows:[{netId:"N1",planned:18},{netId:"N6",planned:14},{netId:"N3",planned:10}],
+   receipts:{N1:{actual:18,status:"completed",reason:""},N6:{actual:14,status:"completed",reason:""},N3:{actual:10,status:"completed",reason:""}}},
+  {id:3, code:"BC-000122", productionDate:"2026-11-21", shift:"晚班", status:"已确认", operator:"王芳", createdAt:"2026-11-20 09:12", scheduleIds:[4],
+   rows:[{netId:"N2",planned:0},{netId:"N1",planned:0},{netId:"N6",planned:0},{netId:"N7",planned:0},{netId:"N4",planned:20}]},
+  {id:4, code:"BC-000123", productionDate:"2026-11-21", shift:"不设", status:"草稿", operator:"杨厨", createdAt:"2026-11-20 10:30", scheduleIds:[],
+   rows:[{netId:"N1",planned:20,self:20},{netId:"N8",planned:6,self:6}]},
+  {id:5, code:"BC-000124", productionDate:"2026-11-20", shift:"早班", status:"已完成", operator:"李明", createdAt:"2026-11-19 16:40", scheduleIds:[2,3],
+   rows:[{netId:"N1",planned:54},{netId:"N2",planned:26},{netId:"N3",planned:22},{netId:"N4",planned:18},{netId:"N5",planned:20},{netId:"N6",planned:16}],
+   receipts:{N1:{actual:54,status:"completed",reason:""},N2:{actual:26,status:"completed",reason:""},N3:{actual:20,status:"unfinished",reason:"今日到货不足，缺 2 份"},N4:{actual:18,status:"completed",reason:""},N5:{actual:20,status:"completed",reason:""},N6:{actual:16,status:"completed",reason:""}}},
+  {id:6, code:"BC-000125", productionDate:"2026-11-22", shift:"早班", status:"已确认", operator:"王芳", createdAt:"2026-11-21 08:40", scheduleIds:[],
+   rows:[{netId:"N3",planned:15,self:15},{netId:"N4",planned:20,self:20}]}
+];
+/* 出库单：主体恒为门店，一张排程单只能对应一张出库单 */
+var OUTBOUNDS = [
+  {id:"OB1", code:"CK-20261120-001", storeId:"S1", scheduleId:1, productionDate:"2026-11-19", status:"已出库", manager:"李明", createdAt:"2026-11-20 08:40",
+   lines:[{netId:"N1",qty:18},{netId:"N6",qty:14},{netId:"N3",qty:10}]},
+  {id:"OB2", code:"CK-20261121-001", storeId:"S2", scheduleId:3, productionDate:"2026-11-20", status:"待出库", manager:"李明", createdAt:"2026-11-21 09:10",
+   lines:[{netId:"N1",qty:20},{netId:"N5",qty:20},{netId:"N6",qty:16}]},
+  {id:"OB3", code:"CK-20261121-002", storeId:"S1", scheduleId:2, productionDate:"2026-11-20", status:"待出库", manager:"王芳", createdAt:"2026-11-21 09:20",
+   lines:[{netId:"N1",qty:30},{netId:"N2",qty:26},{netId:"N3",qty:22},{netId:"N4",qty:18}]},
+  {id:"OB4", code:"CK-20261122-001", storeId:"S1", scheduleId:4, productionDate:"2026-11-21", status:"草稿", manager:"王芳", createdAt:"2026-11-22 07:30",
+   lines:[{netId:"N2",qty:34},{netId:"N1",qty:26},{netId:"N6",qty:22},{netId:"N7",qty:18},{netId:"N4",qty:20}]},
+  {id:"OB5", code:"CK-20261123-001", storeId:"S3", scheduleId:7, productionDate:"2026-11-22", status:"待出库", manager:"李明", createdAt:"2026-11-22 08:05",
+   lines:[{netId:"N5",qty:26},{netId:"N8",qty:10}]}
+];
+
+/* ==================== 取数与派生 ==================== */
+/* id 归一：字符串与数字等价，避免外部脚本传入 "5" 时查不到 */
+function sameId(a,b){ return a!=null && b!=null && String(a)===String(b); }
+function netById(id){ for(var i=0;i<NETS.length;i++) if(sameId(NETS[i].id,id)) return NETS[i]; return null; }
+function storeById(id){ for(var i=0;i<STORES.length;i++) if(sameId(STORES[i].id,id)) return STORES[i]; return null; }
+function storeName(id){ var s=storeById(id); return s?s.name:"—"; }
+function schById(id){ for(var i=0;i<SCHEDULES.length;i++) if(sameId(SCHEDULES[i].id,id)) return SCHEDULES[i]; return null; }
+function batchById(id){ for(var i=0;i<BATCHES.length;i++) if(sameId(BATCHES[i].id,id)) return BATCHES[i]; return null; }
+function obById(id){ for(var i=0;i<OUTBOUNDS.length;i++) if(sameId(OUTBOUNDS[i].id,id)) return OUTBOUNDS[i]; return null; }
+function schPortions(s){ var t=0; s.items.forEach(function(it){ t+=it.portions; }); return t; }
+function netPrice(id){ var n=netById(id); return n?n.price:0; }
+/* 已占用 = 待出库单预定的份数（出库单确认出库后自动释放） */
+function reservedOf(netId){
+  var t=0;
+  OUTBOUNDS.forEach(function(o){ if(o.status!=="待出库") return; o.lines.forEach(function(l){ if(l.netId===netId) t+=l.qty; }); });
+  return t;
+}
+function stockOf(netId){
+  var s = STOCK[netId] || {total:0,last:"—"};
+  var rsv = reservedOf(netId);
+  return {total:s.total, reserved:rsv, avail:R(s.total-rsv), last:s.last};
+}
+function batchUsedSchedIds(){
+  var used={}; BATCHES.forEach(function(b){ (b.scheduleIds||[]).forEach(function(id){ used[id]=b.code; }); }); return used;
+}
+function obUsedSchedIds(){
+  var used={}; OUTBOUNDS.forEach(function(o){ if(o.status==="已作废") return; used[o.scheduleId]=o.code; }); return used;
+}
+/* 批次行派生：需求 / 可用库存 / 建议生产 / 缺口 / 门店分配 */
+/* ---- 兼容层：供 part2（排程履约）读取 ----
+   批次行补充只读别名 plan / actual / kind，出库单补充 items 视图与 shipped 实际出货量 */
+function decorateBatch(b){
+  if(!Object.getOwnPropertyDescriptor(b,"schedIds")){
+    Object.defineProperty(b,"schedIds",{enumerable:true, get:function(){ return b.scheduleIds||[]; }});
+  }
+  (b.rows||[]).forEach(function(r){
+    if(!Object.getOwnPropertyDescriptor(r,"plan")){
+      Object.defineProperty(r,"plan",{enumerable:true, get:function(){ return r.planned; }});
+      Object.defineProperty(r,"actual",{enumerable:true, get:function(){
+        var rc = b.receipts && b.receipts[r.netId]; return rc ? (rc.actual==null?null:rc.actual) : null; }});
+      Object.defineProperty(r,"kind",{enumerable:true, get:function(){
+        var fromSch = (b.scheduleIds||[]).some(function(sid){
+          var s = schById(sid); if(!s) return false;
+          return s.items.some(function(it){ return it.netId===r.netId; });
+        });
+        return fromSch ? "schedule" : "self";
+      }});
+    }
+  });
+}
+function decorateOb(ob){
+  if(!ob.lines) ob.lines = [];
+  if(!ob.items) ob.items = ob.lines;
+  ob.lines.forEach(function(l){
+    if(!Object.getOwnPropertyDescriptor(l,"shipped")){
+      Object.defineProperty(l,"shipped",{enumerable:true, get:function(){
+        return ob.status==="已出库" ? l.qty : 0; }});
+    }
+  });
+  return ob;
+}
+function batchRows(b){
+  decorateBatch(b);
+  var map = {}, order = [];
+  function touch(nid){ if(!map[nid]){ map[nid]={netId:nid, planned:0, self:0, detail:[], receipt:(b.receipts&&b.receipts[nid])||null}; order.push(nid); } return map[nid]; }
+  (b.rows||[]).forEach(function(r){ var o=touch(r.netId); o.planned=r.planned||0; o.self=r.self||0; });
+  (b.scheduleIds||[]).forEach(function(sid){
+    var s = schById(sid); if(!s) return;
+    s.items.forEach(function(it){ var o=touch(it.netId); o.detail.push({storeId:s.storeId, schId:s.id, dish:it.dish, portions:it.portions}); });
+  });
+  order.forEach(function(nid){ var o=map[nid]; if(o.self>0) o.detail.push({storeId:null, schId:null, dish:"自主备货", portions:o.self}); });
+  return order.map(function(nid){
+    var o = map[nid], n = netById(nid), st = stockOf(nid);
+    o.name=n.name; o.code=n.code; o.spec=n.spec; o.l1=n.l1; o.price=n.price;
+    o.total=st.total; o.reserved=st.reserved; o.avail=st.avail;
+    o.demand = R(o.detail.reduce(function(a,d){ return a+d.portions; },0));
+    o.suggest = Math.max(0, R(o.demand - st.avail));
+    o.diff = R(o.planned - o.suggest);
+    o.shortage = Math.max(0, R(o.demand - st.avail - o.planned));
+    o.alloc = allocate(o);
+    return o;
+  });
+}
+function allocPortions(weights, total){
+  var sum = weights.reduce(function(a,b){ return a+b; },0);
+  if(sum<=0 || total<=0) return weights.map(function(){ return 0; });
+  if(total>sum) total=sum;
+  var base = weights.map(function(w){ return Math.floor(w*total/sum); });
+  var used = base.reduce(function(a,x){ return a+x; },0);
+  var frac = weights.map(function(w,i){ return {i:i, f:w*total/sum-base[i]}; }).sort(function(a,b){ return b.f-a.f; });
+  var rem = total-used;
+  for(var k=0;k<rem;k++) base[frac[k%frac.length].i] += 1;
+  return base;
+}
+/* 门店可获得份数 = 库存覆盖 + 本批次计划生产分配；剩余即为该门店的短交缺口 */
+function allocate(o){
+  if(!o.detail.length) return [];
+  var d = o.detail.map(function(x){ return x.portions; });
+  var cover = Math.min(o.avail, o.demand);
+  var covered = allocPortions(d, cover);
+  var remain = d.map(function(x,i){ return Math.max(0, x-covered[i]); });
+  var plan = Math.min(o.planned, remain.reduce(function(a,b){ return a+b; },0));
+  var planA = allocPortions(remain, plan);
+  return o.detail.map(function(x,i){
+    var get = covered[i] + planA[i];
+    return {storeId:x.storeId, schId:x.schId, dish:x.dish, portions:x.portions, alloc:get, short:R(x.portions-get)};
+  });
+}
+function batchStats(b){
+  var rows = batchRows(b), st = {kinds:0,demand:0,suggest:0,planned:0,shortage:0,cover:0};
+  rows.forEach(function(r){
+    if(r.demand>0||r.planned>0){ st.kinds++; }
+    st.demand=R(st.demand+r.demand); st.suggest=R(st.suggest+r.suggest); st.planned=R(st.planned+r.planned);
+    st.shortage=R(st.shortage+r.shortage); st.cover=R(st.cover+Math.min(r.demand,r.avail));
+  });
+  return st;
+}
+/* 毛料换算：份 → 斤 */
+function rawJin(portions, n){ return n.yld>0 ? R(portions*n.spec*100/n.yld/500) : 0; }
+function statusBadge(st){
+  var m = {"草稿":"neutral","已确认":"pending","已完成":"done","待出库":"pending","已出库":"done","已作废":"soft"}[st]||"neutral";
+  return '<span class="badge '+m+'">'+E(st)+'</span>';
+}
+function shiftText(b){ return b.shift==="不设" ? "不设时段" : b.shift; }
+function nextBatchCode(){
+  var max=0;
+  BATCHES.forEach(function(b){ var m=/BC-(\d+)/.exec(b.code); if(m) max=Math.max(max, Number(m[1])); });
+  return "BC-"+String(max+1).padStart(6,"0");
+}
+function nextObCode(){
+  var max=0;
+  OUTBOUNDS.forEach(function(o){ var m=/CK-(\d{8})-(\d+)/.exec(o.code); if(m) max=Math.max(max, Number(m[2])); });
+  return "CK-20261122-"+String(max+1).padStart(3,"0");
+}
+/* ==================== 视图状态 ==================== */
+var ST = {
+  view:"batch-list", batchId:null, tab:"tasks", obId:null,
+  q:"", dateFilter:"",
+  nc:{date:"2026-11-21", shift:"早班", sel:[], fDate:"", fStore:"", q:"", self:[]},
+  out:{step:1, storeId:null, schId:null, lines:[]},
+  expanded:{}, dlg:null, pending:null
+};
+
+/* ==================== 渲染入口 ==================== */
+function hostEl(){ return document.getElementById("p1-main") || document.getElementById("page-root"); }
+function render(){
+  var m = hostEl(); if(!m) return;
+  var html = "";
+  if(ST.view==="batch-list") html = vBatchList();
+  else if(ST.view==="batch-create") html = vBatchCreate();
+  else if(ST.view==="batch-detail") html = vBatchDetail();
+  else if(ST.view==="inventory") html = vInventory();
+  else if(ST.view==="out-create") html = vOutCreate();
+  else if(ST.view==="out-detail") html = vOutDetail();
+  m.innerHTML = html;
+  if(ST.view==="batch-create") ncPaint();
+  updateNav();
+}
+function renderKeepFocus(){
+  var a = document.activeElement;
+  var k = (a && a.getAttribute) ? a.getAttribute("data-k") : null;
+  var pos = (a && a.selectionStart!=null) ? a.selectionStart : null;
+  render();
+  if(k){
+    var el = document.querySelector('[data-k="'+k+'"]');
+    if(el){ el.focus(); if(pos!=null){ try{ el.setSelectionRange(pos,pos); }catch(e){} } }
+  }
+}
+function updateNav(){
+  var nb = document.getElementById("nav-batch"), ns = document.getElementById("nav-stock");
+  if(nb) nb.className = "nav-item"+((ST.view==="batch-list"||ST.view==="batch-create"||ST.view==="batch-detail")?" active":"");
+  if(ns) ns.className = "nav-item"+((ST.view==="inventory"||ST.view==="out-create"||ST.view==="out-detail")?" active":"");
+}
+function go(view, params){
+  ST.view = view;
+  if(params){
+    for(var k in params){
+      if(k==="id"){
+        if(view==="batch-detail") ST.batchId = params.id;
+        else if(view==="out-detail") ST.obId = params.id;
+        else ST.id = params.id;
+      }
+      else ST[k] = params[k];
+    }
+  }
+  render();
+  try{ window.scrollTo(0,0); }catch(e){}
+}
+
+/* ==================== 视图 1：生产批次列表（三列看板） ==================== */
+function vBatchList(){
+  var q = ST.q.trim(), df = ST.dateFilter;
+  var cols = [
+    {key:"草稿", dot:"var(--border-2)", desc:"班组长可继续调整计划生产量"},
+    {key:"已确认", dot:"var(--solid-warning)", desc:"已锁定计划，占用库存"},
+    {key:"已完成", dot:"var(--solid-progress)", desc:"已回执入库，净菜入账"}
+  ];
+  var board = cols.map(function(c){
+    var list = BATCHES.filter(function(b){
+      if(b.status!==c.key) return false;
+      if(q && (b.code+" "+b.operator+" "+b.productionDate).indexOf(q)<0) return false;
+      if(df && b.productionDate!==df) return false;
+      return true;
+    });
+    return '<div class="col"><div class="col-head"><span class="dot" style="background:'+c.dot+'"></span>'
+      + '<div><div class="t">'+E(c.key)+'</div><div class="d">'+E(c.desc)+'</div></div>'
+      + '<span class="cnt">'+list.length+'</span></div><div class="col-list">'
+      + (list.length ? list.map(batchCard).join("") : '<div class="empty"><div class="big">∅</div><div class="small">暂无批次</div></div>')
+      + '</div></div>';
+  }).join("");
+
+  var dates = {}; BATCHES.forEach(function(b){ dates[b.productionDate]=1; });
+  var dlist = Object.keys(dates).sort();
+  return '<div class="page-head"><div><h1>生产批次</h1>'
+    + '<div class="sub">一个生产批次 = 一次生产安排。切配中心可按排程单与实际库存自主定产，班组长可在批次内随时改量。</div></div>'
+    + '<div class="head-actions"><button class="btn" onclick="P1.go(\'batch-create\')">＋ 新建生产批次</button></div></div>'
+    + '<div class="toolbar">'
+      + '<div class="search"><input placeholder="搜索批次号 / 制单人" value="'+E(ST.q)+'" oninput="P1.setQ(this.value)"></div>'
+      + '<select class="input" style="width:auto;min-width:150px" onchange="P1.setDateFilter(this.value)">'
+        + '<option value="">全部生产日</option>'
+        + dlist.map(function(d){ return '<option value="'+d+'"'+(df===d?" selected":"")+'>'+E(FD(d))+'</option>'; }).join("")
+      + '</select>'
+      + '<button class="btn outline" onclick="P1.stub(\'列显示设置\')">⋯ 列设置</button>'
+      + '<div class="spacer"></div>'
+      + '<span class="hint">共 '+BATCHES.length+' 个批次</span>'
+    + '</div>'
+    + '<div class="board">'+board+'</div>'
+    + '<div class="foot-note">字段纪律：本卡片<b>不展示「关联排程单张数 / 来源单据数」</b>等无决策价值字段——班组长关心的是「做多少、缺多少」。</div>';
+}
+function batchCard(b){
+  var st = batchStats(b);
+  var gap = st.shortage>0
+    ? '<span style="color:var(--danger)"><b style="color:var(--danger)">'+N(st.shortage)+'</b>缺口份数</span>'
+    : '<span><b>'+N(0)+'</b>缺口份数</span>';
+  var acts = '<button class="btn xs outline" onclick="event.stopPropagation();P1.openBatch('+b.id+')">查看详情</button>';
+  if(b.status==="草稿") acts += '<button class="btn xs" onclick="event.stopPropagation();P1.confirmBatch('+b.id+')">确认批次</button>';
+  if(b.status==="已确认") acts += '<button class="btn xs" onclick="event.stopPropagation();P1.completeBatch('+b.id+')">完成生产</button>';
+  return '<div class="dcard" onclick="P1.openBatch('+b.id+')">'
+    + '<div style="display:flex;align-items:center;gap:8px"><span class="dcard-num">'+E(b.code)+'</span>'+statusBadge(b.status)+'</div>'
+    + '<div class="dcard-title">'+E(FD(b.productionDate))+' · '+E(shiftText(b))+'</div>'
+    + '<div class="dcard-metrics">'
+      + '<span><b>'+N(st.kinds)+'</b>净料种类</span>'
+      + '<span><b>'+N(st.demand)+'</b>需求份数</span>'
+      + '<span><b>'+N(st.suggest)+'</b>建议生产份数</span>'
+      + '<span><b>'+N(st.planned)+'</b>计划生产份数</span>'
+      + gap
+    + '</div>'
+    + '<div class="dcard-foot"><span class="who">制单人 '+E(b.operator)+' · '+E(b.createdAt)+'</span>'
+    + '<span style="display:flex;gap:6px" onclick="event.stopPropagation()">'+acts+'</span></div>'
+    + '</div>';
+}
+
+/* ==================== 视图 2：新建生产批次（三区） ==================== */
+function vBatchCreate(){
+  var nc = ST.nc;
+  var dlist = {}; SCHEDULES.forEach(function(s){ dlist[s.demandDate]=1; });
+  var darr = Object.keys(dlist).sort();
+  return '<button class="back" onclick="P1.go(\'batch-list\')">← 返回生产批次</button>'
+    + '<div class="page-head"><div><h1>新建生产批次</h1>'
+    + '<div class="sub">① 定批次属性 → ② 选门店排程单（可留空） → ③ 系统按共用库存实时算建议生产量。</div></div></div>'
+    /* ① 批次属性 */
+    + '<div class="panel" style="margin-bottom:16px"><div class="panel-head">① 批次属性</div>'
+      + '<div class="panel-body" style="display:flex;gap:16px;align-items:flex-end;flex-wrap:wrap;max-height:none">'
+      + '<div class="field" style="width:190px"><span class="lb">生产日<span class="req">*</span></span>'
+        + '<input class="input" type="date" value="'+E(nc.date)+'" onchange="P1.ncSetDate(this.value)"></div>'
+      + '<div class="field" style="width:170px"><span class="lb">计划时段</span>'
+        + '<select class="input" onchange="P1.ncSetShift(this.value)">'
+          + ["早班","中班","晚班","不设"].map(function(s){ return '<option value="'+s+'"'+(nc.shift===s?" selected":"")+'>'+(s==="不设"?"不设时段":s)+'</option>'; }).join("")
+        + '</select></div>'
+      + '<div class="hint" style="flex:1;min-width:280px">生产日默认取门店需求日 D-1，但<b>不做强限制</b>：当天没有排程单也能建批次，用「自主加一行」安排净菜生产；没有排程单来源的行会标记为「自主备货」。</div>'
+      + '</div></div>'
+    /* ② + ③ */
+    + '<div class="src-grid" style="grid-template-columns:5fr 7fr">'
+      /* ② */
+      + '<div class="panel"><div class="panel-head">② 为谁而做 · 门店排程单<span class="cnt" id="nc-picked">已选 '+nc.sel.length+' 张</span></div>'
+        + '<div style="padding:10px;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap">'
+          + '<select class="input" style="width:auto;min-width:120px" onchange="P1.ncFilterDate(this.value)"><option value="">全部需求日</option>'
+            + darr.map(function(d){ return '<option value="'+d+'"'+(nc.fDate===d?" selected":"")+'>'+E(FD(d))+'</option>'; }).join("")
+          + '</select>'
+          + '<select class="input" style="width:auto;min-width:120px" onchange="P1.ncFilterStore(this.value)"><option value="">全部门店</option>'
+            + STORES.map(function(s){ return '<option value="'+s.id+'"'+(nc.fStore===s.id?" selected":"")+'>'+E(s.name)+'</option>'; }).join("")
+          + '</select>'
+          + '<div class="search" style="min-width:180px;flex:1"><input placeholder="搜索门店 / 排程单号" value="'+E(nc.q)+'" oninput="P1.ncFilterQ(this.value)"></div>'
+        + '</div>'
+        + '<div class="panel-body" id="nc-picks" style="max-height:360px">'+ncPicksHTML()+'</div>'
+        + '<div style="padding:10px;border-top:1px solid var(--border)"><button class="btn sm outline" onclick="P1.ncClear()">清空已选</button></div>'
+      + '</div>'
+      /* ③ */
+      + '<div class="panel"><div class="panel-head">③ 做多少 · 实时汇总<span class="cnt" id="nc-cnt"></span></div>'
+        + '<div class="panel-body" style="max-height:none;padding:12px" id="nc-sum"></div>'
+        + '<div class="panel-body" id="nc-rows" style="padding:0 12px 12px"></div>'
+        + '<div style="padding:10px 12px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center">'
+          + '<button class="btn sm outline" onclick="P1.selfAdd(\'nc\')">＋ 自主加一行</button>'
+          + '<span class="hint">没有排程单来源的生产，按「自主备货」计入本批次</span>'
+        + '</div>'
+      + '</div>'
+    + '</div>'
+    + '<div id="nc-banner"></div>'
+    + '<div class="actions-bar"><span class="hint">库存口径：全模块共用一份净菜库存数据，缺口 = 需求 − 可用库存</span>'
+      + '<div class="spacer"></div>'
+      + '<button class="btn outline" onclick="P1.go(\'batch-list\')">取消</button>'
+      + '<button class="btn" onclick="P1.createBatch()">创建批次</button></div>';
+}
+function ncPicksHTML(){
+  var nc = ST.nc, used = batchUsedSchedIds(), q = nc.q.trim();
+  var list = SCHEDULES.filter(function(s){
+    if(nc.fDate && s.demandDate!==nc.fDate) return false;
+    if(nc.fStore && s.storeId!==nc.fStore) return false;
+    if(q && (s.code+" "+storeName(s.storeId)+" "+s.demandDate).indexOf(q)<0) return false;
+    return true;
+  });
+  if(!list.length) return '<div class="empty"><div class="big">∅</div><div class="small">没有匹配的排程单</div></div>';
+  /* 可加入本批次的排程单排在前面；已被其它批次占用的排在后面且不可选 */
+  var free = [], taken = [];
+  list.forEach(function(s){ (used[s.id]?taken:free).push(s); });
+  function row(s){
+    var sel = nc.sel.indexOf(s.id)>=0;
+    var by = used[s.id];
+    var prod = prodDateOf(s.demandDate);
+    return '<div class="pick'+(sel?" sel":"")+(by?" locked":"")+'" data-id="'+s.id+'" onclick="P1.ncToggle('+s.id+')">'
+      + '<div class="pt"><span class="chk '+(sel?"on":"off")+'">'+(sel?"✓":"")+'</span>'+E(storeName(s.storeId))
+        + '<span class="mono">'+E(s.code)+'</span>'
+        + (by?'<span class="tag soft">已用于 '+E(by)+'</span>':'')
+      + '</div>'
+      + '<div class="pm"><span>需求日 '+E(FD(s.demandDate))+'</span><span>菜品 '+s.dishes+' 道</span>'
+        + '<span>共 '+N(schPortions(s))+' 份</span><span class="tag">'+E(s.status)+'</span>'
+        + '<span style="margin-left:auto;color:var(--muted-2)">建议生产日 '+E(FD(prod))+'（D-1）</span>'
+      + '</div></div>';
+  }
+  var html = "";
+  if(free.length) html += '<div class="hint" style="margin:0 2px 6px">可加入本批次（'+free.length+' 张）</div>' + free.map(row).join("");
+  if(taken.length) html += '<div class="hint" style="margin:10px 2px 6px">已被其它批次占用（'+taken.length+' 张）· 一张排程单只能进入一个生产批次</div>' + taken.map(row).join("");
+  return html;
+}
+function prodDateOf(demandDate){
+  var d = new Date(demandDate+"T00:00:00"); d.setDate(d.getDate()-1);
+  return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+}
+function ncRows(){
+  var map = {}, order = [];
+  function touch(nid){ if(!map[nid]){ map[nid]={netId:nid,demand:0,self:0}; order.push(nid); } return map[nid]; }
+  ST.nc.sel.forEach(function(sid){
+    var s = schById(sid); if(!s) return;
+    s.items.forEach(function(it){ touch(it.netId).demand = R(touch(it.netId).demand + it.portions); });
+  });
+  ST.nc.self.forEach(function(r){ var o=touch(r.netId); o.demand=R(o.demand+r.portions); o.self=R(o.self+r.portions); });
+  return order.map(function(nid){
+    var o = map[nid], n = netById(nid), st = stockOf(nid);
+    o.name=n.name; o.spec=n.spec; o.avail=st.avail; o.total=st.total; o.reserved=st.reserved;
+    o.suggest = Math.max(0, R(o.demand - st.avail));
+    o.gap = Math.max(0, R(o.demand - st.avail));
+    o.cover = Math.min(o.demand, st.avail);
+    return o;
+  }).sort(function(a,b){ return b.demand-a.demand; });
+}
+function ncSummaryHTML(){
+  var rows = ncRows();
+  var kinds=0,demand=0,cover=0,suggest=0,gap=0;
+  rows.forEach(function(r){ if(r.demand>0) kinds++; demand=R(demand+r.demand); cover=R(cover+r.cover); suggest=R(suggest+r.suggest); gap=R(gap+r.gap); });
+  return '<div class="summary" style="margin-bottom:12px">'
+    + '<div class="item"><span class="lb">净料种类</span><b>'+N(kinds)+'</b></div><div class="sep"></div>'
+    + '<div class="item"><span class="lb">需求份数</span><b>'+N(demand)+'</b></div><div class="sep"></div>'
+    + '<div class="item"><span class="lb">库存覆盖份数</span><b class="ok">'+N(cover)+'</b></div><div class="sep"></div>'
+    + '<div class="item"><span class="lb">建议生产份数</span><b>'+N(suggest)+'</b></div><div class="sep"></div>'
+    + '<div class="item"><span class="lb">缺口份数</span><b class="'+(gap>0?"bad":"ok")+'">'+N(gap)+'</b></div>'
+    + '</div>';
+}
+function ncRowsHTML(){
+  var rows = ncRows();
+  if(!rows.length) return '<div class="empty"><div class="big">＋</div><div class="small">先在左侧勾选门店排程单，或用「自主加一行」安排生产</div></div>';
+  return '<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+    + '<th>净料</th><th class="num">需求量</th><th class="num">可用库存</th><th class="num">建议生产</th><th class="num">缺口</th>'
+    + '</tr></thead><tbody>'
+    + rows.map(function(r){
+      var isSelf = r.self>0;
+      return '<tr'+(r.gap>0?' class="hold"':'')+'>'
+        + '<td><span class="strong">'+E(r.name)+'</span> '+(isSelf?'<span class="tag soft">自主备货</span>':'')
+          + '<span class="rowhint">'+r.spec+' g/份</span></td>'
+        + '<td class="num">'+N(r.demand)+'</td>'
+        + '<td class="num">'+N(r.avail)+(r.reserved>0?'<span class="rowhint">已占用 '+N(r.reserved)+'</span>':'')+'</td>'
+        + '<td class="num strong">'+N(r.suggest)+'</td>'
+        + '<td class="num">'+(r.gap>0?'<span style="color:var(--danger);font-weight:600">'+N(r.gap)+'</span>':'0')+'</td>'
+        + '</tr>';
+    }).join("")
+    + '</tbody></table></div>';
+}
+function ncBannerHTML(){
+  var rows = ncRows(), short = [], gap = 0;
+  rows.forEach(function(r){ if(r.gap>0){ short.push(r.name); gap=R(gap+r.gap); } });
+  if(!rows.length) return '<div class="banner primary"><span>ℹ</span><div>本批次暂无生产内容。可从左侧勾选门店排程单，或用「自主加一行」先安排一批净菜生产。</div></div>';
+  if(short.length) return '<div class="banner warn"><span>⚠</span><div><b>'+E(short.join("、"))+' 库存不足</b>，缺口合计 <b>'+N(gap)+' 份</b>。建议生产量已按共用库存扣减，缺口需通过采购补足或与门店协商减量。</div></div>';
+  return '<div class="banner info"><span>✓</span><div>当前可用库存可覆盖本批次全部需求，<b>无需净菜生产</b>；若仍需生产，请在「自主加一行」中填写份数。</div></div>';
+}
+function ncPaint(){
+  var s = document.getElementById("nc-sum"); if(s) s.innerHTML = ncSummaryHTML();
+  var r = document.getElementById("nc-rows"); if(r) r.innerHTML = ncRowsHTML();
+  var b = document.getElementById("nc-banner"); if(b) b.innerHTML = ncBannerHTML();
+  var c = document.getElementById("nc-cnt"); if(c) c.textContent = ncRows().length + " 种净料";
+  var p = document.getElementById("nc-picked"); if(p) p.textContent = "已选 " + ST.nc.sel.length + " 张";
+}
+function ncPaintPicks(){
+  var el = document.getElementById("nc-picks"); if(!el) return;
+  var top = el.scrollTop;
+  el.innerHTML = ncPicksHTML();
+  el.scrollTop = top;
+  var p = document.getElementById("nc-picked"); if(p) p.textContent = "已选 " + ST.nc.sel.length + " 张";
+}
+/* ==================== 视图 3：生产批次详情（4 Tab） ==================== */
+function vBatchDetail(){
+  var b = batchById(ST.batchId!=null?ST.batchId:ST.id); if(!b) return '<div class="empty">批次不存在</div>';
+  var st = batchStats(b);
+  var acts = "";
+  if(b.status==="草稿") acts += '<button class="btn outline" onclick="P1.confirmBatch('+b.id+')">确认批次</button>';
+  if(b.status==="已确认") acts += '<button class="btn" onclick="P1.completeBatch('+b.id+')">完成生产</button>';
+  if(b.status==="已完成") acts += '<button class="btn outline" onclick="P1.stub(\'生产回执打印（原型占位）\')">打印回执</button>';
+  var tabs = [["tasks","生产任务"],["stores","门店需求"],["purchase","采购需求"],["receipt","生产回执"]];
+  var body = ST.tab==="tasks" ? tabTasks(b) : ST.tab==="stores" ? tabStores(b) : ST.tab==="purchase" ? tabPurchase(b) : tabReceipt(b);
+  return '<button class="back" onclick="P1.go(\'batch-list\')">← 返回生产批次</button>'
+    + '<div class="page-head"><div><h1>'+E(b.code)+' '+statusBadge(b.status)+'</h1>'
+      + '<div class="sub">生产日 '+E(FD(b.productionDate))+' · '+E(shiftText(b))+' · 制单人 '+E(b.operator)+' · 创建于 '+E(b.createdAt)+'</div></div>'
+      + '<div class="head-actions">'+acts+'</div></div>'
+    + '<div class="tabs">'+tabs.map(function(t){
+        return '<button class="'+(ST.tab===t[0]?"active":"")+'" onclick="P1.setTab(\''+t[0]+'\')">'+E(t[1])+'</button>';
+      }).join("")+'</div>'
+    + '<div id="tab-wrap">'+body+'</div>';
+}
+/* ---------- Tab 1：生产任务（班组长工作台） ---------- */
+function tabTasks(b){
+  var rows = batchRows(b), st = batchStats(b);
+  var body = rows.map(function(r){
+    var open = !!ST.expanded[b.id+":"+r.netId];
+    var cls = r.shortage>0 ? "short" : (r.avail<r.demand ? "hold" : "");
+    var diff = r.diff>0 ? '<span style="color:var(--success);font-weight:600">+'+N(r.diff)+' 转为库存</span>'
+            : r.diff<0 ? '<span style="color:var(--danger);font-weight:600">−'+N(-r.diff)+' 缺口</span>'
+            : '<span class="dim">一致</span>';
+    var deletable = r.self>0 && r.detail.every(function(d){ return d.schId===null; });
+    var stBadge = r.shortage>0 ? '<span class="badge danger">缺口</span>'
+                 : r.avail<r.demand ? '<span class="badge pending">库存不足</span>'
+                 : r.diff>0 ? '<span class="badge soft">计划偏多</span>' : '<span class="badge done">已覆盖</span>';
+    var worst = worstShort(r);
+    var hint = "";
+    if(r.shortage>0 && worst) hint = '<span class="rowhint bad">'+E(worst.store+" 将短交 "+N(worst.short)+" 份")+'</span>';
+    else if(r.diff>0 && r.demand>0) hint = '<span class="rowhint ok">'+E("多出 "+N(r.diff)+" 份可转为库存")+'</span>';
+    return '<tr class="'+cls+'">'
+      + '<td><button class="expander expand-btn row-toggle" data-toggle="expand" data-net="'+r.netId+'" onclick="P1.toggleExpand(\''+r.netId+'\')">'+(open?"▾":"▸")+'</button><span class="strong">'+E(r.name)+'</span>'
+        + (r.self>0?' <span class="tag soft">自主备货</span>':'')+'</td>'
+      + '<td class="num dim">'+r.spec+' g/份</td>'
+      + '<td class="num">'+N(r.demand)+'</td>'
+      + '<td class="num">'+N(r.avail)+(r.reserved>0?'<span class="rowhint">已占用 '+N(r.reserved)+'</span>':'')+'</td>'
+      + '<td class="num">'+N(r.suggest)+'</td>'
+      + '<td class="num"><input class="input num-in inline-input" type="number" step="0.5" min="0" value="'+N(r.planned)+'" data-k="pl-'+b.id+'-'+r.netId+'" data-net="'+r.netId+'" oninput="P1.setPlanned('+b.id+',\''+r.netId+'\',this.value)" onchange="P1.setPlanned('+b.id+',\''+r.netId+'\',this.value)"></td>'
+      + '<td class="num">'+diff+'</td>'
+      + '<td>'+stBadge+hint+'</td>'
+      + '<td class="act">'+(deletable ? '<button class="row-del" onclick="P1.delRow('+b.id+',\''+r.netId+'\')">删除</button>' : '<span class="hint">排程单带入</span>')+'</td>'
+      + '</tr>'
+      + (open ? '<tr class="subrow"><td colspan="9"><div class="subbox"><div class="sh">需求下钻 · 该净料在 '+N(r.demand)+' 份需求中的门店与菜品分布（库存先覆盖，剩余由本批次计划生产分配）</div>'
+          + (r.alloc.length ? '<table class="tbl" style="font-size:12px"><thead><tr><th>门店</th><th>菜品</th><th class="num">需求份数</th><th class="num">本批次分配</th><th class="num">缺口</th></tr></thead><tbody>'
+            + r.alloc.map(function(a){
+                return '<tr'+(a.short>0?' class="short"':'')+'><td>'+E(a.storeId?storeName(a.storeId):"自主备货")+'</td><td>'+E(a.dish)+'</td>'
+                  + '<td class="num">'+N(a.portions)+'</td><td class="num">'+N(a.alloc)+'</td>'
+                  + '<td class="num">'+(a.short>0?'<span style="color:var(--danger);font-weight:600">'+N(a.short)+'</span>':'0')+'</td></tr>';
+              }).join("")
+            + '</tbody></table>' : '<div class="hint">该行为自主备货，没有门店排程单来源。</div>')
+          + '</div></td></tr>' : '');
+  }).join("");
+  var purch = purchaseRows(b);
+  var gross = purch.reduce(function(a,p){ return R(a+p.gross); },0);
+  var buy = purch.reduce(function(a,p){ return R(a+p.buy); },0);
+  return '<div class="editor-bar">'
+      + '<button class="btn sm outline" onclick="P1.fillSuggest('+b.id+')">按建议量一键填充</button>'
+      + '<button class="btn sm outline" onclick="P1.recalcSuggest('+b.id+')">按实际库存重算建议量</button>'
+      + '<button class="btn sm outline" onclick="P1.selfAdd(\'batch\','+b.id+')">＋ 自主加一行</button>'
+      + '<div class="spacer"></div>'
+      + '<span class="hint">「计划生产」可直接改量；改动会实时联动差异、门店分配缺口与采购需求</span>'
+    + '</div>'
+    + '<div class="tbl-wrap"><table class="tbl editor"><thead><tr>'
+      + '<th>净料</th><th class="num">规格(g/份)</th><th class="num">需求量</th><th class="num">可用库存</th>'
+      + '<th class="num">建议生产</th><th class="num">计划生产</th><th class="num">差异</th><th>状态</th><th>操作</th>'
+    + '</tr></thead><tbody>'+body+'</tbody></table></div>'
+    + '<div class="summary" style="margin-top:14px">'
+      + '<div class="item"><span class="lb">净料种类</span><b>'+N(st.kinds)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">需求份数</span><b>'+N(st.demand)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">库存覆盖</span><b class="ok">'+N(st.cover)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">建议生产</span><b>'+N(st.suggest)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">计划生产</span><b>'+N(st.planned)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">缺口</span><b class="'+(st.shortage>0?"bad":"ok")+'">'+N(st.shortage)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">采购联动 · 毛料需求</span><b>'+N(gross)+'</b><span class="lb">斤</span></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">实际需采购</span><b>'+N(buy)+'</b><span class="lb">斤</span></div>'
+    + '</div>'
+    + '<div class="foot-note">字段纪律：本页<b>不展示「关联排程单张数 / 需求单据数」</b>——班组长只关心做多少、缺多少。</div>';
+}
+function worstShort(r){
+  var w = null;
+  r.alloc.forEach(function(a){ if(!a.storeId) return; if(a.short>0 && (!w || a.short>w.short)) w={store:storeName(a.storeId), short:a.short}; });
+  return w;
+}
+/* ---------- Tab 2：门店需求（跨店矩阵） ---------- */
+function tabStores(b){
+  var rows = batchRows(b);
+  var stores = [];
+  rows.forEach(function(r){ r.alloc.forEach(function(a){ if(stores.indexOf(a.storeId)<0) stores.push(a.storeId); }); });
+  var head = stores.map(function(s){ return '<th class="num">'+E(storeName(s))+'</th>'; }).join("");
+  var body = rows.map(function(r){
+    var total = 0, gap = 0;
+    var cells = stores.map(function(s){
+      var a = null;
+      r.alloc.forEach(function(x){ if(x.storeId===s) a=x; });
+      if(!a) return '<td class="num dim">—</td>';
+      total = R(total+a.portions); gap = R(gap+a.short);
+      if(a.short>0) return '<td class="num" style="background:var(--danger-bg);color:var(--danger);font-weight:600">'+N(a.portions)+'<span class="rowhint" style="color:var(--danger)">缺 '+N(a.short)+'</span></td>';
+      return '<td class="num">'+N(a.portions)+'</td>';
+    }).join("");
+
+    return '<tr'+(gap>0?' class="short"':'')+'><td><span class="strong">'+E(r.name)+'</span>'
+      + (r.self>0?' <span class="tag soft">自主备货</span>':'')+'</td>'+cells
+      + '<td class="num strong">'+N(total)+'</td>'
+      + '<td class="num">'+(gap>0?'<span style="color:var(--danger);font-weight:600">'+N(gap)+'</span>':'0')+'</td></tr>';
+  }).join("");
+  var st = batchStats(b);
+  return '<div class="banner info"><span>ℹ</span><div>红格 = 该门店在该净料上存在缺口。缺口 = 门店需求 − 本批次可分配量，本批次计划生产量优先按需求量比例分配。</div></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>净料</th>'+head
+      + '<th class="num">需求合计</th><th class="num">缺口</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+    + '<div class="summary" style="margin-top:14px">'
+      + '<div class="item"><span class="lb">涉及门店</span><b>'+N(stores.length)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">需求份数</span><b>'+N(st.demand)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">缺口份数</span><b class="'+(st.shortage>0?"bad":"ok")+'">'+N(st.shortage)+'</b></div>'
+    + '</div>';
+}
+/* ---------- Tab 3：采购需求 ---------- */
+function purchaseRows(b){
+  return batchRows(b).filter(function(r){ return r.demand>0 || r.planned>0; }).map(function(r){
+    var n = netById(r.netId);
+    var gross = rawJin(r.demand, n);
+    var need  = rawJin(r.planned, n);
+    var diff  = R(gross - need);
+    return {netId:r.netId, name:r.name, raw:n.raw, gross:gross, need:need, diff:diff, buy:need, money:R(need*n.rawPrice), price:n.rawPrice};
+  });
+}
+function tabPurchase(b){
+  var rows = purchaseRows(b);
+  var gross=0, need=0, diff=0, money=0;
+  rows.forEach(function(r){ gross=R(gross+r.gross); need=R(need+r.need); diff=R(diff+r.diff); money=R(money+r.money); });
+  var bRows = batchRows(b);
+  var body = rows.length ? rows.map(function(r){
+    var src = null;
+    bRows.forEach(function(x){ if(x.netId===r.netId) src=x; });
+    var open = !!ST.expanded[b.id+":p:"+r.netId];
+    return '<tr'+(r.diff<0?' class="short"':'')+'>'
+      + '<td><button class="expander expand-btn row-toggle" data-toggle="expand" data-net="'+r.netId+'" onclick="P1.toggleExpand(\'p:'+r.netId+'\')">'+(open?"▾":"▸")+'</button>'
+        + '<span class="strong">'+E(r.raw)+'</span><span class="rowhint">'+E(r.name)+' · 出成率 '+netById(r.netId).yld+'%</span></td>'
+      + '<td class="num">'+N(r.gross)+'</td>'
+      + '<td class="num strong">'+N(r.need)+'</td>'
+      + '<td class="num">'+(r.diff>0?'<span style="color:var(--success);font-weight:600">少买 '+N(r.diff)+'</span>':(r.diff<0?'<span style="color:var(--danger);font-weight:600">超 '+N(-r.diff)+'</span>':'0'))+'</td>'
+      + '<td class="num">'+N(r.buy)+'</td>'
+      + '<td class="num">¥'+N(r.money)+'</td></tr>'
+      + (open && src ? '<tr class="subrow"><td colspan="6"><div class="subbox"><div class="sh">采购来源下钻 · 该原料对应的净料与需求来源</div>'
+          + '<div style="font-size:12px;color:var(--muted);line-height:1.9">'
+            + '净料 <b>'+E(src.name)+'</b>（'+src.spec+' g/份 · 出成率 '+netById(r.netId).yld+'%）　'
+            + '本批次需求 <b>'+N(src.demand)+'</b> 份　计划生产 <b>'+N(src.planned)+'</b> 份　缺口 <b>'+N(src.shortage)+'</b> 份<br>'
+            + (src.alloc.length ? src.alloc.map(function(a){ return '· '+E(a.storeId?storeName(a.storeId):"自主备货")+'：需求 '+N(a.portions)+' 份（本批次可覆盖 '+N(a.alloc)+' 份'+(a.short>0?'，仍缺 '+N(a.short)+' 份':'')+'）'; }).join("<br>") : '· 无门店排程单来源（自主备货）')
+          + '</div></div></td></tr>' : '');
+  }).join("") : '<tr><td colspan="6"><div class="empty"><div class="big">∅</div><div class="small">本批次暂无采购需求</div></div></td></tr>';
+  return '<div class="banner info"><span>ℹ</span><div><b>毛需求</b> = 按门店需求全量折算的毛料；<b>计划生产对应需求</b> = 按本批次「计划生产量」折算的毛料；<b>差额</b> = 因库存覆盖而<b>比毛需求少买</b>的量；<b>采购量</b>即实际需下单的毛料。</div></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>原料</th><th class="num">毛需求(斤)</th><th class="num">计划生产对应需求(斤)</th>'
+      + '<th class="num">差额(少买)</th><th class="num">采购量(斤)</th><th class="num">预估金额</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+    + '<div class="summary" style="margin-top:14px">'
+      + '<div class="item"><span class="lb">毛需求合计</span><b>'+N(gross)+'</b><span class="lb">斤</span></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">计划生产对应</span><b>'+N(need)+'</b><span class="lb">斤</span></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">比毛需求少买</span><b class="ok">'+N(diff)+'</b><span class="lb">斤</span></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">预估金额</span><b>¥'+N(money)+'</b></div>'
+    + '</div>'
+    + '<div class="foot-note">采购量随「计划生产量」实时联动：在「生产任务」页改量后回到本页，毛料需求与金额同步下降。</div>';
+}
+/* ---------- Tab 4：生产回执 ---------- */
+function tabReceipt(b){
+  var rows = batchRows(b);
+  var readonly = b.status==="已完成";
+  var body = rows.map(function(r){
+    var rc = r.receipt || {actual:r.planned, status:"completed", reason:""};
+    var seg = '<div class="seg" style="display:inline-flex">'
+      + '<button class="'+(rc.status==="completed"?"on-done":"")+'" onclick="P1.setReceipt('+b.id+',\''+r.netId+'\',\'completed\')"'+(readonly?" disabled":"")+'>完成</button>'
+      + '<button class="'+(rc.status==="unfinished"?"on-undone":"")+'" onclick="P1.setReceipt('+b.id+',\''+r.netId+'\',\'unfinished\')"'+(readonly?" disabled":"")+'>未完成</button>'
+      + '<button class="'+(rc.status==="hold"?"on-hold":"")+'" onclick="P1.setReceipt('+b.id+',\''+r.netId+'\',\'hold\')"'+(readonly?" disabled":"")+'>暂不确认</button>'
+      + '</div>';
+    var reason = rc.status==="unfinished"
+      ? '<input class="input" style="width:220px;height:32px;margin-top:6px" placeholder="未完成原因，如：到货不足" value="'+E(rc.reason||"")+'" data-k="rs-'+b.id+'-'+r.netId+'" oninput="P1.setReason('+b.id+',\''+r.netId+'\',this.value)"'+(readonly?" disabled":"")+'>'
+      : '<span class="hint">—</span>';
+    return '<tr'+(rc.status==="unfinished"?' class="unfinished"':(rc.status==="completed"?' class="done"':''))+'>'
+      + '<td><span class="strong">'+E(r.name)+'</span>'+(r.self>0?' <span class="tag soft">自主备货</span>':'')+'</td>'
+      + '<td class="num">'+N(r.planned)+'</td>'
+      + '<td class="num"><input class="input num-in" type="number" step="0.5" min="0" value="'+N(rc.actual==null?"":rc.actual)+'" data-k="ac-'+b.id+'-'+r.netId+'" oninput="P1.setActual('+b.id+',\''+r.netId+'\',this.value)"'+(readonly?" disabled":"")+'></td>'
+      + '<td>'+seg+'</td>'
+      + '<td>'+reason+'</td></tr>';
+  }).join("");
+  var foot = readonly
+    ? '<div class="actions-bar"><span class="hint">该批次已完成入库，回执只读</span><div class="spacer"></div></div>'
+    : '<div class="actions-bar"><span class="hint">提交后：完成行按实际份数入库净菜库存，批次置为已完成</span><div class="spacer"></div>'
+      + '<button class="btn outline" onclick="P1.go(\'batch-list\')">稍后处理</button>'
+      + '<button class="btn" onclick="P1.submitReceipt('+b.id+')">提交并入库</button></div>';
+  return '<div class="banner info"><span>ℹ</span><div>逐行回填「实际完成份数」与完成状态。未完成需填写原因；「暂不确认」的行不入库。</div></div>'
+    + '<div class="tbl-wrap"><table class="tbl editor"><thead><tr><th>净料</th><th class="num">计划生产</th><th class="num">实际完成份数</th><th>完成状态</th><th>未完成原因</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+    + foot;
+}
+/* ==================== 视图 4：库存 ==================== */
+function vInventory(){
+  var total=0, rsv=0, avail=0;
+  var rows = NETS.map(function(n){
+    var st = stockOf(n.id);
+    total=R(total+st.total); rsv=R(rsv+st.reserved); avail=R(avail+st.avail);
+    return {n:n, st:st};
+  });
+  var stockBody = rows.map(function(r){
+    return '<tr'+(r.st.reserved>0?' class="hold"':'')+'>'
+      + '<td><span class="strong">'+E(r.n.name)+'</span><span class="rowhint">'+E(r.n.code)+' · '+r.n.spec+' g/份</span></td>'
+      + '<td>'+E(r.n.l1)+'</td>'
+      + '<td class="num">'+N(r.st.total)+'</td>'
+      + '<td class="num">'+(r.st.reserved>0?'<span style="color:var(--warning);font-weight:600">'+N(r.st.reserved)+'</span>':'0')+'</td>'
+      + '<td class="num strong">'+N(r.st.avail)+'</td>'
+      + '<td class="mono">'+E(r.st.last)+'</td></tr>';
+  }).join("");
+  var obBody = OUTBOUNDS.map(function(o){
+    var s = schById(o.scheduleId);
+    var qty=0, money=0;
+    o.lines.forEach(function(l){ qty+=l.qty; money=R(money+l.qty*netPrice(l.netId)); });
+    var acts = '<button class="btn xs outline" onclick="P1.openOb(\''+o.id+'\')">详情</button>';
+    if(o.status==="待出库") acts += '<button class="btn xs" onclick="P1.confirmOb(\''+o.id+'\')">确认出库</button>';
+    acts += '<button class="btn xs ghost" onclick="P1.printOb(\''+o.id+'\')">打印</button>';
+    return '<tr><td class="mono">'+E(o.code)+'</td>'
+      + '<td>'+E(storeName(o.storeId))+'</td>'
+      + '<td class="mono">'+E(s?s.code:"—")+'</td>'
+      + '<td class="num">'+N(qty)+'</td>'
+      + '<td class="num">¥'+N(money)+'</td>'
+      + '<td>'+statusBadge(o.status)+'</td>'
+      + '<td>'+E(o.manager)+'</td>'
+      + '<td class="mono">'+E(o.createdAt)+'</td>'
+      + '<td style="white-space:nowrap">'+acts+'</td></tr>';
+  }).join("");
+  return '<div class="page-head"><div><h1>净菜库存</h1>'
+    + '<div class="sub">全模块共用这一份库存数据：批次建议生产量、出库可出量都取自这里的「可用份数」。</div></div>'
+    + '<div class="head-actions"><button class="btn" onclick="P1.go(\'out-create\')">＋ 新建出库单</button></div></div>'
+    + '<div class="info-grid" style="grid-template-columns:repeat(4,1fr)">'
+      + '<div class="tile"><div class="lb">净料种类</div><div class="vl">'+N(NETS.length)+'</div><div class="hl">含净料与小料</div></div>'
+      + '<div class="tile"><div class="lb">库存份数</div><div class="vl">'+N(total)+'</div><div class="hl">净菜成品库存</div></div>'
+      + '<div class="tile"><div class="lb">已占用份数</div><div class="vl" style="color:var(--warning)">'+N(rsv)+'</div><div class="hl">待出库单预定</div></div>'
+      + '<div class="tile"><div class="lb">可用份数</div><div class="vl" style="color:var(--success)">'+N(avail)+'</div><div class="hl">库存 − 已占用</div></div>'
+    + '</div>'
+    + '<div class="tile" style="padding:0;overflow:hidden;margin-bottom:20px"><table class="tbl"><thead><tr>'
+      + '<th>名称</th><th>一级分类</th><th class="num">库存份数</th><th class="num">已占用份数</th><th class="num">可用份数</th><th>最近变动</th>'
+    + '</tr></thead><tbody>'+stockBody+'</tbody></table></div>'
+    + '<h3 style="font-size:16px;font-weight:600;margin:0 0 10px">出库单</h3>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+      + '<th>出库单号</th><th>门店</th><th>来源排程单</th><th class="num">出库份数</th><th class="num">合计金额</th><th>状态</th><th>库管负责人</th><th>创建时间</th><th>操作</th>'
+    + '</tr></thead><tbody>'+obBody+'</tbody></table></div>'
+    + '<div class="foot-note">字段纪律：已按字段纪律移除 <b>序号 / 出库主体 / 是否按计划出库</b>——出库主体恒为门店，无需选择；「是否按计划出库」是过程字段，不进入台账。</div>';
+}
+/* ==================== 视图 5：创建出库单（2 步向导） ==================== */
+function storeStats(storeId){
+  var demand=0, shipped=0, nets={};
+  SCHEDULES.forEach(function(s){
+    if(s.storeId!==storeId) return;
+    demand=R(demand+schPortions(s));
+    s.items.forEach(function(it){ nets[it.netId]=1; });
+    OUTBOUNDS.forEach(function(o){ if(o.scheduleId===s.id && o.status==="已出库") shipped=R(shipped+obQty(o)); });
+  });
+  var avail=0; Object.keys(nets).forEach(function(nid){ avail=R(avail+stockOf(nid).avail); });
+  return {demand:demand, shipped:shipped, pending:R(demand-shipped), avail:avail, nets:Object.keys(nets).length};
+}
+function obQty(o){ var t=0; o.lines.forEach(function(l){ t+=l.qty; }); return t; }
+function freeSchs(storeId){
+  var used = obUsedSchedIds();
+  return SCHEDULES.filter(function(s){ return s.storeId===storeId && !used[s.id]; });
+}
+function vOutCreate(){
+  var o = ST.out, hasStore = !!o.storeId;
+  var steps = '<div class="steps">'
+    + '<div class="s '+(hasStore?"done":"on")+'"><span class="n">'+(hasStore?"✓":"1")+'</span>选收货门店</div><span class="sep"></span>'
+    + '<div class="s '+(hasStore?"on":"")+'"><span class="n">2</span>确认出库明细</div></div>';
+  return steps + vOutStep1() + vOutStep2();
+}
+function vOutStep1(){
+  var cards = STORES.map(function(s){
+    var st = storeStats(s.id);
+    var free = freeSchs(s.id);
+    return '<div class="store-card'+(ST.out.storeId===s.id?" sel":"")+'" data-store="'+s.id+'" onclick="P1.outPickStore(\''+s.id+'\')">'
+      + '<div class="sn">'+E(s.name)+'</div>'
+      + '<div class="sm"><span>待发<b>'+N(st.pending)+'</b>份</span><span>可出<b>'+N(st.avail)+'</b>份</span><span>涉及净料<b>'+N(st.nets)+'</b>种</span></div>'
+      + '<div style="margin-top:10px;font-size:12px;color:var(--muted)">可开单排程单</div>'
+      + (free.length ? free.map(function(x){ return '<div style="margin-top:4px;font-size:12px">· '+E(x.code)+' 需求日 '+E(FD(x.demandDate))+' · '+N(schPortions(x))+' 份</div>'; }).join("")
+        : '<div style="margin-top:4px;font-size:12px;color:var(--muted-2)">该门店的排程单均已开过出库单</div>')
+      + '</div>';
+  }).join("");
+  return '<div class="panel" style="margin-bottom:16px"><div class="panel-head">① 选收货门店<span class="cnt">'
+      + (ST.out.storeId ? "已选 "+E(storeName(ST.out.storeId)) : "出库主体恒为门店")+'</span></div>'
+    + '<div class="panel-body" style="max-height:none">'
+    + '<div class="grid3">'+cards+'</div>'
+    + '<div class="banner info" style="margin:14px 0 0"><span>ℹ</span><div>卡片上只有「待发 / 可出」两个决策数字——门店要发多少、当前库存能支撑多少。这里没有「切配中心」这个出库主体。</div></div>'
+    + '</div></div>';
+}
+function vOutStep2(){
+  var o = ST.out, s = o.schId ? schById(o.schId) : null;
+  var free = o.storeId ? freeSchs(o.storeId) : [];
+  var body = o.lines.map(function(l, i){
+    var n = netById(l.netId), st = stockOf(l.netId);
+    var gap = R(l.due - l.qty);
+    return '<tr'+(gap>0?' class="short"':'')+'>'
+      + '<td><span class="strong">'+E(n.name)+'</span>'+(l.manual?' <span class="tag soft">手工添加</span>':'')+'</td>'
+      + '<td class="num dim">'+n.spec+' g/份</td>'
+      + '<td class="num">'+N(l.due)+'</td>'
+      + '<td class="num"><input class="input num-in inline-input" type="number" step="0.5" min="0" max="'+N(st.avail)+'" value="'+N(l.qty)+'" data-k="oq-'+i+'" oninput="P1.outSetQty('+i+',this.value)" onchange="P1.outSetQty('+i+',this.value)"></td>'
+      + '<td class="num">¥'+N(n.price)+'</td>'
+      + '<td class="num strong">¥'+N(R(l.qty*n.price))+(gap>0?'<span class="rowhint bad">缺 '+N(gap)+' 份</span>':'')+'</td>'
+      + '<td class="act"><button class="row-del" onclick="P1.outDelLine('+i+')">删除</button></td></tr>';
+  }).join("");
+  var due=0, qty=0, money=0, gap=0;
+  o.lines.forEach(function(l){ due=R(due+l.due); qty=R(qty+l.qty); money=R(money+l.qty*netPrice(l.netId)); gap=R(gap+Math.max(0,l.due-l.qty)); });
+  var srcHint = !o.storeId ? "请先在上方选择收货门店；出库主体恒为门店"
+    : s ? ("来源排程单 "+s.code+"：需求 "+N(schPortions(s))+" 份；生产日 "+FD(prodDateOf(s.demandDate))+"（需求日 D-1）"
+          + (batchUsedSchedIds()[s.id] ? " · 来源生产批次 "+batchUsedSchedIds()[s.id] : " · 尚无生产批次，可先出库并由库存覆盖"))
+    : "未选择排程单：本次为手工出库（无排程来源的行应出量记 0）";
+  var canSubmit = !!(o.storeId && o.lines.length);
+  return '<div class="panel" style="margin-bottom:16px"><div class="panel-head">② 确认出库明细<span class="cnt">'
+      + (o.storeId ? "收货门店 "+E(storeName(o.storeId)) : "待选门店")+'</span></div>'
+    + '<div class="panel-body" style="max-height:none">'
+    + '<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;margin-bottom:10px">'
+    + '<div class="field" style="width:330px"><span class="lb">来源排程单</span>'
+      + '<select class="input" '+(o.storeId?"":"disabled")+' onchange="P1.outSetSch(this.value)">'
+      + '<option value="">无排程单（手工出库）</option>'
+      + free.map(function(x){ return '<option value="'+x.id+'"'+(sameId(o.schId,x.id)?" selected":"")+'>'+E(x.code)+' · 需求日 '+E(FD(x.demandDate))+' · '+N(schPortions(x))+' 份</option>'; }).join("")
+      + '</select></div>'
+    + '<div class="hint" style="flex:1;min-width:260px">'+E(srcHint)+'</div>'
+    + '</div>'
+    + '<div class="editor-bar"><button class="btn sm outline" onclick="P1.outAddLine()">＋ 手工加一行</button>'
+      + '<div class="spacer"></div><span class="hint">本次出库不可超过当前可用库存；一张排程单只能对应一张出库单</span></div>'
+    + '<div class="tbl-wrap"><table class="tbl editor"><thead><tr>'
+      + '<th>净料</th><th class="num">规格</th><th class="num">应出量</th><th class="num">本次出库</th><th class="num">单价</th><th class="num">金额</th><th></th>'
+    + '</tr></thead><tbody>'
+      + (o.lines.length ? body : '<tr><td colspan="7"><div class="empty"><div class="big">∅</div><div class="small">请选择来源排程单，或用「＋ 手工加一行」补明细</div></div></td></tr>')
+    + '</tbody></table></div>'
+    + '<div class="summary" style="margin-top:14px">'
+      + '<div class="item"><span class="lb">应出合计</span><b>'+N(due)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">本次出库合计</span><b>'+N(qty)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">缺口合计</span><b class="'+(gap>0?"bad":"ok")+'">'+N(gap)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">合计金额</span><b>¥'+N(money)+'</b></div>'
+    + '</div>'
+    + '<div class="foot-note">字段纪律：已按字段纪律移除 <b>已出 / 可出量 / 克重</b>——「已出」是过程状态不是明细字段，「可出量」在出库动作里不该由人来判断，克重由规格推导无需展示。</div>'
+    + '</div></div>'
+    + '<div class="actions-bar"><span class="hint">'
+      + (canSubmit ? "提交后占用库存，出库单状态为「待出库」" : "请选择收货门店并添加明细")+'</span><div class="spacer"></div>'
+    + '<button class="btn outline" onclick="P1.go(\'inventory\')">取消</button>'
+    + '<button class="btn" '+(canSubmit?"":"disabled")+' onclick="P1.outSubmit()">提交出库单</button></div>';
+}function vOutDetail(){
+  var o = obById(ST.obId); if(!o) return '<div class="empty">出库单不存在</div>';
+  var s = schById(o.scheduleId);
+  var qty=0, money=0, gap=0;
+  var body = o.lines.map(function(l){
+    var n = netById(l.netId), st = stockOf(l.netId);
+    var due = l.due!=null ? l.due : (s ? schDemandOf(s, l.netId) : 0);
+    var g = R(due - l.qty);
+    gap = R(gap+Math.max(0,g));
+    qty=R(qty+l.qty); money=R(money+l.qty*n.price);
+    return '<tr'+(g>0?' class="short"':'')+'>'
+      + '<td><span class="strong">'+E(n.name)+'</span>'+(l.manual?' <span class="tag soft">手工添加</span>':'')+'</td>'
+      + '<td class="num dim">'+n.spec+' g/份</td>'
+      + '<td class="num">'+N(due)+'</td>'
+      + '<td class="num strong">'+N(l.qty)+(g>0?'<span class="rowhint bad">缺 '+N(g)+' 份</span>':'')+'</td>'
+      + '<td class="num">¥'+N(n.price)+'</td>'
+      + '<td class="num strong">¥'+N(R(l.qty*n.price))+'</td></tr>';
+  }).join("");
+  var acts = '<button class="btn outline" onclick="P1.printOb(\''+o.id+'\')">打印</button>';
+  if(o.status==="待出库") acts += '<button class="btn" onclick="P1.confirmOb(\''+o.id+'\')">确认出库</button>';
+  if(o.status!=="已作废") acts += '<button class="btn danger" onclick="P1.voidOb(\''+o.id+'\')">作废</button>';
+  var kvs = [
+    ["出库单号", o.code], ["门店（出库主体）", storeName(o.storeId)], ["来源排程单", s?s.code:"—"],
+    ["生产日期", E(FD(o.productionDate))], ["库管负责人", o.manager], ["状态", statusBadge(o.status)],
+    ["出库总份数", N(qty)+" 份"], ["合计金额", "¥"+N(money)]
+  ];
+  return '<button class="back" onclick="P1.go(\'inventory\')">← 返回库存</button>'
+    + '<div class="page-head"><div><h1>'+E(o.code)+' '+statusBadge(o.status)+'</h1>'
+      + '<div class="sub">收货门店：'+E(storeName(o.storeId))+' · 来源排程单 '+E(s?s.code:"—")+' · 库管 '+E(o.manager)+' · 创建于 '+E(o.createdAt)+'</div></div>'
+      + '<div class="head-actions">'+acts+'</div></div>'
+    + '<div class="panel" style="margin-bottom:18px"><div class="panel-head">出库单信息</div>'
+      + '<div class="panel-body" style="max-height:none;display:grid;grid-template-columns:1fr 1fr;gap:0 24px">'
+      + kvs.map(function(k){ return '<div class="kv"><span class="k">'+E(k[0])+'</span><span class="v">'+k[1]+'</span></div>'; }).join("")
+      + '</div></div>'
+    + '<div class="tbl-wrap"><table class="tbl"><thead><tr><th>净料</th><th class="num">规格</th><th class="num">应出量</th><th class="num">本次出库</th><th class="num">单价</th><th class="num">金额</th></tr></thead><tbody>'+body+'</tbody></table></div>'
+    + '<div class="summary" style="margin-top:14px">'
+      + '<div class="item"><span class="lb">出库总份数</span><b>'+N(qty)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">缺口份数</span><b class="'+(gap>0?"bad":"ok")+'">'+N(gap)+'</b></div><div class="sep"></div>'
+      + '<div class="item"><span class="lb">合计金额</span><b>¥'+N(money)+'</b></div>'
+    + '</div>'
+    + '<div class="foot-note">字段纪律：已按字段纪律移除 <b>序号 / 出库主体 / 是否按计划出库</b>。</div>';
+}
+function schDemandOf(s, netId){
+  var t=0; s.items.forEach(function(it){ if(it.netId===netId) t+=it.portions; }); return t;
+}
+/* ==================== 弹窗 ==================== */
+function dlgSelfAdd(mode, batchId, netId){
+  ST.dlg = {mode:mode, batchId:batchId, netId:netId||""};
+  var opts = NETS.map(function(n){
+    return '<option value="'+n.id+'"'+(netId===n.id?" selected":"")+'>'+E(n.name)+'（'+n.spec+' g/份）</option>';
+  }).join("");
+  DG('<div class="dialog form">'
+    + '<div class="dialog-head"><h3>自主加一行</h3><div class="dsub">没有门店排程单来源的生产，按「自主备货」计入本批次；当天没有排程单时也能正常安排生产。</div></div>'
+    + '<div class="dialog-body">'
+      + '<div class="field" style="margin-bottom:14px"><span class="lb">净料<span class="req">*</span></span><select class="input" id="self-net">'+opts+'</select></div>'
+      + '<div class="field"><span class="lb">生产份数<span class="req">*</span></span><input class="input num-in" id="self-qty" type="number" step="0.5" min="0" value="10"></div>'
+      + '<div class="hint" style="margin-top:12px">建议生产量会按当前可用库存自动测算：需求份数 − 可用库存。确认后仍可在批次内改量。</div>'
+    + '</div>'
+    + '<div class="dialog-foot"><div class="spacer"></div><button class="btn outline" onclick="P1.close()">取消</button>'
+      + '<button class="btn" onclick="P1.saveSelfAdd()">加入批次</button></div>'
+    + '</div>');
+}
+function saveSelfAdd(){
+  var d = ST.dlg; if(!d) return;
+  var nid = document.getElementById("self-net").value;
+  var qty = Math.max(0, Number(document.getElementById("self-qty").value)||0);
+  if(d.mode==="nc"){
+    ST.nc.self.push({netId:nid, portions:qty});
+    ncPaint();
+  } else {
+    var b = batchById(d.batchId); if(!b) return;
+    var exist = null;
+    b.rows.forEach(function(r){ if(r.netId===nid) exist=r; });
+    if(exist){ exist.self = R((exist.self||0)+qty); exist.planned = R((exist.planned||0)+qty); }
+    else b.rows.push({netId:nid, planned:qty, self:qty});
+  }
+  CL();
+  if(d.mode!=="nc") render();
+  TT("已加入自主备货行");
+}
+function dlgConfirm(title, desc, okText, fn){
+  ST.pending = fn;
+  DG('<div class="dialog compact">'
+    + '<div class="dialog-head"><h3>'+E(title)+'</h3><div class="dsub">'+E(desc)+'</div></div>'
+    + '<div class="dialog-foot"><div class="spacer"></div>'
+      + '<button class="btn outline" onclick="P1.close()">取消</button>'
+      + '<button class="btn danger" onclick="P1.runPending()">'+E(okText)+'</button></div>'
+    + '</div>');
+}
+function runPending(){ var fn=ST.pending; ST.pending=null; CL(); if(fn) fn(); }
+function dlgManualLine(){
+  var opts = NETS.map(function(n){ return '<option value="'+n.id+'">'+E(n.name)+'（'+n.spec+' g/份）</option>'; }).join("");
+  DG('<div class="dialog form">'
+    + '<div class="dialog-head"><h3>手工加一行</h3><div class="dsub">用于排程单之外临时出库的净料，应出量记 0。</div></div>'
+    + '<div class="dialog-body">'
+      + '<div class="field" style="margin-bottom:14px"><span class="lb">净料<span class="req">*</span></span><select class="input" id="ml-net">'+opts+'</select></div>'
+      + '<div class="field"><span class="lb">出库份数<span class="req">*</span></span><input class="input num-in" id="ml-qty" type="number" step="0.5" min="0" value="10"></div>'
+    + '</div>'
+    + '<div class="dialog-foot"><div class="spacer"></div><button class="btn outline" onclick="P1.close()">取消</button>'
+      + '<button class="btn" onclick="P1.saveManualLine()">加入明细</button></div>'
+    + '</div>');
+}
+function saveManualLine(){
+  var nid = document.getElementById("ml-net").value;
+  var qty = Math.max(0, Number(document.getElementById("ml-qty").value)||0);
+  var st = stockOf(nid);
+  if(qty>st.avail){ TT("出库份数超过可用库存（可用 "+N(st.avail)+" 份）","已按可用库存截断"); qty=st.avail; }
+  ST.out.lines.push({netId:nid, due:0, qty:qty, manual:true});
+  CL();
+  render();
+}
+function dlgPrint(o){
+  var s = schById(o.scheduleId);
+  var qty=0, money=0;
+  var rows = o.lines.map(function(l){
+    var n = netById(l.netId);
+    qty+=l.qty; money=R(money+l.qty*n.price);
+    return '<tr><td style="padding:6px 4px;border-bottom:1px solid var(--border)">'+E(n.name)+'</td>'
+      + '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:right">'+N(l.qty)+'</td>'
+      + '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:right">'+N(n.price)+'</td>'
+      + '<td style="padding:6px 4px;border-bottom:1px solid var(--border);text-align:right">¥'+N(R(l.qty*n.price))+'</td></tr>';
+  }).join("");
+  DG('<div class="dialog form">'
+    + '<div class="dialog-head"><h3>打印预览</h3><div class="dsub">出库单打印稿</div></div>'
+    + '<div class="dialog-body"><div class="dlgtpl">'
+      + '<h4>净菜出库单</h4><div class="dn">'+E(o.code)+' · '+E(FD(o.productionDate))+'</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-bottom:12px">'
+        + '<div class="kv"><span class="k">收货门店</span><span class="v">'+E(storeName(o.storeId))+'</span></div>'
+        + '<div class="kv"><span class="k">来源排程单</span><span class="v">'+E(s?s.code:"—")+'</span></div>'
+        + '<div class="kv"><span class="k">库管负责人</span><span class="v">'+E(o.manager)+'</span></div>'
+        + '<div class="kv"><span class="k">出库总份数</span><span class="v">'+N(qty)+' 份</span></div>'
+      + '</div>'
+      + '<table style="width:100%;font-size:13px;border-collapse:collapse"><thead><tr><th style="text-align:left;color:var(--muted);font-weight:600">净料</th>'
+        + '<th style="text-align:right;color:var(--muted);font-weight:600">份数</th><th style="text-align:right;color:var(--muted);font-weight:600">单价</th>'
+        + '<th style="text-align:right;color:var(--muted);font-weight:600">金额</th></tr></thead><tbody>'+rows+'</tbody></table>'
+      + '<div style="text-align:right;margin-top:12px;font-weight:600">合计金额：¥'+N(money)+'</div>'
+    + '</div></div>'
+    + '<div class="dialog-foot"><div class="spacer"></div><button class="btn outline" onclick="P1.close()">关闭</button>'
+      + '<button class="btn" onclick="P1.doPrint()">打印</button></div>'
+    + '</div>');
+}
+/* ==================== 交互动作 ==================== */
+function nowStr(){
+  var d = new Date();
+  return TODAY+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
+}
+function openBatch(id){ ST.batchId=id; ST.tab="tasks"; go("batch-detail"); }
+function completeBatch(id){ ST.batchId=id; ST.tab="receipt"; initReceipts(batchById(id)); go("batch-detail"); }
+function confirmBatch(id){
+  var b = batchById(id); if(!b) return;
+  dlgConfirm("确认生产批次", "确认后批次锁定计划生产量并占用库存。批次 "+b.code+" 计划生产 "+N(batchStats(b).planned)+" 份。", "确认批次", function(){
+    b.status="已确认";
+    TT("批次 "+b.code+" 已确认，库存已占用");
+    render();
+  });
+}
+function setTab(t){
+  ST.tab=t;
+  if(t==="receipt") initReceipts(batchById(ST.batchId));
+  render();
+}
+function initReceipts(b){
+  if(!b || b.receipts) return;
+  b.receipts = {};
+  b.rows.forEach(function(r){ b.receipts[r.netId] = {actual:r.planned, status:"completed", reason:""}; });
+}
+function toggleExpand(netId){
+  var k = ST.batchId+":"+netId;
+  ST.expanded[k] = !ST.expanded[k];
+  render();
+}
+function setPlanned(batchId, netId, val){
+  var b = batchById(batchId); if(!b) return;
+  var v = Math.max(0, Number(val)||0);
+  b.rows.forEach(function(r){ if(r.netId===netId) r.planned=v; });
+  renderKeepFocus();
+}
+function fillSuggest(id){
+  var b = batchById(id); if(!b) return;
+  var rows = batchRows(b);
+  rows.forEach(function(r){
+    b.rows.forEach(function(x){ if(x.netId===r.netId) x.planned = r.suggest; });
+  });
+  TT("已按建议生产量填充全部 "+rows.length+" 行");
+  render();
+}
+function recalcSuggest(id){
+  var b = batchById(id); if(!b) return;
+  TT("已按当前库存重算建议生产量","计划生产量未改动，可继续手动调整");
+  render();
+}
+function delRow(batchId, netId){
+  var b = batchById(batchId); if(!b) return;
+  var n = netById(netId);
+  var row = null;
+  b.rows.forEach(function(r){ if(r.netId===netId) row=r; });
+  var fromSchedule = (b.scheduleIds||[]).some(function(sid){
+    var s = schById(sid); if(!s) return false;
+    return s.items.some(function(it){ return it.netId===netId; });
+  });
+  if(fromSchedule){ TT("「"+n.name+"」的需求来自门店排程单，不能直接删除","请调整该排程单的关联或改量"); return; }
+  dlgConfirm("删除批次行", "将从批次 "+b.code+" 中删除自主备货行「"+n.name+"」，其生产份数一并作废。", "删除", function(){
+    b.rows = b.rows.filter(function(r){ return r.netId!==netId; });
+    TT("已删除批次行");
+    render();
+  });
+}
+function setActual(batchId, netId, val){
+  var b = batchById(batchId); if(!b) return;
+  if(!b.receipts) b.receipts = {};
+  if(!b.receipts[netId]) b.receipts[netId] = {actual:0,status:"completed",reason:""};
+  b.receipts[netId].actual = Math.max(0, Number(val)||0);
+  renderKeepFocus();
+}
+function setReason(batchId, netId, val){
+  var b = batchById(batchId); if(!b) return;
+  if(!b.receipts) b.receipts = {};
+  if(!b.receipts[netId]) b.receipts[netId] = {actual:0,status:"unfinished",reason:""};
+  b.receipts[netId].reason = val;
+}
+function setReceipt(batchId, netId, st){
+  var b = batchById(batchId); if(!b) return;
+  if(!b.receipts) b.receipts = {};
+  if(!b.receipts[netId]) b.receipts[netId] = {actual:0,status:"completed",reason:""};
+  b.receipts[netId].status = st;
+  render();
+}
+function submitReceipt(id){
+  var b = batchById(id); if(!b) return;
+  var total=0;
+  batchRows(b).forEach(function(r){
+    var rc = b.receipts && b.receipts[r.netId];
+    if(!rc) return;
+    if(rc.status==="completed"){
+      var a = rc.actual==null||rc.actual==="" ? r.planned : Number(rc.actual);
+      if(a>0){ STOCK[r.netId].total = R(STOCK[r.netId].total + a); total=R(total+a); }
+    }
+  });
+  b.status="已完成";
+  TT("已入库 "+N(total)+" 份净菜，批次 "+b.code+" 已完成");
+  render();
+}
+/* ---------- 新建批次页 ---------- */
+function ncSetDate(v){ ST.nc.date=v; }
+function ncSetShift(v){ ST.nc.shift=v; }
+function ncFilterDate(v){ ST.nc.fDate=v; ncPaintPicks(); }
+function ncFilterStore(v){ ST.nc.fStore=v; ncPaintPicks(); }
+function ncFilterQ(v){ ST.nc.q=v; ncPaintPicks(); }
+function ncClear(){ ST.nc.sel=[]; ST.nc.self=[]; ncPaintPicks(); ncPaint(); }
+function ncToggle(sid){
+  sid = (typeof sid === "string" && sid!=="" && !isNaN(sid)) ? Number(sid) : sid;
+  var used = batchUsedSchedIds();
+  if(used[sid]){ TT("排程单 "+used[sid]+" 已使用","一张排程单只能进入一个生产批次"); return; }
+  var i = -1;
+  for(var k=0;k<ST.nc.sel.length;k++){ if(sameId(ST.nc.sel[k], sid)){ i=k; break; } }
+  if(i>=0) ST.nc.sel.splice(i,1); else ST.nc.sel.push(sid);
+  ncPaintPicks();
+  ncPaint();
+}
+function createBatch(){
+  var nc = ST.nc;
+  var rows = ncRows();
+  if(!rows.length){ TT("请先勾选门店排程单，或用「自主加一行」安排生产"); return; }
+  var b = {
+    id: Date.now(), code: nextBatchCode(), productionDate: nc.date, shift: nc.shift,
+    status:"草稿", operator:"杨厨", createdAt: nowStr(), scheduleIds: nc.sel.slice(),
+    rows: rows.map(function(r){
+      var o = {netId:r.netId, planned: r.self>0 ? Math.max(r.suggest, r.self) : r.suggest};
+      if(r.self>0) o.self = r.self;
+      return o;
+    })
+  };
+  BATCHES.unshift(b);
+  ST.batchId = b.id; ST.tab = "tasks";
+  ST.nc = {date:nc.date, shift:nc.shift, sel:[], fDate:"", fStore:"", q:"", self:[]};
+  go("batch-detail");
+  TT("批次 "+b.code+" 已创建（草稿），确认后占用库存");
+}
+/* ---------- 出库 ---------- */
+function outPickStore(id){
+  ST.out.storeId=id; ST.out.schId=null; ST.out.lines=[];
+  var free = freeSchs(id);
+  if(free.length){ outSetSch(free[0].id); return; }
+  render();
+}
+function outNext(){
+  if(!ST.out.storeId){ TT("请先选择收货门店"); return; }
+  ST.out.step=2;
+  var free = freeSchs(ST.out.storeId);
+  if(free.length && !ST.out.schId) outSetSch(free[0].id);
+  render();
+}
+function outPrev(){ ST.out.step=1; render(); }
+function outSetSch(sid){
+  ST.out.schId = sid ? Number(sid) : null;
+  ST.out.lines = [];
+  if(ST.out.schId){
+    var s = schById(ST.out.schId);
+    s.items.forEach(function(it){
+      var st = stockOf(it.netId);
+      ST.out.lines.push({netId:it.netId, due:it.portions, qty: Math.min(it.portions, st.avail), manual:false});
+    });
+  }
+  render();
+}
+function outSetQty(i, val){
+  var l = ST.out.lines[i]; if(!l) return;
+  var st = stockOf(l.netId);
+  var v = Math.max(0, Number(val)||0);
+  if(v>st.avail) v = st.avail;
+  l.qty = v;
+  renderKeepFocus();
+}
+function outDelLine(i){ ST.out.lines.splice(i,1); render(); }
+function outAddLine(){
+  if(!ST.out.storeId){ TT("请先选择收货门店","出库主体恒为门店，无门店不能出库"); return; }
+  dlgManualLine();
+}
+function outSubmit(){
+  var o = ST.out;
+  if(!o.lines.length){ TT("请先选择来源排程单或手工加一行"); return; }
+  var ob = {
+    id: Date.now(), code: nextObCode(), storeId:o.storeId, scheduleId:o.schId,
+    productionDate: o.schId ? prodDateOf(schById(o.schId).demandDate) : TODAY,
+    status:"待出库", manager:"李明", createdAt: nowStr(),
+    lines: o.lines.map(function(l){ return {netId:l.netId, qty:l.qty, due:l.due, manual:!!l.manual}; })
+  };
+  decorateOb(ob);
+  OUTBOUNDS.unshift(ob);
+  ST.obId = ob.id;
+  ST.out = {step:1, storeId:null, schId:null, lines:[]};
+  go("out-detail");
+  TT("出库单 "+ob.code+" 已创建（待出库），已占用库存 "+N(obQty(ob))+" 份");
+}
+function openOb(id){ ST.obId=id; go("out-detail"); }
+function confirmOb(id){
+  var o = obById(id); if(!o) return;
+  dlgConfirm("确认出库", "确认后出库单状态置为「已出库」，并按实出份数扣减净菜库存。", "确认出库", function(){
+    o.lines.forEach(function(l){ STOCK[l.netId].total = R(STOCK[l.netId].total - l.qty); });
+    o.status="已出库";
+    TT("出库单 "+o.code+" 已确认出库，库存已扣减 "+N(obQty(o))+" 份");
+    render();
+  });
+}
+function voidOb(id){
+  var o = obById(id); if(!o) return;
+  dlgConfirm("作废出库单", "作废后出库单不可恢复，库存占用将释放。", "确认作废", function(){
+    o.status="已作废";
+    TT("出库单 "+o.code+" 已作废，库存占用已释放");
+    render();
+  });
+}
+function printOb(id){ dlgPrint(obById(id)); }
+function doPrint(){ CL(); TT("已发送打印任务","原型不实际出纸"); }
+function stub(msg){ TT("原型未覆盖：" + msg); }
+
+/* ==================== 对外 API ==================== */
+window.P1 = {
+  /* 数据出口：供 part2（排程履约）与主会话直接读取，保持同一份引用 */
+  data: { NETS:NETS, SCHEDULES:SCHEDULES, STOCK:STOCK, STORES:STORES, BATCHES:BATCHES, OUTBOUNDS:OUTBOUNDS },
+  render: render, go: go, stub: stub, close: CL, runPending: runPending,
+  setQ:function(v){ ST.q=v; render(); },
+  setDateFilter:function(v){ ST.dateFilter=v; render(); },
+  openBatch: openBatch, confirmBatch: confirmBatch, completeBatch: completeBatch,
+  setTab: setTab, toggleExpand: toggleExpand, setPlanned: setPlanned,
+  fillSuggest: fillSuggest, recalcSuggest: recalcSuggest, delRow: delRow,
+  setActual: setActual, setReason: setReason, setReceipt: setReceipt, submitReceipt: submitReceipt,
+  selfAdd: function(mode, batchId){ dlgSelfAdd(mode, batchId); },
+  saveSelfAdd: saveSelfAdd,
+  ncSetDate: ncSetDate, ncSetShift: ncSetShift, ncToggle: ncToggle,
+  ncFilterDate: ncFilterDate, ncFilterStore: ncFilterStore, ncFilterQ: ncFilterQ,
+  ncClear: ncClear, createBatch: createBatch,
+  outPickStore: outPickStore, outNext: outNext, outPrev: outPrev, outSetSch: outSetSch,
+  outSetQty: outSetQty, outDelLine: outDelLine, outAddLine: outAddLine, outSubmit: outSubmit,
+  saveManualLine: saveManualLine, doPrint: doPrint,
+  openOb: openOb, confirmOb: confirmOb, voidOb: voidOb, printOb: printOb
+};
+/* ==================== 对外全局（供 part2 / 主会话使用） ==================== */
+function exposeGlobals(){
+  if(typeof window.SCHEDULES === "undefined") window.SCHEDULES = SCHEDULES;
+  if(typeof window.NETS === "undefined") window.NETS = NETS;
+  if(typeof window.STOCK === "undefined") window.STOCK = STOCK;
+  if(typeof window.STORES === "undefined") window.STORES = STORES;
+  if(typeof window.BATCHES === "undefined") window.BATCHES = BATCHES;
+  if(typeof window.OUTBOUNDS === "undefined") window.OUTBOUNDS = OUTBOUNDS;
+  if(typeof num !== "function") window.num = N;
+  if(typeof esc !== "function") window.esc = E;
+  if(typeof fmtDate !== "function") window.fmtDate = FD;
+  if(typeof window.go !== "function") window.go = function(v,arg){
+    if(v==="batches"||v==="batch-list"){ P1.go("batch-list"); return; }
+    if(v==="inventory"||v==="stock"){ P1.go("inventory"); return; }
+    if(v==="batch-detail"){ P1.openBatch(Number(arg)); return; }
+    if(v==="schedules" && typeof window.renderScheduleList === "function"){ window.renderScheduleList(); return; }
+    if(v==="schedule-detail" && typeof window.renderScheduleDetail === "function"){ window.renderScheduleDetail(Number(arg)); return; }
+    P1.stub(v);
+  };
+  if(typeof window.goto !== "function") window.goto = window.go;
+}
+exposeGlobals();
+function boot(){
+  exposeGlobals();
+  BATCHES.forEach(decorateBatch);
+  OUTBOUNDS.forEach(decorateOb);
+  /* 若主会话外壳已提供 #page-root，则把本片内容区搬进去并隐藏重复侧栏 */
+  var pr = document.getElementById("page-root"), main = document.getElementById("p1-main");
+  if(pr && main && main.parentNode !== pr) pr.appendChild(main);
+  var mySide = document.querySelector("#p1-app > .side");
+  if(mySide && document.querySelectorAll(".side").length>1) mySide.style.display="none";
+  var m = hostEl();
+  if(m && !m.innerHTML.trim()) render();
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", boot); else boot();
+})();
+
+</script>
+<script>
+(function(){
+  function D(){ return (window.P1 && window.P1.data) ? window.P1.data : null; }
+  function esc2(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function n2(v){ var x=Number(v)||0; return Math.round(x*100)/100; }
+
+  /** 某净料在所有批次中的实际产出（已完成用回执值，已确认用需求量作已备货） */
+  function producedByNet(d){
+    var out = {};
+    d.BATCHES.forEach(function(b){
+      if(b.status !== "已完成" && b.status !== "已确认") return;
+      (b.rows||[]).forEach(function(r){
+        var amt;
+        if(b.status === "已完成"){
+          var rc = (b.receipts||{})[r.netId];
+          amt = n2(rc && rc.actual != null ? rc.actual : r.planned);
+        } else {
+          amt = n2(r.planned);
+        }
+        out[r.netId] = n2((out[r.netId]||0) + amt);
+      });
+    });
+    return out;
+  }
+
+  /** 某净料在所有出库单中的已出库量 */
+  function shippedByNet(d){
+    var out = {};
+    d.OUTBOUNDS.forEach(function(o){
+      if(o.status === "已作废") return;
+      (o.lines||[]).forEach(function(l){ out[l.netId] = n2((out[l.netId]||0) + n2(l.qty)); });
+    });
+    return out;
+  }
+
+  /** 取某排程单的履约三段数据 */
+  function fulfillData(schedId){
+    var d = D(); if(!d) return null;
+    var sch = d.SCHEDULES.find(function(x){ return x.id === schedId; });
+    if(!sch) return null;
+    var items = sch.items || [];
+    var totalDemand = items.reduce(function(a,x){ return a + n2(x.portions); }, 0);
+    var prod = producedByNet(d), ship = shippedByNet(d);
+
+    // 本排程涉及净料的产出/出货，按需求占比折算到本排程
+    // 份为整数主单位：按占比折算后取整（显示口径，避免 7.04 份这类假精度）
+    function parts(x){ return Math.round(x); }
+    var rows = items.map(function(it){
+      var dem = parts(it.portions);
+      var ratio = totalDemand > 0 ? dem / totalDemand : 0;
+      var poolPrep = n2(prod[it.netId] || 0);
+      var poolShip = n2(ship[it.netId] || 0);
+      var prep = Math.min(dem, parts(poolPrep * ratio));
+      var shp  = Math.min(prep, parts(poolShip * ratio));
+      return { netId: it.netId, dish: it.dish, demand: dem, prepared: prep, shipped: shp };
+    });
+
+    return {
+      sch: sch,
+      demand: n2(rows.reduce(function(a,r){ return a + r.demand; }, 0)),
+      prepared: n2(rows.reduce(function(a,r){ return a + r.prepared; }, 0)),
+      shipped: n2(rows.reduce(function(a,r){ return a + r.shipped; }, 0)),
+      rows: rows
+    };
+  }
+
+  function pct(a,b){ return b > 0 ? Math.min(100, Math.round(a/b*100)) : 0; }
+
+  function fulfillBlock(schedId){
+    var f = fulfillData(schedId);
+    if(!f) return "";
+    var D0 = f.demand, P = f.prepared, S = f.shipped;
+    var gap1 = Math.max(0, D0 - P), gap2 = Math.max(0, P - S);
+    function step(lb, val, tot, cls, gapTxt){
+      return '<div class="fulfill-step">'
+        + '<div class="fs-lb">' + lb + '</div>'
+        + '<div class="fulfill-bar ' + (cls||"") + '"><i style="width:' + pct(val,tot) + '%"></i></div>'
+        + '<div class="fs-vl"><b>' + n2(val) + '</b> / ' + n2(tot) + ' 份'
+        + (gapTxt ? ' <span class="gap">' + gapTxt + '</span>' : '') + '</div>'
+        + '</div>';
+    }
+    var note;
+    if(gap1 > 0){
+      note = '<div class="fnote"><b>备货缺口 ' + n2(gap1) + ' 份</b>：切配中心尚未产出足够的净菜。可减少该排程份数、改用替代菜品，或等待下一批次补货。</div>';
+    } else if(gap2 > 0){
+      note = '<div class="fnote"><b>配送缺口 ' + n2(gap2) + ' 份</b>：净菜已备货但尚未出库。</div>';
+    } else {
+      note = '<div class="fnote"><b>履约正常</b>：需求已备货并完成配送。</div>';
+    }
+    return '<div class="fulfill">'
+      + step("已出库", S, D0, gap2 > 0 ? "danger" : "", gap2 > 0 ? ("缺 " + n2(gap2)) : "")
+      + step("已备货", P, D0, gap1 > 0 ? "warn" : "", gap1 > 0 ? ("缺 " + n2(gap1)) : "")
+      + step("需求量", D0, D0, "", "")
+      + '</div>' + note;
+  }
+
+  /** 排程详情页：渲染进 #p1-main */
+  function renderScheduleDetail(schedId){
+    var m = document.getElementById("p1-main"); if(!m) return;
+    var d = D(); if(!d) return;
+    var f = fulfillData(schedId); if(!f){ m.innerHTML = ""; return; }
+    var sch = f.sch;
+    var store = d.STORES.find(function(s){ return s.id === sch.storeId; });
+    var storeNm = store ? store.name : "—";
+    var st = sch.status === "已确认" ? "doing" : (sch.status === "已完成" ? "done" : "pending");
+
+    m.innerHTML = '<div style="padding:0">'
+      + '<div class="back" onclick="P1.go(\'batch-list\')">← 返回生产批次</div>'
+      + '<div class="page-head">'
+      +   '<div><h1>' + esc2(storeNm) + ' · ' + esc2(sch.demandDate) + ' 用菜单</h1>'
+      +   '<div class="sub">' + sch.items.length + ' 道菜 · 共 ' + n2(f.demand) + ' 份净菜需求 · 需求日 ' + esc2(sch.demandDate) + '</div></div>'
+      +   '<div class="head-actions"><span class="badge ' + st + '">' + esc2(sch.status) + '</span></div>'
+      + '</div>'
+      + '<div class="card" style="padding:16px;margin-bottom:16px">'
+      +   '<div style="font-size:14px;font-weight:600;margin-bottom:14px">履约进度</div>'
+      +   fulfillBlock(schedId)
+      + '</div>'
+      + '<div class="card" style="padding:16px">'
+      +   '<div style="font-size:14px;font-weight:600;margin-bottom:10px">菜品与净菜需求</div>'
+      +   '<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+      +     '<th>菜品</th><th class="text-right">需求份数</th><th class="text-right">已备货</th>'
+      +     '<th class="text-right">已出库</th><th class="text-right">缺口</th>'
+      +   '</tr></thead><tbody>'
+      +   f.rows.map(function(r){
+          var gap = Math.max(0, r.demand - r.shipped);
+          var net = d.NETS.find(function(x){ return x.id === r.netId; });
+          return '<tr' + (gap > 0 ? ' class="gap-row"' : '') + '>'
+            + '<td><span class="font-medium">' + esc2(r.dish) + '</span>'
+            + (net ? ' <span class="fs-12 text-muted-2">' + esc2(net.name) + ' · ' + esc2(net.pkg) + 'g/份</span>' : '') + '</td>'
+            + '<td class="text-right tabular-nums">' + n2(r.demand) + '</td>'
+            + '<td class="text-right tabular-nums' + (r.prepared >= r.demand ? " text-success" : (r.prepared > 0 ? " text-warning" : "")) + '">' + n2(r.prepared) + '</td>'
+            + '<td class="text-right tabular-nums' + (r.shipped >= r.demand ? " text-success" : "") + '">' + n2(r.shipped) + '</td>'
+            + '<td class="text-right tabular-nums' + (gap > 0 ? " text-danger" : " text-muted-2") + '">' + (gap > 0 ? n2(gap) : "—") + '</td>'
+            + '</tr>';
+        }).join("")
+      +   '</tbody></table></div>'
+      +   '<div class="rule-note"><span class="rn-ico">i</span><div>'
+      +     '<b>字段纪律：</b>本表只保留 <code>菜品</code> <code>需求份数</code> <code>已备货</code> <code>已出库</code> <code>缺口</code> 五列 —— '
+      +     '一级/二级分类、编号、净料用量(g)、规格均为档案属性，不参与履约判断，已降为次要信息。'
+      +   '</div></div>'
+      + '</div>'
+      + '</div>';
+  }
+
+  window.renderScheduleDetail = renderScheduleDetail;
+  window.fulfillData = fulfillData;
+  window.fulfillBlock = fulfillBlock;
+})();
+</script>
+</body>
+</html>

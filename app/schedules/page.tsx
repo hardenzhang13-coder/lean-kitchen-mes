@@ -100,7 +100,7 @@ export default function SchedulesPage() {
         <PageHeader
           variant="topbar"
           title="排菜"
-          description="门店按售卖日期排菜品与份数；确认后进入进行中，由切配中心汇总成生产计划单"
+          description="门店按售卖日期排菜品与份数；确认后进入进行中，由切配中心汇总成切配计划单"
           actions={
             canWrite ? (
               <SkeuButton onClick={() => setCreateState({ copyFromId: null, editId: null })}>

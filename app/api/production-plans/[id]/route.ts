@@ -16,8 +16,6 @@ import {
 import {
   lockProductionPlan,
   lockSchedulesForProductionPlan,
-  lockSelfOrdersForProductionPlan,
-  nextProductionPlanCode,
   ProductionPlanAssignmentError,
 } from "@/lib/server/production-plan-assignment";
 
@@ -88,7 +86,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
     },
   });
-  if (!plan) return NextResponse.json({ error: "生产计划单不存在" }, { status: 404 });
+  if (!plan) return NextResponse.json({ error: "切配计划单不存在" }, { status: 404 });
 
   const operatorName = await resolveUsernameToName(plan.operator);
   const sourceSnapshot =
@@ -136,6 +134,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     status: plan.status,
     operator: plan.operator,
     operatorName,
+    remark: plan.remark,
     createdAt: plan.createdAt.toISOString(),
     cuttingOrders: (Array.isArray(plan.cuttingJson) ? plan.cuttingJson : []).map((r) => {
       const row = r as Record<string, unknown>;
@@ -161,7 +160,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const validation = validateBody(updateProductionPlanSchema, body);
   if (!validation.success) return validation.response;
 
-  const { planDate, scheduleIds, selfOrderIds } = validation.data;
+  const { planDate, remark, scheduleIds, adjustments } = validation.data;
   const uniqueIds = [...new Set(scheduleIds)];
   const planDateObj = new Date(planDate);
   // 标题是派生字段：按生产日期重算，忽略客户端传值
@@ -172,51 +171,26 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     try {
       updated = await prisma.$transaction(async (tx) => {
         if (!(await lockProductionPlan(tx, planId))) {
-          throw new Error("生产计划单不存在");
+          throw new Error("切配计划单不存在");
         }
         const existing = await tx.productionPlan.findFirst({
           where: { id: planId, deletedAt: null },
           select: { code: true, status: true, planDate: true },
         });
-        if (!existing) throw new Error("生产计划单不存在");
+        if (!existing) throw new Error("切配计划单不存在");
         if (existing.status !== "待生效") {
-          throw new ProductionPlanAssignmentError("只有待生效的生产计划单可以修改", 409);
+          throw new ProductionPlanAssignmentError("只有待生效的切配计划单可以修改", 409);
         }
 
-        const existingSelfRefs = await tx.productionPlanSelfOrder.findMany({
-          where: { planId },
-          select: { selfOrderId: true },
-        });
-        // 未传 selfOrderIds 表示保留现有内部生产单关联（兼容旧客户端）
-        const targetSelfIds =
-          selfOrderIds === undefined
-            ? existingSelfRefs.map((ref) => ref.selfOrderId)
-            : [...new Set(selfOrderIds)];
-
-        if (uniqueIds.length === 0 && targetSelfIds.length === 0) {
-          throw new ProductionPlanAssignmentError("请至少选择一张排程单或内部生产单");
-        }
-
-        if (uniqueIds.length > 0) {
-          await lockSchedulesForProductionPlan(tx, uniqueIds, planId);
-        }
-        if (targetSelfIds.length > 0) {
-          await lockSelfOrdersForProductionPlan(tx, targetSelfIds, planId);
-        }
-        const planDateText = existing.planDate.toISOString().slice(0, 10);
-        const code =
-          existing.code && planDateText === planDate
-            ? existing.code
-            : await nextProductionPlanCode(tx, planDateObj);
-        const data = await buildProductionPlanData(tx, uniqueIds, targetSelfIds);
+        // 历史内部生产单关联（ProductionPlanSelfOrder）保留不动，仅重建排程关联
+        await lockSchedulesForProductionPlan(tx, uniqueIds, planId);
+        // 编号即创建时刻简称，编辑（含改期）不变更
+        const code = existing.code;
+        const data = await buildProductionPlanData(tx, uniqueIds, adjustments ?? []);
 
         await tx.productionPlanSchedule.deleteMany({ where: { planId } });
         await tx.productionPlanSchedule.createMany({
           data: uniqueIds.map((scheduleId) => ({ planId, scheduleId })),
-        });
-        await tx.productionPlanSelfOrder.deleteMany({ where: { planId } });
-        await tx.productionPlanSelfOrder.createMany({
-          data: targetSelfIds.map((selfOrderId) => ({ planId, selfOrderId })),
         });
         return await tx.productionPlan.update({
           where: { id: planId },
@@ -224,6 +198,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             code,
             title: generatedTitle,
             planDate: planDateObj,
+            remark: remark ?? null,
             cuttingJson: JSON.parse(JSON.stringify(data.cutting)),
             purchaseJson: JSON.parse(JSON.stringify(data.purchase)),
             sourceScheduleJson: JSON.parse(JSON.stringify(data.sourceSnapshot)),
@@ -243,17 +218,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return error(err.message, err.status, err.status === 409 ? "CONFLICT" : "BAD_REQUEST");
       }
       const message = err instanceof Error ? err.message : String(err);
-      return error(message, message === "生产计划单不存在" ? 404 : 400);
+      return error(message, message === "切配计划单不存在" ? 404 : 400);
     }
   }
 
-  if (!updated) return error("修改生产计划单失败", 500, "INTERNAL_ERROR");
+  if (!updated) return error("修改切配计划单失败", 500, "INTERNAL_ERROR");
 
   await logOperation(req, {
     action: "UPDATE",
     entity: "ProductionPlan",
     entityId: planId,
-    description: `修改生产计划单: ${updated.title}（汇总 ${uniqueIds.length} 张排程单 / ${selfOrderIds?.length ?? 0} 张内部生产单）`,
+    description: `修改切配计划单: ${updated.title}（汇总 ${uniqueIds.length} 张排程单${adjustments?.length ? `，${adjustments.length} 行份数调整` : ""}）`,
   });
   return success(updated);
 }
@@ -270,9 +245,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         where: { id: planId, deletedAt: null },
         select: { status: true, title: true },
       });
-      if (!row) throw new Error("生产计划单不存在");
+      if (!row) throw new Error("切配计划单不存在");
       if (row.status !== "待生效") {
-        throw new Error("只有待生效的生产计划单可以删除");
+        throw new Error("只有待生效的切配计划单可以删除");
       }
       await tx.productionPlan.update({ where: { id: planId }, data: { deletedAt: new Date() } });
       return row;
@@ -281,12 +256,12 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       action: "DELETE",
       entity: "ProductionPlan",
       entityId: planId,
-      description: "删除生产计划单: " + existing.title,
+      description: "删除切配计划单: " + existing.title,
     });
     return success({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "删除失败";
-    if (message === "生产计划单不存在") return error(message, 404, "NOT_FOUND");
+    if (message === "切配计划单不存在") return error(message, 404, "NOT_FOUND");
     if (message.startsWith("只有")) return error(message, 409, "CONFLICT");
     logger.error({ err }, "DELETE /api/production-plans/[id] failed");
     return error("删除失败", 500, "INTERNAL_ERROR");

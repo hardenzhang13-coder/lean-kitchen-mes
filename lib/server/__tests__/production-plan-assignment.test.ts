@@ -1,9 +1,41 @@
 import type { Prisma } from "@prisma/client";
 import {
+  lockSchedulesForProductionPlan,
   lockSelfOrdersForProductionPlan,
+  nextProductionPlanCode,
   syncSourceScheduleStatuses,
   syncSourceSelfOrderStatuses,
 } from "../production-plan-assignment";
+
+describe("nextProductionPlanCode", () => {
+  it("按创建时刻生成 PPL-年月日-时分", async () => {
+    const count = jest.fn().mockResolvedValue(0);
+    const tx = {
+      productionPlan: { count },
+    } as unknown as Prisma.TransactionClient;
+
+    const code = await nextProductionPlanCode(tx);
+
+    expect(code).toMatch(/^PPL-\d{8}-\d{4}$/);
+    expect(count).toHaveBeenCalledWith({
+      where: { code: { startsWith: code } },
+    });
+  });
+
+  it("同分钟冲突时追加 -2、-3 后缀", async () => {
+    const count = jest.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+    const tx = {
+      productionPlan: { count },
+    } as unknown as Prisma.TransactionClient;
+
+    const first = await nextProductionPlanCode(tx);
+    const second = await nextProductionPlanCode(tx);
+
+    expect(first).toMatch(/^PPL-\d{8}-\d{4}-2$/);
+    expect(second).toMatch(/^PPL-\d{8}-\d{4}-3$/);
+    expect(second.startsWith(first.slice(0, -2))).toBe(true);
+  });
+});
 
 function createTx(orders: Array<{ scheduleId: number; status: string }>) {
   const updateMany = jest.fn().mockResolvedValue({ count: 1 });
@@ -74,6 +106,13 @@ describe("syncSourceSelfOrderStatuses", () => {
 
     expect(completed).toEqual([]);
     expect(updateMany).not.toHaveBeenCalled();
+  });
+});
+
+describe("lockSchedulesForProductionPlan", () => {
+  it("空数组直接放行（纯手工切配计划）", async () => {
+    const tx = {} as unknown as Prisma.TransactionClient;
+    await expect(lockSchedulesForProductionPlan(tx, [])).resolves.toEqual([]);
   });
 });
 

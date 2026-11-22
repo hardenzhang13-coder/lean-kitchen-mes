@@ -46,8 +46,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           selfOrders: { select: { selfOrderId: true } },
         },
       });
-      if (!plan) throw new Error("生产计划单不存在");
-      if (plan.status !== "进行中") throw new Error("只有进行中的生产计划单可以完成生产");
+      if (!plan) throw new Error("切配计划单不存在");
+      if (plan.status !== "进行中") throw new Error("只有进行中的切配计划单可以完成生产");
 
       const rows = (Array.isArray(plan.cuttingJson) ? plan.cuttingJson : []) as unknown as PlanCuttingRow[];
       const rowMap = new Map(rows.map((r) => [`${r.sourceType}:${r.sourceId}`, r]));

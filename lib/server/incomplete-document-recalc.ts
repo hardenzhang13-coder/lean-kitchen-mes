@@ -1,6 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-utils";
-import { buildProductionPlanData } from "@/lib/server/production-plan-utils";
+import {
+  buildProductionPlanData,
+  planAdjustmentsFromCuttingJson,
+} from "@/lib/server/production-plan-utils";
 
 export interface IncompleteRecalcResult {
   scheduleIds: number[];
@@ -168,8 +171,12 @@ export async function recalcIncompleteDocumentsForNetIngredient(
     }
 
     const scheduleIds = plan.schedules.map((ref) => ref.scheduleId);
-    const planSelfOrderIds = plan.selfOrders.map((ref) => ref.selfOrderId);
-    const data = await buildProductionPlanData(tx, scheduleIds, planSelfOrderIds);
+    // 行级份数调整（含手工追加与历史自产贡献）从现有快照还原，保证重建后份数不丢
+    const data = await buildProductionPlanData(
+      tx,
+      scheduleIds,
+      planAdjustmentsFromCuttingJson(plan.cuttingJson)
+    );
     await tx.productionPlan.update({
       where: { id: plan.id },
       data: {

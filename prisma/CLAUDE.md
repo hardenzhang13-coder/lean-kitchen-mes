@@ -89,11 +89,11 @@ Ingredient（调料，SEA 体系）
 
 | 模型 | 说明 |
 |------|------|
-| `ProductionPlan` | 生产计划单，`cuttingJson` / `purchaseJson` / `sourceScheduleJson` 为生成时快照（v2 含 `selfProduction[]`），软删除 |
+| `ProductionPlan` | 生产计划单，`cuttingJson` / `purchaseJson` / `sourceScheduleJson` 为生成时快照（v2 含 `selfProduction[]`），`remark` 为新建/编辑备注（可空），软删除 |
 | `ProductionPlanSchedule` | 计划 ↔ 来源门店排程 |
-| `SelfProductionOrder` | 内部生产单（切配中心自产），`status`：待生效 / 进行中 / 已完成；不做软删除 |
+| `SelfProductionOrder` | 内部生产单（**2026-11 页面已下线，停止新写入**，模型与历史数据保留只读），`status`：待生效 / 进行中 / 已完成；不做软删除 |
 | `SelfProductionItem` | 明细：`sourceType`（net / minor 由二级分类 MIN 服务端派生）、`sourceId` 弱引用 `net_ingredients.id`、`portions` |
-| `ProductionPlanSelfOrder` | 计划 ↔ 来源内部生产单 |
+| `ProductionPlanSelfOrder` | 计划 ↔ 来源内部生产单（历史关联，停止新写入） |
 
 ### 采购域
 
@@ -110,7 +110,7 @@ Ingredient（调料，SEA 体系）
 |------|------|
 | `PreppedStock` | 净菜当前库存（份 + g 双单位），唯一键 `(sourceType, sourceId)` |
 | `PreppedStockLedger` | 净菜库存流水，不可删除，记录 `changeType`（stock_in / stock_out / stock_rollback） |
-| `OutboundOrder` | 净菜出库单：`subjectType` 区分门店（来源排程单）/ 切配中心（来源内部生产单）；`storeId` 与 `scheduleId` 仅门店主体有值 |
+| `OutboundOrder` | 净菜出库单：`subjectType` 区分门店（来源排程单）/ 切配中心（历史内部生产单来源）；新建仅接受门店排程单（`selfOrderId` 被 schema 拒绝并给下线文案），历史单据渲染逻辑保留 |
 | `OutboundOrderItem` | 出库单明细快照（含出库价与金额） |
 | `Inventory` | 旧原料库存，已停用 |
 | `InventoryLedger` | 旧库存流水，已停用 |

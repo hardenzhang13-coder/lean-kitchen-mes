@@ -505,7 +505,8 @@ function MaterialKit() {
           <h2 className="text-lg font-semibold">排程拟物件（2026-11-22）</h2>
           <p className="text-sm text-muted-foreground">
             去排菜弹窗与排程看板卡片的专用件：菜品选择卡、已选卡、筛选片、索引卡。
-            三态着色只落在索引卡舌片与头部，卡身保持中性纸面。
+            三态着色只落在索引卡舌片与头部，卡身保持中性纸面；
+            待生效带活页本装订条（.skeu-index-binding），已完成带撕边便签底（.skeu-index-tear）。
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -593,6 +594,13 @@ function MaterialKit() {
             {(["待生效", "进行中", "已完成"] as const).map((status) => (
               <article key={status} className="skeu-index-card" data-status={status}>
                 <span className="skeu-index-tab" aria-hidden />
+                <span className="skeu-index-binding" aria-hidden>
+                  <span className="skeu-index-rings">
+                    {[0, 1, 2, 3, 4].map((ring) => (
+                      <span key={ring} className="skeu-index-ring" />
+                    ))}
+                  </span>
+                </span>
                 <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
                   <div className="skeu-index-head">
                     <div className="grid grid-cols-[minmax(0,1fr)_68px] items-center gap-3">
@@ -641,6 +649,7 @@ function MaterialKit() {
                     {status === "待生效" && <SkeuButton size="sm">确认生产</SkeuButton>}
                   </span>
                 </footer>
+                <span className="skeu-index-tear" aria-hidden />
               </article>
             ))}
           </div>

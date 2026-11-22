@@ -26,11 +26,20 @@ export const createOutboundSchema = z.object({
   remark: z.string().max(200).optional(),
   items: z.array(createOutboundItemSchema).min(1).max(500),
 }).superRefine((value, ctx) => {
-  if ((value.scheduleId == null) === (value.selfOrderId == null)) {
+  // 切配中心（内部生产单）来源出库已随内部生产单页面下线，仅保留字段以渲染历史单据
+  if (value.selfOrderId != null) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["selfOrderId"],
+      message: "切配中心来源出库已下线：内部生产单已并入生产计划单流程，新出库单请按门店排程单创建",
+    });
+    return;
+  }
+  if (value.scheduleId == null) {
     ctx.addIssue({
       code: "custom",
       path: ["scheduleId"],
-      message: "请选择排程单或内部生产单（二选一）",
+      message: "请选择排程单",
     });
   }
   const totalPortions = value.items.reduce(

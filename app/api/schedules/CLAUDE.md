@@ -9,6 +9,7 @@
 | `route.ts` | `GET /api/schedules` / `POST /api/schedules` | 列表查询、创建排程 |
 | `[id]/route.ts` | `GET /api/schedules/[id]` / `PUT /api/schedules/[id]` / `DELETE /api/schedules/[id]` | 详情、修改、删除 |
 | `[id]/activate/route.ts` | `PUT /api/schedules/[id]/activate` | 确认生产（待生效 → 进行中） |
+| `[id]/void/route.ts` | `PUT /api/schedules/[id]/void` | 作废（进行中 → 待生效，恢复可编辑） |
 | `active/route.ts` | `GET /api/schedules/active` | 查询所有"进行中"排程 |
 
 > 完成生产**不在这里**：排程的「进行中 → 已完成」由生产计划单完成时通过
@@ -19,10 +20,12 @@
 
 ```
 待生效 ──确认生产──> 进行中 ──生产计划单完成生产──> 已完成
+   ↑                   │
+   └────── 作废 ────────┘
 ```
 
 - **待生效** — 可修改、可删除、可确认
-- **进行中** — 不可修改删除；可纳入生产计划单（一张进行中排程只能归属一张未删除的计划单）
+- **进行中** — 不可修改删除；可纳入生产计划单（一张进行中排程只能归属一张未删除的计划单）；可作废回退待生效——但已有切配完成记录（工单非 pending）或已纳入未删除切配计划单时服务端拦截
 - **已完成** — 终态，只能由生产计划单完成后回写
 
 ## 创建排程
@@ -46,7 +49,7 @@
 
 - `status` — 按状态筛选
 - `startDate` / `endDate` — 按**生产日期**（`scheduleDate`）筛选
-- `q` — 按标题搜索
+- `q` — 按标题 / 单号（code）/ 门店名 / 菜品名搜索（OR 匹配）
 - `storeId` — 按门店筛选
 - `availableForPlan` / `excludePlanId` — 生产计划单选择来源排程时使用
 - `page` / `pageSize` — 分页

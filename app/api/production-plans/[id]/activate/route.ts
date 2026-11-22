@@ -17,9 +17,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         where: { id: planId, deletedAt: null },
         select: { status: true },
       });
-      if (!existing) throw new Error("生产计划单不存在");
+      if (!existing) throw new Error("切配计划单不存在");
       if (existing.status !== "待生效") {
-        throw new Error("只有待生效的生产计划单可以确认");
+        throw new Error("只有待生效的切配计划单可以确认");
       }
       await tx.productionPlan.update({ where: { id: planId }, data: { status: "进行中" } });
     });
@@ -27,12 +27,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       action: "UPDATE",
       entity: "ProductionPlan",
       entityId: planId,
-      description: "确认生产计划单",
+      description: "确认切配计划单",
     });
     return success({ ok: true });
   } catch (err) {
     const message = err instanceof Error ? err.message : "操作失败";
-    if (message === "生产计划单不存在") return error(message, 404, "NOT_FOUND");
+    if (message === "切配计划单不存在") return error(message, 404, "NOT_FOUND");
     if (message.startsWith("只有")) return error(message, 409, "CONFLICT");
     logger.error({ err }, "PUT activate failed");
     return error("操作失败", 500, "INTERNAL_ERROR");

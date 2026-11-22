@@ -46,6 +46,11 @@ export interface ProductionPlanListItem {
   createdAt: string;
   scheduleCount: number;
   selfOrderCount: number;
+  remark: string | null;
+  categoryCount: number;
+  totalPortions: number;
+  /** 卡片中间区：来源门店 + 需求份数（取自来源快照，纯手工计划为空数组） */
+  stores: Array<{ name: string; portions: number }>;
 }
 
 export interface SelfProductionOrderListItem {

@@ -44,11 +44,18 @@ export function ScheduleCard({
 
   return (
     <article
-      className="skeu-index-card cursor-pointer"
+      className="skeu-index-card self-start cursor-pointer"
       data-status={item.status}
       onClick={onOpen}
     >
       <span className="skeu-index-tab" aria-hidden />
+      <span className="skeu-index-binding" aria-hidden>
+        <span className="skeu-index-rings">
+          {[0, 1, 2, 3, 4].map((ring) => (
+            <span key={ring} className="skeu-index-ring" />
+          ))}
+        </span>
+      </span>
 
       <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
         <div className="skeu-index-head">
@@ -149,6 +156,7 @@ export function ScheduleCard({
           )}
         </span>
       </footer>
+      <span className="skeu-index-tear" aria-hidden />
     </article>
   );
 }

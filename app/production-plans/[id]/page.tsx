@@ -1,13 +1,16 @@
 "use client";
 
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
+import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { ProductionPlanStoreSchedules } from "@/app/components/production-plan/store-schedules-tab";
 import { ProductionPlanSelfProduction } from "@/app/components/production-plan/self-production-tab";
 import { rowConfirmStatus, type PlanCuttingRow } from "@/lib/shared/prepped-stock";
 import type { ProductionPlanSourceSnapshot } from "@/lib/shared/production-plan";
+import { getWeekDay } from "@/lib/shared/date-format";
 import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
+  Ban,
   Play,
   CheckCircle2,
   Trash2,
@@ -18,7 +21,6 @@ import {
   Pencil,
   Tags,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -30,8 +32,9 @@ import { InfoTile } from "@/app/components/ui/info-tile";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
+import { PageTabs } from "@/app/components/ui/page-tabs";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   ScheduleCuttingTable, type CuttingOrderRow, type ScheduleDocMeta,
 } from "@/app/components/schedule/schedule-cutting-table";
@@ -75,11 +78,6 @@ interface PlanDetail {
   sourceSnapshot: ProductionPlanSourceSnapshot;
 }
 
-function getWeekDay(dateStr: string) {
-  const days = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
-  return days[new Date(dateStr).getDay()];
-}
-
 export default function ProductionPlanDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -92,6 +90,8 @@ export default function ProductionPlanDetailPage() {
   const [activateOpen, setActivateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<"cutting" | "purchase" | "stores" | "self">("cutting");
   const [completeOpen, setCompleteOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [voidOpen, setVoidOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -99,7 +99,7 @@ export default function ProductionPlanDetailPage() {
       const res = await fetch("/api/production-plans/" + id);
       const d = await parseObject<PlanDetail>(res);
       if (!d) {
-        toast.error("生产计划单不存在");
+        toast.error("切配计划单不存在");
         return;
       }
       setData(d);
@@ -140,9 +140,17 @@ export default function ProductionPlanDetailPage() {
   const handleActivate = async () => {
     const success = await doAction(
       "/api/production-plans/" + id + "/activate",
-      "生产计划已确认"
+      "切配计划已确认"
     );
     if (success) setActivateOpen(false);
+  };
+
+  const handleVoid = async () => {
+    const success = await doAction(
+      "/api/production-plans/" + id + "/void",
+      "切配计划单已作废，回退到待生效"
+    );
+    if (success) setVoidOpen(false);
   };
 
   const handleDelete = async () => {
@@ -154,7 +162,7 @@ export default function ProductionPlanDetailPage() {
         toast.error(d.error || "删除失败");
         return;
       }
-      toast.success("生产计划单已删除");
+      toast.success("切配计划单已删除");
       setDeleteOpen(false);
       router.push("/production-plans");
     } catch {
@@ -176,10 +184,10 @@ export default function ProductionPlanDetailPage() {
       <PageShell>
         <EmptyState
           icon={FileStack}
-          title="生产计划单不存在"
+          title="切配计划单不存在"
           description="该计划单可能已删除，或当前链接已失效。"
           action={{
-            label: "返回生产计划单列表",
+            label: "返回切配计划单列表",
             onClick: () => router.push("/production-plans"),
           }}
         />
@@ -209,18 +217,18 @@ export default function ProductionPlanDetailPage() {
       <PageHeader
         showBack
         backHref="/production-plans"
-        backLabel="返回生产计划单列表"
+        backLabel="返回切配计划单列表"
         title={data.title}
         meta={<ScheduleStatusTag status={data.status} />}
         description={
           <>
-            {data.code ?? "生产计划 #" + data.id} · 制单人：
+            {data.code ?? "切配计划 #" + data.id} · 制单人：
             {data.operatorName || data.operator || "—"}
           </>
         }
         actions={
           <>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() =>
                 window.open(
@@ -233,41 +241,52 @@ export default function ProductionPlanDetailPage() {
               title={
                 data.cuttingOrders.length === 0
                   ? "当前计划单没有净菜标签"
-                  : "打印本生产计划单的全部净菜标签"
+                  : "打印本切配计划单的全部净菜标签"
               }
             >
               <Tags className="mr-2 h-4 w-4" />
               打印净菜标签
-            </Button>
+            </SkeuButton>
             {data.status === "待生效" && (
               <>
-                <Button
+                <SkeuButton
                   variant="outline"
-                  onClick={() => router.push(`/production-plans/${id}/edit`)}
+                  onClick={() => setEditOpen(true)}
                   disabled={actionLoading}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
                   修改
-                </Button>
-                <Button
-                  variant="destructive"
+                </SkeuButton>
+                <SkeuButton
+                  variant="danger"
                   onClick={() => setDeleteOpen(true)}
                   disabled={actionLoading}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   删除
-                </Button>
-                <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
+                </SkeuButton>
+                <SkeuButton onClick={() => setActivateOpen(true)} disabled={actionLoading}>
                   <Play className="mr-2 h-4 w-4" />
-                  确认生产计划
-                </Button>
+                  确认切配计划
+                </SkeuButton>
               </>
             )}
             {data.status === "进行中" && (
-              <Button onClick={() => setCompleteOpen(true)} disabled={actionLoading}>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                完成生产
-              </Button>
+              <>
+                <SkeuButton onClick={() => setCompleteOpen(true)} disabled={actionLoading}>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  完成切配
+                </SkeuButton>
+                <SkeuButton
+                  variant="ghost"
+                  className="text-[#b42318] hover:bg-[#fdecea] hover:text-[#b42318]"
+                  onClick={() => setVoidOpen(true)}
+                  disabled={actionLoading}
+                >
+                  <Ban className="h-4 w-4" />
+                  作废
+                </SkeuButton>
+              </>
             )}
           </>
         }
@@ -306,10 +325,10 @@ export default function ProductionPlanDetailPage() {
       </div>
 
       <div className="min-w-0">
-        <SectionTabs
-          ariaLabel="生产计划单内容"
+        <PageTabs
+          ariaLabel="切配计划单内容"
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value as "cutting" | "purchase" | "stores" | "self")}
           tabs={[
             { value: "cutting", label: "切配工单明细", count: data.cuttingOrders.length },
             { value: "purchase", label: "采购计划明细", count: data.purchasePlans.length },
@@ -320,14 +339,14 @@ export default function ProductionPlanDetailPage() {
         <div className="min-w-0 pt-4">
           {activeTab === "cutting" && (
             <div className="min-w-0 space-y-3">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                <span>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] px-4 py-3 text-sm shadow-sk-raised">
+                <span className="text-muted-foreground">
                   已完成 <b className="text-foreground">{completedCount}</b> 项
                 </span>
-                <span>
+                <span className="text-muted-foreground">
                   未完成 <b className="text-foreground">{unfinishedCount}</b> 项
                 </span>
-                <span>
+                <span className="text-muted-foreground">
                   待确认 <b className="text-foreground">{pendingCount}</b> 项
                 </span>
               </div>
@@ -362,17 +381,32 @@ export default function ProductionPlanDetailPage() {
         rows={cuttingRows}
         onCompleted={fetchData}
       />
+
+      {editOpen && (
+        <ProductionPlanCreateDialog
+          editId={id}
+          onClose={() => setEditOpen(false)}
+          onSaved={() => {
+            setEditOpen(false);
+            fetchData();
+          }}
+        />
+      )}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AppDialogContent size="compact">
           <DialogHeader>
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除这条生产计划单吗？删除后来源排程与内部生产单可重新纳入其他生产计划单，此操作不可撤销。
+            确定要删除这条切配计划单吗？删除后来源排程单可重新纳入其他切配计划单，此操作不可撤销。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">取消</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={actionLoading} className="h-11 px-6">删除</Button>
+            <SkeuButton variant="outline" onClick={() => setDeleteOpen(false)}>
+              取消
+            </SkeuButton>
+            <SkeuButton variant="danger" onClick={handleDelete} disabled={actionLoading}>
+              删除
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
@@ -380,18 +414,38 @@ export default function ProductionPlanDetailPage() {
       <Dialog open={activateOpen} onOpenChange={setActivateOpen}>
         <AppDialogContent size="compact">
           <DialogHeader>
-            <DialogTitle className="text-lg">确认生产计划</DialogTitle>
+            <DialogTitle className="text-lg">确认切配计划</DialogTitle>
           </DialogHeader>
           <p className="text-base text-muted-foreground">
-            确认后生产计划单进入「进行中」，标题、日期和来源排程/内部生产单不可再修改，也不能删除。
+            确认后切配计划单进入「进行中」，标题、日期和来源排程单不可再修改，也不能删除。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setActivateOpen(false)}>
               取消
-            </Button>
-            <Button onClick={handleActivate} disabled={actionLoading} className="h-11 px-6">
-              确认并进入生产
-            </Button>
+            </SkeuButton>
+            <SkeuButton onClick={handleActivate} disabled={actionLoading}>
+              确认并进入切配
+            </SkeuButton>
+          </DialogFooter>
+        </AppDialogContent>
+      </Dialog>
+
+      <Dialog open={voidOpen} onOpenChange={setVoidOpen}>
+        <AppDialogContent size="compact">
+          <DialogHeader>
+            <DialogTitle className="text-lg">作废切配计划单</DialogTitle>
+          </DialogHeader>
+          <p className="text-base text-muted-foreground">
+            作废后计划单回退到「待生效」，可重新编辑切配量与来源排程；
+            已有切配完成记录（净菜已入库）时不能作废。
+          </p>
+          <DialogFooter>
+            <SkeuButton variant="outline" onClick={() => setVoidOpen(false)}>
+              取消
+            </SkeuButton>
+            <SkeuButton variant="danger" onClick={handleVoid} disabled={actionLoading}>
+              确认作废
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

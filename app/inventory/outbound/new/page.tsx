@@ -7,7 +7,6 @@ import {
   ArrowLeft,
   CalendarDays,
   Check,
-  ChefHat,
   Loader2,
   MapPin,
   RefreshCw,
@@ -29,8 +28,6 @@ import { toast } from "sonner";
 import {
   calcPortionAmount,
   formatPortionsCount,
-  CUTTING_CENTER_NAME,
-  type OutboundSubjectType,
 } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
 import { formatMoney } from "@/lib/shared/display-format";
@@ -41,7 +38,7 @@ interface StoreItem {
   code: string;
 }
 
-/** 来源单据：门店主体为排程单，切配中心主体为内部生产单 */
+/** 来源单据：门店排程单 */
 interface SourceDoc {
   id: number;
   code: string | null;
@@ -73,14 +70,6 @@ interface ScheduleResponse {
   code: string | null;
   title: string;
   scheduleDate: string;
-  status: string;
-}
-
-interface SelfOrderResponse {
-  id: number;
-  code: string | null;
-  title: string;
-  produceDate: string;
   status: string;
 }
 
@@ -166,7 +155,6 @@ export default function NewOutboundPage({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [sources, setSources] = useState<SourceDoc[]>([]);
-  const [subjectType, setSubjectType] = useState<OutboundSubjectType | null>(null);
   const [storeId, setStoreId] = useState<number | null>(null);
   const [sourceId, setSourceId] = useState<number | null>(null);
   const [lines, setLines] = useState<QuoteLine[]>([]);
@@ -183,8 +171,6 @@ export default function NewOutboundPage({
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const sourceRequestRef = useRef(0);
   const quoteRequestRef = useRef(0);
-
-  const isCuttingCenter = subjectType === "cutting_center";
 
   const loadStores = useCallback(async () => {
     setStoresLoading(true);
@@ -207,48 +193,28 @@ export default function NewOutboundPage({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const loadSources = useCallback(
-    async (type: OutboundSubjectType, id: number | null) => {
+    async (id: number) => {
       const requestId = sourceRequestRef.current + 1;
       sourceRequestRef.current = requestId;
       setSourcesLoading(true);
       setSourcesError(null);
       try {
-        let rows: SourceDoc[];
-        if (type === "cutting_center") {
-          const [active, completed] = await Promise.all([
-            fetchAllPages<SelfOrderResponse>(
-              `/api/self-production-orders?status=${encodeURIComponent("进行中")}`
-            ),
-            fetchAllPages<SelfOrderResponse>(
-              `/api/self-production-orders?status=${encodeURIComponent("已完成")}`
-            ),
-          ]);
-          const unique = new Map([...active, ...completed].map((item) => [item.id, item]));
-          rows = [...unique.values()].map((item) => ({
-            id: item.id,
-            code: item.code,
-            title: item.title,
-            date: item.produceDate,
-            status: item.status,
-          }));
-        } else {
-          const [active, completed] = await Promise.all([
-            fetchAllPages<ScheduleResponse>(
-              `/api/schedules?status=${encodeURIComponent("进行中")}&storeId=${id}`
-            ),
-            fetchAllPages<ScheduleResponse>(
-              `/api/schedules?status=${encodeURIComponent("已完成")}&storeId=${id}`
-            ),
-          ]);
-          const unique = new Map([...active, ...completed].map((item) => [item.id, item]));
-          rows = [...unique.values()].map((item) => ({
-            id: item.id,
-            code: item.code,
-            title: item.title,
-            date: item.scheduleDate,
-            status: item.status,
-          }));
-        }
+        const [active, completed] = await Promise.all([
+          fetchAllPages<ScheduleResponse>(
+            `/api/schedules?status=${encodeURIComponent("进行中")}&storeId=${id}`
+          ),
+          fetchAllPages<ScheduleResponse>(
+            `/api/schedules?status=${encodeURIComponent("已完成")}&storeId=${id}`
+          ),
+        ]);
+        const unique = new Map([...active, ...completed].map((item) => [item.id, item]));
+        const rows: SourceDoc[] = [...unique.values()].map((item) => ({
+          id: item.id,
+          code: item.code,
+          title: item.title,
+          date: item.scheduleDate,
+          status: item.status,
+        }));
         if (sourceRequestRef.current !== requestId) return;
         setSources(
           rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
@@ -256,13 +222,7 @@ export default function NewOutboundPage({
       } catch (e) {
         if (sourceRequestRef.current !== requestId) return;
         setSources([]);
-        setSourcesError(
-          e instanceof Error
-            ? e.message
-            : type === "cutting_center"
-              ? "加载内部生产单失败"
-              : "加载排程单失败"
-        );
+        setSourcesError(e instanceof Error ? e.message : "加载排程单失败");
       } finally {
         if (sourceRequestRef.current === requestId) setSourcesLoading(false);
       }
@@ -279,30 +239,20 @@ export default function NewOutboundPage({
   };
 
   const pickStore = async (id: number) => {
-    setSubjectType("store");
     setStoreId(id);
     resetSourceSelection();
     setStep(2);
-    await loadSources("store", id);
-  };
-
-  const pickCuttingCenter = async () => {
-    setSubjectType("cutting_center");
-    setStoreId(null);
-    resetSourceSelection();
-    setStep(2);
-    await loadSources("cutting_center", null);
+    await loadSources(id);
   };
 
   const loadQuote = useCallback(
-    async (type: OutboundSubjectType, id: number) => {
+    async (id: number) => {
       const requestId = quoteRequestRef.current + 1;
       quoteRequestRef.current = requestId;
       setQuoteLoading(true);
       setQuoteError(null);
       try {
-        const param = type === "cutting_center" ? "selfOrderId" : "scheduleId";
-        const res = await fetch(`/api/outbound-orders?${param}=${id}`);
+        const res = await fetch(`/api/outbound-orders?scheduleId=${id}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "加载出库明细失败");
         if (quoteRequestRef.current !== requestId) return;
@@ -326,12 +276,11 @@ export default function NewOutboundPage({
   );
 
   const pickSource = async (id: number) => {
-    if (!subjectType) return;
     setSourceId(id);
     setStep(3);
     setLines([]);
     setShipMap({});
-    await loadQuote(subjectType, id);
+    await loadQuote(id);
   };
 
   const filteredStores = useMemo(() => {
@@ -393,7 +342,7 @@ export default function NewOutboundPage({
   }, [lines, shipMap]);
 
   const submit = async () => {
-    if (!sourceId || !subjectType || lines.length === 0) return;
+    if (!sourceId || lines.length === 0) return;
 
     const firstInvalid = lines.find((line) => getLineError(line) !== null);
     if (firstInvalid) {
@@ -412,9 +361,7 @@ export default function NewOutboundPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...(subjectType === "cutting_center"
-            ? { selfOrderId: sourceId }
-            : { scheduleId: sourceId }),
+          scheduleId: sourceId,
           items: lines.map((line) => ({
             sourceType: line.sourceType,
             sourceId: line.sourceId,
@@ -442,8 +389,7 @@ export default function NewOutboundPage({
 
   const store = stores.find((item) => item.id === storeId);
   const source = sources.find((item) => item.id === sourceId);
-  const subjectName = isCuttingCenter ? CUTTING_CENTER_NAME : store?.name ?? "—";
-  const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
+  const subjectName = store?.name ?? "—";
   const canSubmit =
     !submitting &&
     !quoteLoading &&
@@ -464,15 +410,15 @@ export default function NewOutboundPage({
           </SkeuButton>
           <PageHeader
             title="创建出库单"
-            description="按门店排程单或切配中心内部生产单生成，按份出库，金额按净菜档案出库价自动核算"
+            description="按门店排程单生成，按份出库，金额按净菜档案出库价自动核算"
           />
         </div>
       )}
 
       <div className="flex items-center gap-3 text-sm" aria-label="创建出库单步骤">
         {([
-          { number: 1, label: "选择主体" },
-          { number: 2, label: isCuttingCenter ? "选择内部生产单" : "选择来源单据" },
+          { number: 1, label: "选择门店" },
+          { number: 2, label: "选择排程单" },
           { number: 3, label: "确认出库明细" },
         ] as const).map((item) => (
           <div key={item.number} className="flex items-center gap-3">
@@ -530,31 +476,6 @@ export default function NewOutboundPage({
           ) : (
             <>
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                <button
-                  type="button"
-                  onClick={() => void pickCuttingCenter()}
-                  aria-pressed={isCuttingCenter}
-                  className={
-                    "min-h-24 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-primary/10 " +
-                    (isCuttingCenter
-                      ? "border-primary bg-primary/10 ring-1 ring-primary"
-                      : "border-primary/40 bg-primary/5")
-                  }
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 font-medium">
-                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-md bg-primary/15">
-                        <ChefHat className="h-4 w-4 text-primary" />
-                      </span>
-                      {CUTTING_CENTER_NAME}
-                    </div>
-                    <StatusBadge status="切配中心" variant="info" size="sm" />
-                  </div>
-                  <div className="mt-1.5 text-xs text-muted-foreground">
-                    按内部生产单出库净菜，来源单据为内部生产单
-                  </div>
-                </button>
-
                 {filteredStores.map((item) => (
                   <button
                     key={item.id}
@@ -594,7 +515,7 @@ export default function NewOutboundPage({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
             <div>
-              <div className="text-xs text-muted-foreground">当前主体</div>
+              <div className="text-xs text-muted-foreground">当前门店</div>
               <div className="font-medium">{subjectName}</div>
             </div>
             <div className="flex items-center gap-2">
@@ -602,24 +523,20 @@ export default function NewOutboundPage({
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
                   className="h-9 w-[260px] pl-8"
-                  placeholder={
-                    isCuttingCenter
-                      ? "搜索内部生产单标题、编号或日期"
-                      : "搜索排程标题、编号或日期"
-                  }
-                  aria-label={isCuttingCenter ? "搜索内部生产单" : "搜索排程单"}
+                  placeholder="搜索排程标题、编号或日期"
+                  aria-label="搜索排程单"
                   value={sourceSearch}
                   onChange={(event) => setSourceSearch(event.target.value)}
                 />
               </div>
               <SkeuButton type="button" variant="outline" onClick={() => setStep(1)}>
-                更换主体
+                更换门店
               </SkeuButton>
             </div>
           </div>
 
           {sourcesLoading ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label={`正在加载${sourceLabel}`}>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="正在加载排程单">
               {[1, 2, 3].map((item) => (
                 <div key={item} className="h-28 rounded-lg bg-muted animate-pulse" />
               ))}
@@ -628,22 +545,16 @@ export default function NewOutboundPage({
             <InlineError
               message={sourcesError}
               onRetry={() =>
-                subjectType && void loadSources(subjectType, storeId)
+                storeId != null && void loadSources(storeId)
               }
             />
           ) : filteredSources.length === 0 ? (
             <div className="rounded-lg border border-dashed p-10 text-center">
               <p className="font-medium">
-                {sources.length === 0
-                  ? isCuttingCenter
-                    ? "暂无可出库内部生产单"
-                    : "该门店暂无可出库排程"
-                  : "未找到匹配单据"}
+                {sources.length === 0 ? "该门店暂无可出库排程" : "未找到匹配单据"}
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {sources.length === 0
-                  ? `仅展示进行中或已完成的${sourceLabel}`
-                  : "请调整搜索关键词"}
+                {sources.length === 0 ? "仅展示进行中或已完成的排程单" : "请调整搜索关键词"}
               </p>
             </div>
           ) : (
@@ -666,7 +577,7 @@ export default function NewOutboundPage({
                     <StatusBadge status={item.status} />
                   </div>
                   <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {item.code ?? sourceLabel + " #" + item.id}
+                    {item.code ?? "排程单 #" + item.id}
                   </div>
                   <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
                     <CalendarDays className="h-3.5 w-3.5" />
@@ -683,15 +594,11 @@ export default function NewOutboundPage({
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
             <span className="flex items-center gap-1.5">
-              {isCuttingCenter ? (
-                <ChefHat className="h-4 w-4 text-muted-foreground" />
-              ) : (
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-              )}
+              <MapPin className="h-4 w-4 text-muted-foreground" />
               <b>{subjectName}</b>
             </span>
             <span className="min-w-0 truncate">
-              {sourceLabel}：<b>{source?.title ?? "—"}</b>
+              排程单：<b>{source?.title ?? "—"}</b>
             </span>
             {source && (
               <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -714,9 +621,7 @@ export default function NewOutboundPage({
           ) : quoteError ? (
             <InlineError
               message={quoteError}
-              onRetry={() =>
-                subjectType && sourceId && void loadQuote(subjectType, sourceId)
-              }
+              onRetry={() => sourceId != null && void loadQuote(sourceId)}
             />
           ) : (
             <div className="overflow-x-auto rounded-lg border">

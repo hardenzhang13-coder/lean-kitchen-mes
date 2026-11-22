@@ -19,9 +19,7 @@ export async function lockSchedulesForProductionPlan(
   scheduleIds: number[],
   excludePlanId?: number
 ): Promise<Array<{ id: number; status: string }>> {
-  if (scheduleIds.length === 0) {
-    throw new ProductionPlanAssignmentError("请至少选择一张排程单");
-  }
+  if (scheduleIds.length === 0) return [];
 
   const locked = await tx.$queryRaw<Array<{ id: number; status: string }>>(
     Prisma.sql`
@@ -83,17 +81,21 @@ export async function lockSchedulesForProductionPlan(
   return rows.length > 0;
 }
 
-/** 生成生产计划单编号：PPL-生产日期-当日序号。 */
+/** 生成生产计划单编号：PPL-年月日-时分（创建时刻），同分钟第 N 张追加 -N 后缀。编号即卡片简称，创建后不再变更。 */
 export async function nextProductionPlanCode(
-  tx: Prisma.TransactionClient,
-  planDate: Date
+  tx: Prisma.TransactionClient
 ): Promise<string> {
-  const ymd =
-    planDate.getFullYear() +
-    String(planDate.getMonth() + 1).padStart(2, "0") +
-    String(planDate.getDate()).padStart(2, "0");
-  const dayCount = await tx.productionPlan.count({ where: { planDate } });
-  return "PPL-" + ymd + "-" + String(dayCount + 1).padStart(3, "0");
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, "0");
+  const dd = String(now.getDate()).padStart(2, "0");
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mi = String(now.getMinutes()).padStart(2, "0");
+  const base = `PPL-${yyyy}${mm}${dd}-${hh}${mi}`;
+  const samePrefix = await tx.productionPlan.count({
+    where: { code: { startsWith: base } },
+  });
+  return samePrefix === 0 ? base : `${base}-${samePrefix + 1}`;
 }
 
 /**

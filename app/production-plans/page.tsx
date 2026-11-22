@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, startTransition } from "react";
+import { useEffect, useState } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
@@ -9,11 +9,10 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { ProductionModuleSwitcher } from "@/app/components/ui/production-module-switcher";
 import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
-import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
 import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
+import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
 import { StatusColumnMenu } from "@/app/components/schedule/status-column-menu";
 import { useProductionPlanBoard } from "@/app/components/schedule/use-schedule-board";
@@ -58,30 +57,37 @@ export default function ProductionPlansPage() {
   const canWrite = canAccessApi("/api/production-plans", "POST", role);
 
   const [actionId, setActionId] = useState<number | null>(null);
+  const [previewId, setPreviewId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
   const [createState, setCreateState] = useState<{
+    presetDate: string | null;
     presetScheduleId: number | null;
   } | null>(null);
-  const [previewId, setPreviewId] = useState<number | null>(null);
   const [completeTarget, setCompleteTarget] = useState<{
     planId: number;
     rows: PlanCuttingRow[];
   } | null>(null);
 
+  // URL 参数驱动新建/编辑弹窗：?create=1&date= / ?scheduleId=N / ?editId=N
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const scheduleId = Number(params.get("scheduleId"));
-    // 以 transition 更新，避免该 effect 同步触发级联渲染
-    startTransition(() => {
-      if (Number.isInteger(scheduleId) && scheduleId > 0) {
-        setCreateState({ presetScheduleId: scheduleId });
-      } else if (params.get("create") === "1") {
-        setCreateState({ presetScheduleId: null });
-      }
-    });
-  }, []);
+    const editParam = Number(params.get("editId"));
+    if (Number.isInteger(scheduleId) && scheduleId > 0) {
+      setCreateState({ presetDate: null, presetScheduleId: scheduleId });
+      router.replace("/production-plans");
+    } else if (Number.isInteger(editParam) && editParam > 0) {
+      setEditId(editParam);
+      router.replace("/production-plans");
+    } else if (params.get("create") === "1") {
+      setCreateState({ presetDate: params.get("date"), presetScheduleId: null });
+      router.replace("/production-plans");
+    }
+  }, [router]);
 
-  const closePreview = () => {
-    setPreviewId(null);
+  const closeCreateDialog = () => {
+    setCreateState(null);
+    setEditId(null);
   };
 
   const activatePlan = async (id: number) => {
@@ -93,7 +99,7 @@ export default function ProductionPlansPage() {
         toast.error(data.error || "操作失败");
         return;
       }
-      toast.success("生产计划已确认，进入进行中");
+      toast.success("切配计划已确认，进入进行中");
       board.refresh();
     } catch {
       toast.error("操作出错");
@@ -108,12 +114,12 @@ export default function ProductionPlansPage() {
       const res = await fetch(`/api/production-plans/${planId}`);
       const data = await parseObject<ProductionPlanPreview>(res);
       if (!data) {
-        toast.error("生产计划单不存在");
+        toast.error("切配计划单不存在");
         return;
       }
       setCompleteTarget({ planId, rows: toPlanCuttingRows(data.cuttingOrders) });
     } catch {
-      toast.error("获取生产计划单失败");
+      toast.error("获取切配计划单失败");
     } finally {
       setActionId(null);
     }
@@ -125,18 +131,19 @@ export default function ProductionPlansPage() {
       header={
         <PageHeader
           variant="topbar"
-          title="生产计划单"
-          description="把各门店「进行中」的排程单与内部生产单汇总成一张执行单；切配完成后逐行确认并入库"
+          title="切配计划单"
+          description="把各门店「进行中」的排程单汇总成一张切配执行单；切配完成后逐行确认并入库"
           actions={
-            <>
-              <ProductionModuleSwitcher />
-              {canWrite && (
-                <SkeuButton onClick={() => setCreateState({ presetScheduleId: null })}>
-                  <Plus className="h-4 w-4" />
-                  生产计划
-                </SkeuButton>
-              )}
-            </>
+            canWrite ? (
+              <SkeuButton
+                onClick={() =>
+                  setCreateState({ presetDate: null, presetScheduleId: null })
+                }
+              >
+                <Plus className="h-4 w-4" />
+                新建切配计划
+              </SkeuButton>
+            ) : undefined
           }
         />
       }
@@ -144,7 +151,7 @@ export default function ProductionPlansPage() {
       <ListToolbar
         searchValue={board.search}
         onSearchChange={board.setSearch}
-        searchPlaceholder="搜索生产计划单标题..."
+        searchPlaceholder="搜索切配计划单标题..."
         onReset={board.reset}
         hasFilters={!!board.date}
         trailing={
@@ -168,7 +175,7 @@ export default function ProductionPlansPage() {
             statuses={visibleStatuses}
             columns={board.columns}
             loading={board.loading}
-            emptyText="暂无生产计划单"
+            emptyText="暂无切配计划单"
             renderItem={(row) => (
               <ProductionPlanCard
                 key={row.id}
@@ -176,6 +183,7 @@ export default function ProductionPlansPage() {
                 busy={actionId === row.id}
                 canWrite={canWrite}
                 onOpen={() => setPreviewId(row.id)}
+                onEdit={() => setEditId(row.id)}
                 onActivate={() => activatePlan(row.id)}
                 onComplete={() => openCompleteDialog(row.id)}
               />
@@ -184,7 +192,20 @@ export default function ProductionPlansPage() {
         )}
       </div>
 
-      <ProductionPlanPreviewDialog planId={previewId} onClose={closePreview} />
+      <ProductionPlanPreviewDialog planId={previewId} onClose={() => setPreviewId(null)} />
+
+      {(createState || editId) && (
+        <ProductionPlanCreateDialog
+          editId={editId}
+          presetDate={createState?.presetDate ?? null}
+          presetScheduleId={createState?.presetScheduleId ?? null}
+          onClose={closeCreateDialog}
+          onSaved={() => {
+            closeCreateDialog();
+            board.refresh();
+          }}
+        />
+      )}
 
       <CompleteProductionDialog
         open={!!completeTarget}
@@ -195,18 +216,6 @@ export default function ProductionPlansPage() {
         rows={completeTarget?.rows ?? []}
         onCompleted={() => board.refresh()}
       />
-
-      {createState && (
-        <ProductionPlanCreateDialog
-          presetScheduleId={createState.presetScheduleId}
-          onClose={() => setCreateState(null)}
-          onCreated={(id) => {
-            setCreateState(null);
-            board.refresh();
-            if (id) router.push(`/production-plans/${id}`);
-          }}
-        />
-      )}
     </PageShell>
   );
 }

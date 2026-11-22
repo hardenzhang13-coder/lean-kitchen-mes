@@ -206,6 +206,17 @@
     transform: translateY(0);
   }
 }
+ 
+/* 登录页面板装饰色块的缓浮动画（配合 rotate 类使用 translate 属性，避免叠加冲突） */
+@keyframes login-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -10px;
+  }
+}
 
 /* 登录页进入动效（避免 Tailwind 任意值中逗号截断的问题，使用显式类） */
 .rise-in {
@@ -562,7 +573,6 @@
   flex: none;
   display: flex;
   flex-direction: column;
-  min-height: 262px;
   margin-top: 10px;
   border: 1px solid var(--ic-bd);
   border-radius: var(--sk-radius-md);
@@ -590,6 +600,7 @@
 }
 .skeu-index-tab {
   position: absolute;
+  z-index: 1;
   top: -12px;
   left: 22px;
   width: 112px;
@@ -619,6 +630,44 @@
   border: 1px solid var(--ic-dbd);
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
   color: var(--ic-dink);
+}
+/* 活页本装订条（待生效）：顶部装订条 + 吊环，环下垂 6px 落在内容内边距区 */
+.skeu-index-binding { display: none; }
+.skeu-index-card[data-status="待生效"] .skeu-index-binding {
+  display: block;
+  position: relative;
+  flex: none;
+  height: 19px;
+  margin: -1px -1px 0;
+  border-bottom: 1px solid var(--ic-bd);
+  border-radius: calc(var(--sk-radius-md) - 1px) calc(var(--sk-radius-md) - 1px) 0 0;
+  background: linear-gradient(180deg, #f5f0e5 0%, #faf7f0 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+.skeu-index-rings {
+  position: absolute;
+  bottom: -6px;
+  left: 26px;
+  right: 26px;
+  display: flex;
+  justify-content: space-between;
+}
+.skeu-index-ring {
+  width: 7px;
+  height: 16px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #e8e4da 0%, #b9b3a6 100%);
+  border: 1px solid #a5a094;
+  box-shadow: 0 2px 3px rgba(15, 23, 42, 0.12);
+}
+/* 撕边便签底边（已完成）：与卡纸同色的锯齿收底 */
+.skeu-index-tear { display: none; }
+.skeu-index-card[data-status="已完成"] .skeu-index-tear {
+  display: block;
+  flex: none;
+  height: 9px;
+  background: var(--ic-p2);
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 96% 100%, 91% 38%, 86% 92%, 80% 35%, 74% 100%, 68% 38%, 62% 90%, 55% 35%, 49% 100%, 43% 38%, 37% 92%, 31% 35%, 25% 100%, 19% 38%, 13% 92%, 7% 35%, 0 100%);
 }
 
 /* ---------- 表格 ---------- */

@@ -84,7 +84,7 @@ export default async function ProductionPlanLabelsPage({
     return (
       <div className="flex flex-col gap-4 p-8">
         <h1 className="text-xl font-bold">无法生成净菜标签</h1>
-        <p className="text-sm text-muted-foreground">生产计划单中没有可打印的完整净菜包装。</p>
+        <p className="text-sm text-muted-foreground">切配计划单中没有可打印的完整净菜包装。</p>
         {result.skipped.length > 0 && (
           <ul className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             {result.skipped.map((item) => (

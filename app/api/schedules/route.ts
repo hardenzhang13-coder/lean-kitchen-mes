@@ -39,7 +39,18 @@ export async function GET(req: NextRequest) {
       if (endDate) where.scheduleDate.lte = new Date(endDate);
     }
     if (q) {
-      where.title = { contains: q };
+      // 搜索覆盖：标题 / 单号 / 门店名 / 菜品名（生产计划单向导第一步按门店找排程）
+      const keyword = q.trim();
+      where.AND = [
+        {
+          OR: [
+            { title: { contains: keyword } },
+            { code: { contains: keyword } },
+            { store: { name: { contains: keyword } } },
+            { items: { some: { dish: { name: { contains: keyword } } } } },
+          ],
+        },
+      ];
     }
     if (availableForPlan) {
       const planWhere: Prisma.ProductionPlanWhereInput = { deletedAt: null };
