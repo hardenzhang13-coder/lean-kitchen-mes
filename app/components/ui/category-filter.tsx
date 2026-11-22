@@ -85,7 +85,7 @@ export function CategoryFilter({
         aria-label="分类筛选"
         onClick={() => setOpen(true)}
         className={cn(
-          "flex h-11 items-center gap-2 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:border-[var(--sk-focus)] focus-visible:bg-[var(--sk-control-bg)] focus-visible:outline-none",
+          "flex h-11 w-full items-center justify-between gap-2 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:border-[var(--sk-focus)] focus-visible:bg-[var(--sk-control-bg)] focus-visible:outline-none",
           className
         )}
       >
