@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { Check } from "lucide-react";
 import {
   Dialog,
   DialogDescription,
@@ -9,8 +9,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
-import { Button } from "@/components/ui/button";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuComboboxTrigger } from "@/app/components/ui/skeu-combobox-trigger";
 import { cn } from "@/lib/shared/utils";
 
 export type CascadeCategory = {
@@ -95,26 +95,19 @@ export function CategoryCascadeSelect({
   };
 
   return (
-    <div className={className}>
-      <Button
-        type="button"
-        variant="outline"
-        role="combobox"
+    <>
+      <SkeuComboboxTrigger
+        label={display}
+        placeholder={placeholder}
+        className={className}
+        open={open}
         onClick={() => {
           // 打开时以已提交值为草稿起点，取消不改动表单值
           setDraftL1(l1Code);
           setDraftL2(l2Code);
           setOpen(true);
         }}
-        className="h-11 w-full justify-between px-4 text-base font-normal"
-      >
-        <span
-          className={cn("truncate", display ? "text-foreground" : "text-muted-foreground")}
-        >
-          {display || placeholder}
-        </span>
-        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0 ml-2" />
-      </Button>
+      />
 
       <Dialog open={open} onOpenChange={setOpen}>
         <AppDialogContent size="wide" className="flex flex-col max-h-[80vh]">
@@ -208,6 +201,6 @@ export function CategoryCascadeSelect({
           </div>
         </AppDialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

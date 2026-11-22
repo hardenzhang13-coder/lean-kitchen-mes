@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check, X } from "lucide-react";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Table,
   TableBody,
@@ -12,6 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { SelectDialog } from "@/app/components/ui/select-dialog";
+import { SkeuComboboxTrigger } from "@/app/components/ui/skeu-combobox-trigger";
 import { Pagination } from "@/app/components/ui/pagination";
 import { cn } from "@/lib/shared/utils";
 
@@ -124,35 +125,24 @@ export function SelectTableMode<T extends Record<string, unknown>>({
 
   return (
     <div className={className}>
-      <Button
-        type="button"
-        variant="outline"
+      <SkeuComboboxTrigger
+        label={selectedRow ? displayLabel : undefined}
+        placeholder={placeholder}
         disabled={disabled}
+        open={open}
         onClick={() => setOpen(true)}
-        className="h-11 w-full justify-between px-4 text-base font-normal"
       >
-        <span
-          className={cn(
-            "truncate",
-            selectedRow ? "text-foreground" : "text-muted-foreground"
-          )}
-        >
-          {displayLabel}
-        </span>
-        <span className="flex items-center gap-1 ml-2 shrink-0">
-          {value && clearable && (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={handleClear}
-              className="rounded-sm hover:bg-muted p-0.5"
-            >
-              <X className="h-3.5 w-3.5 text-muted-foreground" />
-            </span>
-          )}
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-        </span>
-      </Button>
+        {value && clearable && (
+          <span
+            role="button"
+            tabIndex={-1}
+            onClick={handleClear}
+            className="rounded-sm hover:bg-muted p-0.5"
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </span>
+        )}
+      </SkeuComboboxTrigger>
 
       <SelectDialog
         open={open}
@@ -173,13 +163,12 @@ export function SelectTableMode<T extends Record<string, unknown>>({
         className="max-w-[calc(100%-4rem)]"
         footer={
           confirmSelection ? (
-            <Button
+            <SkeuButton
               onClick={handleConfirm}
               disabled={pendingValue == null}
-              className="h-11 px-6"
             >
               确认选择
-            </Button>
+            </SkeuButton>
           ) : undefined
         }
       >
