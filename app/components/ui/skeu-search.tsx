@@ -29,7 +29,7 @@ export function SkeuSearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="skeu-input h-11 w-full rounded-[10px] border pr-10 pl-9 text-sm outline-none transition-colors duration-150 placeholder:text-muted-foreground"
+        className="skeu-input h-11 w-full rounded-[var(--sk-radius-sm)] border pr-10 pl-9 text-sm outline-none transition-colors duration-150 placeholder:text-muted-foreground"
         {...rest}
       />
       {value ? (

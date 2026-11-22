@@ -135,9 +135,9 @@ export function Pagination({
                 aria-label={`第 ${page} 页`}
                 onClick={() => onPageChange(page)}
                 className={cn(
-                  "skeu-btn grid h-9 min-w-9 place-items-center rounded-[9px] px-2 text-sm",
+                  "skeu-btn grid h-9 min-w-9 place-items-center rounded-[var(--sk-radius-xs)] px-2 text-sm",
                   page === currentPage
-                    ? "bg-gradient-to-b from-[#f0813c] to-[#e05a1e] font-semibold text-white shadow-[0_2px_6px_rgba(234,88,12,0.25)]"
+                    ? "bg-[image:var(--sk-primary-surface)] font-semibold text-white shadow-[var(--sk-primary-page-shadow)]"
                     : "skeu-btn-outline font-medium"
                 )}
               >

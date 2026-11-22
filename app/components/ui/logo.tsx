@@ -11,7 +11,7 @@ export function Logo({ className }: { className?: string }) {
     <svg
       viewBox="0 0 40 40"
       className={cn(
-        "h-10 w-10 rounded-[10px] shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_3px_8px_rgba(234,88,12,0.28)]",
+        "h-10 w-10 rounded-[var(--sk-radius-sm)] shadow-[var(--sk-brand-shadow)]",
         className
       )}
       role="img"
@@ -19,8 +19,8 @@ export function Logo({ className }: { className?: string }) {
     >
       <defs>
         <linearGradient id="skeu-brand-gradient" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#F0813C" />
-          <stop offset="100%" stopColor="#E05A1E" />
+          <stop offset="0%" stopColor="var(--sk-primary-from)" />
+          <stop offset="100%" stopColor="var(--sk-primary-to)" />
         </linearGradient>
       </defs>
       <rect width="40" height="40" rx="8" fill="url(#skeu-brand-gradient)" />

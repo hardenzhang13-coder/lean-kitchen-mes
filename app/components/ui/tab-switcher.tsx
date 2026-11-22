@@ -16,16 +16,15 @@ interface TabSwitcherProps {
 
 export function TabSwitcher({ tabs, className }: TabSwitcherProps) {
   return (
-    <div className={cn("flex items-center gap-1 bg-muted rounded-lg p-1", className)}>
+    <div className={cn("skeu-segmented", className)}>
       {tabs.map((tab) => (
         <Link
           key={tab.href}
           href={tab.href}
+          aria-current={tab.active ? "page" : undefined}
           className={cn(
-            "px-4 py-1.5 rounded-md text-sm font-medium transition-colors",
-            tab.active
-              ? "bg-background shadow-sm text-foreground"
-              : "text-muted-foreground hover:text-foreground"
+            "skeu-segmented-btn",
+            tab.active && "skeu-segmented-btn-active"
           )}
         >
           {tab.label}

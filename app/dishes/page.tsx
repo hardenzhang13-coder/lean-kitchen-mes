@@ -2,11 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Plus, Pencil, ArrowRightLeft, Copy } from "lucide-react";
+import {
+  ArrowRightLeft,
+  Building2,
+  Copy,
+  Pencil,
+  Plus,
+  User,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Sheet } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogHeader,
@@ -15,15 +21,17 @@ import {
 } from "@/components/ui/dialog";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
+import { PageTabs } from "@/app/components/ui/page-tabs";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
+import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
-import { CategoryTag } from "@/app/components/ui/category-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { MeatTypeTag } from "@/app/components/ui/meat-type-tag";
+import { SelectField } from "@/app/components/ui/select-field";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/form-controls";
 import {
@@ -36,44 +44,53 @@ import {
   DishDetail,
   calcGrossMarginPercent,
 } from "@/app/components/dish-form/types";
-import { TECHNIQUE_OPTIONS as techniqueOptions } from "@/lib/shared/dish-enums";
+import {
+  isDishPortionGroup,
+  type DishPortionGroup,
+} from "@/lib/shared/portion-scale";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
-const statusOptions = [
+type StatusFilter = "" | "draft" | "published" | "inactive";
+type MeatFilter = "" | "荤菜" | "小荤菜" | "素菜";
+
+const STATUS_FILTER_OPTIONS = [
+  { value: "", label: "全部" },
   { value: "draft", label: "草稿" },
   { value: "published", label: "已发布" },
-];
+  { value: "inactive", label: "已停用" },
+] as const;
 
-// 份量与净料/小料档案共用同一套枚举（lib/shared/portion-scale.ts）
+const MEAT_FILTER_OPTIONS = [
+  { value: "", label: "全部" },
+  { value: "荤菜", label: "荤菜" },
+  { value: "小荤菜", label: "小荤菜" },
+  { value: "素菜", label: "素菜" },
+] as const;
 
-function MeatTypeBadge({ type }: { type?: string | null }) {
-  if (!type) return <span className="text-muted-foreground">—</span>;
-  const classes: Record<string, string> = {
-    荤菜: "bg-red-100 text-red-700 hover:bg-red-100",
-    素菜: "bg-green-100 text-green-700 hover:bg-green-100",
-    小荤菜: "bg-amber-100 text-amber-700 hover:bg-amber-100",
-  };
-  return (
-    <Badge className={classes[type] || "bg-muted text-muted-foreground"}>
-      {type}
-    </Badge>
-  );
-}
+const GROUP_TABS = [
+  { value: "single", label: "单人份", icon: User },
+  { value: "community", label: "社区", icon: Users },
+  { value: "canteen", label: "团餐食堂", icon: Building2 },
+] as const;
 
 export default function DishesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dishIdParam = searchParams.get("dishId");
+  const groupParam = searchParams.get("group");
+  const group: DishPortionGroup = isDishPortionGroup(groupParam)
+    ? groupParam
+    : "single";
   const [dishes, setDishes] = useState<DishDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
-  const [filterTechnique, setFilterTechnique] = useState("");
-  const [filterStatus, setFilterStatus] = useState("");
+  const [filterMeatType, setFilterMeatType] = useState<MeatFilter>("");
+  const [filterStatus, setFilterStatus] = useState<StatusFilter>("");
 
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
@@ -109,8 +126,9 @@ export default function DishesPage() {
       setLoading(true);
       try {
         const params = new URLSearchParams();
+        params.set("portionGroup", group);
         if (filterCategory) params.set("categoryId", filterCategory);
-        if (filterTechnique) params.set("technique", filterTechnique);
+        if (filterMeatType) params.set("meatType", filterMeatType);
         if (filterStatus) params.set("status", filterStatus);
         if (search.trim()) params.set("q", search.trim());
         params.set("page", String(page));
@@ -144,7 +162,7 @@ export default function DishesPage() {
     };
     load();
     return () => controller.abort();
-  }, [filterCategory, filterTechnique, filterStatus, search, page, pageSize, refreshKey, dishIdParam, fetchDetail]);
+  }, [group, filterCategory, filterMeatType, filterStatus, search, page, pageSize, refreshKey, dishIdParam, fetchDetail]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -153,12 +171,12 @@ export default function DishesPage() {
     [categories]
   );
 
-  const hasFilters = search || filterCategory || filterTechnique || filterStatus;
+  const hasFilters = search || filterCategory || filterMeatType || filterStatus;
 
   const clearFilters = () => {
     setSearch("");
     setFilterCategory("");
-    setFilterTechnique("");
+    setFilterMeatType("");
     setFilterStatus("");
     setPage(1);
   };
@@ -268,63 +286,73 @@ export default function DishesPage() {
         />
       }
     >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
-          <ListToolbar
-            searchValue={search}
-            onSearchChange={(v) => {
-              setSearch(v);
-              setPage(1);
-            }}
-            searchPlaceholder="搜索菜品名称或编号..."
-            onReset={clearFilters}
-            hasFilters={Boolean(hasFilters)}
-          >
-            <SelectTileMode
-              options={categoryOptions}
-              value={filterCategory}
-              onChange={(v) => {
-                setFilterCategory(v);
+      <div className="skeu-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+        <PageTabs
+          tabs={[...GROUP_TABS]}
+          value={group}
+          onChange={(next) => {
+            if (!isDishPortionGroup(next)) return;
+            setPage(1);
+            setSheetOpen(false);
+            router.replace(`/dishes?group=${next}`);
+          }}
+          ariaLabel="菜品份量分类"
+        />
+        <div className="flex min-h-0 flex-1 flex-col">
+          <div className="skeu-panel-toolbar shrink-0 px-5 py-4">
+            <ListToolbar
+              searchValue={search}
+              onSearchChange={(v) => {
+                setSearch(v);
                 setPage(1);
               }}
-              placeholder="全部类别"
-              title="选择菜品类别"
-              className="w-[180px]"
-            />
-            <SelectTileMode
-              options={techniqueOptions}
-              value={filterTechnique}
-              onChange={(v) => {
-                setFilterTechnique(v);
-                setPage(1);
-              }}
-              placeholder="全部做法"
-              title="选择做法"
-              className="w-[180px]"
-            />
-            <SelectTileMode
-              options={statusOptions}
-              value={filterStatus}
-              onChange={(v) => {
-                setFilterStatus(v);
-                setPage(1);
-              }}
-              placeholder="全部状态"
-              title="选择状态"
-              className="w-[180px]"
-            />
-          </ListToolbar>
-        </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
-          <DataTable<DishDetail>
-            data={dishes}
-            loading={loading}
-            onRowClick={openSheet}
-            fillHeight
-            variant="skeu"
-            actionsWidth="w-[150px]"
-            tableClassName="min-w-max"
-            columns={[
+              searchPlaceholder="搜索菜品名称或编号..."
+              onReset={clearFilters}
+              hasFilters={Boolean(hasFilters)}
+            >
+              <SelectField
+                value={filterCategory || "all"}
+                onChange={(v) => {
+                  setFilterCategory(v === "all" ? "" : v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: "all", label: "全部类别" },
+                  ...categoryOptions,
+                ]}
+                className="w-[170px]"
+              />
+              <SkeuSegmented
+                value={filterMeatType}
+                onChange={(value) => {
+                  setFilterMeatType(value);
+                  setPage(1);
+                }}
+                options={[...MEAT_FILTER_OPTIONS]}
+                ariaLabel="荤素筛选"
+              />
+              <SkeuSegmented
+                value={filterStatus}
+                onChange={(value) => {
+                  setFilterStatus(value);
+                  setPage(1);
+                }}
+                options={[...STATUS_FILTER_OPTIONS]}
+                ariaLabel="状态筛选"
+              />
+            </ListToolbar>
+          </div>
+          <div className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+            <DataTable<DishDetail>
+              data={dishes}
+              loading={loading}
+              onRowClick={openSheet}
+              fillHeight
+              variant="skeu"
+              rowSize="tall"
+              actionsWidth="w-[150px]"
+              tableClassName="min-w-max"
+              columns={[
               {
                 header: "序号",
                 className: "w-[48px]",
@@ -350,20 +378,13 @@ export default function DishesPage() {
               },
               {
                 header: "份量",
-                className: "w-[96px]",
+                className: "w-[110px]",
                 cell: (row) => <PortionTag portion={row.portion} />,
               },
               {
-                header: "类别",
-                className: "w-[96px]",
-                cell: (row) => (
-                  <CategoryTag l1Code={row.category?.code} name={row.category?.name} />
-                ),
-              },
-              {
                 header: "荤素",
-                className: "w-[80px]",
-                cell: (row) => <MeatTypeBadge type={row.meatType} />,
+                className: "w-[100px]",
+                cell: (row) => <MeatTypeTag type={row.meatType} />,
               },
               {
                 header: "成本价",
@@ -396,7 +417,7 @@ export default function DishesPage() {
                           : "text-muted-foreground tabular-nums"
                       }
                     >
-                      {margin != null ? `${margin}%` : "—"}
+                      {margin != null ? `${margin}%` : "–"}
                     </span>
                   );
                 },
@@ -460,10 +481,18 @@ export default function DishesPage() {
                   }
                 : undefined
             }
-            emptyState={{ title: "暂无数据" }}
+            emptyState={{
+              title: "该分类下暂无菜品",
+              description: "切换上方份量页签，或新增一道菜品",
+              action: {
+                label: "新增菜品",
+                onClick: () => router.push("/dishes/new"),
+              },
+            }}
           />
-        </CardContent>
-      </Card>
+          </div>
+        </div>
+      </div>
 
       <Sheet
         open={sheetOpen}

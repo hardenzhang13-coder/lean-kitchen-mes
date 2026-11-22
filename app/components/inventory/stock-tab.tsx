@@ -1,18 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, RefreshCw, Search } from "lucide-react";
-import { Input } from "@/app/components/ui/form-controls";
-import { Button } from "@/components/ui/button";
-import {
-  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
-} from "@/components/ui/table";
-import { Pagination } from "@/app/components/ui/pagination";
+import { AlertCircle } from "lucide-react";
+import { DataTable } from "@/app/components/ui/data-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SelectField } from "@/app/components/ui/select-field";
+import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
+import { useDebounce } from "@/lib/client/hooks";
 import { formatPortionsCount } from "@/lib/shared/prepped-stock";
 import { formatWeight } from "@/lib/shared/weight-format";
-import { useDebounce } from "@/lib/client/hooks";
 
 interface StockRow {
   key: string;
@@ -33,6 +32,14 @@ interface PageData {
   filters?: { availableL1: string[] };
 }
 
+const TYPE_OPTIONS = [
+  { value: "全部", label: "全部" },
+  { value: "net", label: "净料" },
+  { value: "minor", label: "小料" },
+] as const;
+
+type TypeFilter = (typeof TYPE_OPTIONS)[number]["value"];
+
 /** 当前库存 Tab：库存份数 + 库存量(g) 双字段，无汇总 KPI */
 export function StockTab() {
   const [rows, setRows] = useState<StockRow[]>([]);
@@ -42,16 +49,19 @@ export function StockTab() {
   const debouncedSearch = useDebounce(search, 300);
   const [l1, setL1] = useState("全部");
   const [availableL1, setAvailableL1] = useState<string[]>([]);
-  const [type, setType] = useState<"全部" | "net" | "minor">("全部");
+  const [type, setType] = useState<TypeFilter>("全部");
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState({ totalItems: 0, totalPages: 1 });
 
   const fetchRows = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+      const params = new URLSearchParams({
+        page: String(page),
+        pageSize: String(pageSize),
+      });
       if (debouncedSearch) params.set("q", debouncedSearch);
       if (l1 !== "全部") params.set("l1", l1);
       if (type !== "全部") params.set("type", type);
@@ -63,7 +73,10 @@ export function StockTab() {
       const json = (await res.json()) as PageData;
       setRows(json.data ?? []);
       setAvailableL1(json.filters?.availableL1 ?? []);
-      setTotal({ totalItems: json.pagination?.totalItems ?? 0, totalPages: json.pagination?.totalPages ?? 1 });
+      setTotal({
+        totalItems: json.pagination?.totalItems ?? 0,
+        totalPages: json.pagination?.totalPages ?? 1,
+      });
     } catch (e) {
       setRows([]);
       setError(e instanceof Error ? e.message : "加载库存失败");
@@ -76,132 +89,151 @@ export function StockTab() {
   useEffect(() => { fetchRows(); }, [fetchRows]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-
-  const l1Options = useMemo(() => ["全部", ...availableL1], [availableL1]);
-
-  const start = total.totalItems === 0 ? 0 : (page - 1) * pageSize + 1;
-  const end = Math.min(page * pageSize, total.totalItems);
+  const l1Options = useMemo(
+    () => ["全部", ...availableL1].map((value) => ({ value, label: value })),
+    [availableL1]
+  );
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="搜索名称 / 编号"
-            className="pl-8 w-[220px]"
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="skeu-panel-toolbar shrink-0 px-5 py-4">
+        <ListToolbar
+          searchValue={search}
+          onSearchChange={(value) => {
+            setSearch(value);
+            setPage(1);
+          }}
+          searchPlaceholder="搜索名称或编号..."
+          onReset={() => {
+            setSearch("");
+            setL1("全部");
+            setType("全部");
+            setPage(1);
+          }}
+          hasFilters={l1 !== "全部" || type !== "全部"}
+        >
+          <SelectField
+            value={l1}
+            onChange={(value) => {
+              setL1(value);
+              setPage(1);
+            }}
+            options={l1Options}
+            className="w-[150px]"
           />
-        </div>
-        <div className="flex gap-1.5 flex-wrap">
-          {l1Options.map((c) => (
-            <button
-              key={c}
-              onClick={() => { setL1(c); setPage(1); }}
-              className={
-                "px-3 py-1.5 rounded-lg border text-sm transition-colors " +
-                (l1 === c
-                  ? "bg-primary/10 border-primary text-primary font-medium"
-                  : "border-border text-muted-foreground hover:bg-muted")
-              }
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5">
-          {(["全部", "net", "minor"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setType(t); setPage(1); }}
-              className={
-                "px-3 py-1.5 rounded-lg border text-sm transition-colors " +
-                (type === t
-                  ? "bg-primary/10 border-primary text-primary font-medium"
-                  : "border-border text-muted-foreground hover:bg-muted")
-              }
-            >
-              {t === "全部" ? "全部" : t === "net" ? "净料" : "小料"}
-            </button>
-          ))}
-        </div>
-        <div className="flex-1" />
-        <span className="text-sm text-muted-foreground">共 {total.totalItems} 种</span>
+          <SkeuSegmented
+            value={type}
+            onChange={(value) => {
+              setType(value);
+              setPage(1);
+            }}
+            options={[...TYPE_OPTIONS]}
+            ariaLabel="净菜类型"
+          />
+        </ListToolbar>
       </div>
 
-      {loading ? (
-        <div className="space-y-2" aria-label="正在加载库存">
-          <div className="h-10 rounded-lg bg-muted animate-pulse" />
-          {[1, 2, 3, 4, 5].map((item) => (
-            <div key={item} className="h-12 rounded-lg bg-muted animate-pulse" />
-          ))}
-        </div>
-      ) : error ? (
-        <div className="flex min-h-[260px] flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center">
-          <AlertCircle className="mb-3 h-6 w-6 text-destructive" />
-          <p className="font-medium">库存加载失败</p>
-          <p className="mt-1 text-sm text-muted-foreground">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={fetchRows}>
-            <RefreshCw className="mr-2 h-4 w-4" />
-            重试
-          </Button>
-        </div>
-      ) : rows.length === 0 ? (
-        <EmptyState
-          title="暂无净菜库存"
-          description="库存为 0 的净菜不会显示；完成生产并确认入库后会出现在这里"
-        />
-      ) : (
-        <div className="rounded-lg border overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>一级分类</TableHead>
-                <TableHead>二级分类</TableHead>
-                <TableHead>编号</TableHead>
-                <TableHead>名称</TableHead>
-                <TableHead>类型</TableHead>
-                <TableHead className="text-right">库存份数</TableHead>
-                <TableHead className="text-right">库存量</TableHead>
-                <TableHead>最近变动</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((r) => (
-                <TableRow key={r.key} className="transition-colors hover:bg-muted/40">
-                  <TableCell className="font-medium bg-muted/30">{r.l1Name}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.l2Name}</TableCell>
-                  <TableCell className="font-mono text-xs">{r.code}</TableCell>
-                  <TableCell className="font-medium">{r.name}</TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      status={r.sourceType === "net" ? "净料" : "小料"}
-                      variant={r.sourceType === "net" ? "info" : "neutral"}
-                    />
-                  </TableCell>
-                  <TableCell className="text-right font-semibold tabular-nums">{formatPortionsCount(r.portions)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground tabular-nums">{formatWeight(r.qtyG)}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {new Date(r.updatedAt).toLocaleString("zh-CN")}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-
-      <Pagination
-        currentPage={page}
-        totalPages={total.totalPages}
-        totalItems={total.totalItems}
-        start={start}
-        end={end}
-        onPageChange={setPage}
-        pageSize={pageSize}
-        onPageSizeChange={(s) => { setPageSize(s); setPage(1); }}
-      />
+      <div className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+        {error ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="库存加载失败"
+            description={error}
+            action={{ label: "重试", onClick: fetchRows }}
+            tone="danger"
+            className="flex-1 py-16"
+          />
+        ) : (
+          <DataTable<StockRow>
+            data={rows}
+            loading={loading}
+            fillHeight
+            variant="skeu"
+            tableClassName="min-w-max"
+            columns={[
+              {
+                header: "一级分类",
+                className: "w-[110px]",
+                cell: (row) => <span className="font-medium">{row.l1Name}</span>,
+              },
+              {
+                header: "二级分类",
+                className: "w-[110px]",
+                cell: (row) => (
+                  <span className="text-muted-foreground">{row.l2Name}</span>
+                ),
+              },
+              {
+                header: "编号",
+                className: "w-[120px]",
+                cell: (row) => (
+                  <span className="font-mono text-xs">{row.code}</span>
+                ),
+              },
+              {
+                header: "名称",
+                className: "w-[160px]",
+                cell: (row) => <span className="font-medium">{row.name}</span>,
+              },
+              {
+                header: "类型",
+                className: "w-[90px]",
+                cell: (row) => (
+                  <StatusBadge
+                    status={row.sourceType === "net" ? "净料" : "小料"}
+                    variant={row.sourceType === "net" ? "info" : "neutral"}
+                  />
+                ),
+              },
+              {
+                header: "库存份数",
+                className: "w-[110px] text-right",
+                cell: (row) => (
+                  <span className="font-semibold tabular-nums">
+                    {formatPortionsCount(row.portions)}
+                  </span>
+                ),
+              },
+              {
+                header: "库存量",
+                className: "w-[110px] text-right",
+                cell: (row) => (
+                  <span className="text-muted-foreground tabular-nums">
+                    {formatWeight(row.qtyG)}
+                  </span>
+                ),
+              },
+              {
+                header: "最近变动",
+                className: "w-[170px]",
+                cell: (row) => (
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(row.updatedAt).toLocaleString("zh-CN")}
+                  </span>
+                ),
+              },
+            ]}
+            pagination={{
+              currentPage: page,
+              totalPages: total.totalPages,
+              totalItems: total.totalItems,
+              pageSize,
+              onPageChange: setPage,
+              totalLabel: `共 ${total.totalItems} 种净菜`,
+              showPageSize: true,
+              onPageSizeChange: (size) => {
+                setPageSize(size);
+                setPage(1);
+              },
+            }}
+            emptyState={{
+              title: "暂无净菜库存",
+              description:
+                "库存为 0 的净菜不会显示；完成生产并确认入库后会出现在这里",
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }

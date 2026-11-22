@@ -51,7 +51,7 @@ export function SkeuButton({
     <ButtonPrimitive
       data-slot="skeu-button"
       className={cn(
-        "skeu-btn inline-flex shrink-0 items-center justify-center rounded-[10px] text-sm font-semibold whitespace-nowrap outline-none select-none focus-visible:ring-2 focus-visible:ring-primary/25 disabled:pointer-events-none disabled:opacity-50",
+        "skeu-btn inline-flex shrink-0 items-center justify-center rounded-[var(--sk-radius-sm)] text-sm font-semibold whitespace-nowrap outline-none select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--sk-focus)] disabled:pointer-events-none disabled:opacity-50",
         VARIANT_CLASS[variant],
         SIZE_CLASS[size],
         className

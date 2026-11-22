@@ -39,20 +39,20 @@ const statusMap: Record<string, StatusVariant> = {
 };
 
 const variantStyles: Record<StatusVariant, string> = {
-  success: "bg-[var(--status-success-bg)] text-[var(--sk-status-success-text)]",
-  warning: "bg-[var(--status-warning-bg)] text-[var(--sk-status-warning-text)]",
-  danger: "bg-[var(--status-danger-bg)] text-[var(--sk-status-danger-text)]",
-  info: "bg-[var(--status-info-bg)] text-[var(--sk-status-info-text)]",
-  neutral: "bg-[var(--status-neutral-bg)] text-[var(--sk-status-neutral-text)]",
+  success: "bg-[var(--status-success-bg)] text-[var(--status-success-text)]",
+  warning: "bg-[var(--status-warning-bg)] text-[var(--status-warning-text)]",
+  danger: "bg-[var(--status-danger-bg)] text-[var(--status-danger-text)]",
+  info: "bg-[var(--status-info-bg)] text-[var(--status-info-text)]",
+  neutral: "bg-[var(--status-neutral-bg)] text-[var(--status-neutral-text)]",
 };
 
 /** 徽章圆点用更亮的语义色，与文字色区分 */
 const dotStyles: Record<StatusVariant, string> = {
-  success: "bg-[var(--sk-status-success-dot)]",
-  warning: "bg-[var(--sk-status-warning-dot)]",
-  danger: "bg-[var(--sk-status-danger-dot)]",
-  info: "bg-[var(--sk-status-info-dot)]",
-  neutral: "bg-[var(--sk-status-neutral-dot)]",
+  success: "bg-[var(--status-success-dot)]",
+  warning: "bg-[var(--status-warning-dot)]",
+  danger: "bg-[var(--status-danger-dot)]",
+  info: "bg-[var(--status-info-dot)]",
+  neutral: "bg-[var(--status-neutral-dot)]",
 };
 
 export function StatusBadge({ status, variant, size = "default", className }: StatusBadgeProps) {
