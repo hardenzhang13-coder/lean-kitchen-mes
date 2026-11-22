@@ -2,20 +2,17 @@ import { useCallback, useMemo, useState } from "react";
 
 export const DEFAULT_PAGE_SIZE = 10;
 
+/**
+ * 列表底部的汇总文案：只报总量，不报当前区间。
+ * 区间信息在分页里通过页码体现，底栏只留「共 N 条」并用主题色强调。
+ */
 export function formatPageSummary(
-  currentPage: number,
-  pageSize: number,
+  _currentPage: number,
+  _pageSize: number,
   totalItems: number,
   itemLabel?: string
 ): string {
-  if (totalItems <= 0) {
-    return `共 0 条${itemLabel ? ` ${itemLabel}` : ""}`;
-  }
-  const start = Math.min((currentPage - 1) * pageSize + 1, totalItems);
-  const end = Math.min(currentPage * pageSize, totalItems);
-  return `第 ${start}-${end} 条，共 ${totalItems} 条${
-    itemLabel ? ` ${itemLabel}` : ""
-  }`;
+  return `共 ${totalItems} 条${itemLabel ? ` ${itemLabel}` : ""}`;
 }
 
 export function usePagination<T>(items: T[], initialPageSize = DEFAULT_PAGE_SIZE) {
