@@ -90,20 +90,22 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 `handleLoadItems` 根据 BOM 类型调用不同 API：
 
 - `main` / `support` / `minor` → `/api/net-ingredients?excludeMinor=true（可选）`
-- `seasoning` → `/api/ingredients`
+- `seasoning` → `/api/ingredients?kind=seasoning&pageSize=100`（来源调料 + 每斤单价）
 - `sauce` → `/api/sauce-ingredients`
 
 返回数据通过 `normalizeNetIngredients` / `normalizeIngredients` / `normalizeSauces` 统一成 `IngredientOption`。
 
 ### BOM 用量口径（2026-11）
 
-- 菜品 BOM 选择后**不手填用量**：净料/小料直接采用档案的封装规格 `packageSpec` 作为 `amountG`，其余类型回退 100g。
-- **实时联动**：`packageSpec` 是唯一真源；净料/小料规格变更后，BOM 用量与成本会自动同步，不需要重新选择食材。客户端传入的净料/小料 `amountG` 会被服务端忽略。
-- BOM 行展示所选食材的**份量**（`PortionTag`），不再提供用量输入框。
+- **净料/小料**：选择后**不手填用量**，直接采用档案的封装规格 `packageSpec` 作为 `amountG`；客户端传入的 `amountG` 会被服务端忽略（`resolveNetBomAmountG`）。规格变更后 BOM 用量与成本自动同步。
+- **调料**（2026-11-21 起）：直接选**采购调料**（SEA 体系），**手填克数**，服务端按 `sourceId + amountG` 原样写入，成本 = 每斤单价 × 克数 ÷ 500。
+  - 选择弹窗底部提供「用量 ___ g」（默认 10g，`defaultAmountG="10"`），BOM 行内可逐条改克数并即时重算行成本。
+  - 调料行不展示份量（份量只属于净料/小料口径）。
+- **酱料**：沿用原口径（配方克数）。
 - 菜品 BOM 添加为**单选**，选择弹窗不提供「取消」按钮，已选摘要与「确认选择」统一放在底部操作行。
 - 选择弹窗的搜索范围只匹配食材名称字段（不匹配编号、商品名称），与食材库列表口径一致。
 - 估算成本在「菜品用量」模块标题处以主题色加粗展示。
-- `BomPickerDialog` 的 `showAmountInput` 默认 `true`、`singleSelect` 默认 `false`，供酱料配方编辑器复用；菜品 BOM 传 `showAmountInput={false} singleSelect`。
+- `BomPickerDialog` 的 `showAmountInput` 默认 `true`、`singleSelect` 默认 `false`，供酱料配方编辑器复用；菜品 BOM 传 `showAmountInput={pickerType === "seasoning"} singleSelect`。
 
 ## 工序编辑
 

@@ -271,7 +271,12 @@
 
 ### 2.5 `standard_seasonings` — 标准化调料表（2026-11 调料标准化，迁移 20261120100000）
 
-由「调料采购档案」转化而来的标准规格档案，是**菜品 BOM 里调料的唯一引用对象**（与净料/小料同构）。编号从 SEA-SP-0001 起。
+> **2026-11-21 起暂时下线**：调料在菜品 BOM 里回到「直接选调料 + 填克数」口径，本表不再被 BOM 引用。
+> 表结构、API（`/api/standard-seasonings`）、既有记录与组件文件全部保留未删；UI 入口由
+> `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 统一控制（当前 `false`）。
+> 恢复时把该常量置 `true`，并回滚菜品 BOM / 成本口径里的规格化分支。
+
+由「调料采购档案」转化而来的标准规格档案（**当前未被菜品 BOM 引用**）。编号从 SEA-SP-0001 起。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
@@ -297,6 +302,7 @@
 - 份量 `portion` 与净料一致，只用于展示与口径标注；**不参与** BOM 用量或采购量计算（与 `NetIngredient.portion` 边界相同）。
 - 调料模块**不做关联菜品统计**：无 `dishCount`、无关联菜品弹窗；标准规格是否被引用只体现在删除接口的报错文案里。
 - 存量 `dish_seasoning_details.spec_id` 为空表示旧口径行（直接引用采购调料），保持原值不迁移。
+- **2026-11-21 起**：菜品 BOM 的调料行一律写 `spec_id = NULL`，用量按克需求由用户填写；本表与菜品 BOM 彻底解耦。
 
 ---
 
@@ -409,10 +415,13 @@ UNIQUE(sauce_id, line_type, ref_id)
 | dish_id | int | 关联菜品 |
 | type | varchar(10) | minor（小料）/ seasoning（调料） |
 | source_id | int | 关联来源调料（`ingredients.id`，SEA 体系）的 ID |
-| spec_id | int? | **标准化规格**（`standard_seasonings.id`）：空 = 存量旧口径行（直接引用采购调料） |
-| amount_g | decimal(10,2) | 用量，单位g；有 spec_id 时由服务端强制等于标准规格 |
+| spec_id | int? | 标准化规格（`standard_seasonings.id`）：**2026-11-21 起停止写入**（恒为 NULL），字段保留仅作历史追溯 |
+| amount_g | decimal(10,2) | **克需求（g）**：用户在菜品 BOM 里手填，服务端不覆盖 |
 | brand | varchar(100) | 品牌（从表带出，可调整） |
-| cost | decimal(10,2) | 该食材在这道菜中的成本；有 spec_id 时按出库价折算 |
+| cost | decimal(10,2) | 该食材在这道菜中的成本 = 调料每斤单价（元/斤）× 克需求 ÷ 500 |
+
+> **调料口径（2026-11-21）**：BOM 调料行直接引用采购调料（`ingredients.id`，SEA 体系）+ 克需求；
+> 成本 = 每斤单价 × 克需求 ÷ 500；采购毛需求 = 克需求 × 道数（出成率 100）。调料无份量。
 
 ---
 

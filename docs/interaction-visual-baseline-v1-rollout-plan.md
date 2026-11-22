@@ -193,7 +193,7 @@ app/schedules/new/page.tsx
 1. 新页面只能由基线第 6 章的四种页面模式组合而成，不新造基础操作形态。
 2. 业务页面不得直接定义状态色、弹窗像素宽度、表单分区列数。
 3. 新增组件变体必须同时提供使用场景、桌面布局表现和状态样张（同步 `/ui-kit`）。
-4. 旧规范文档（`ui-ux-standardization-*.md`、`component-layer-optimization-spec.md`、`table-form-optimization-spec.md`、`dialog-input-table-style-supplement.md`、`ui-audit-report.md`）一律视为历史输入，不得再作为执行依据。
+4. 旧规范文档（`ui-ux-standardization-*`、`component-layer-optimization-spec`、`table-form-optimization-spec`、`dialog-input-table-style-supplement`、`ui-audit-report` 等，现已移入 `docs/archive/2026-06/`）一律视为历史输入，不得再作为执行依据。
 5. 每轮迭代重点回归上述四条核心链路。
 6. 模块改造的施工顺序、通用契约与通用件清单见 `docs/system-iteration-foundation-v1.md`；本文档只管批次与状态，两份文档同一次提交内更新。
 
