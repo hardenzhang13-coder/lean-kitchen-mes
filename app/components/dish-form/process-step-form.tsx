@@ -3,9 +3,9 @@
 import { X, GripVertical } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
 import { Textarea } from "@/app/components/ui/form-controls";
-import { Button } from "@/components/ui/button";
 import { FormField } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { ProcessStep, TOOL_OPTIONS } from "./types";
 
 interface ProcessStepFormProps {
@@ -30,7 +30,7 @@ export function ProcessStepForm({
   const objectSelectOptions = objectOptions.map((o) => ({ value: o, label: o }));
 
   return (
-    <div className="bg-muted/30 rounded-lg p-4 space-y-4">
+    <div className="skeu-surface-muted rounded-lg p-4 space-y-4">
       <div className="space-y-4">
         <div className="grid grid-cols-2 gap-4">
           <FormField label="加工环节" required>
@@ -110,18 +110,28 @@ export function ProcessStepForm({
       {!readOnly && (
         <div className="flex items-center justify-end gap-1">
           {onMoveUp && (
-            <Button type="button" variant="ghost" size="icon" onClick={onMoveUp} className="h-7 w-7">
-              <GripVertical className="h-4 w-4 rotate-180" />
-            </Button>
+            <SkeuIconAction
+              label="上移步骤"
+              tip="上移"
+              icon={<GripVertical className="h-4 w-4 rotate-180" />}
+              onClick={onMoveUp}
+            />
           )}
           {onMoveDown && (
-            <Button type="button" variant="ghost" size="icon" onClick={onMoveDown} className="h-7 w-7">
-              <GripVertical className="h-4 w-4" />
-            </Button>
+            <SkeuIconAction
+              label="下移步骤"
+              tip="下移"
+              icon={<GripVertical className="h-4 w-4" />}
+              onClick={onMoveDown}
+            />
           )}
-          <Button type="button" variant="ghost" size="icon" onClick={onRemove} className="h-7 w-7 text-destructive">
-            <X className="h-4 w-4" />
-          </Button>
+          <SkeuIconAction
+            label="删除步骤"
+            tip="删除"
+            icon={<X className="h-4 w-4" />}
+            onClick={onRemove}
+            className="text-destructive"
+          />
         </div>
       )}
     </div>

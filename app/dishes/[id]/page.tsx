@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { DishForm } from "@/app/components/dish-form";
-import { DishDetail, DishFormRefs } from "@/app/components/dish-form/types";
+import { DishDetailView } from "@/app/components/dishes/dish-detail-view";
+import { DishDetail } from "@/app/components/dish-form/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -13,8 +13,20 @@ export default function DishDetailPage() {
   const dishId = Number(params.id);
 
   const [dish, setDish] = useState<DishDetail | null>(null);
-  const [refs, setRefs] = useState<DishFormRefs | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchDish = useCallback(async () => {
+    const res = await fetch(`/api/dishes/${dishId}`);
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json.error || `获取菜品详情失败 (${res.status})`);
+    }
+    const data = json.data || json;
+    if (!data || typeof data !== "object" || !data.id) {
+      throw new Error("菜品不存在或已删除");
+    }
+    return data as DishDetail;
+  }, [dishId]);
 
   useEffect(() => {
     if (Number.isNaN(dishId) || dishId <= 0) {
@@ -24,71 +36,36 @@ export default function DishDetailPage() {
     }
 
     const controller = new AbortController();
-    const fetchAll = async () => {
+    (async () => {
       try {
-        const [dishRes, cRes, catRes] = await Promise.all([
-          fetch(`/api/dishes/${dishId}`, { signal: controller.signal }),
-          fetch("/api/dish-categories?page=1&pageSize=100", { signal: controller.signal }),
-          fetch("/api/ingredient-categories?page=1&pageSize=100", { signal: controller.signal }),
-        ]);
-
-        const checkJson = async (res: Response, label: string) => {
-          if (!res.ok) {
-            const text = await res.text().catch(() => "");
-            throw new Error(`${label}失败 (${res.status}): ${text || res.statusText}`);
-          }
-          try {
-            return await res.json();
-          } catch {
-            throw new Error(`${label}返回格式错误`);
-          }
-        };
-
-        const [dishJson, categories, ingredientCategories] = await Promise.all([
-          checkJson(dishRes, "获取菜品详情"),
-          checkJson(cRes, "获取菜品分类"),
-          checkJson(catRes, "获取食材分类"),
-        ]);
-
+        const data = await fetchDish();
         if (controller.signal.aborted) return;
-
-        const dishData = dishJson.data || dishJson;
-        if (!dishData || typeof dishData !== "object" || !dishData.id) {
-          toast.error("菜品不存在或已删除");
-          router.push("/dishes");
-          return;
-        }
-
-        setDish(dishData);
-        setRefs({
-          categories: Array.isArray(categories) ? categories : categories.data || [],
-          ingredientCategories: Array.isArray(ingredientCategories)
-            ? ingredientCategories
-            : ingredientCategories.data || [],
-        });
+        setDish(data);
       } catch (err) {
         if (controller.signal.aborted) return;
-        const message = err instanceof Error ? err.message : "获取数据失败";
-        toast.error(message);
+        toast.error(err instanceof Error ? err.message : "获取数据失败");
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
-    };
-    fetchAll();
+    })();
     return () => controller.abort();
-  }, [dishId, router]);
+  }, [dishId, router, fetchDish]);
 
-  if (loading || !refs || !dish) {
+  const handleRefresh = useCallback(() => {
+    fetchDish()
+      .then(setDish)
+      .catch((err) => toast.error(err instanceof Error ? err.message : "刷新失败"));
+  }, [fetchDish]);
+
+  if (loading || !dish) {
     return (
       <div className="flex flex-col h-screen p-8 space-y-4">
         <Skeleton className="h-10 w-full" />
-        <div className="flex flex-1 gap-6">
-          <Skeleton className="flex-[60] h-full" />
-          <Skeleton className="flex-[40] h-full" />
-        </div>
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-64 w-full" />
       </div>
     );
   }
 
-  return <DishForm mode="view" initialDish={dish} refs={refs} />;
+  return <DishDetailView dish={dish} onRefresh={handleRefresh} />;
 }

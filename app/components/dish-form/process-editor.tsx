@@ -2,8 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Pencil, Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DialogHeader,
   DialogTitle,
@@ -17,6 +15,8 @@ import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_ORDER, STAGE_COLORS, TOOL_OPTIONS } from "./types";
 import { ProcessStepForm } from "./process-step-form";
 import { ProcessStepCard } from "./process-step-card";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -149,25 +149,22 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
   const objectSelectOptions = objectOptions.map((o) => ({ value: o, label: o }));
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-heading font-medium">加工工艺</CardTitle>
-          {!readOnly && (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setAddDialogOpen(true)}
-              className="h-8 text-sm"
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              添加步骤
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <section className="skeu-panel">
+      <header className="skeu-surface-muted flex items-center justify-between border-b border-skeu-border px-5 py-3.5">
+        <h3 className="text-sm font-semibold">加工工艺</h3>
+        {!readOnly && (
+          <SkeuButton
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setAddDialogOpen(true)}
+          >
+            <Plus className="h-4 w-4" />
+            添加步骤
+          </SkeuButton>
+        )}
+      </header>
+      <div className="space-y-3 p-4">
         {VALID_STAGES.map((stage) => {
           const isEditingStage = editingStepId
             ? idToStep(editingStepId)?.stage === stage
@@ -177,8 +174,8 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
           const colors = STAGE_COLORS[stage];
 
           return (
-            <Card key={stage} className="overflow-hidden">
-              <CardHeader className="py-3">
+            <section key={stage} className="skeu-surface-muted overflow-hidden rounded-lg border border-skeu-border">
+              <header className="border-b border-skeu-border px-3 py-2.5">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -198,21 +195,21 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
                     />
                   </button>
                   {!readOnly && (
-                    <Button
+                    <SkeuButton
                       type="button"
                       variant="ghost"
                       size="sm"
                       onClick={() => openAddDialog(stage)}
-                      className="h-7 text-xs shrink-0"
+                      className="shrink-0"
                     >
-                      <Plus className="mr-1 h-3.5 w-3.5" />
+                      <Plus className="h-3.5 w-3.5" />
                       添加步骤
-                    </Button>
+                    </SkeuButton>
                   )}
                 </div>
-              </CardHeader>
+              </header>
               {isExpanded && (
-                <CardContent className="pt-0 pb-3 space-y-2">
+                <div className="skeu-surface space-y-2 p-3 pt-2">
                   {stageSteps.length === 0 && !readOnly && (
                     <div className="text-sm text-muted-foreground py-2">该阶段暂无工序，点击上方“添加步骤”</div>
                   )}
@@ -244,64 +241,53 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
                           !readOnly
                             ? [
                                 idx > 0 && (
-                                  <Button
+                                  <SkeuIconAction
                                     key="up"
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
+                                    label="上移步骤"
+                                    tip="上移"
+                                    icon={<ChevronUp className="h-4 w-4" />}
                                     onClick={() => moveStep(step._id, -1)}
-                                    className="h-7 w-7"
-                                  >
-                                    <ChevronUp className="h-4 w-4" />
-                                  </Button>
+                                  />
                                 ),
                                 idx < stageSteps.length - 1 && (
-                                  <Button
+                                  <SkeuIconAction
                                     key="down"
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
+                                    label="下移步骤"
+                                    tip="下移"
+                                    icon={<ChevronDown className="h-4 w-4" />}
                                     onClick={() => moveStep(step._id, 1)}
-                                    className="h-7 w-7"
-                                  >
-                                    <ChevronDown className="h-4 w-4" />
-                                  </Button>
+                                  />
                                 ),
-                                <Button
+                                <SkeuIconAction
                                   key="edit"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
+                                  label="编辑步骤"
+                                  tip="编辑"
+                                  icon={<Pencil className="h-4 w-4" />}
                                   onClick={() => {
                                     setEditingStepId(step._id);
                                     setExpandedStages(new Set(VALID_STAGES));
                                   }}
-                                  className="h-7 w-7"
-                                >
-                                  <Pencil className="h-4 w-4" />
-                                </Button>,
-                                <Button
+                                />,
+                                <SkeuIconAction
                                   key="remove"
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
+                                  label="删除步骤"
+                                  tip="删除"
+                                  icon={<Trash2 className="h-4 w-4" />}
                                   onClick={() => removeStep(step._id)}
-                                  className="h-7 w-7 text-destructive"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>,
+                                  className="text-destructive"
+                                />,
                               ].filter(Boolean)
                             : undefined
                         }
                       />
                     );
                   })}
-                </CardContent>
+                </div>
               )}
-            </Card>
+            </section>
           );
         })}
-      </CardContent>
+      </div>
 
       <FormDialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
 <AppDialogContent size="form">
@@ -373,15 +359,15 @@ export function ProcessEditor({ processes, objectOptions, onChange, readOnly }: 
             </FormField>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setAddDialogOpen(false)}>
               取消
-            </Button>
-            <Button onClick={handleAddConfirm} className="h-11 px-6">
+            </SkeuButton>
+            <SkeuButton variant="primary" onClick={handleAddConfirm}>
               确认
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </FormDialog>
-    </Card>
+    </section>
   );
 }

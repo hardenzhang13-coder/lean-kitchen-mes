@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useMemo, useCallback } from "react";
-import { ArrowLeft, Pencil } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogHeader,
@@ -35,9 +34,10 @@ import {
 } from "./types";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 
 interface DishFormProps {
-  mode: "new" | "edit" | "view";
+  mode: "new" | "edit";
   initialDish?: DishDetail | null;
   refs: DishFormRefs;
   onSaved?: () => void;
@@ -48,7 +48,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   const [localStatus, setLocalStatus] = useState(initialDish?.status || "draft");
   const [lastDishId, setLastDishId] = useState<number | null>(initialDish?.id ?? null);
   const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
-  const isReadOnly = localStatus !== "draft" || mode === "view";
+  const isReadOnly = localStatus !== "draft";
 
   const [form, setForm] = useState<DishFormData>(() =>
     initialDish ? dishToFormData(initialDish) : defaultFormData()
@@ -124,7 +124,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       cuisine: form.cuisine || undefined,
       technique: form.technique || undefined,
       taste: form.taste || undefined,
-      portion: form.portion || "小碗菜·10份",
+      portion: form.portion || "小碗菜",
       season: form.season || "四季",
       meatType: form.meatType || undefined,
       price: form.price ? Number(form.price) : null,
@@ -191,7 +191,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         cuisine: form.cuisine || undefined,
         technique: form.technique || undefined,
         taste: form.taste || undefined,
-        portion: form.portion || "小碗菜·10份",
+        portion: form.portion || "小碗菜",
         season: form.season || "四季",
         meatType: form.meatType || undefined,
         price: form.price ? Number(form.price) : null,
@@ -247,21 +247,6 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   const handlePublishConfirm = async () => {
     setConfirmPublishOpen(false);
 
-    if (mode === "view" && lastDishId) {
-      setSubmitting(true);
-      try {
-        await changeStatus(lastDishId, "publish");
-        toast.success("发布成功");
-        setLocalStatus("published");
-        onSaved?.();
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "发布失败");
-      } finally {
-        setSubmitting(false);
-      }
-      return;
-    }
-
     const error = validatePublish(form, bom, currentCost);
     if (error) {
       toast.error(error);
@@ -300,67 +285,27 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   return (
     <div className="flex flex-col h-screen">
       {/* Top action bar */}
-      <div className="flex items-center justify-between px-8 py-4 border-b bg-background shrink-0">
-        <Button variant="ghost" size="sm" onClick={handleBack}>
-          <ArrowLeft className="mr-1 h-4 w-4" />
+      <div className="skeu-surface flex items-center justify-between px-8 py-4 border-b shrink-0">
+        <SkeuButton variant="ghost" size="sm" onClick={handleBack}>
+          <ArrowLeft className="h-4 w-4" />
           返回列表
-        </Button>
+        </SkeuButton>
         <div className="flex items-center gap-2">
-          {mode === "view" ? (
-            <>
-              {localStatus === "draft" ? (
-                <Button
-                  className="h-10"
-                  onClick={() => {
-                    const error = validatePublish(form, bom, currentCost);
-                    if (error) {
-                      toast.error(error);
-                      return;
-                    }
-                    setConfirmPublishOpen(true);
-                  }}
-                  disabled={submitting}
-                >
-                  发布
-                </Button>
-              ) : (
-                <Button
-                  variant="secondary"
-                  className="h-10"
-                  onClick={handleUnpublish}
-                  disabled={submitting}
-                >
-                  下架
-                </Button>
-              )}
-              {localStatus === "draft" && (
-                <Button
-                  variant="outline"
-                  className="h-10"
-                  onClick={() => router.push(`/dishes/${lastDishId}/edit`)}
-                  disabled={submitting || !lastDishId}
-                >
-                  <Pencil className="mr-1 h-4 w-4" />
-                  编辑
-                </Button>
-              )}
-            </>
-          ) : isReadOnly ? (
-            <Button variant="default" className="h-10" onClick={handleUnpublish} disabled={submitting}>
+          {isReadOnly ? (
+            <SkeuButton variant="secondary" onClick={handleUnpublish} disabled={submitting}>
               下架
-            </Button>
+            </SkeuButton>
           ) : (
             <>
-              <Button
+              <SkeuButton
                 variant="outline"
-                className="h-10"
                 onClick={handleSave}
                 disabled={submitting}
               >
                 保存草稿
-              </Button>
-              <Button
-                className="h-10"
+              </SkeuButton>
+              <SkeuButton
+                variant="primary"
                 onClick={() => {
                   const error = validatePublish(form, bom, currentCost);
                   if (error) {
@@ -372,7 +317,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
                 disabled={submitting}
               >
                 发布
-              </Button>
+              </SkeuButton>
             </>
           )}
         </div>
@@ -403,12 +348,12 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
             确定要发布菜品「{form.name || "未命名"}」吗？发布后将锁定基础信息、菜品用料与加工工艺，不可再修改。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmPublishOpen(false)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setConfirmPublishOpen(false)}>
               取消
-            </Button>
-            <Button onClick={handlePublishConfirm} className="h-11 px-6">
+            </SkeuButton>
+            <SkeuButton variant="primary" onClick={handlePublishConfirm}>
               确认发布
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
@@ -424,7 +369,7 @@ function defaultFormData(): DishFormData {
     cuisine: "",
     technique: "",
     taste: "",
-    portion: "小碗菜·10份",
+    portion: "小碗菜",
     season: "四季",
     meatType: "",
     price: "",

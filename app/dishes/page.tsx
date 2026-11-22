@@ -11,8 +11,6 @@ import {
   User,
   Users,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Sheet } from "@/components/ui/sheet";
 import {
   Dialog,
   DialogHeader,
@@ -28,17 +26,16 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
+import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
+import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { SkeuListSelect, type SkeuListSelectOption } from "@/app/components/ui/skeu-list-select";
 import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import { MeatTypeTag } from "@/app/components/ui/meat-type-tag";
-import { SelectField } from "@/app/components/ui/select-field";
 import { FormField } from "@/app/components/ui/form-field";
 import { Input } from "@/app/components/ui/form-controls";
-import {
-  DEFAULT_PAGE_SIZE,
-  formatPageSummary,
-} from "@/lib/client/use-pagination";
-import { DishSheetDetail } from "@/app/components/dishes/dish-sheet-detail";
+import { formatPageSummary } from "@/lib/client/use-pagination";
+import { DishDetailDialog } from "@/app/components/dishes/dish-detail-dialog";
 import { DishScaleDialog } from "@/app/components/dishes/dish-scale-dialog";
 import {
   DishDetail,
@@ -62,12 +59,13 @@ const STATUS_FILTER_OPTIONS = [
   { value: "inactive", label: "已停用" },
 ] as const;
 
-const MEAT_FILTER_OPTIONS = [
-  { value: "", label: "全部" },
-  { value: "荤菜", label: "荤菜" },
-  { value: "小荤菜", label: "小荤菜" },
-  { value: "素菜", label: "素菜" },
-] as const;
+/** 荤素筛选：SkeuDotSelect 圆点下拉（与设置模块状态筛选同一标准件），与荤素胶囊同色 */
+const MEAT_FILTER_OPTIONS: SkeuDotOption[] = [
+  { value: "", label: "全部", tone: "all" },
+  { value: "荤菜", label: "荤菜", tone: "danger" },
+  { value: "小荤菜", label: "小荤菜", tone: "rose" },
+  { value: "素菜", label: "素菜", tone: "green" },
+];
 
 const GROUP_TABS = [
   { value: "single", label: "单人份", icon: User },
@@ -93,12 +91,12 @@ export default function DishesPage() {
   const [filterStatus, setFilterStatus] = useState<StatusFilter>("");
 
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(8);
   const [pagination, setPagination] = useState<{ totalItems: number; totalPages: number } | null>(null);
 
   const [selectedDish, setSelectedDish] = useState<DishDetail | null>(null);
   const [fullDish, setFullDish] = useState<DishDetail | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [scaleTarget, setScaleTarget] = useState<DishDetail | null>(null);
   const [copyTarget, setCopyTarget] = useState<DishDetail | null>(null);
@@ -149,7 +147,7 @@ export default function DishesPage() {
           const dish = (dJson.data || []).find((d: DishDetail) => d.id === id);
           if (dish) {
             setSelectedDish(dish);
-            setSheetOpen(true);
+            setDetailOpen(true);
             fetchDetail(id);
           }
         }
@@ -166,7 +164,7 @@ export default function DishesPage() {
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
-  const categoryOptions = useMemo(
+  const categoryOptions = useMemo<SkeuListSelectOption[]>(
     () => categories.map((c) => ({ value: String(c.id), label: c.name })),
     [categories]
   );
@@ -181,64 +179,25 @@ export default function DishesPage() {
     setPage(1);
   };
 
-  const openSheet = (dish: DishDetail) => {
+  const openDetail = (dish: DishDetail) => {
     setSelectedDish(dish);
     setFullDish(null);
-    setSheetOpen(true);
+    setDetailOpen(true);
     fetchDetail(dish.id);
   };
 
-  const handleDelete = async (id: number) => {
-    try {
-      const res = await fetch(`/api/dishes/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        toast.error(data.error || "删除失败");
-        return;
-      }
-      toast.success("删除成功");
-      setSheetOpen(false);
-      refresh();
-    } catch {
-      toast.error("删除失败");
+  const closeDetail = (open: boolean) => {
+    setDetailOpen(open);
+    if (!open && dishIdParam) {
+      router.replace("/dishes");
     }
   };
 
-  const changeDishStatus = async (id: number, action: "publish" | "unpublish") => {
-    const res = await fetch(`/api/dishes/${id}/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action }),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      toast.error(data.error || (action === "publish" ? "发布失败" : "下架失败"));
-      return false;
-    }
-    return true;
-  };
-
-  const handleUnpublish = async (id: number) => {
-    try {
-      if (!(await changeDishStatus(id, "unpublish"))) return;
-      toast.success("已下架");
-      setSheetOpen(false);
-      refresh();
-    } catch {
-      toast.error("下架失败");
-    }
-  };
-
-  const handlePublish = async (id: number) => {
-    try {
-      if (!(await changeDishStatus(id, "publish"))) return;
-      toast.success("发布成功");
-      setSheetOpen(false);
-      refresh();
-    } catch {
-      toast.error("发布失败");
-    }
-  };
+  /** 详情弹窗内状态变更后：重取详情并刷新列表 */
+  const handleDetailChanged = useCallback(() => {
+    if (selectedDish) fetchDetail(selectedDish.id);
+    refresh();
+  }, [selectedDish, fetchDetail]);
 
   const openCopy = (dish: DishDetail) => {
     setCopyTarget(dish);
@@ -293,7 +252,7 @@ export default function DishesPage() {
           onChange={(next) => {
             if (!isDishPortionGroup(next)) return;
             setPage(1);
-            setSheetOpen(false);
+            setDetailOpen(false);
             router.replace(`/dishes?group=${next}`);
           }}
           ariaLabel="菜品份量分类"
@@ -310,26 +269,27 @@ export default function DishesPage() {
               onReset={clearFilters}
               hasFilters={Boolean(hasFilters)}
             >
-              <SelectField
-                value={filterCategory || "all"}
+              <SkeuListSelect
+                value={filterCategory}
                 onChange={(v) => {
-                  setFilterCategory(v === "all" ? "" : v);
+                  setFilterCategory(v);
                   setPage(1);
                 }}
-                options={[
-                  { value: "all", label: "全部类别" },
-                  ...categoryOptions,
-                ]}
-                className="w-[170px]"
+                options={categoryOptions}
+                ariaLabel="类别筛选"
+                allLabel="全部类别"
+                searchable
+                searchPlaceholder="搜索类别..."
+                className="w-[160px]"
               />
-              <SkeuSegmented
+              <SkeuDotSelect
                 value={filterMeatType}
                 onChange={(value) => {
-                  setFilterMeatType(value);
+                  setFilterMeatType(value as MeatFilter);
                   setPage(1);
                 }}
                 options={[...MEAT_FILTER_OPTIONS]}
-                ariaLabel="荤素筛选"
+                aria-label="荤素筛选"
               />
               <SkeuSegmented
                 value={filterStatus}
@@ -346,11 +306,11 @@ export default function DishesPage() {
             <DataTable<DishDetail>
               data={dishes}
               loading={loading}
-              onRowClick={openSheet}
+              onRowClick={openDetail}
               fillHeight
               variant="skeu"
               rowSize="tall"
-              actionsWidth="w-[150px]"
+              actionsWidth="w-[180px]"
               tableClassName="min-w-max"
               columns={[
               {
@@ -431,12 +391,12 @@ export default function DishesPage() {
             rowActions={(row) => (
               <>
                 <SkeuIconAction
-                  label={`转化菜品 ${row.name}`}
-                  tip="菜品转化"
-                  icon={<ArrowRightLeft className="h-4 w-4" />}
+                  label={`编辑菜品 ${row.name}`}
+                  tip="编辑"
+                  icon={<Pencil className="h-4 w-4" />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setScaleTarget(row);
+                    router.push(`/dishes/${row.id}/edit`);
                   }}
                 />
                 <SkeuIconAction
@@ -448,13 +408,13 @@ export default function DishesPage() {
                     openCopy(row);
                   }}
                 />
-                <SkeuIconAction
-                  label={`编辑菜品 ${row.name}`}
-                  tip="编辑"
-                  icon={<Pencil className="h-4 w-4" />}
+                <SkeuActionButton
+                  label="转化"
+                  tone="primary"
+                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/dishes/${row.id}/edit`);
+                    setScaleTarget(row);
                   }}
                 />
               </>
@@ -489,25 +449,15 @@ export default function DishesPage() {
         </div>
       </div>
 
-      <Sheet
-        open={sheetOpen}
-        onOpenChange={(open) => {
-          setSheetOpen(open);
-          if (!open && dishIdParam) {
-            router.replace("/dishes");
-          }
-        }}
-      >
-        {selectedDish && (
-          <DishSheetDetail
-            dish={fullDish ?? selectedDish}
-            onDelete={handleDelete}
-            onUnpublish={handleUnpublish}
-            onPublish={handlePublish}
-            onEdit={(id) => router.push(`/dishes/${id}/edit`)}
-          />
-        )}
-      </Sheet>
+      {selectedDish && (
+        <DishDetailDialog
+          dish={fullDish ?? selectedDish}
+          open={detailOpen}
+          onOpenChange={closeDetail}
+          onChanged={handleDetailChanged}
+          onDeleted={refresh}
+        />
+      )}
 
       <Dialog open={copyTarget !== null} onOpenChange={() => setCopyTarget(null)}>
         <AppDialogContent size="form">
@@ -531,20 +481,19 @@ export default function DishesPage() {
             </div>
           )}
           <DialogFooter>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() => setCopyTarget(null)}
-              className="h-11 px-6"
             >
               取消
-            </Button>
-            <Button
+            </SkeuButton>
+            <SkeuButton
+              variant="primary"
               onClick={handleCopy}
               disabled={copying || !copyName.trim()}
-              className="h-11 px-6"
             >
               {copying ? "复制中..." : "确认复制"}
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
@@ -562,7 +511,7 @@ export default function DishesPage() {
             refresh();
             if (newDish?.id) {
               setSelectedDish(newDish);
-              setSheetOpen(true);
+              setDetailOpen(true);
               fetchDetail(newDish.id);
             }
           }}

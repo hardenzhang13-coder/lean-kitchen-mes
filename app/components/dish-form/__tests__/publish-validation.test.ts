@@ -63,7 +63,7 @@ describe("菜品表单提交校验", () => {
     expect(validateForSave(form, null)).toBeNull();
   });
 
-  it("存量菜品缺少份量时回退到小碗菜·10份", () => {
+  it("存量菜品缺少份量时回退到小碗菜", () => {
     const dish = {
       id: 1,
       code: "DSH-HOT-0001",
@@ -72,6 +72,6 @@ describe("菜品表单提交校验", () => {
       portion: null,
       status: "draft",
     } as DishDetail;
-    expect(dishToFormData(dish).portion).toBe("小碗菜·10份");
+    expect(dishToFormData(dish).portion).toBe("小碗菜");
   });
 });

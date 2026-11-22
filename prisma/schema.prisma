@@ -229,7 +229,7 @@ model Dish {
   cuisine          String?
   technique        String?
   taste            String?
-  portion          String                @default("小碗菜·10份")
+  portion          String                @default("小碗菜")
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)

@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { BomType, BomItem, BOM_TYPE_LABELS, totalBomCost, formatCost, calcCost, IngredientOption } from "./types";
+import { BomType, BomItem, BOM_TYPE_LABELS, BOM_TYPE_TONES, totalBomCost, formatCost, calcCost, IngredientOption } from "./types";
 import { BomItemRow } from "./bom-item-row";
 import { BomPickerDialog } from "./bom-picker-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuChipTag } from "@/app/components/ui/skeu-chip";
 
 interface BomEditorProps {
   bom: Record<BomType, BomItem[]>;
@@ -59,19 +58,17 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
   const totalCost = totalBomCost(bom);
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-heading font-medium">菜品用料</CardTitle>
-          <span className="text-sm text-muted-foreground">
-            估算成本：
-            <span className="text-base font-bold tabular-nums text-primary">
-              {formatCost(totalCost)}
-            </span>
+    <section className="skeu-panel">
+      <header className="skeu-surface-muted flex items-center justify-between border-b border-skeu-border px-5 py-3.5">
+        <h3 className="text-sm font-semibold">菜品用料</h3>
+        <span className="text-sm text-muted-foreground">
+          估算成本：
+          <span className="text-base font-bold tabular-nums text-primary">
+            {formatCost(totalCost)}
           </span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+        </span>
+      </header>
+      <div className="space-y-3 p-4">
         {(Object.keys(bom) as BomType[]).map((type) => (
           <BomSection
             key={type}
@@ -83,7 +80,7 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
             readOnly={readOnly}
           />
         ))}
-      </CardContent>
+      </div>
 
       {pickerType && (
         <BomPickerDialog
@@ -128,7 +125,7 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           singleSelect
         />
       )}
-    </Card>
+    </section>
   );
 }
 
@@ -148,17 +145,17 @@ function BomSection({
   readOnly?: boolean;
 }) {
   return (
-    <div className="rounded-lg border p-3 space-y-2">
+    <div className="skeu-surface-muted rounded-lg border border-skeu-border p-3 space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold">{BOM_TYPE_LABELS[type]}</span>
-          <Badge variant="outline" className="text-xs">{items.length} 项</Badge>
+          <SkeuChipTag tone={BOM_TYPE_TONES[type]}>{items.length} 项</SkeuChipTag>
         </div>
         {!readOnly && (
-          <Button type="button" variant="outline" size="sm" onClick={onAdd} className="h-8 text-xs">
-            <Plus className="mr-1 h-3.5 w-3.5" />
+          <SkeuButton type="button" variant="outline" size="sm" onClick={onAdd}>
+            <Plus className="h-3.5 w-3.5" />
             添加
-          </Button>
+          </SkeuButton>
         )}
       </div>
 

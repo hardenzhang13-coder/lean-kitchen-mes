@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ProcessStep, ProcessStage, VALID_STAGES, STAGE_COLORS } from "./types";
 import { ProcessStepCard } from "./process-step-card";
 import { cn } from "@/lib/shared/utils";
@@ -46,8 +45,8 @@ export function ProcessAccordion({ processes }: ProcessAccordionProps) {
         const isExpanded = expanded.has(stage);
         const colors = STAGE_COLORS[stage];
         return (
-          <Card key={stage} className="overflow-hidden">
-            <CardHeader className="py-3">
+          <section key={stage} className="skeu-surface-muted overflow-hidden rounded-lg border border-skeu-border">
+            <header className="border-b border-skeu-border px-3 py-2.5">
               <button
                 type="button"
                 onClick={() => toggle(stage)}
@@ -65,18 +64,18 @@ export function ProcessAccordion({ processes }: ProcessAccordionProps) {
                   )}
                 />
               </button>
-            </CardHeader>
+            </header>
             {isExpanded && (
-              <CardContent className="pt-0 pb-3 space-y-2">
+              <div className="skeu-surface space-y-2 p-3 pt-2">
                 {steps.length === 0 && (
                   <div className="text-sm text-muted-foreground py-2">该阶段暂无工序</div>
                 )}
                 {steps.map((step, idx) => (
                   <ProcessStepCard key={idx} step={step} stepNo={idx + 1} stage={stage} />
                 ))}
-              </CardContent>
+              </div>
             )}
-          </Card>
+          </section>
         );
       })}
     </div>

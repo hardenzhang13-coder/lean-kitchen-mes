@@ -1,11 +1,11 @@
 "use client";
 
 import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
-import { CategoryTag } from "@/app/components/ui/category-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
-import { BomItem, BomType, calcCost, formatCost } from "./types";
+import { SkeuChipTag } from "@/app/components/ui/skeu-chip";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
+import { BomItem, BomType, BOM_TYPE_TONES, calcCost, formatCost } from "./types";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import { cn } from "@/lib/shared/utils";
 
@@ -43,11 +43,14 @@ export function BomItemRow({
   };
 
   return (
-    <div className="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_100px_80px_28px] items-center gap-2 rounded-md border p-2 min-h-[44px]">
+    <div className="grid grid-cols-[28px_minmax(0,1fr)_minmax(0,1fr)_100px_80px_40px] items-center gap-2 rounded-md border p-2 min-h-[44px]">
       <span className="text-center text-sm text-muted-foreground">{index + 1}</span>
 
       <div className="min-w-0">
-        <CategoryTag l2Code={item.l2Code} name={item.name} />
+        {/* 名称胶囊按用料类型着色（主蓝/辅绿/小料琥珀/调料紫/酱红），不再用灰色系分类胶囊 */}
+        <SkeuChipTag tone={BOM_TYPE_TONES[type]} className="max-w-full">
+          <span className="truncate">{item.name}</span>
+        </SkeuChipTag>
       </div>
 
       <span
@@ -82,22 +85,20 @@ export function BomItemRow({
       <span
         className={cn(
           "text-sm text-right",
-          item.cost == null ? "text-muted-foreground" : "font-medium text-foreground"
+          item.cost == null ? "text-muted-foreground" : "font-semibold text-foreground"
         )}
       >
         {formatCost(item.cost)}
       </span>
 
       {!readOnly && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
+        <SkeuIconAction
+          label={`移除 ${item.name}`}
+          tip="移除"
+          icon={<X className="h-4 w-4" />}
           onClick={onRemove}
-          className="h-7 w-7 text-destructive shrink-0"
-        >
-          <X className="h-4 w-4" />
-        </Button>
+          className="text-destructive"
+        />
       )}
     </div>
   );

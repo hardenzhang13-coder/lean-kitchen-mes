@@ -59,6 +59,7 @@ import {
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
 import { PortionTag } from "@/app/components/ui/portion-tag";
+import { MeatTypeTag } from "@/app/components/ui/meat-type-tag";
 import {
   SkeuChipSelect,
   SkeuChipTag,
@@ -82,6 +83,10 @@ import { DatePicker } from "@/app/components/ui/date-picker";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuSearch } from "@/app/components/ui/skeu-search";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
+import {
+  SkeuListSelect,
+  type SkeuListSelectOption,
+} from "@/app/components/ui/skeu-list-select";
 import { SkeuToggle } from "@/app/components/ui/skeu-toggle";
 import { PageTabs } from "@/app/components/ui/page-tabs";
 import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
@@ -113,6 +118,24 @@ const MATERIAL_STATUS_OPTIONS: SkeuDotOption[] = [
   { value: "inactive", label: "已停用", tone: "warning" },
 ];
 
+const MEAT_FILTER_OPTIONS: SkeuDotOption[] = [
+  { value: "", label: "全部", tone: "all" },
+  { value: "荤菜", label: "荤菜", tone: "danger" },
+  { value: "小荤菜", label: "小荤菜", tone: "rose" },
+  { value: "素菜", label: "素菜", tone: "green" },
+];
+
+const DISH_CATEGORY_OPTIONS: SkeuListSelectOption[] = [
+  { value: "1", label: "猪肉类" },
+  { value: "2", label: "牛肉类" },
+  { value: "3", label: "禽蛋类" },
+  { value: "4", label: "水产类" },
+  { value: "5", label: "蔬菜类" },
+  { value: "6", label: "豆制品类" },
+  { value: "7", label: "菌菇类" },
+  { value: "8", label: "汤品类" },
+];
+
 const UNIT_CHIP_OPTIONS: ChipOption[] = [
   { value: "weight", label: "重量", tone: "orange" },
   { value: "volume", label: "体积", tone: "blue" },
@@ -129,6 +152,8 @@ const MATERIAL_SHADOWS = [
 function MaterialKit() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [meatFilter, setMeatFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
   const [expanded, setExpanded] = useState(false);
   const [unitCategory, setUnitCategory] = useState("weight");
   const [industry, setIndustry] = useState("veg");
@@ -218,6 +243,22 @@ function MaterialKit() {
             onChange={setStatus}
             options={MATERIAL_STATUS_OPTIONS}
           />
+          <SkeuListSelect
+            value={categoryFilter}
+            onChange={setCategoryFilter}
+            options={DISH_CATEGORY_OPTIONS}
+            ariaLabel="类别筛选"
+            allLabel="全部类别"
+            searchable
+            searchPlaceholder="搜索类别..."
+            className="w-[160px]"
+          />
+          <SkeuDotSelect
+            value={meatFilter}
+            onChange={setMeatFilter}
+            options={MEAT_FILTER_OPTIONS}
+            aria-label="荤素筛选"
+          />
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <SkeuToggle
@@ -241,6 +282,9 @@ function MaterialKit() {
           <StatusBadge status="草稿" />
           <CategoryTag l1Code="VEG" name="蔬菜" />
           <PortionTag portion="社区·2份" />
+          <MeatTypeTag type="荤菜" />
+          <MeatTypeTag type="小荤菜" />
+          <MeatTypeTag type="素菜" />
           <ScheduleStatusTag status="进行中" />
           <DishStatusTag status="published" />
         </div>
@@ -856,14 +900,16 @@ export default function UiKitPage() {
               <h2 className="text-lg font-semibold">份量标签</h2>
               <p className="text-sm text-muted-foreground">
                 份量枚举的唯一渲染入口，取值来自 lib/shared/portion-scale.ts。
+                文字统一深墨（--capsule-ink），色相识别靠底色 + 圆点，避免与主色橙冲突。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-4">
               <PortionTag portion="小碗菜" />
-              <PortionTag portion="小碗菜·10份" />
+              <PortionTag portion="社区·1份" />
               <PortionTag portion="社区·2份" />
               <PortionTag portion="社区·3份" />
               <PortionTag portion="社区·4份" />
+              <PortionTag portion="小碗菜·10份" />
               <PortionTag portion={null} />
             </div>
           </section>

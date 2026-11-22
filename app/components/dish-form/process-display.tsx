@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ProcessAccordion } from "./process-accordion";
 import { ProcessStep } from "./types";
 
@@ -8,15 +7,16 @@ interface ProcessDisplayProps {
   processes: ProcessStep[];
 }
 
+/** 加工工艺只读展示（详情页 / 抽屉复用）：面板容器 + 阶段折叠手风琴。 */
 export function ProcessDisplay({ processes }: ProcessDisplayProps) {
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-heading font-medium">加工工艺</CardTitle>
-      </CardHeader>
-      <CardContent>
+    <section className="skeu-panel">
+      <header className="skeu-surface-muted border-b border-skeu-border px-5 py-3.5">
+        <h3 className="text-sm font-semibold">加工工艺</h3>
+      </header>
+      <div className="p-4">
         <ProcessAccordion processes={processes} />
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

@@ -1,6 +1,6 @@
 # 菜品表单组件（dish-form）
 
-本目录包含菜品新建/编辑/查看的复合表单组件。它不是一个弹窗，而是一个完整的页面级组件，通常由 `app/dishes/new/page.tsx`、`[id]/edit/page.tsx` 和 `[id]/page.tsx` 使用。
+本目录包含菜品新建/编辑的复合表单组件。它不是一个弹窗，而是一个完整的页面级组件，由 `app/dishes/new/page.tsx` 与 `[id]/edit/page.tsx` 使用。查看详情不再是表单的只读模式：`app/dishes/[id]/page.tsx` 渲染展示型组件 `app/components/dishes/dish-detail-view.tsx`。
 
 ## 组件结构
 
@@ -32,13 +32,12 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
 `BomType` 前 4 类有对应明细表，`sauce` 为可选。发布只要求主料至少 1 项，其余用料均不强制。
 
-### 表单三模式
+### 表单模式
 
 `DishFormProps.mode` 支持：
 
 - `new` — 新建菜品，显示"保存草稿"和"发布"按钮
-- `edit` — 编辑已有菜品
-- `view` — 查看模式，允许在草稿状态下点击"发布"或"编辑"
+- `edit` — 编辑已有菜品；非草稿态只显示"下架"
 
 ### 数据转换函数
 
@@ -69,10 +68,7 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 - 直接保存 BOM 和工序，再更新基础信息
 - 只有草稿可编辑；已发布/已停用菜品会被拒绝修改基础信息/BOM/工序，必须先"下架"回 `draft`
 
-### 查看模式发布
-
-- 在 `view` 模式下，用户可以先浏览，再点击"发布"
-- 发布走 `POST /api/dishes/[id]/status`，完整性校验由服务端执行
+> 查看与发布操作在展示型详情页 `DishDetailView` 完成，不在本表单内。
 
 ## 发布校验规则
 
@@ -81,9 +77,9 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 
 - 售价必填在 `validateForSave`（保存草稿）与 `validatePublish`（发布）中共用：缺失时提示「请填写售价（元/份），毛利率会根据成本自动计算」。
 - 毛利率不入库，由「售价 + 当前成本」实时派生；发布时成本缺失会提示先添加主料。售价与毛利率在表单标题上以主题色加粗并标注必填。
-- 份量默认值：`小碗菜·10份`（新建、存量缺省、API schema 三处一致）。
+- 份量默认值：`小碗菜`（新建表单、存量缺省回退、`createDishSchema` 与 `dishes.portion` 列默认值一致；净料/调料档案的份量默认仍是小碗菜·10份）。
 
-> 提示：发布后会锁定菜品，前端 `isReadOnly = localStatus !== "draft" || mode === "view"` 控制表单只读。
+> 提示：发布后会锁定菜品，前端 `isReadOnly = localStatus !== "draft"` 控制表单只读。
 
 ## 食材加载策略
 
@@ -104,6 +100,7 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 - **酱料**：沿用原口径（配方克数）。
 - 菜品 BOM 添加为**单选**，选择弹窗不提供「取消」按钮，已选摘要与「确认选择」统一放在底部操作行。
 - 选择弹窗的搜索范围只匹配食材名称字段（不匹配编号、商品名称），与食材库列表口径一致。
+- 选择弹窗**完整复用标准列表外框**：`skeu-panel`（工具条 + 表体 + 吸底分页）+ `ListToolbar` 搜索 + `CategoryCascadeSelect` 级联分类筛选（默认「全部分类」取该类型全部食材）；标题与搜索区留间距；选中行浅橙底（`data-selected` CSS 规则）+ ✓ + 主题色序号，选中状态必须醒目。
 - 估算成本在「菜品用量」模块标题处以主题色加粗展示。
 - `BomPickerDialog` 的 `showAmountInput` 默认 `true`、`singleSelect` 默认 `false`，供酱料配方编辑器复用；菜品 BOM 传 `showAmountInput={pickerType === "seasoning"} singleSelect`。
 
@@ -122,6 +119,6 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 ## 注意事项
 
 - 不要在前端直接修改菜品状态，所有状态流转走 `POST /api/dishes/[id]/status`。
-- `isReadOnly = localStatus !== "draft" || mode === "view"`：已发布/已停用均不可编辑。
+- `isReadOnly = localStatus !== "draft"`：已发布/已停用均不可编辑。
 - BOM 成本在前端即时估算，真实成本以服务端 `PUT /api/dishes/[id]/bom` 重新计算为准。
 - 服务端 `DELETE /api/dishes/[id]` 也会拒绝删除已发布菜品。

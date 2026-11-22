@@ -371,7 +371,7 @@ UNIQUE(sauce_id, line_type, ref_id)
 | cuisine | varchar(20) | 菜系做法，可空 |
 | technique | varchar(20) | 加工工艺，可空 |
 | taste | varchar(20) | 口味，可空 |
-| portion | varchar(20) | 规格份量，默认「小碗菜·10份」；枚举见 `lib/shared/portion-scale.ts` |
+| portion | varchar(20) | 规格份量，默认「小碗菜」（菜品；2026-11-22 迁移 20261122123000）；枚举见 `lib/shared/portion-scale.ts` |
 | season | varchar(10) | 适用季节：四季/春/夏/秋/冬 |
 | meat_type | varchar(10) | 荤素类型：荤菜/素菜/小荤菜 |
 | cost | decimal(10,2) | 菜品成本快照；列表/详情/工作台按当前食材价实时重算 |

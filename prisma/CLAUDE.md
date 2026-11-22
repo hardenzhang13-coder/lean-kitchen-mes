@@ -69,7 +69,7 @@ Ingredient（调料，SEA 体系）
 | 模型 | 说明 |
 |------|------|
 | `DishCategory` | 菜品分类，编码唯一；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
-| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「小碗菜·10份」 |
+| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「小碗菜」（2026-11-22 起，迁移 20261122123000） |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |
 | `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，`source_id` 关联 `Ingredient`（调料），`spec_id` 关联 `StandardSeasoning`（标准化规格）；`spec_id` 为空的存量行保持旧口径 |

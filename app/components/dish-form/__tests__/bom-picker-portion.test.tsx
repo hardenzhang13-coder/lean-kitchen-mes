@@ -88,11 +88,10 @@ describe("菜品 BOM 选择器的份量标签", () => {
 
     await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
     expect(screen.getByPlaceholderText("搜索名称...")).toBeInTheDocument();
-    // 一级/二级分类做成筛选控件（combobox），与清单页一致
+    // 分类筛选为级联选择器（单触发器弹窗两级同屏），与食材库清单页一致
     const filters = screen.getAllByRole("combobox");
-    expect(filters).toHaveLength(2);
-    expect(filters[0]).toHaveTextContent("蔬菜");
-    expect(filters[1]).toHaveTextContent("全部二级分类");
+    expect(filters).toHaveLength(1);
+    expect(filters[0]).toHaveTextContent("全部分类");
   });
 
   it("净料无份量时显示占位符", async () => {

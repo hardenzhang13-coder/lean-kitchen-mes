@@ -157,17 +157,20 @@
   --tag-gra: #64748b; --tag-gra-bg: #f8fafc;
   --tag-sea: #ec4899; --tag-sea-bg: #fdf2f8;
 
-  /* 菜品份量胶囊：同色系底 + 深一档文字 + 同色圆点 */
-  --portion-single-bg: #fff7ed; --portion-single-ink: #c2410c; --portion-single-dot: #ea580c;
+  /* 胶囊统一文字色（份量/荤素）：深墨近黑，避免与主色橙文字冲突；色相识别交给底色+圆点 */
+  --capsule-ink: #1e293b;
+
+  /* 菜品份量胶囊：同色系底 + 深墨文字 + 同色圆点；色相避开主色橙 */
+  --portion-single-bg: #f0fdfa; --portion-single-ink: #0f766e; --portion-single-dot: #14b8a6;
   --portion-comm1-bg: #ecfeff; --portion-comm1-ink: #0e7490; --portion-comm1-dot: #06b6d4;
   --portion-comm2-bg: #eff6ff; --portion-comm2-ink: #1d4ed8; --portion-comm2-dot: #3b82f6;
   --portion-comm3-bg: #f5f3ff; --portion-comm3-ink: #6d28d9; --portion-comm3-dot: #8b5cf6;
-  --portion-comm4-bg: #fdf2f8; --portion-comm4-ink: #be185d; --portion-comm4-dot: #ec4899;
-  --portion-canteen-bg: #fef3c7; --portion-canteen-ink: #b45309; --portion-canteen-dot: #f59e0b;
+  --portion-comm4-bg: #fdf4ff; --portion-comm4-ink: #a21caf; --portion-comm4-dot: #d946ef;
+  --portion-canteen-bg: #f7fee7; --portion-canteen-ink: #4d7c0f; --portion-canteen-dot: #84cc16;
 
   /* 荤素胶囊 */
   --meat-bg: #fef2f2; --meat-ink: #b91c1c; --meat-dot: #ef4444;
-  --meat-mixed-bg: #fffbeb; --meat-mixed-ink: #b45309; --meat-mixed-dot: #f59e0b;
+  --meat-mixed-bg: #fff1f2; --meat-mixed-ink: #be123c; --meat-mixed-dot: #f43f5e;
   --veg-bg: #f0fdf4; --veg-ink: #15803d; --veg-dot: #22c55e;
 }
 
@@ -455,6 +458,14 @@
   background-color: var(--sk-panel-body);
 }
 .skeu-table-scroll tbody tr { background: #ffffff; }
+.skeu-table-scroll tbody tr[data-selected="true"] {
+  /* 选中行：浅橙实底 + 左侧主题色描条。必须用实色——渐变在行上对比度不足，等于没有背景 */
+  background: #ffe4c8;
+  box-shadow: inset 3px 0 0 var(--sk-primary-from);
+}
+.skeu-table-scroll tbody tr[data-selected="true"]:hover {
+  background: #ffd9b0;
+}
 .skeu-table-scroll tbody tr[data-row-level="l2"] { background: var(--sk-row-l2); }
 .skeu-table-scroll tbody tr[data-row-level="l2"] { cursor: default; }
 .skeu-table-scroll tbody tr:hover { background: var(--sk-row-hover); }
@@ -533,6 +544,9 @@
 .skeu-dot-all { background: linear-gradient(180deg, #9ca3af 0%, #6b7280 100%); }
 .skeu-dot-success { background: linear-gradient(180deg, #4ade80 0%, #22c55e 100%); }
 .skeu-dot-warning { background: linear-gradient(180deg, #fbbf24 0%, #f59e0b 100%); }
+.skeu-dot-danger { background: linear-gradient(180deg, var(--meat-dot) 0%, var(--meat-ink) 100%); }
+.skeu-dot-rose { background: linear-gradient(180deg, var(--meat-mixed-dot) 0%, var(--meat-mixed-ink) 100%); }
+.skeu-dot-green { background: linear-gradient(180deg, var(--veg-dot) 0%, var(--veg-ink) 100%); }
 
 /* ---------- 面板底部（分页区） ---------- */
 .skeu-panel-foot {

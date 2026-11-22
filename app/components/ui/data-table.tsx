@@ -52,6 +52,7 @@ interface DataTableProps<T> {
   emptyState?: EmptyStateProps;
   rowActions?: (row: T) => React.ReactNode;
   onRowClick?: (row: T) => void;
+  /** 选中行：浅橙底高亮（CSS 属性选择器实现，优先级高于 skeu 表格行底色） */
   isRowSelected?: (row: T) => boolean;
   className?: string;
   /** 数据密集列表使用 compact；食材清单等高频扫读列表可用 dense */
@@ -191,6 +192,7 @@ export function DataTable<T extends object>({
                 <TableRow
                   key={rowIdx}
                   data-row-level={getRowLevel?.(row)}
+                  data-selected={isRowSelected?.(row) || undefined}
                   onClick={() => onRowClick?.(row)}
                   tabIndex={onRowClick ? 0 : undefined}
                   onKeyDown={(event) => {
@@ -204,8 +206,7 @@ export function DataTable<T extends object>({
                     "group",
                     density === "dense" && "[&>td]:py-1",
                     density === "compact" && "[&>td]:py-2",
-                    onRowClick && "cursor-pointer",
-                    isRowSelected?.(row) && "bg-primary/5"
+                    onRowClick && "cursor-pointer"
                   )}
                 >
                   {columns.map((col, colIdx) => (

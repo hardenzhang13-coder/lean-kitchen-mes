@@ -16,7 +16,7 @@
 - **双 Tab 规则**：顶栏放标题与主操作；第一层页面级 Tab（如库存的当前库存 / 出库单 / 流水）固定在顶栏下方；第二层内容筛选放在面板工具条内，用分段控件；两层不要同时使用全宽下划线样式；页面本身不滚动，只有内容区滚动。
 - **多列表页模板（库存样板）**：结构为 `PageHeader topbar` → `skeu-panel` → `PageTabs`（一级）→ 页签内容（`skeu-panel-toolbar` + `DataTable variant="skeu"` + 吸底分页）。一级页签用 `PageTabs`，选中态是橙色磁贴，可选图标与计数；二级筛选用 `SkeuSegmented` 或 `SelectField`，放在工具条内。页签、工具条、分页固定，只有表格区滚动。后续菜品库可把「小碗菜 / 社区 / 食堂」做成一级 `PageTabs`，复用同一模板。
 - **筛选控件分工**：选项多或层级型（类别、门店、供应商）用 `SelectField` 下拉；枚举少且互斥（状态、荤素、流水类型）用 `SkeuSegmented` 平铺；搜索用 `SkeuSearch`。低频筛选（如做法）默认不进工具栏，避免工具条拥挤。
-- **菜品库（2026-11-21）**：一级页签按份量分组——单人份（小碗菜）/ 社区（社区·1–4 份及其余）/ 团餐食堂（小碗菜·10 份）；类别只保留下拉筛选，列表去掉类别胶囊列；份量与荤素胶囊共用「同色系底 + 深一档文字 + 同色圆点 + `skeu-badge`」色板；行高用 `rowSize="tall"` 的 60px，与设置模块 52px 区分。
+- **菜品库（2026-11-21，2026-11-22 两轮升级 + 当日修正）**：一级页签按份量分组——单人份（小碗菜）/ 社区（社区·1–4 份及其余）/ 团餐食堂（小碗菜·10 份）；类别（19+1 项，>10 选项）筛选用 `SkeuListSelect` **无遮罩平铺浮层**（Popover 而非弹窗：全量平铺、一行最多 3 列、**不出现滚动条**、可搜索、点击即生效），荤素回 `SkeuDotSelect` 圆点下拉（与设置模块状态筛选同一标准件），状态保留 `SkeuSegmented`；行操作主操作「菜品转化」按 §4.1 `act-btn.primary` 规格（浅橙底 + 橙描边 + 橙字 + 图标 + 短标签，`SkeuActionButton tone="primary"`）固定最右，编辑 / 复制为幽灵态纯图标；列表去掉类别胶囊列；份量与荤素胶囊共用「同色系底 + **深墨文字（`--capsule-ink`）** + 同色圆点 + `skeu-badge`」——文字不用彩色 ink，色相识别交给底色 + 圆点，与主字段橙彻底解耦（小碗菜 teal、社区 1–4 份 青/蓝/紫/fuchsia、团餐食堂 lime、小荤 rose）；行高 `rowSize="tall"` 60px；默认每页 8 条。表单（new/edit）全面拟物化；用料分组计数胶囊与行内**名称胶囊**按类型着色（主蓝/辅绿/小料琥珀/调料紫/酱红，`BOM_TYPE_TONES`，禁用灰色系），行成本金额加粗；BOM 选择弹窗**完整复用标准列表外框**（`skeu-panel` = 工具条 + 表体 + 吸底分页，与清单页一致；标题与搜索区留间距），分类筛选复用 `CategoryCascadeSelect` 级联弹窗（默认「全部分类」），**选中行浅橙实底 + 左侧主题色描条**（`data-selected` CSS 规则，必须用实色——渐变在行上对比度不足）+ ✓ + 主题色序号。详情为展示型档案**预览**：列表行点击开**正面大弹窗**（`DishDetailDialog`，workbench 1200px，替代旧半屏抽屉），路由页 `/dishes/[id]` 共存并共用同一 `DishDetailBody` 与 `DishDetailActions`（删除 danger / 复制、编辑 outline / 状态主操作 primary，按钮全拟物）；预览只保留**主字段卡片（名称 + 荤素/类别/份量标签，右侧毛利率在左、售价在右）+ 菜品用料**两块，编号与创建时间收进标题区（弹窗标题下、路由页页头），**操作簇完整置于弹窗右下页脚**（删除 danger / 复制、编辑、转化 outline / 状态主操作 primary，与列表操作列全对齐）；删除唯一入口收敛到档案。新建菜品默认份量统一为「小碗菜」（表单初值、存量回退、createDishSchema、dishes 列默认值，迁移 20261122123000；净料/调料档案默认仍为小碗菜·10份）。菜品转化弹窗（`DishScaleDialog`）同步拟物：目标份量平铺磁贴（≤10 选项不走 SkeuListSelect）、已存在/待创建用绿/琥珀 `SkeuChipTag`、底部 `SkeuButton`。
 - **三级页面（记录操作）**：默认不新开整页。创建 / 编辑 / 查看详情用 `WorkbenchDialog`，尺寸与「原料清单 → 转净料」弹窗一致：workbench 1200px、`max-h-[calc(100dvh-24px)]`、头部 `px-6 pt-6 pb-4`、底部 `px-6 pt-4 pb-5`，头尾固定、内容区滚动。列表页头主操作与行内「详情」都打开弹窗，成功后就地关闭并刷新当前列表。只有打印、超长多步向导保留独立路由。弹窗底栏用 `SkeuButton`，取消为描边、提交为主色、危险动作为 danger。
 - **缺省态**：`EmptyState` 统一为「浮雕图标盘 + 低对比同心环 + 标题 / 说明 + 主操作」；空态由 `DataTable` 直接占满整个列表区（不再放进表格行），加载失败用 `tone="danger"`，列表空态用默认色调。空态、错误态、重试都走同一个组件，不再页面各自拼。
 - **下一步**：按钮族 84 文件分批替换 → 清单页逐页铺开 → 单据 / 看板模板扩展 → 打印页单独验收。
@@ -34,8 +34,8 @@
 | 表面 / 层级 | `--sk-surface`、`--sk-surface-muted`、`--sk-panel-body`、`--sk-shadow-1/2/3`、`--sk-highlight-top`、`--sk-inset(-strong)` | 凸起 = 顶部高光 + 底部投影；凹陷 = 顶部内阴影；同一元素不可既凹又凸 |
 | 语义状态 | `--status-{success\|warning\|danger\|neutral\|info}` + `-bg` + `-text` + `-dot` | 不再新增 `--sk-status-*`；StatusBadge 只读这一套 |
 | 分类色板 | `--tag-*` | 食材 / 菜品分类胶囊 |
-| 份量色板 | `--portion-*` | 份量胶囊；与分类色板同构（bg / ink / dot） |
-| 荤素色板 | `--meat-*`、`--veg-*` | 荤 / 混合 / 素胶囊 |
+| 份量色板 | `--portion-*` + `--capsule-ink` | 份量胶囊；与分类色板同构（bg / dot 按色系，**文字统一 `--capsule-ink` 深墨**）；色相避开主色橙（小碗菜 teal / 社区 1–4 份 青·蓝·紫·fuchsia / 团餐食堂 lime） |
+| 荤素色板 | `--meat-*`、`--veg-*` + `--capsule-ink` | 荤红 / 小荤 rose / 素绿（底色 + 圆点，文字同深墨）；`SkeuListSelect`/`SkeuDotSelect` 圆点同色（`--meat-*` 供 `skeu-dot-danger`、`--meat-mixed-*` 供 `skeu-dot-rose`、`--veg-*` 供 `skeu-dot-green`） |
 | 主色 | `--sk-primary-from/-to/-ink/-surface/-soft/-shadow` | 按钮渐变、Logo、当前页码都走 token，不写 hex |
 | 圆角 | `--sk-radius-xs 8 / sm 10 / md 12 / lg 14 / xl 16 / pill` | 小动作 xs、控件 sm、面板 md、弹窗 lg、图标盘 xl |
 | 行高 | `--sk-row-h 52 / -dense 44 / -tall 60`；表头 42 / tall 46 | 默认 52；菜品库 tall 60；仅高密度参照表用 dense 44 |
@@ -230,13 +230,14 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 | `SkeuButton` | 拟物按钮 | variant：primary / outline / secondary / ghost / danger |
 | `SkeuToggle` | 拨动开关 | 内凹轨道 + 立体圆钮；用于「全部展开 / 收起」等状态语义开关 |
 | `SkeuDotSelect` | 圆点状态筛选 | 圆点三色（全部灰 / 启用中绿 / 已停用琥珀）；选中浅橙底 + 勾 |
+| `SkeuListSelect` | 平铺浮层下拉（**仅选项 >10 个的枚举筛选**，如菜品类别） | 无遮罩 Popover 而非弹窗；磁贴全量平铺、一行最多 3 列、**不出现滚动条**；可搜索；点击即生效；首项「全部」；触发器为 skeu-trigger 标准件。≤10 选项用 `SkeuDotSelect` / `SkeuSegmented` |
 | `SkeuSearch` | 搜索框 | 内凹、无聚焦发光；有内容时右侧圆形清除钮 |
 
 改造：
 
 - `ListToolbar` → 使用 `SkeuSearch`，重置按钮用 `SkeuButton variant="ghost"`。
 - `StatusBadge` → 胶囊 + 顶部内高光 + 轻微投影 + 语义圆点。
-- `DataTable` → 新增 `variant="skeu"`（默认 `default`，逐页灰度接入）与 `getRowLevel`（树形行层级）。
+- `DataTable` → 新增 `variant="skeu"`（默认 `default`，逐页灰度接入）、`getRowLevel`（树形行层级）与 `isRowSelected`（选择弹窗选中行浅橙实底 + 左侧主题色描条，走 `data-selected` CSS 规则）。
 - `Pagination` → 拟物翻页按钮 + 当前页橙色胶囊。
 - `form-controls.Input` → 全局内凹拟物（低风险，全站生效）。
 

@@ -8,11 +8,10 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { FormDialog } from "@/app/components/ui/form-dialog";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/app/components/ui/form-controls";
 import { DataTable, type ColumnDef } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { CategoryCascadeSelect } from "@/app/components/ui/category-cascade-select";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { useDebounce } from "@/lib/client/hooks";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
@@ -22,6 +21,7 @@ import { cn } from "@/lib/shared/utils";
 
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 
 interface BomPickerDialogProps {
   open: boolean;
@@ -71,20 +71,17 @@ export function BomPickerDialog({
   singleSelect = false,
   defaultAmountG = "100",
 }: BomPickerDialogProps) {
-  const { l1Categories, l2Categories, hasCategories } = useMemo(() => {
+  const { l1Categories, hasCategories } = useMemo(() => {
     if (hideCategories || type === "sauce") {
       return {
         l1Categories: [] as IngredientCategory[],
-        l2Categories: [] as Array<{ code: string; name: string; parentCode: string }>,
         hasCategories: false,
       };
     }
 
     if (type === "seasoning") {
-      const l1 = refs.ingredientCategories.filter((c) => c.code === "SEA");
       return {
-        l1Categories: l1,
-        l2Categories: l1.flatMap((c) => c.children ?? []),
+        l1Categories: refs.ingredientCategories.filter((c) => c.code === "SEA"),
         hasCategories: true,
       };
     }
@@ -100,30 +97,21 @@ export function BomPickerDialog({
 
     return {
       l1Categories: l1List,
-      l2Categories: l1List.flatMap((c) => c.children ?? []),
       hasCategories: true,
     };
   }, [type, refs.ingredientCategories, hideCategories, allCategories]);
-
-  const initialL1 = hasCategories ? l1Categories[0]?.code ?? "" : "";
 
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 300);
   const [selectedItems, setSelectedItems] = useState<Map<number, IngredientOption>>(new Map());
   const [amountG, setAmountG] = useState(defaultAmountG);
-  const [selectedL1, setSelectedL1] = useState<string>(initialL1);
+  const [selectedL1, setSelectedL1] = useState<string>("");
   const [selectedL2, setSelectedL2] = useState<string>("");
   const [items, setItems] = useState<IngredientOption[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const pageSize = DEFAULT_PAGE_SIZE;
-
-  // 二级分类随一级分类级联：只展示当前选中一级分类下的子分类
-  const cascadedL2 = useMemo(
-    () => l1Categories.find((c) => c.code === selectedL1)?.children ?? [],
-    [l1Categories, selectedL1]
-  );
 
   const loadItems = useCallback(
     async (params: { l1Code?: string; l2Code?: string; q?: string; signal?: AbortSignal }) => {
@@ -164,9 +152,9 @@ export function BomPickerDialog({
     const load = async () => {
       const params = debouncedSearch.trim()
         ? { q: debouncedSearch.trim() }
-        : hasCategories
+        : selectedL1
           ? {
-              l1Code: selectedL1 || l1Categories[0]?.code,
+              l1Code: selectedL1,
               // 未选二级分类时按一级分类取全量子分类
               l2Code: selectedL2 || undefined,
             }
@@ -190,13 +178,6 @@ export function BomPickerDialog({
 
     return () => controller.abort();
   }, [open, debouncedSearch, selectedL1, selectedL2, hasCategories, l1Categories, onLoadItems, type]);
-
-  const handleL1Click = (code: string) => {
-    if (selectedL1 === code) return;
-    setSelectedL1(code);
-    const children = l1Categories.find((c) => c.code === code)?.children ?? [];
-    setSelectedL2(children[0]?.code ?? "");
-  };
 
   const handleRowClick = (row: IngredientOption) => {
     if (singleSelect) {
@@ -226,12 +207,6 @@ export function BomPickerDialog({
     onOpenChange(false);
   };
 
-  const l1Options = l1Categories.map((c) => ({ value: c.code, label: c.name }));
-  // 级联：二级分类只显示当前一级分类下的子分类
-  const l2Options = (cascadedL2.length > 0 ? cascadedL2 : l2Categories).map((c) => ({
-    value: c.code,
-    label: c.name,
-  }));
   const isSearchMode = debouncedSearch.trim().length > 0;
   const isSeasoning = type === "seasoning";
   const isSauce = type === "sauce";
@@ -416,87 +391,83 @@ export function BomPickerDialog({
     <FormDialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         size="workbench"
-        className="max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh]"
+        className="max-w-[calc(100%-4rem)] [&>button]:cursor-pointer p-0 flex flex-col max-h-[90vh] gap-0"
       >
-        <DialogHeader className="px-6 pt-6 pb-0">
+        <DialogHeader className="px-6 pt-6 pb-4">
           <DialogTitle className="text-lg">
             {title ?? TYPE_TITLES[type]}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="flex min-h-0 flex-1 flex-col py-4 px-6">
+        <div className="flex min-h-0 flex-1 flex-col px-6 pb-4">
           {errorState ?? (
-          <DataTable<IngredientOption>
-            data={pageItems}
-            columns={columns}
-            loading={loading}
-            fillHeight
-            density="compact"
-            tableClassName="min-w-max"
-            onRowClick={handleRowClick}
-            filters={
-              <ListToolbar
-                searchValue={search}
-                onSearchChange={(value) => {
-                  setSearch(value);
-                  setPage(1);
-                }}
-                searchPlaceholder="搜索名称..."
-                onReset={() => {
-                  setSearch("");
-                  setSelectedL1(initialL1);
-                  setSelectedL2("");
-                  setPage(1);
-                }}
-                hasFilters={
-                  search.trim() !== "" ||
-                  selectedL1 !== initialL1 ||
-                  selectedL2 !== ""
-                }
-              >
-                {l1Options.length > 0 && (
-                  <SelectTileMode
-                    options={l1Options}
-                    value={selectedL1}
-                    onChange={(v) => {
-                      handleL1Click(v);
-                      setPage(1);
-                    }}
-                    placeholder="全部一级分类"
-                    title="选择一级分类"
-                    searchable={false}
-                    className="w-[150px]"
-                  />
-                )}
-                {l2Options.length > 0 && (
-                  <SelectTileMode
-                    options={l2Options}
-                    value={selectedL2}
-                    onChange={(v) => {
-                      setSelectedL2(v);
-                      setPage(1);
-                    }}
-                    placeholder="全部二级分类"
-                    title="选择二级分类"
-                    searchable={false}
-                    className="w-[150px]"
-                  />
-                )}
-              </ListToolbar>
-            }
-            pagination={{
-              currentPage: safePage,
-              totalPages,
-              totalItems,
-              pageSize,
-              onPageChange: (p) => setPage(p),
-            }}
-            emptyState={emptyState}
-          />
+            <div className="skeu-panel flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="skeu-panel-toolbar shrink-0 px-5 py-4">
+                <ListToolbar
+                  searchValue={search}
+                  onSearchChange={(value) => {
+                    setSearch(value);
+                    setPage(1);
+                  }}
+                  searchPlaceholder="搜索名称..."
+                  onReset={() => {
+                    setSearch("");
+                    setSelectedL1("");
+                    setSelectedL2("");
+                    setPage(1);
+                  }}
+                  hasFilters={
+                    search.trim() !== "" ||
+                    selectedL1 !== "" ||
+                    selectedL2 !== ""
+                  }
+                >
+                  {hasCategories && (
+                    <CategoryCascadeSelect
+                      categories={l1Categories.map((c) => ({
+                        code: c.code,
+                        name: c.name,
+                        children: c.children ?? [],
+                      }))}
+                      l1Code={selectedL1}
+                      l2Code={selectedL2}
+                      onChange={(l1, l2) => {
+                        setSelectedL1(l1);
+                        setSelectedL2(l2);
+                        setPage(1);
+                      }}
+                      placeholder="全部分类"
+                      className="w-[200px]"
+                    />
+                  )}
+                </ListToolbar>
+              </div>
+              <div className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+                <DataTable<IngredientOption>
+                  data={pageItems}
+                  columns={columns}
+                  loading={loading}
+                  fillHeight
+                  variant="skeu"
+                  density="compact"
+                  tableClassName="min-w-max"
+                  onRowClick={handleRowClick}
+                  isRowSelected={(row) => selectedItems.has(row.id)}
+                  pagination={{
+                    currentPage: safePage,
+                    totalPages,
+                    totalItems,
+                    pageSize,
+                    onPageChange: (p) => setPage(p),
+                  }}
+                  emptyState={emptyState}
+                />
+              </div>
+            </div>
           )}
         </div>
 
-        <DialogFooter className="px-6 pt-0 pb-6">
+        <DialogFooter className="px-6 pt-2 pb-6">
           <div className="flex w-full flex-wrap items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground min-h-[1.5rem]">
               {selectedItems.size > 0 ? (
@@ -525,13 +496,13 @@ export function BomPickerDialog({
                   <span className="text-base font-bold text-primary">g</span>
                 </div>
               )}
-              <Button
+              <SkeuButton
+                variant="primary"
                 onClick={handleConfirm}
                 disabled={selectedItems.size === 0 || loading}
-                className="h-11 px-6"
               >
                 确认选择
-              </Button>
+              </SkeuButton>
             </div>
           </div>
         </DialogFooter>

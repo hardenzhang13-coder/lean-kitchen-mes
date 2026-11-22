@@ -1,5 +1,6 @@
 import { validateDishForPublish } from "@/lib/shared/dish-publish";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
+import type { ChipTone } from "@/app/components/ui/skeu-chip";
 
 export type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
@@ -85,6 +86,15 @@ export const BOM_TYPE_LABELS: Record<BomType, string> = {
   minor: "小料",
   seasoning: "调料",
   sauce: "酱料",
+};
+
+/** 用料类型胶囊色：表单分组计数、详情页类型列、BOM 弹窗共用，保持同色同语义 */
+export const BOM_TYPE_TONES: Record<BomType, ChipTone> = {
+  main: "blue",
+  support: "green",
+  minor: "amber",
+  seasoning: "violet",
+  sauce: "red",
 };
 
 // 发布必填规则以 validateDishForPublish 为准：荤素类型、售价、主料必填；其余用料可选
@@ -214,7 +224,7 @@ export function dishToFormData(dish: DishDetail): DishFormData {
     cuisine: dish.cuisine || "",
     technique: dish.technique || "",
     taste: dish.taste || "",
-    portion: dish.portion || "小碗菜·10份",
+    portion: dish.portion || "小碗菜",
     season: dish.season || "四季",
     meatType: dish.meatType || "",
     price: dish.price != null ? String(dish.price) : "",

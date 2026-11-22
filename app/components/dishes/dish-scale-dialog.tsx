@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogHeader,
@@ -16,14 +15,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuChipTag } from "@/app/components/ui/skeu-chip";
 import { Input } from "@/app/components/ui/form-controls";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PortionTag } from "@/app/components/ui/portion-tag";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import type { DishDetail } from "@/app/components/dish-form/types";
 import { PORTION_OPTIONS, portionScaleFactor } from "@/lib/shared/portion-scale";
 import { syncNamePackageSpec } from "@/lib/shared/name-utils";
+import { cn } from "@/lib/shared/utils";
 import type {
   DishScalePlan,
   DishScaleSpecPlan,
@@ -221,9 +221,9 @@ export function DishScaleDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <AppDialogContent
         size="workbench"
-        className="flex max-h-[90vh] flex-col p-0"
+        className="flex max-h-[90vh] flex-col gap-0 p-0"
       >
-        <DialogHeader className="border-b px-6 py-4">
+        <DialogHeader className="border-b border-skeu-border px-6 py-4">
           <DialogTitle className="text-lg">菜品转化</DialogTitle>
         </DialogHeader>
 
@@ -235,27 +235,39 @@ export function DishScaleDialog({
 
           <div className="space-y-1.5">
             <span className="text-sm font-medium">目标份量</span>
-            <SelectTileMode
-              options={PORTION_OPTIONS.filter(
+            <div role="group" aria-label="目标份量" className="grid grid-cols-3 gap-2">
+              {PORTION_OPTIONS.filter(
                 (option) => option.value !== dish.portion
-              ).map((option) => ({
-                value: option.value,
-                label: option.label,
-                description: option.description,
-              }))}
-              value={portion}
-              onChange={handlePortionChange}
-              placeholder="请选择目标份量"
-              title="选择目标份量"
-              searchable={false}
-            />
+              ).map((option) => {
+                const active = option.value === portion;
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => handlePortionChange(option.value)}
+                    className={cn(
+                      "flex h-12 flex-col items-center justify-center gap-0.5 rounded-[var(--sk-radius-sm)] border px-3",
+                      active
+                        ? "border-[var(--sk-primary-to)] bg-[var(--sk-primary-soft)] font-semibold text-[var(--sk-primary-ink)] shadow-[var(--sk-primary-shadow)]"
+                        : "border-skeu-border-strong skeu-surface hover:border-[#f97316aa]"
+                    )}
+                  >
+                    <span className="max-w-full truncate text-sm">{option.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {option.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
             <p className="text-xs text-muted-foreground">
               净料/小料与菜品用量按份量倍率自动换算
               {factor != null && factor > 0 ? `：全部明细 ×${factor}` : ""}
             </p>
           </div>
 
-          <div className="rounded-md bg-muted/50 px-3 py-2 text-sm space-y-1">
+          <div className="skeu-surface-muted space-y-1 rounded-[var(--sk-radius-md)] px-4 py-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">用料成本</span>
               <span className="font-medium tabular-nums">
@@ -283,14 +295,13 @@ export function DishScaleDialog({
           ) : error ? (
             <div className="space-y-2 rounded-md border border-destructive/30 bg-destructive/5 p-3">
               <p className="text-sm text-destructive">{error}</p>
-              <Button
-                type="button"
+              <SkeuButton
                 variant="outline"
-                size="sm"
+                className="h-9"
                 onClick={() => void loadPreview(portion)}
               >
                 重试
-              </Button>
+              </SkeuButton>
             </div>
           ) : plan ? (
             <div className="space-y-4">
@@ -320,21 +331,13 @@ export function DishScaleDialog({
           ) : null}
         </div>
 
-        <DialogFooter className="border-t px-6 py-4">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
-          >
+        <DialogFooter className="border-t border-skeu-border px-6 py-4">
+          <SkeuButton variant="outline" onClick={() => onOpenChange(false)}>
             取消
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!canSubmit}
-            className="h-11 px-6"
-          >
+          </SkeuButton>
+          <SkeuButton variant="primary" onClick={handleSubmit} disabled={!canSubmit}>
             {submitting ? "转化中..." : "确认转化"}
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>
@@ -420,11 +423,9 @@ function SpecRow({
               : "—"}
           </p>
         </div>
-        <StatusBadge
-          status={isExisting ? "已存在" : "待创建"}
-          variant={isExisting ? "success" : "warning"}
-          size="sm"
-        />
+        <SkeuChipTag tone={isExisting ? "green" : "amber"}>
+          {isExisting ? "已存在" : "待创建"}
+        </SkeuChipTag>
       </div>
 
       {isExisting ? (

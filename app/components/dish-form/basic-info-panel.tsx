@@ -80,7 +80,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
         <FormField id="portion" label="份量" required readOnly={readOnly}>
           <SelectTileMode
             options={portionOptions}
-            value={data.portion || "小碗菜·10份"}
+            value={data.portion || "小碗菜"}
             onChange={(v) => update({ portion: v })}
             placeholder="请选择份量"
             title="选择份量"

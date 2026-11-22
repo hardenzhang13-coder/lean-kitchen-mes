@@ -9,12 +9,12 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/shared/utils";
 
-export type SkeuDotTone = "all" | "success" | "warning";
+export type SkeuDotTone = "all" | "success" | "warning" | "danger" | "rose" | "green";
 
 export interface SkeuDotOption {
   value: string;
   label: string;
-  /** 圆点语义色：全部灰 / 启用中绿 / 已停用琥珀 */
+  /** 圆点语义色：全部灰 / 启用中绿 / 已停用琥珀 / 荤红 / 小荤玫红 / 素绿 */
   tone?: SkeuDotTone;
 }
 
@@ -30,6 +30,9 @@ const TONE_CLASS: Record<SkeuDotTone, string> = {
   all: "skeu-dot-all",
   success: "skeu-dot-success",
   warning: "skeu-dot-warning",
+  danger: "skeu-dot-danger",
+  rose: "skeu-dot-rose",
+  green: "skeu-dot-green",
 };
 
 /**
