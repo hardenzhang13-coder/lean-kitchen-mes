@@ -15,9 +15,7 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
-import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -125,6 +123,12 @@ export default function StoresPage() {
     setBaselineForm(emptyForm);
   };
 
+  const openView = (row: Store) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -211,25 +215,21 @@ export default function StoresPage() {
   };
 
   return (
-    <PageShell
-      variant="panel"
-      header={
-        <PageHeader
-          variant="topbar"
-          showBack
-          title="门店管理"
-          description="管理门店信息，排程按门店组织生产"
-          actions={
-            <SkeuButton onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              新增门店
-            </SkeuButton>
-          }
-        />
-      }
-    >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="门店管理"
+        description="管理门店信息，排程按门店组织生产"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增门店
+          </Button>
+        }
+      />
+
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-0">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -243,12 +243,13 @@ export default function StoresPage() {
             }}
           />
         </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
           <DataTable<Store>
             data={pageItems}
             loading={loading}
+            onRowClick={openView}
             fillHeight
-            variant="skeu"
+            density="dense"
             tableClassName="min-w-max"
             columns={[
               {
@@ -263,7 +264,9 @@ export default function StoresPage() {
               {
                 header: "编号",
                 className: "w-[90px]",
-                cell: (row) => <CodeText>{row.code}</CodeText>,
+                cell: (row) => (
+                  <span className="font-medium text-muted-foreground">{row.code}</span>
+                ),
               },
               {
                 header: "名称",
@@ -381,7 +384,13 @@ export default function StoresPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={closeRecord}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

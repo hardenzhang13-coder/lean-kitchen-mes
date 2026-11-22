@@ -15,7 +15,6 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
@@ -118,6 +117,12 @@ export default function NetPackagingsPage() {
     setBaselineForm(emptyForm);
   };
 
+  const openView = (row: NetPackaging) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -181,11 +186,7 @@ export default function NetPackagingsPage() {
         toast.error(json.error || "操作失败");
         return;
       }
-      if (row.isActive) {
-        toast.warning(`已停用「${row.name}」`);
-      } else {
-        toast.success(`已启用「${row.name}」`);
-      }
+      toast.success(row.isActive ? `已停用「${row.name}」` : `已启用「${row.name}」`);
       refresh();
     } catch {
       toast.error("操作失败");
@@ -217,25 +218,21 @@ export default function NetPackagingsPage() {
   };
 
   return (
-    <PageShell
-      variant="panel"
-      header={
-        <PageHeader
-          variant="topbar"
-          showBack
-          title="净菜包装"
-          description="管理净料封装使用的包装名称与尺寸；停用后新净料不可再选，历史档案保留原值"
-          actions={
-            <SkeuButton onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              新增包装
-            </SkeuButton>
-          }
-        />
-      }
-    >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="净菜包装"
+        description="管理净料封装使用的包装名称与尺寸；停用后新净料不可再选，历史档案保留原值"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增包装
+          </Button>
+        }
+      />
+
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-0">
           <ListToolbar
             searchValue={search}
             onSearchChange={(value) => {
@@ -261,12 +258,13 @@ export default function NetPackagingsPage() {
             />
           </ListToolbar>
         </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
           <DataTable<NetPackaging>
             data={pageItems}
             loading={loading}
+            onRowClick={openView}
             fillHeight
-            variant="skeu"
+            density="dense"
             tableClassName="min-w-max"
             columns={[
               {
@@ -384,7 +382,13 @@ export default function NetPackagingsPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={closeRecord}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}

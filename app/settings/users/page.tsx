@@ -16,7 +16,6 @@ import { FormField } from "@/app/components/ui/form-field";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { StatusBadge } from "@/app/components/ui/status-badge";
@@ -119,6 +118,12 @@ export default function UsersPage() {
     setBaselineForm(emptyForm);
   };
 
+  const openView = (row: User) => {
+    setSelected(row);
+    setRecordMode("view");
+    setRecordOpen(true);
+  };
+
   const openCreate = () => {
     setSelected(null);
     setRecordMode("create");
@@ -216,7 +221,7 @@ export default function UsersPage() {
         toast.error(err.error || "删除失败");
         return;
       }
-      toast.warning("用户已停用并移出列表");
+      toast.success("用户已停用并移出列表");
       setDeleteId(null);
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
@@ -244,11 +249,7 @@ export default function UsersPage() {
         toast.error(err.error || "更新账号状态失败");
         return;
       }
-      if (row.isActive) {
-        toast.warning("账号已停用");
-      } else {
-        toast.success("账号已启用");
-      }
+      toast.success(row.isActive ? "账号已停用" : "账号已启用");
       const usersRes = await fetch("/api/users?page=1&pageSize=100");
       if (usersRes.ok) {
         const json = await usersRes.json();
@@ -270,25 +271,21 @@ export default function UsersPage() {
   };
 
   return (
-    <PageShell
-      variant="panel"
-      header={
-        <PageHeader
-          variant="topbar"
-          showBack
-          title="用户管理"
-          description="管理系统用户账号与角色权限"
-          actions={
-            <SkeuButton onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              新增用户
-            </SkeuButton>
-          }
-        />
-      }
-    >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
+    <PageShell variant="workspace">
+      <PageHeader
+        showBack
+        title="用户管理"
+        description="管理系统用户账号与角色权限"
+        actions={
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增用户
+          </Button>
+        }
+      />
+
+      <Card className="flex min-h-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 pb-0">
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -302,12 +299,13 @@ export default function UsersPage() {
             }}
           />
         </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
+        <CardContent className="flex min-h-0 flex-1 flex-col px-4 pb-4">
           <DataTable<User>
             data={pageItems}
             loading={loading}
+            onRowClick={openView}
             fillHeight
-            variant="skeu"
+            density="dense"
             tableClassName="min-w-max"
             columns={[
               {
@@ -449,7 +447,13 @@ export default function UsersPage() {
           ) : undefined
         }
         onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={closeRecord}
+        onCancel={() => {
+          if (recordMode === "create") closeRecord();
+          else {
+            setRecordMode("view");
+            setForm(baselineForm);
+          }
+        }}
         onSubmit={handleSubmit}
         dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
         submitting={submitting}
