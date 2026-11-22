@@ -2,7 +2,14 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { Loader2Icon } from "lucide-react"
+
+/** 参照 v008：圆形渐变状态图标（成功绿 / 失败红 / 警告琥珀） */
+const stateIcon = (glyph: string, tone: "success" | "error" | "warning") => (
+  <span className={`skeu-toast-ico ${tone}`} aria-hidden>
+    {glyph}
+  </span>
+)
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -11,34 +18,28 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      position="top-center"
+      offset={84}
       icons={{
-        success: (
-          <CircleCheckIcon className="size-4" />
-        ),
-        info: (
-          <InfoIcon className="size-4" />
-        ),
-        warning: (
-          <TriangleAlertIcon className="size-4" />
-        ),
-        error: (
-          <OctagonXIcon className="size-4" />
-        ),
+        success: stateIcon("✓", "success"),
+        error: stateIcon("✕", "error"),
+        warning: stateIcon("!", "warning"),
+        info: stateIcon("i", "warning"),
         loading: (
           <Loader2Icon className="size-4 animate-spin" />
         ),
       }}
       style={
         {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
+          "--normal-bg": "#ffffff",
+          "--normal-text": "var(--foreground)",
+          "--normal-border": "var(--sk-border)",
+          "--border-radius": "12px",
         } as React.CSSProperties
       }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "skeu-toast",
         },
       }}
       {...props}
