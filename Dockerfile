@@ -27,6 +27,8 @@ ENV DATABASE_URL="mysql://build:build@localhost:3306/build" \
     QWEN_MODEL="qwen-vl-max" \
     CLOUDINARY_CLOUD_NAME="build-placeholder" \
     CLOUDINARY_UPLOAD_PRESET="build-placeholder"
+# Prisma 7 安装期不自动生成 Client，必须显式生成（skipLibCheck 会让缺失的类型静默退化成 any）
+RUN npx prisma generate
 RUN --mount=type=cache,target=/app/.next/cache \
     npm run build
 
