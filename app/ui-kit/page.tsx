@@ -15,6 +15,7 @@ import {
   Plus,
   PlusCircle,
   Power,
+  PowerOff,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -58,6 +59,12 @@ import {
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
 import { PortionTag } from "@/app/components/ui/portion-tag";
+import {
+  SkeuChipSelect,
+  SkeuChipTag,
+  type ChipOption,
+} from "@/app/components/ui/skeu-chip";
+import { ROLE_OPTIONS } from "@/lib/shared/roles";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -106,6 +113,13 @@ const MATERIAL_STATUS_OPTIONS: SkeuDotOption[] = [
   { value: "inactive", label: "已停用", tone: "warning" },
 ];
 
+const UNIT_CHIP_OPTIONS: ChipOption[] = [
+  { value: "weight", label: "重量", tone: "orange" },
+  { value: "volume", label: "体积", tone: "blue" },
+  { value: "count", label: "计数", tone: "violet" },
+  { value: "other", label: "其他", tone: "slate" },
+];
+
 const MATERIAL_SHADOWS = [
   { label: "1 级 · 贴合", className: "shadow-sk-1" },
   { label: "2 级 · 面板", className: "shadow-sk-2" },
@@ -116,6 +130,7 @@ function MaterialKit() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
   const [expanded, setExpanded] = useState(false);
+  const [unitCategory, setUnitCategory] = useState("weight");
   const [industry, setIndustry] = useState("veg");
   const [date, setDate] = useState("2026-11-21");
   const [text, setText] = useState("");
@@ -232,6 +247,34 @@ function MaterialKit() {
       </section>
 
       <section className="space-y-4">
+        <h2 className="text-lg font-semibold">有色枚举</h2>
+        <p className="text-sm text-muted-foreground">
+          取值自带识别色时（单位分类等）：列表只读用 `SkeuChipTag`，表单选择用
+          `SkeuChipSelect`，两者共用同一色板。
+        </p>
+        <div className="space-y-3 rounded-xl border bg-card p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {UNIT_CHIP_OPTIONS.map((option) => (
+              <SkeuChipTag key={option.value} tone={option.tone}>
+                {option.label}
+              </SkeuChipTag>
+            ))}
+            {ROLE_OPTIONS.map((role) => (
+              <SkeuChipTag key={role.value} tone={role.tone}>
+                {role.label}
+              </SkeuChipTag>
+            ))}
+          </div>
+          <SkeuChipSelect
+            ariaLabel="有色枚举示例"
+            value={unitCategory}
+            onChange={setUnitCategory}
+            options={UNIT_CHIP_OPTIONS}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-4">
         <h2 className="text-lg font-semibold">行操作</h2>
         <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-card p-4">
           <SkeuIconAction
@@ -311,64 +354,86 @@ function MaterialKit() {
       </section>
 
       <section className="space-y-4">
-        <h2 className="text-lg font-semibold">清单模板</h2>
+        <div>
+          <h2 className="text-lg font-semibold">标准简单表（SimpleListPage）</h2>
+          <p className="text-sm text-muted-foreground">
+            设置类简单 CRUD 清单的唯一模板：搜索 + 状态圆点筛选；设置模块主字段只加粗
+            （业务列表才上主题色），空值统一 <code className="text-xs">EmptyValue</code>；行操作统一
+            带文字幽灵态，从左到右 排序（纯图标，仅树形）→ 删除（红）→ 启停（琥珀/绿）→ 编辑，
+            主操作最右；删除确认走 DeleteConfirmDialog。新页面直接复用
+            <code className="mx-1 text-xs">SimpleListPage</code>，不再手工拼骨架。
+          </p>
+        </div>
         <div className="skeu-panel overflow-hidden">
           <div className="skeu-panel-toolbar flex flex-wrap items-center gap-2 px-5 py-4">
             <SkeuSearch
               value={search}
               onChange={setSearch}
-              placeholder="搜索编号或名称..."
+              placeholder="搜索名称或分类..."
             />
             <SkeuDotSelect
               value={status}
               onChange={setStatus}
               options={MATERIAL_STATUS_OPTIONS}
             />
-            <SkeuToggle
-              checked={expanded}
-              onCheckedChange={setExpanded}
-              label={expanded ? "全部收起" : "全部展开"}
-            />
           </div>
           <div className="skeu-table-scroll skeu-scroll overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>编号</TableHead>
+                  <TableHead className="w-[48px]">序号</TableHead>
                   <TableHead>名称</TableHead>
+                  <TableHead>说明</TableHead>
                   <TableHead>状态</TableHead>
                   <TableHead className="text-right">操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell className="font-medium">VEG</TableCell>
-                  <TableCell>蔬菜</TableCell>
+                  <TableCell className="text-muted-foreground">1</TableCell>
+                  <TableCell className="font-semibold">斤</TableCell>
+                  <TableCell className="text-muted-foreground">重量类基准单位</TableCell>
                   <TableCell>
-                    <StatusBadge status="正常" />
+                    <StatusBadge status="启用中" />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-0.5">
                       <SkeuActionButton
-                        label="编辑"
-                        icon={<Pencil className="h-3.5 w-3.5" />}
+                        label="删除"
+                        tone="danger"
+                        icon={<Trash2 className="h-3.5 w-3.5" />}
                       />
                       <SkeuActionButton
-                        label="添加二级"
-                        tone="primary"
-                        icon={<PlusCircle className="h-3.5 w-3.5" />}
+                        label="停用"
+                        tone="warn"
+                        icon={<PowerOff className="h-3.5 w-3.5" />}
+                      />
+                      <SkeuActionButton
+                        label="编辑"
+                        icon={<Pencil className="h-3.5 w-3.5" />}
                       />
                     </div>
                   </TableCell>
                 </TableRow>
-                <TableRow data-row-level="l2">
-                  <TableCell className="text-muted-foreground">VEG-LEF</TableCell>
-                  <TableCell>叶菜</TableCell>
+                <TableRow>
+                  <TableCell className="text-muted-foreground">2</TableCell>
+                  <TableCell className="font-semibold">克</TableCell>
+                  <TableCell className="text-muted-foreground">—</TableCell>
                   <TableCell>
                     <StatusBadge status="已停用" />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-0.5">
+                      <SkeuActionButton
+                        label="删除"
+                        tone="danger"
+                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                      />
+                      <SkeuActionButton
+                        label="启用"
+                        tone="ok"
+                        icon={<Power className="h-3.5 w-3.5" />}
+                      />
                       <SkeuActionButton
                         label="编辑"
                         icon={<Pencil className="h-3.5 w-3.5" />}
@@ -380,7 +445,7 @@ function MaterialKit() {
             </Table>
           </div>
           <div className="skeu-panel-foot flex items-center justify-between">
-            <span className="text-[13px] text-muted-foreground">共 2 条</span>
+            <span className="text-[13px] font-semibold text-primary">共 2 条</span>
             <span className="text-[13px] text-muted-foreground">
               上一页 · 1 · 下一页
             </span>

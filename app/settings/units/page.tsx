@@ -1,35 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2, Ban, CheckCircle2 } from "lucide-react";
+import { useState } from "react";
+import { Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
-import { SelectField } from "@/app/components/ui/select-field";
 import { FormField } from "@/app/components/ui/form-field";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageShell } from "@/app/components/ui/page-shell";
-import { PageHeader } from "@/app/components/ui/page-header";
-import { DataTable } from "@/app/components/ui/data-table";
-import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SkeuChipSelect, SkeuChipTag, type ChipOption } from "@/app/components/ui/skeu-chip";
+import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { SimpleListPage } from "@/app/components/ui/simple-list-page";
+import { DeleteConfirmDialog, type DeleteErrorInfo } from "@/app/components/ui/delete-confirm-dialog";
 import { StatusBadge } from "@/app/components/ui/status-badge";
-import { SkeuButton } from "@/app/components/ui/skeu-button";
-import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import {
   RecordDialog,
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
-import {
-  usePagination,
-  DEFAULT_PAGE_SIZE,
-  formatPageSummary,
-} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 import { formatUnitValue } from "@/lib/shared/display-format";
 
@@ -41,33 +26,24 @@ type Unit = {
   isActive: boolean;
 };
 
-/** 后端引用检查返回的引用明细 */
-type UnitReferences = Record<string, number>;
-
-const categories = [
-  { value: "weight", label: "重量" },
-  { value: "volume", label: "体积" },
-  { value: "count", label: "计数" },
-  { value: "other", label: "其他" },
+const categories: ChipOption[] = [
+  { value: "weight", label: "重量", tone: "orange" },
+  { value: "volume", label: "体积", tone: "blue" },
+  { value: "count", label: "计数", tone: "violet" },
+  { value: "other", label: "其他", tone: "slate" },
 ];
 
-const statusFilters = [
-  { value: "all", label: "全部" },
-  { value: "active", label: "启用中" },
-  { value: "inactive", label: "已停用" },
-];
+function categoryOption(value: string) {
+  return categories.find((c) => c.value === value);
+}
 
-const emptyForm = { name: "", category: "weight", gramsPerUnit: "" };
+const emptyForm = { name: "", category: "", gramsPerUnit: "" };
 
 function categoryLabel(value: string) {
-  return categories.find((c) => c.value === value)?.label || value;
+  return categoryOption(value)?.label || value;
 }
 
 export default function UnitsPage() {
-  const [data, setData] = useState<Unit[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordMode, setRecordMode] = useState<"create" | "edit">("create");
   const [selected, setSelected] = useState<Unit | null>(null);
@@ -75,68 +51,7 @@ export default function UnitsPage() {
   const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Unit | null>(null);
-  const [deleteError, setDeleteError] = useState<{ message: string; references?: UnitReferences } | null>(null);
-
-  const fetchData = async () => {
-    try {
-      // 设置页需要管理停用单位，拉取全量；业务端默认只返回启用中的
-      const res = await fetch("/api/units?page=1&pageSize=100&includeInactive=1");
-      const json = await res.json();
-      setData(json.data || []);
-    } catch {
-      toast.error("获取数据失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const refresh = () => {
-    setLoading(true);
-    fetchData();
-  };
-
-  useEffect(() => {
-    let alive = true;
-    const fetchDataOnMount = async () => {
-      try {
-        // 设置页需要管理停用单位，拉取全量；业务端默认只返回启用中的
-        const res = await fetch("/api/units?page=1&pageSize=100&includeInactive=1");
-        const json = await res.json();
-        if (alive) setData(json.data || []);
-      } catch {
-        if (alive) toast.error("获取数据失败");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    fetchDataOnMount();
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    return data.filter((d) => {
-      if (statusFilter === "active" && !d.isActive) return false;
-      if (statusFilter === "inactive" && d.isActive) return false;
-      if (!s) return true;
-      return (
-        d.name.toLowerCase().includes(s) ||
-        d.category.toLowerCase().includes(s)
-      );
-    });
-  }, [data, search, statusFilter]);
-
-  const {
-    currentPage,
-    setCurrentPage,
-    pageItems,
-    totalPages,
-    totalItems,
-    pageSize,
-    setPageSize,
-  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+  const [deleteError, setDeleteError] = useState<DeleteErrorInfo | null>(null);
 
   const closeRecord = () => {
     setRecordOpen(false);
@@ -167,17 +82,19 @@ export default function UnitsPage() {
     setRecordOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (refresh: () => void) => {
     if (!form.name.trim()) {
       toast.error("名称不能为空");
       return;
     }
-    if (form.category === "weight") {
-      const grams = Number(form.gramsPerUnit);
-      if (!form.gramsPerUnit.trim() || !Number.isFinite(grams) || grams <= 0) {
-        toast.error("重量类单位必须填写换算克数（1 单位合多少克）");
-        return;
-      }
+    if (!categoryOption(form.category)) {
+      toast.error("请选择分类");
+      return;
+    }
+    const gramsRaw = form.gramsPerUnit.trim();
+    if (gramsRaw && (!Number.isFinite(Number(gramsRaw)) || Number(gramsRaw) <= 0)) {
+      toast.error("换算克数必须大于 0");
+      return;
     }
     setSubmitting(true);
     try {
@@ -185,7 +102,7 @@ export default function UnitsPage() {
         name: form.name.trim(),
         category: form.category,
         gramsPerUnit:
-          form.category === "weight" ? Number(form.gramsPerUnit) : null,
+          form.category === "weight" && gramsRaw ? Number(gramsRaw) : null,
       };
       const res = selected
         ? await fetch(`/api/units/${selected.id}`, {
@@ -213,7 +130,7 @@ export default function UnitsPage() {
     }
   };
 
-  const toggleActive = async (row: Unit) => {
+  const toggleActive = async (row: Unit, refresh: () => void) => {
     try {
       const res = await fetch(`/api/units/${row.id}`, {
         method: "PUT",
@@ -236,18 +153,12 @@ export default function UnitsPage() {
     }
   };
 
-  const openDelete = (row: Unit) => {
-    setDeleteTarget(row);
-    setDeleteError(null);
-  };
-
-  const handleDelete = async () => {
+  const handleDelete = async (refresh: () => void) => {
     if (!deleteTarget) return;
     try {
       const res = await fetch(`/api/units/${deleteTarget.id}`, { method: "DELETE" });
       const json = await res.json();
       if (!res.ok) {
-        // 被引用时展示后端返回的引用明细，引导用户改停用
         setDeleteError({ message: json.error || "删除失败", references: json.references });
         return;
       }
@@ -260,250 +171,161 @@ export default function UnitsPage() {
   };
 
   return (
-    <PageShell
-      variant="panel"
-      header={
-        <PageHeader
-          variant="topbar"
-          showBack
-          title="单位"
-          description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算"
-          actions={
-            <SkeuButton onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              新增
-            </SkeuButton>
-          }
-        />
-      }
-    >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
-          <ListToolbar
-            searchValue={search}
-            onSearchChange={(v) => {
-              setSearch(v);
-              setCurrentPage(1);
-            }}
-            searchPlaceholder="搜索名称或分类..."
-            onReset={() => {
-              setSearch("");
-              setStatusFilter("all");
-              setCurrentPage(1);
-            }}
-            hasFilters={statusFilter !== "all"}
-          >
-            <SelectField
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(v);
-                setCurrentPage(1);
-              }}
-              options={statusFilters}
-              className="w-[160px]"
+    <SimpleListPage<Unit>
+      title="单位"
+      description="管理重量、体积、计数等单位字典；重量类单位的换算克数驱动全系统斤/克换算"
+      entityLabel="单位"
+      listUrl="/api/units?page=1&pageSize=100&includeInactive=1"
+      searchPlaceholder="搜索名称或分类..."
+      searchIn={(row) => [row.name, categoryLabel(row.category)]}
+      statusFilter
+      createLabel="新增"
+      onCreate={openCreate}
+      columns={[
+        {
+          header: "名称",
+          className: "w-[160px]",
+          cell: (row) => (
+            <span className="font-semibold">{row.name}</span>
+          ),
+        },
+        {
+          header: "分类",
+          className: "w-[100px]",
+          cell: (row) => (
+            <SkeuChipTag tone={categoryOption(row.category)?.tone ?? "slate"}>
+              {categoryLabel(row.category)}
+            </SkeuChipTag>
+          ),
+        },
+        {
+          header: "换算值",
+          className: "w-[130px]",
+          cell: (row) =>
+            row.category === "weight" ? (
+              <span className="tabular-nums">
+                {formatUnitValue(row.gramsPerUnit, "g/单位", "未设置", " ")}
+              </span>
+            ) : (
+              <EmptyValue />
+            ),
+        },
+        {
+          header: "状态",
+          className: "w-[100px]",
+          cell: (row) => (
+            <StatusBadge
+              status={row.isActive ? "启用中" : "已停用"}
+              variant={row.isActive ? "success" : "neutral"}
             />
-          </ListToolbar>
-        </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
-          <DataTable<Unit>
-            data={pageItems}
-            loading={loading}
-            fillHeight
-            variant="skeu"
-            tableClassName="min-w-max"
-            columns={[
-              {
-                header: "序号",
-                className: "w-[48px]",
-                cell: (_, rowIdx) => (
-                  <span className="text-muted-foreground">
-                    {(currentPage - 1) * pageSize + rowIdx + 1}
-                  </span>
-                ),
-              },
-              {
-                header: "名称",
-                className: "w-[160px]",
-                cell: (row) => <span className="font-medium">{row.name}</span>,
-              },
-              {
-                header: "分类",
-                className: "w-[100px]",
-                cell: (row) => (
-                  <span className="inline-flex items-center rounded-full bg-muted px-2.5 py-0.5 text-xs">
-                    {categoryLabel(row.category)}
-                  </span>
-                ),
-              },
-              {
-                header: "换算值",
-                className: "w-[130px]",
-                cell: (row) =>
-                  row.category === "weight" ? (
-                    <span className="tabular-nums">
-                      {formatUnitValue(row.gramsPerUnit, "g/单位", "未设置", " ")}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  ),
-              },
-              {
-                header: "状态",
-                className: "w-[100px]",
-                cell: (row) => (
-                  <StatusBadge
-                    status={row.isActive ? "启用中" : "已停用"}
-                    variant={row.isActive ? "success" : "neutral"}
-                  />
-                ),
-              },
-            ]}
-            pagination={{
-              currentPage,
-              totalPages,
-              totalItems,
-              pageSize,
-              onPageChange: setCurrentPage,
-              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "单位"),
-              showPageSize: true,
-              onPageSizeChange: setPageSize,
+          ),
+        },
+      ]}
+      rowActions={(row, { refresh }) => (
+        <>
+          <SkeuActionButton
+            label="删除"
+            tone="danger"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDeleteTarget(row);
+              setDeleteError(null);
             }}
-            emptyState={{ title: "暂无数据" }}
-            rowActions={(row) => (
-              <>
-                <SkeuIconAction
-                  label={
-                    row.isActive
-                      ? `停用单位 ${row.name}`
-                      : `启用单位 ${row.name}`
-                  }
-                  tip={row.isActive ? "停用单位" : "启用单位"}
-                  icon={
-                    row.isActive ? (
-                      <Ban className="h-4 w-4 text-amber-500" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    )
-                  }
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    toggleActive(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`编辑单位 ${row.name}`}
-                  tip="编辑单位"
-                  icon={<Pencil className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openEdit(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`删除单位 ${row.name}`}
-                  tip="删除单位"
-                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openDelete(row);
-                  }}
-                />
-              </>
-            )}
           />
-        </CardContent>
-      </Card>
-
-      <RecordDialog
-        open={recordOpen}
-        onOpenChange={(open) => {
-          if (!open) closeRecord();
-        }}
-        mode={recordMode}
-        title={recordMode === "create" ? "新增单位" : "编辑单位"}
-        onCancel={closeRecord}
-        onSubmit={handleSubmit}
-        dirty={isRecordDirty(form, baselineForm)}
-        submitting={submitting}
-        entityLabel="单位"
-      >
-        <SimpleForm>
-            <FormField id="name" label="名称" required>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="如 斤"
-                className="h-11 text-base px-4"
-              />
-            </FormField>
-            <FormField label="分类" required>
-              <SelectField
-                value={form.category}
-                onChange={(v) => setForm({ ...form, category: v })}
-                options={categories}
-              />
-            </FormField>
-            {form.category === "weight" && (
-              <FormField
-                id="gramsPerUnit"
-                label="换算克数"
-                required
-                hint="驱动全系统斤/克换算（采购规格换算、每斤单价、切配展示）"
-              >
+          <SkeuActionButton
+            label={row.isActive ? "停用" : "启用"}
+            tone={row.isActive ? "warn" : "ok"}
+            icon={
+              row.isActive ? (
+                <PowerOff className="h-3.5 w-3.5" />
+              ) : (
+                <Power className="h-3.5 w-3.5" />
+              )
+            }
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleActive(row, refresh);
+            }}
+          />
+          <SkeuActionButton
+            label="编辑"
+            icon={<Pencil className="h-3.5 w-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              openEdit(row);
+            }}
+          />
+        </>
+      )}
+    >
+      {({ refresh }) => (
+        <>
+          <RecordDialog
+            open={recordOpen}
+            onOpenChange={(open) => {
+              if (!open) closeRecord();
+            }}
+            mode={recordMode}
+            title={recordMode === "create" ? "新增单位" : "编辑单位"}
+            onCancel={closeRecord}
+            onSubmit={() => handleSubmit(refresh)}
+            dirty={isRecordDirty(form, baselineForm)}
+            submitting={submitting}
+            entityLabel="单位"
+          >
+            <SimpleForm>
+              <FormField id="name" label="名称" required>
                 <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.gramsPerUnit}
-                  onChange={(e) => setForm({ ...form, gramsPerUnit: e.target.value })}
-                  placeholder="1 单位合多少克，如 斤 = 500"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="如 斤"
                   className="h-11 text-base px-4"
                 />
               </FormField>
-            )}
-          </SimpleForm>
-      </RecordDialog>
-
-      <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">
-              {deleteError ? "无法删除" : "确认删除"}
-            </DialogTitle>
-          </DialogHeader>
-          {deleteError ? (
-            <div className="grid gap-3">
-              <p className="text-muted-foreground text-base">{deleteError.message}</p>
-              {deleteError.references && Object.keys(deleteError.references).length > 0 && (
-                <ul className="rounded-md bg-muted px-4 py-3 text-sm text-muted-foreground grid gap-1">
-                  {Object.entries(deleteError.references).map(([entity, count]) => (
-                    <li key={entity}>
-                      {entity}：{count} 条
-                    </li>
-                  ))}
-                </ul>
+              <FormField label="分类" required>
+                <SkeuChipSelect
+                  ariaLabel="单位分类"
+                  value={form.category}
+                  onChange={(v) => setForm({ ...form, category: v })}
+                  options={categories}
+                />
+              </FormField>
+              {form.category === "weight" && (
+                <FormField
+                  id="gramsPerUnit"
+                  label="换算克数"
+                  hint="选填；填写后驱动全系统斤/克换算（采购规格换算、每斤单价、切配展示）"
+                >
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.gramsPerUnit}
+                    onChange={(e) => setForm({ ...form, gramsPerUnit: e.target.value })}
+                    placeholder="1 单位合多少克，如 斤 = 500"
+                    className="h-11 text-base px-4"
+                  />
+                </FormField>
               )}
-              <p className="text-sm text-muted-foreground">
-                建议改用「停用」：停用后新单据不再可选，历史数据不受影响。
-              </p>
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-base">
-              确定要删除单位「{deleteTarget?.name}」吗？此操作不可撤销。
-            </p>
-          )}
-          <DialogFooter>
-            <SkeuButton variant="outline" onClick={() => setDeleteTarget(null)}>
-              {deleteError ? "知道了" : "取消"}
-            </SkeuButton>
-            {!deleteError && (
-              <SkeuButton variant="danger" onClick={handleDelete}>
-                删除
-              </SkeuButton>
-            )}
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
-    </PageShell>
+            </SimpleForm>
+          </RecordDialog>
+
+          <DeleteConfirmDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleteTarget(null);
+            }}
+            message={
+              <>
+                确定要删除单位「{deleteTarget?.name}」吗？此操作不可撤销。
+              </>
+            }
+            error={deleteError}
+            onConfirm={() => handleDelete(refresh)}
+          />
+        </>
+      )}
+    </SimpleListPage>
   );
 }

@@ -1,24 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Printer, Copy, Trash2 } from "lucide-react";
-import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+import { Plus, Pencil, Printer, Eye } from "lucide-react";
+import { SkeuIconAction, SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { CategoryFilter } from "@/app/components/ui/category-filter";
+import { EmptyValue } from "@/app/components/ui/empty-value";
+import { DeleteConfirmDialog } from "@/app/components/ui/delete-confirm-dialog";
 import {
   NetIngredientFormDialog,
 } from "@/app/components/ingredients/net-ingredient-form-dialog";
@@ -34,7 +29,6 @@ import {
   formatPageSummary,
 } from "@/lib/client/use-pagination";
 import { useRecordCopy } from "@/lib/client/use-record-copy";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { toast } from "sonner";
 import { formatMoney, formatPercent } from "@/lib/shared/display-format";
 
@@ -78,10 +72,6 @@ type RawIngredientOption = {
   pricePerJin?: number | null;
 };
 
-function EmptyValue() {
-  return <span className="text-muted-foreground">—</span>;
-}
-
 export default function NetIngredientsPage() {
   const [data, setData] = useState<NetIngredient[]>([]);
   const [rawIngredients, setRawIngredients] = useState<RawIngredientOption[]>(
@@ -102,10 +92,10 @@ export default function NetIngredientsPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailEdit, setDetailEdit] = useState(false);
   const [labelTarget, setLabelTarget] = useState<NetLabelTarget | null>(null);
 
   const [deleteRow, setDeleteRow] = useState<NetIngredient | null>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const fetchMeta = async () => {
     try {
@@ -172,21 +162,19 @@ export default function NetIngredientsPage() {
     return map;
   }, [categories]);
 
-  const l2FilterOptions = useMemo(() => {
-    if (!l1Filter) return [];
-    const l1 = categories.find((category) => category.code === l1Filter);
-    return (l1?.children || []).map((category) => ({
-      value: category.code,
-      label: category.name,
-    }));
-  }, [categories, l1Filter]);
-
   const openCreate = () => {
     setCreateDialogOpen(true);
   };
 
+  const openView = (row: NetIngredient) => {
+    setDetailId(row.id);
+    setDetailEdit(false);
+    setDetailOpen(true);
+  };
+
   const openEdit = (row: NetIngredient) => {
     setDetailId(row.id);
+    setDetailEdit(true);
     setDetailOpen(true);
   };
 
@@ -215,7 +203,6 @@ export default function NetIngredientsPage() {
 
   const handleDelete = async () => {
     if (!deleteRow) return;
-    setDeleteLoading(true);
     try {
       const res = await fetch(`/api/net-ingredients/${deleteRow.id}`, {
         method: "DELETE",
@@ -230,8 +217,6 @@ export default function NetIngredientsPage() {
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "删除失败";
       toast.error(message);
-    } finally {
-      setDeleteLoading(false);
     }
   };
 
@@ -270,35 +255,19 @@ export default function NetIngredientsPage() {
             }}
             hasFilters={!!(l1Filter || l2Filter)}
           >
-            <div className="grid grid-cols-2 gap-3 w-[320px]">
-              <SelectTileMode
-                options={categories
-                  // 净料清单不混入小料转化分类与调料分类
-                  .filter((c) => c.code !== "MIN" && c.code !== "SEA")
-                  .map((c) => ({ value: c.code, label: c.name }))}
-                value={l1Filter}
-                onChange={(v) => {
-                  setL1Filter(v);
-                  setL2Filter("");
-                  setPage(1);
-                }}
-                placeholder="全部一级分类"
-                title="选择一级分类"
-                searchable={false}
-              />
-              <SelectTileMode
-                options={l2FilterOptions}
-                value={l2Filter}
-                onChange={(v) => {
-                  setL2Filter(v);
-                  setPage(1);
-                }}
-                placeholder="全部二级分类"
-                title="选择二级分类"
-                searchable={false}
-                disabled={!l1Filter}
-              />
-            </div>
+            <CategoryFilter
+              categories={categories.filter(
+                (c) => c.code !== "MIN" && c.code !== "SEA"
+              )}
+              l1={l1Filter}
+              l2={l2Filter}
+              onChange={(nextL1, nextL2) => {
+                setL1Filter(nextL1);
+                setL2Filter(nextL2);
+                setPage(1);
+              }}
+              className="w-[260px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
@@ -307,8 +276,9 @@ export default function NetIngredientsPage() {
             loading={loading}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[180px]"
+            actionsWidth="w-[200px]"
             tableClassName="min-w-max"
+            onRowClick={openView}
             columns={[
               {
                 header: "序号",
@@ -422,12 +392,7 @@ export default function NetIngredientsPage() {
                     totalItems: pagination.totalItems,
                     pageSize,
                     onPageChange: setPage,
-                    totalLabel: formatPageSummary(
-                      page,
-                      pageSize,
-                      pagination.totalItems,
-                      "净料"
-                    ),
+                    totalLabel: formatPageSummary(pagination.totalItems),
                     showPageSize: true,
                     onPageSizeChange: (size) => {
                       setPageSize(size);
@@ -458,30 +423,21 @@ export default function NetIngredientsPage() {
                   }}
                 />
                 <SkeuIconAction
-                  label={`复制净料 ${row.name}`}
-                  tip="复制净料"
-                  icon={<Copy className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openCopy(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`删除净料 ${row.name}`}
-                  tip="删除净料"
-                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteRow(row);
-                  }}
-                />
-                <SkeuIconAction
                   label={`编辑净料 ${row.name}`}
                   tip="编辑净料"
                   icon={<Pencil className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openEdit(row);
+                  }}
+                />
+                <SkeuActionButton
+                  label="查看"
+                  tone="primary"
+                  icon={<Eye className="h-3.5 w-3.5" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openView(row);
                   }}
                 />
               </>
@@ -517,7 +473,7 @@ export default function NetIngredientsPage() {
         categories={categories}
         rawIngredients={rawIngredients}
         inlineEdit
-        startInEditMode
+        startInEditMode={detailEdit}
         onUpdated={fetchIngredients}
         onPrintLabel={(id) => {
           const row = data.find((item) => item.id === id);
@@ -552,37 +508,12 @@ export default function NetIngredientsPage() {
         }}
       />
 
-      <Dialog
+      <DeleteConfirmDialog
         open={deleteRow !== null}
         onOpenChange={() => setDeleteRow(null)}
-      >
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除净料“{deleteRow?.name}”吗？此操作不可撤销。
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteRow(null)}
-              disabled={deleteLoading}
-              className="h-11 px-6"
-            >
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleteLoading}
-              className="h-11 px-6"
-            >
-              删除
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+        message={`确定要删除净料「${deleteRow?.name}」吗？此操作不可撤销。`}
+        onConfirm={handleDelete}
+      />
     </PageShell>
   );
 }

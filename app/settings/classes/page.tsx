@@ -568,7 +568,7 @@ export default function ClassesPage() {
               totalItems,
               pageSize,
               onPageChange: setCurrentPage,
-              totalLabel: formatPageSummary(currentPage, pageSize, totalItems),
+              totalLabel: formatPageSummary(totalItems),
               showPageSize: true,
               onPageSizeChange: setPageSize,
             }}

@@ -6,16 +6,8 @@ import {
   Pencil,
   Upload,
   ArrowRightLeft,
-  Copy,
-  Trash2,
+  Eye,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -25,13 +17,15 @@ import {
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { CategoryFilter } from "@/app/components/ui/category-filter";
+import { EmptyValue } from "@/app/components/ui/empty-value";
+import { DeleteConfirmDialog } from "@/app/components/ui/delete-confirm-dialog";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { NetIngredientFormDialog } from "@/app/components/ingredients/net-ingredient-form-dialog";
 import { ImportDialog, ImportField } from "@/app/components/ui/import-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
@@ -84,14 +78,6 @@ const importFields: ImportField[] = [
   { key: "latestRefPrice", label: "最新参照单价", sample: "18.50" },
 ];
 
-function EmptyValue({ title }: { title?: string }) {
-  return (
-    <span className="text-muted-foreground" title={title}>
-      —
-    </span>
-  );
-}
-
 export default function RawIngredientsPage() {
   const [data, setData] = useState<Ingredient[]>([]);
   const [categories, setCategories] = useState<CategoryL1[]>([]);
@@ -113,6 +99,8 @@ export default function RawIngredientsPage() {
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  // 查看默认只读；列表「编辑」入口直接进入编辑态
+  const [detailEdit, setDetailEdit] = useState(false);
 
   const fetchMeta = async () => {
     try {
@@ -182,18 +170,19 @@ export default function RawIngredientsPage() {
     return map;
   }, [categories]);
 
-  const l2FilterOptions = useMemo(() => {
-    if (!l1Filter) return [];
-    const l1 = categories.find((c) => c.code === l1Filter);
-    return (l1?.children || []).map((c) => ({ value: c.code, label: c.name }));
-  }, [l1Filter, categories]);
-
   const openCreate = () => {
     setDialogOpen(true);
   };
 
+  const openView = (row: Ingredient) => {
+    setDetailId(row.id);
+    setDetailEdit(false);
+    setDetailOpen(true);
+  };
+
   const openEdit = (row: Ingredient) => {
     setDetailId(row.id);
+    setDetailEdit(true);
     setDetailOpen(true);
   };
 
@@ -325,38 +314,19 @@ export default function RawIngredientsPage() {
             }}
             hasFilters={!!(l1Filter || l2Filter)}
           >
-            <div className="grid grid-cols-2 gap-3 w-[320px]">
-              <SelectTileMode
-                options={categories
-                  // 原料清单的分类边界：排除 SEA（调料）与 MIN（小料转化品分类）
-                  .filter((c) => c.code !== "MIN" && c.code !== "SEA")
-                  .map((c) => ({
-                    value: c.code,
-                    label: c.name,
-                  }))}
-                value={l1Filter}
-                onChange={(v) => {
-                  setL1Filter(v);
-                  setL2Filter("");
-                  setPage(1);
-                }}
-                placeholder="全部一级分类"
-                title="选择一级分类"
-                searchable={false}
-              />
-              <SelectTileMode
-                options={l2FilterOptions}
-                value={l2Filter}
-                onChange={(v) => {
-                  setL2Filter(v);
-                  setPage(1);
-                }}
-                placeholder="全部二级分类"
-                title="选择二级分类"
-                disabled={!l1Filter}
-                searchable={false}
-              />
-            </div>
+            <CategoryFilter
+              categories={categories.filter(
+                (c) => c.code !== "MIN" && c.code !== "SEA"
+              )}
+              l1={l1Filter}
+              l2={l2Filter}
+              onChange={(nextL1, nextL2) => {
+                setL1Filter(nextL1);
+                setL2Filter(nextL2);
+                setPage(1);
+              }}
+              className="w-[260px]"
+            />
           </ListToolbar>
         </CardHeader>
         <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
@@ -365,8 +335,9 @@ export default function RawIngredientsPage() {
             loading={loading}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[220px]"
+            actionsWidth="w-[200px]"
             tableClassName="min-w-max"
+            onRowClick={openView}
             columns={[
               {
                 header: "序号",
@@ -470,12 +441,7 @@ export default function RawIngredientsPage() {
                     totalItems: pagination.totalItems,
                     pageSize,
                     onPageChange: setPage,
-                    totalLabel: formatPageSummary(
-                      page,
-                      pageSize,
-                      pagination.totalItems,
-                      "原料"
-                    ),
+                    totalLabel: formatPageSummary(pagination.totalItems),
                     showPageSize: true,
                     onPageSizeChange: (size) => {
                       setPageSize(size);
@@ -488,24 +454,6 @@ export default function RawIngredientsPage() {
             rowActions={(row) => (
               <>
                 <SkeuIconAction
-                  label={`复制原料 ${row.name}`}
-                  tip="复制原料"
-                  icon={<Copy className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openCopy(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`删除原料 ${row.name}`}
-                  tip="删除原料"
-                  icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteId(row.id);
-                  }}
-                />
-                <SkeuIconAction
                   label={`编辑原料 ${row.name}`}
                   tip="编辑原料"
                   icon={<Pencil className="h-4 w-4" />}
@@ -514,14 +462,23 @@ export default function RawIngredientsPage() {
                     openEdit(row);
                   }}
                 />
-                <SkeuActionButton
-                  label="转净料"
-                  tone="primary"
-                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+                <SkeuIconAction
+                  label={`转净料 ${row.name}`}
+                  tip="转净料"
+                  icon={<ArrowRightLeft className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     setConvertSourceId(row.id);
                     setConvertDialogOpen(true);
+                  }}
+                />
+                <SkeuActionButton
+                  label="查看"
+                  tone="primary"
+                  icon={<Eye className="h-3.5 w-3.5" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openView(row);
                   }}
                 />
               </>
@@ -538,7 +495,7 @@ export default function RawIngredientsPage() {
         categories={categories}
         units={units}
         inlineEdit
-        startInEditMode
+        startInEditMode={detailEdit}
         categoryName={
           detailId
             ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
@@ -606,30 +563,12 @@ export default function RawIngredientsPage() {
         }}
       />
 
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除这条原料吗？此操作不可撤销。
-          </p>
-          <DialogFooter>
-            <SkeuButton
-              variant="outline"
-              onClick={() => setDeleteId(null)}
-            >
-              取消
-            </SkeuButton>
-            <SkeuButton
-              variant="danger"
-              onClick={() => deleteId && handleDelete(deleteId)}
-            >
-              删除
-            </SkeuButton>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={() => setDeleteId(null)}
+        message="确定要删除这条原料吗？此操作不可撤销。"
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
 
       <ImportDialog
         open={importOpen}

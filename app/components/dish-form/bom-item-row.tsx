@@ -4,6 +4,7 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import { BomItem, BomType, formatCost } from "./types";
 import { cn } from "@/lib/shared/utils";
 
@@ -40,7 +41,7 @@ export function BomItemRow({ item, type, index, onRemove, readOnly }: BomItemRow
         {item.portion ? (
           <PortionTag portion={item.portion} />
         ) : (
-          <span className="text-sm text-muted-foreground">—</span>
+          <EmptyValue className="text-sm" />
         )}
       </div>
 

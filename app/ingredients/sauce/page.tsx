@@ -562,12 +562,7 @@ export default function SauceIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
-                      totalLabel: formatPageSummary(
-                        page,
-                        pageSize,
-                        pagination.totalItems,
-                        "酱料"
-                      ),
+                      totalLabel: formatPageSummary(pagination.totalItems),
                       showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);

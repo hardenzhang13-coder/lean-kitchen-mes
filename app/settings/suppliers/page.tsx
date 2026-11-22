@@ -1,34 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { FormField } from "@/app/components/ui/form-field";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { PageShell } from "@/app/components/ui/page-shell";
-import { PageHeader } from "@/app/components/ui/page-header";
-import { SkeuButton } from "@/app/components/ui/skeu-button";
-import { DataTable } from "@/app/components/ui/data-table";
-import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { EmptyValue } from "@/app/components/ui/empty-value";
+import { SimpleListPage } from "@/app/components/ui/simple-list-page";
+import { DeleteConfirmDialog, type DeleteErrorInfo } from "@/app/components/ui/delete-confirm-dialog";
 import {
   RecordDialog,
   RecordView,
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
-import {
-  usePagination,
-  DEFAULT_PAGE_SIZE,
-  formatPageSummary,
-} from "@/lib/client/use-pagination";
 import { toast } from "sonner";
 
 type Supplier = {
@@ -41,67 +26,15 @@ type Supplier = {
 
 const emptyForm = { name: "", contact: "", phone: "", remark: "" };
 
-function EmptyValue() {
-  return <span className="text-muted-foreground">—</span>;
-}
-
 export default function SuppliersPage() {
-  const [data, setData] = useState<Supplier[]>([]);
-  const [reloadKey, setReloadKey] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
   const [recordOpen, setRecordOpen] = useState(false);
   const [recordMode, setRecordMode] = useState<"view" | "create" | "edit">("view");
   const [selected, setSelected] = useState<Supplier | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [baselineForm, setBaselineForm] = useState(emptyForm);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
-
-  const refresh = () => {
-    setLoading(true);
-    setReloadKey((k) => k + 1);
-  };
-
-  useEffect(() => {
-    let alive = true;
-    const load = async () => {
-      try {
-        const res = await fetch("/api/suppliers?page=1&pageSize=100");
-        const json = await res.json();
-        if (alive) setData(json.data || []);
-      } catch {
-        if (alive) toast.error("获取数据失败");
-      } finally {
-        if (alive) setLoading(false);
-      }
-    };
-    load();
-    return () => {
-      alive = false;
-    };
-  }, [reloadKey]);
-
-  const filtered = useMemo(() => {
-    const s = search.trim().toLowerCase();
-    if (!s) return data;
-    return data.filter(
-      (d) =>
-        d.name.toLowerCase().includes(s) ||
-        (d.contact && d.contact.toLowerCase().includes(s)) ||
-        (d.phone && d.phone.toLowerCase().includes(s))
-    );
-  }, [data, search]);
-
-  const {
-    currentPage,
-    setCurrentPage,
-    pageItems,
-    totalPages,
-    totalItems,
-    pageSize,
-    setPageSize,
-  } = usePagination(filtered, DEFAULT_PAGE_SIZE);
+  const [deleteTarget, setDeleteTarget] = useState<Supplier | null>(null);
+  const [deleteError, setDeleteError] = useState<DeleteErrorInfo | null>(null);
 
   const closeRecord = () => {
     setRecordOpen(false);
@@ -133,7 +66,7 @@ export default function SuppliersPage() {
     setRecordOpen(true);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (refresh: () => void) => {
     if (!form.name.trim()) {
       toast.error("名称不能为空");
       return;
@@ -170,228 +103,178 @@ export default function SuppliersPage() {
     }
   };
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (refresh: () => void) => {
+    if (!deleteTarget) return;
     try {
-      await fetch(`/api/suppliers/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/suppliers/${deleteTarget.id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!res.ok) {
+        setDeleteError({ message: json.error || "删除失败", references: json.references });
+        return;
+      }
       toast.success("删除成功");
-      setDeleteId(null);
+      setDeleteTarget(null);
       refresh();
     } catch {
-      toast.error("删除失败");
+      setDeleteError({ message: "删除失败，请稍后重试" });
     }
   };
 
   return (
-    <PageShell
-      variant="panel"
-      header={
-        <PageHeader
-          variant="topbar"
-          showBack
-          title="供应商"
-          description="管理采购供应商信息"
-          actions={
-            <SkeuButton onClick={openCreate}>
-              <Plus className="h-4 w-4" />
-              新增
-            </SkeuButton>
-          }
-        />
-      }
+    <SimpleListPage<Supplier>
+      title="供应商"
+      description="管理采购供应商信息"
+      entityLabel="供应商"
+      listUrl="/api/suppliers?page=1&pageSize=100"
+      searchPlaceholder="搜索名称、联系人或电话..."
+      searchIn={(row) => [row.name, row.contact, row.phone]}
+      createLabel="新增"
+      onCreate={openCreate}
+      actionsWidth="w-[180px]"
+      columns={[
+        {
+          header: "名称",
+          className: "w-[180px]",
+          cell: (row) => (
+            <span className="font-semibold">{row.name}</span>
+          ),
+        },
+        {
+          header: "联系人",
+          className: "w-[100px]",
+          cell: (row) => row.contact || <EmptyValue />,
+        },
+        {
+          header: "电话",
+          className: "w-[130px]",
+          cell: (row) =>
+            row.phone ? (
+              <span className="tabular-nums">{row.phone}</span>
+            ) : (
+              <EmptyValue />
+            ),
+        },
+        {
+          header: "备注",
+          cell: (row) =>
+            row.remark ? (
+              <span className="whitespace-nowrap">{row.remark}</span>
+            ) : (
+              <EmptyValue />
+            ),
+        },
+      ]}
+      rowActions={(row) => (
+        <>
+          <SkeuActionButton
+            label="删除"
+            tone="danger"
+            icon={<Trash2 className="h-3.5 w-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              setDeleteTarget(row);
+              setDeleteError(null);
+            }}
+          />
+          <SkeuActionButton
+            label="编辑"
+            icon={<Pencil className="h-3.5 w-3.5" />}
+            onClick={(event) => {
+              event.stopPropagation();
+              openEdit(row);
+            }}
+          />
+        </>
+      )}
     >
-      <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
-        <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4">
-          <ListToolbar
-            searchValue={search}
-            onSearchChange={(v) => {
-              setSearch(v);
-              setCurrentPage(1);
+      {({ refresh }) => (
+        <>
+          <RecordDialog
+            open={recordOpen}
+            onOpenChange={(open) => {
+              if (!open) closeRecord();
             }}
-            searchPlaceholder="搜索名称、联系人或电话..."
-            onReset={() => {
-              setSearch("");
-              setCurrentPage(1);
-            }}
-          />
-        </CardHeader>
-        <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
-          <DataTable<Supplier>
-            data={pageItems}
-            loading={loading}
-            fillHeight
-            variant="skeu"
-            tableClassName="min-w-max"
-            columns={[
-              {
-                header: "序号",
-                className: "w-[48px]",
-                cell: (_, rowIdx) => (
-                  <span className="text-muted-foreground">
-                    {(currentPage - 1) * pageSize + rowIdx + 1}
-                  </span>
-                ),
-              },
-              {
-                header: "名称",
-                className: "w-[180px]",
-                cell: (row) => <span className="font-medium">{row.name}</span>,
-              },
-              {
-                header: "联系人",
-                className: "w-[100px]",
-                cell: (row) => row.contact || <EmptyValue />,
-              },
-              {
-                header: "电话",
-                className: "w-[130px]",
-                cell: (row) =>
-                  row.phone ? (
-                    <span className="tabular-nums">{row.phone}</span>
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-              {
-                header: "备注",
-                className: "w-[220px]",
-                cell: (row) =>
-                  row.remark ? (
-                    <span className="whitespace-nowrap">{row.remark}</span>
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-            ]}
-            pagination={{
-              currentPage,
-              totalPages,
-              totalItems,
-              pageSize,
-              onPageChange: setCurrentPage,
-              totalLabel: formatPageSummary(currentPage, pageSize, totalItems, "供应商"),
-              showPageSize: true,
-              onPageSizeChange: setPageSize,
-            }}
-            emptyState={{ title: "暂无数据" }}
-            rowActions={(row) => (
-              <>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`编辑供应商 ${row.name}`}
-                  title="编辑供应商"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openEdit(row);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`删除供应商 ${row.name}`}
-                  title="删除供应商"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setDeleteId(row.id);
-                  }}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-              </>
+            mode={recordMode}
+            title={
+              recordMode === "create"
+                ? "新增供应商"
+                : recordMode === "edit"
+                  ? "编辑供应商"
+                  : selected?.name ?? "供应商"
+            }
+            onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
+            onCancel={closeRecord}
+            onSubmit={() => handleSubmit(refresh)}
+            dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
+            submitting={submitting}
+            entityLabel="供应商"
+          >
+            {recordMode === "view" && selected ? (
+              <RecordView
+                items={[
+                  { label: "名称", value: selected.name, emphasis: true },
+                  { label: "联系人", value: selected.contact || "—" },
+                  {
+                    label: "电话",
+                    value: selected.phone ? (
+                      <span className="tabular-nums">{selected.phone}</span>
+                    ) : (
+                      "—"
+                    ),
+                  },
+                  { label: "备注", value: selected.remark || "—", wide: true },
+                ]}
+              />
+            ) : (
+              <SimpleForm>
+                <FormField id="name" label="名称" required>
+                  <Input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="供应商名称"
+                    className="h-11 text-base px-4"
+                  />
+                </FormField>
+                <FormField id="contact" label="联系人">
+                  <Input
+                    value={form.contact}
+                    onChange={(e) => setForm({ ...form, contact: e.target.value })}
+                    className="h-11 text-base px-4"
+                  />
+                </FormField>
+                <FormField id="phone" label="电话">
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="h-11 text-base px-4"
+                  />
+                </FormField>
+                <FormField id="remark" label="备注">
+                  <Input
+                    value={form.remark}
+                    onChange={(e) => setForm({ ...form, remark: e.target.value })}
+                    className="h-11 text-base px-4"
+                  />
+                </FormField>
+              </SimpleForm>
             )}
-          />
-        </CardContent>
-      </Card>
+          </RecordDialog>
 
-      <RecordDialog
-        open={recordOpen}
-        onOpenChange={(open) => {
-          if (!open) closeRecord();
-        }}
-        mode={recordMode}
-        title={
-          recordMode === "create"
-            ? "新增供应商"
-            : recordMode === "edit"
-              ? "编辑供应商"
-              : selected?.name ?? "供应商"
-        }
-        onEdit={recordMode === "view" && selected ? () => openEdit(selected) : undefined}
-        onCancel={closeRecord}
-        onSubmit={handleSubmit}
-        dirty={recordMode !== "view" && isRecordDirty(form, baselineForm)}
-        submitting={submitting}
-        entityLabel="供应商"
-      >
-        {recordMode === "view" && selected ? (
-          <RecordView
-            items={[
-              { label: "名称", value: selected.name, emphasis: true },
-              { label: "联系人", value: selected.contact || "—" },
-              {
-                label: "电话",
-                value: selected.phone ? (
-                  <span className="tabular-nums">{selected.phone}</span>
-                ) : (
-                  "—"
-                ),
-              },
-              { label: "备注", value: selected.remark || "—", wide: true },
-            ]}
+          <DeleteConfirmDialog
+            open={deleteTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) setDeleteTarget(null);
+            }}
+            message={
+              <>
+                确定要删除供应商「{deleteTarget?.name}」吗？此操作不可撤销。
+              </>
+            }
+            error={deleteError}
+            onConfirm={() => handleDelete(refresh)}
           />
-        ) : (
-          <SimpleForm>
-            <FormField id="name" label="名称" required>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="供应商名称"
-                className="h-11 text-base px-4"
-              />
-            </FormField>
-            <FormField id="contact" label="联系人">
-              <Input
-                value={form.contact}
-                onChange={(e) => setForm({ ...form, contact: e.target.value })}
-                className="h-11 text-base px-4"
-              />
-            </FormField>
-            <FormField id="phone" label="电话">
-              <Input
-                value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                className="h-11 text-base px-4"
-              />
-            </FormField>
-            <FormField id="remark" label="备注">
-              <Input
-                value={form.remark}
-                onChange={(e) => setForm({ ...form, remark: e.target.value })}
-                className="h-11 text-base px-4"
-              />
-            </FormField>
-          </SimpleForm>
-        )}
-      </RecordDialog>
-
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-base">确定要删除这条记录吗？此操作不可撤销。</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)} className="h-11 px-6">
-              取消
-            </Button>
-            <Button variant="destructive" onClick={() => deleteId && handleDelete(deleteId)} className="h-11 px-6">
-              删除
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
-    </PageShell>
+        </>
+      )}
+    </SimpleListPage>
   );
 }

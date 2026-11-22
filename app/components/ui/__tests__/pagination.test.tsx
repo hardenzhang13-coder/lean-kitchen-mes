@@ -5,8 +5,8 @@ import { Pagination } from "../pagination";
 import { formatPageSummary } from "@/lib/client/use-pagination";
 
 describe("统一分页", () => {
-  it("汇总只报总量，不报当前区间", () => {
-    expect(formatPageSummary(2, 10, 48, "原料")).toBe("共 48 条 原料");
+  it("汇总只报总量，不带业务名词后缀", () => {
+    expect(formatPageSummary(48)).toBe("共 48 条");
   });
 
   it("统一提供上一页、页码和下一页，不单独提供首页/尾页", () => {

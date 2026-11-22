@@ -34,7 +34,7 @@ const TONE_CLASS: Record<SkeuDotTone, string> = {
 
 /**
  * 轻拟物状态筛选：圆点 + 文字的下拉。
- * 触发器与选项共用圆点语义色；选中项浅橙底 + 加粗 + 右侧勾。
+ * 触发器与选项共用圆点语义色；选中项加粗 + 右侧勾，不加背景。
  */
 export function SkeuDotSelect({
   value,
@@ -80,8 +80,8 @@ export function SkeuDotSelect({
                 setOpen(false);
               }}
               className={cn(
-                "flex h-10 w-full items-center gap-2.5 rounded-[var(--sk-radius-xs)] px-3 text-left text-sm transition-colors focus-visible:bg-[var(--sk-primary-soft-solid)] focus-visible:outline-none",
-                isSelected && "bg-[var(--sk-primary-soft-solid)] font-semibold"
+                "flex h-10 w-full items-center gap-2.5 rounded-[var(--sk-radius-xs)] px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-[var(--sk-primary-soft-solid)] focus-visible:outline-none",
+                isSelected && "font-semibold"
               )}
             >
               <span className={cn("skeu-dot", TONE_CLASS[option.tone ?? "all"])} />

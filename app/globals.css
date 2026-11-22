@@ -313,6 +313,14 @@
   background: var(--sk-panel-body);
 }
 
+/* ---------- 桌面层：承载入口卡 / 磁贴的浅色凹陷面 ---------- */
+.skeu-desk {
+  background: var(--sk-surface-muted);
+  border: 1px solid var(--sk-border);
+  border-radius: 14px;
+  box-shadow: var(--sk-inset);
+}
+
 /* ---------- 滚动条 ---------- */
 .skeu-scroll {
   scrollbar-width: thin;

@@ -39,6 +39,7 @@ import {
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { toast } from "sonner";
+import { EmptyValue } from "@/app/components/ui/empty-value";
 import {
   buildNetIngredientDefaultName,
   isDefaultNetIngredientName,
@@ -836,7 +837,7 @@ export function NetIngredientFormDialog({
                   row.packageSpec != null ? (
                     formatPackageSpec(row.packageSpec)
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyValue />
                   ),
               },
               {
@@ -846,7 +847,7 @@ export function NetIngredientFormDialog({
                   row.yieldRate != null ? (
                     formatPercent(row.yieldRate)
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyValue />
                   ),
               },
               {
@@ -856,7 +857,7 @@ export function NetIngredientFormDialog({
                   row.grossMarginRate != null ? (
                     formatPercent(row.grossMarginRate)
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyValue />
                   ),
               },
               {
@@ -868,7 +869,7 @@ export function NetIngredientFormDialog({
                       {formatPrice(row.standardPackagePrice, "/份")}
                     </span>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <EmptyValue />
                   ),
               },
             ]}

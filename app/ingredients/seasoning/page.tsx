@@ -1,26 +1,21 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Plus, Pencil, Copy, ArrowRightLeft, Trash2 } from "lucide-react";
+import { Plus, Pencil, ArrowRightLeft, Eye } from "lucide-react";
 import {
   SkeuActionButton,
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { CategoryFilter } from "@/app/components/ui/category-filter";
+import { EmptyValue } from "@/app/components/ui/empty-value";
+import { DeleteConfirmDialog } from "@/app/components/ui/delete-confirm-dialog";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { StandardSeasoningFormDialog } from "@/app/components/ingredients/standard-seasoning-form-dialog";
@@ -28,7 +23,6 @@ import { StandardSeasoningListSheet } from "@/app/components/ingredients/standar
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import type { IngredientFormInitialData } from "@/app/components/ingredients/use-ingredient-form";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
@@ -89,6 +83,7 @@ export default function SeasoningIngredientsPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [detailEdit, setDetailEdit] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   // 「转调料」：从列表行操作发起，创建该调料的标准规格
   const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
@@ -152,8 +147,15 @@ export default function SeasoningIngredientsPage() {
     setDialogOpen(true);
   };
 
+  const openView = (row: Ingredient) => {
+    setDetailId(row.id);
+    setDetailEdit(false);
+    setDetailOpen(true);
+  };
+
   const openEdit = (row: Ingredient) => {
     setDetailId(row.id);
+    setDetailEdit(true);
     setDetailOpen(true);
   };
 
@@ -185,12 +187,6 @@ export default function SeasoningIngredientsPage() {
     () => data.find((row) => row.id === convertSourceId) ?? null,
     [data, convertSourceId]
   );
-
-  // 调料二级分类选项 = SEA（调味品）下的启用子分类
-  const seasoningL2Options = useMemo(() => {
-    const sea = categories.find((l1) => l1.code === "SEA");
-    return (sea?.children || []).map((c) => ({ value: c.code, label: c.name }));
-  }, [categories]);
 
   const handleDelete = async (id: number) => {
     try {
@@ -251,17 +247,16 @@ export default function SeasoningIngredientsPage() {
             }}
             hasFilters={!!l2Filter}
           >
-            <SelectTileMode
-              options={seasoningL2Options}
-              value={l2Filter}
-              onChange={(v) => {
-                setL2Filter(v);
+            <CategoryFilter
+              categories={categories}
+              fixedL1="SEA"
+              l1=""
+              l2={l2Filter}
+              onChange={(_l1, nextL2) => {
+                setL2Filter(nextL2);
                 setPage(1);
               }}
-              placeholder="全部二级分类"
-              title="选择二级分类"
-              searchable={false}
-              className="w-[180px]"
+              className="w-[220px]"
             />
           </ListToolbar>
         </CardHeader>
@@ -271,8 +266,9 @@ export default function SeasoningIngredientsPage() {
             loading={loading}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[220px]"
+            actionsWidth="w-[200px]"
             tableClassName="min-w-max"
+            onRowClick={openView}
             columns={[
                 {
                   header: "序号",
@@ -300,7 +296,7 @@ export default function SeasoningIngredientsPage() {
                 {
                   header: "商品名称",
                   className: "w-[100px]",
-                  cell: (row) => row.alias || "—",
+                  cell: (row) => row.alias || <EmptyValue />,
                 },
                 {
                   header: "二级分类",
@@ -315,25 +311,29 @@ export default function SeasoningIngredientsPage() {
                 {
                   header: "采购规格",
                   className: "w-[120px]",
-                  cell: (row) => row.purchaseSpec || "—",
+                  cell: (row) => row.purchaseSpec || <EmptyValue />,
                 },
                 {
                   header: "采购单位",
                   className: "w-[80px]",
-                  cell: (row) => row.purchaseUnit || "—",
+                  cell: (row) => row.purchaseUnit || <EmptyValue />,
                 },
                 {
                   header: "最新参照单价",
                   className: "w-[100px]",
                   cell: (row) =>
-                    row.latestRefPrice != null
-                      ? formatMoney(row.latestRefPrice)
-                      : "—",
+                    row.latestRefPrice != null ? (
+                      <span className="tabular-nums">
+                        {formatMoney(row.latestRefPrice)}
+                      </span>
+                    ) : (
+                      <EmptyValue />
+                    ),
                 },
                 {
                   header: "入库单位",
                   className: "w-[80px]",
-                  cell: (row) => row.stockUnit || "—",
+                  cell: (row) => row.stockUnit || <EmptyValue />,
                 },
                 {
                   header: "入库数量",
@@ -344,9 +344,13 @@ export default function SeasoningIngredientsPage() {
                   header: "每斤单价",
                   className: "w-[100px]",
                   cell: (row) =>
-                    row.pricePerJin != null
-                      ? <span className="font-semibold tabular-nums text-primary">{formatMoney(row.pricePerJin, "斤")}</span>
-                      : "—",
+                    row.pricePerJin != null ? (
+                      <span className="font-semibold tabular-nums text-primary">
+                        {formatMoney(row.pricePerJin, "斤")}
+                      </span>
+                    ) : (
+                      <EmptyValue />
+                    ),
                 },
             ]}
               pagination={
@@ -357,12 +361,7 @@ export default function SeasoningIngredientsPage() {
                       totalItems: pagination.totalItems,
                       pageSize,
                       onPageChange: setPage,
-                      totalLabel: formatPageSummary(
-                        page,
-                        pageSize,
-                        pagination.totalItems,
-                        "调料"
-                      ),
+                      totalLabel: formatPageSummary(pagination.totalItems),
                       showPageSize: true,
                       onPageSizeChange: (size) => {
                         setPageSize(size);
@@ -375,24 +374,6 @@ export default function SeasoningIngredientsPage() {
               rowActions={(row) => (
                 <>
                   <SkeuIconAction
-                    label={`复制调料 ${row.name}`}
-                    tip="复制调料"
-                    icon={<Copy className="h-4 w-4" />}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      openCopy(row);
-                    }}
-                  />
-                  <SkeuIconAction
-                    label={`删除调料 ${row.name}`}
-                    tip="删除调料"
-                    icon={<Trash2 className="h-4 w-4 text-destructive" />}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setDeleteId(row.id);
-                    }}
-                  />
-                  <SkeuIconAction
                     label={`编辑调料 ${row.name}`}
                     tip="编辑调料"
                     icon={<Pencil className="h-4 w-4" />}
@@ -401,14 +382,23 @@ export default function SeasoningIngredientsPage() {
                       openEdit(row);
                     }}
                   />
-                  <SkeuActionButton
-                    label="转调料"
-                    tone="primary"
-                    icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+                  <SkeuIconAction
+                    label={`转调料 ${row.name}`}
+                    tip="转调料"
+                    icon={<ArrowRightLeft className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       setConvertSourceId(row.id);
                       setConvertDialogOpen(true);
+                    }}
+                  />
+                  <SkeuActionButton
+                    label="查看"
+                    tone="primary"
+                    icon={<Eye className="h-3.5 w-3.5" />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openView(row);
                     }}
                   />
                 </>
@@ -445,7 +435,7 @@ export default function SeasoningIngredientsPage() {
         categories={categories}
         units={units}
         inlineEdit
-        startInEditMode
+        startInEditMode={detailEdit}
         categoryName={
           detailId
             ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
@@ -503,32 +493,12 @@ export default function SeasoningIngredientsPage() {
         }
       />
 
-      <Dialog open={deleteId !== null} onOpenChange={() => setDeleteId(null)}>
-        <AppDialogContent size="compact" className="[&>button]:cursor-pointer">
-          <DialogHeader>
-            <DialogTitle className="text-lg">确认删除</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground text-base">
-            确定要删除这条调料吗？此操作不可撤销。
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteId(null)}
-              className="h-11 px-6"
-            >
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteId && handleDelete(deleteId)}
-              className="h-11 px-6"
-            >
-              删除
-            </Button>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      <DeleteConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={() => setDeleteId(null)}
+        message="确定要删除这条调料吗？此操作不可撤销。"
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+      />
     </PageShell>
   );
 }

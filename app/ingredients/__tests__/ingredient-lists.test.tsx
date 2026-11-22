@@ -102,12 +102,12 @@ beforeEach(() => {
 });
 
 describe("食材清单页的底部组件与字段展示", () => {
-  it("原料清单底部展示完整区间汇总与每页条数选择", async () => {
+  it("原料清单底部只报总量，不带业务名词后缀", async () => {
     render(<RawIngredientsPage />);
 
     await waitFor(() =>
       expect(
-        screen.getByText("共 42 条 原料")
+        screen.getByText("共 42 条")
       ).toBeInTheDocument()
     );
     // 每页条数为胶囊触发器，文案「N 条/页」
@@ -137,7 +137,7 @@ describe("食材清单页的底部组件与字段展示", () => {
 });
 
 describe("食材清单页的列名、核心字段与复制能力", () => {
-  it("原料清单使用「品牌名称」列名，并提供复制与删除", async () => {
+  it("原料清单操作列最多三个动作，复制与删除收进详情", async () => {
     render(<RawIngredientsPage />);
 
     await waitFor(() =>
@@ -146,11 +146,20 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     expect(screen.getByText("品牌名称")).toBeInTheDocument();
     expect(screen.queryByText("商品名称")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /复制原料/ })
+      screen.getByRole("button", { name: /编辑原料/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /删除原料/ })
+      screen.getByRole("button", { name: /转净料/ })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /查看/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /复制原料/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /删除原料/ })
+    ).not.toBeInTheDocument();
   });
 
   it("列表工具栏的放大镜图标内嵌在搜索框内，不作为前置元素", async () => {
@@ -166,14 +175,21 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     expect(icon).toHaveClass("absolute");
   });
 
-  it("点击复制打开复制表单并回填来源档案内容", async () => {
+  it("点击行打开只读详情，详情内可复制", async () => {
     render(<RawIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
     );
-    fireEvent.click(screen.getByRole("button", { name: /复制原料/ }));
+    fireEvent.click(screen.getByText("带皮五花肉"));
 
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "原料详情" })
+      ).toBeInTheDocument()
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /^复制$/ }));
     await waitFor(() => expect(screen.getByText("复制原料")).toBeInTheDocument());
     const nameInput = document.getElementById(
       "ingredient-name"
@@ -191,18 +207,27 @@ describe("食材清单页的列名、核心字段与复制能力", () => {
     expect(screen.getByText("¥12.34/斤").className).toContain("text-primary");
   });
 
-  it("净料清单保留复制与删除操作", async () => {
+  it("净料清单操作列只保留打印、编辑与查看", async () => {
     render(<NetIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("青椒丝")).toBeInTheDocument()
     );
     expect(
-      screen.getByRole("button", { name: /复制净料/ })
+      screen.getByRole("button", { name: /打印净料标签/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /删除净料/ })
+      screen.getByRole("button", { name: /编辑净料/ })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /查看/ })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /复制净料/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /删除净料/ })
+    ).not.toBeInTheDocument();
   });
 
   it("编辑入口打开净料抽屉的编辑态", async () => {
