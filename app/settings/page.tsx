@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Store, Tags, FolderTree, Ruler, Truck, Users, Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PageShell } from "@/app/components/ui/page-shell";
+import { PageHeader } from "@/app/components/ui/page-header";
 import { getCurrentUser } from "@/lib/server/session";
 import { isAdmin } from "@/lib/shared/roles";
 
@@ -62,13 +64,17 @@ export default async function SettingsPage() {
   const items = isAdmin(user?.role) ? [...settingsItems, adminItem] : settingsItems;
 
   return (
-    <div className="flex flex-col gap-6 p-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">设置</h1>
-        <p className="text-muted-foreground">管理系统基础数据与用户账号</p>
-      </div>
-
-      <div className="grid grid-cols-4 gap-4">
+    <PageShell
+      variant="panel"
+      header={
+        <PageHeader
+          variant="topbar"
+          title="设置"
+          description="管理系统基础数据与用户账号"
+        />
+      }
+    >
+      <div className="grid min-h-0 flex-1 grid-cols-4 content-start gap-4 overflow-y-auto skeu-scroll">
         {items.map((item) => {
           const Icon = item.icon;
           return (
@@ -88,6 +94,6 @@ export default async function SettingsPage() {
           );
         })}
       </div>
-    </div>
+    </PageShell>
   );
 }

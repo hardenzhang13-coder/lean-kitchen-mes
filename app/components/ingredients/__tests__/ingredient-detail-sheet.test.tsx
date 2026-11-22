@@ -415,8 +415,8 @@ describe("净料详情抽屉", () => {
     const editButton = screen.getByRole("button", { name: "编辑" });
     const printButton = screen.getByRole("button", { name: "打印标签" });
     const deleteButton = screen.getByRole("button", { name: /删除/ });
-    expect(printButton).toHaveClass("bg-primary");
-    expect(editButton).not.toHaveClass("bg-primary");
+    expect(printButton).toHaveClass("skeu-btn-primary");
+    expect(editButton).not.toHaveClass("skeu-btn-primary");
     expect(
       deleteButton.compareDocumentPosition(editButton) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -473,8 +473,8 @@ describe("净料详情抽屉", () => {
     ).toBeInTheDocument();
     const printButton = await screen.findByRole("button", { name: "打印标签" });
     const editButton = screen.getByRole("button", { name: "编辑" });
-    expect(printButton).toHaveClass("bg-primary");
-    expect(editButton).not.toHaveClass("bg-primary");
+    expect(printButton).toHaveClass("skeu-btn-primary");
+    expect(editButton).not.toHaveClass("skeu-btn-primary");
 
     fireEvent.click(editButton);
     expect(

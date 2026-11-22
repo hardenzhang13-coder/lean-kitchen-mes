@@ -44,7 +44,7 @@ export function RecordSheet({
       <SheetContent
         onBackdropClick={() => onOpenChange(false)}
         className={cn(
-          "flex w-full flex-col p-0 sm:w-1/2 sm:max-w-none",
+          "flex w-full flex-col p-0 sm:w-1/2 sm:max-w-none skeu-surface",
           className
         )}
       >
@@ -54,7 +54,7 @@ export function RecordSheet({
           </div>
         )}
 
-        <SheetHeader className="border-b px-6 py-5">
+        <SheetHeader className="skeu-surface border-b border-skeu-border px-6 py-5 shadow-sk-raised">
           <div className="flex items-start justify-between gap-4 pr-8">
             <div
               className={cn(
@@ -82,7 +82,7 @@ export function RecordSheet({
         </div>
 
         {footer && (
-          <SheetFooter className="border-t px-6 py-4 sm:flex-row sm:justify-end">
+          <SheetFooter className="skeu-surface-muted border-t border-skeu-border px-6 py-4 sm:flex-row sm:justify-end">
             {footer}
           </SheetFooter>
         )}

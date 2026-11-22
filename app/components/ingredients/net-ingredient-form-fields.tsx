@@ -9,7 +9,7 @@ import {
   ReadOnlyValue,
 } from "@/app/components/ui/form-controls";
 import { IngredientNumberInput } from "@/app/components/ingredients/ingredient-number-input";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   FormField,
   FormLayout,
@@ -505,14 +505,14 @@ export function NetIngredientFormFields({
   const renderSourceInfo = () => {
     if (!form.sourceIngredientId) {
       return (
-        <Button
+        <SkeuButton
           type="button"
           variant="outline"
           onClick={() => setSelectorOpen(true)}
           className="h-11 w-full sm:w-auto px-6"
         >
           选择来源原料
-        </Button>
+        </SkeuButton>
       );
     }
 

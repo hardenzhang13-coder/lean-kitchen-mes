@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, Printer, Eye } from "lucide-react";
-import { SkeuIconAction, SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
@@ -250,7 +250,7 @@ export default function MinorIngredientsPage() {
                 setL2Filter(nextL2);
                 setPage(1);
               }}
-              className="w-[220px]"
+              className="w-[160px]"
             />
           </ListToolbar>
         </CardHeader>
@@ -296,16 +296,6 @@ export default function MinorIngredientsPage() {
                       <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
                     );
                   },
-                },
-                {
-                  header: "包装规格",
-                  className: "w-[80px]",
-                  cell: (row) =>
-                    row.packageSpec != null ? (
-                      <span className="tabular-nums">{row.packageSpec}g</span>
-                    ) : (
-                      <EmptyValue />
-                    ),
                 },
                 {
                   header: "来源原料",
@@ -402,10 +392,10 @@ export default function MinorIngredientsPage() {
                       openEdit(row);
                     }}
                   />
-                  <SkeuActionButton
-                    label="查看"
-                    tone="primary"
-                    icon={<Eye className="h-3.5 w-3.5" />}
+                  <SkeuIconAction
+                    label={`查看小料 ${row.name}`}
+                    tip="查看"
+                    icon={<Eye className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openView(row);

@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Plus, Pencil, ArrowRightLeft, Eye } from "lucide-react";
 import {
-  SkeuActionButton,
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -257,7 +256,7 @@ export default function SeasoningIngredientsPage() {
                 setL2Filter(nextL2);
                 setPage(1);
               }}
-              className="w-[220px]"
+              className="w-[160px]"
             />
           </ListToolbar>
         </CardHeader>
@@ -267,7 +266,7 @@ export default function SeasoningIngredientsPage() {
             loading={loading}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[200px]"
+            actionsWidth="w-[120px]"
             tableClassName="min-w-max"
             onRowClick={openView}
             columns={[
@@ -282,12 +281,12 @@ export default function SeasoningIngredientsPage() {
                 },
                 {
                   header: "编号",
-                  className: "w-[85px]",
+                  className: "w-[72px]",
                   cell: (row) => <CodeText>{row.code}</CodeText>,
                 },
                 {
                   header: "食材名称",
-                  className: "w-[150px]",
+                  className: "w-[132px]",
                   cell: (row) => (
                     <span className="font-semibold text-primary">
                       {row.name}
@@ -296,12 +295,12 @@ export default function SeasoningIngredientsPage() {
                 },
                 {
                   header: "商品名称",
-                  className: "w-[100px]",
+                  className: "w-[88px]",
                   cell: (row) => row.alias || <EmptyValue />,
                 },
                 {
                   header: "二级分类",
-                  className: "w-[90px]",
+                  className: "w-[84px]",
                   cell: (row) => {
                     const l2Info = l2Map[row.l2Code];
                     return (
@@ -311,17 +310,17 @@ export default function SeasoningIngredientsPage() {
                 },
                 {
                   header: "采购规格",
-                  className: "w-[120px]",
+                  className: "w-[100px]",
                   cell: (row) => row.purchaseSpec || <EmptyValue />,
                 },
                 {
                   header: "采购单位",
-                  className: "w-[80px]",
+                  className: "w-[72px]",
                   cell: (row) => row.purchaseUnit || <EmptyValue />,
                 },
                 {
                   header: "最新参照单价",
-                  className: "w-[100px]",
+                  className: "w-[88px]",
                   cell: (row) =>
                     row.latestRefPrice != null ? (
                       <span className="tabular-nums">
@@ -333,17 +332,17 @@ export default function SeasoningIngredientsPage() {
                 },
                 {
                   header: "入库单位",
-                  className: "w-[80px]",
+                  className: "w-[72px]",
                   cell: (row) => row.stockUnit || <EmptyValue />,
                 },
                 {
                   header: "入库数量",
-                  className: "w-[70px]",
+                  className: "w-[64px]",
                   cell: (row) => <span className="font-medium">{row.unitsPerPurchase ?? 1}</span>,
                 },
                 {
                   header: "每斤单价",
-                  className: "w-[100px]",
+                  className: "w-[88px]",
                   cell: (row) =>
                     row.pricePerJin != null ? (
                       <span className="font-semibold tabular-nums text-primary">
@@ -395,10 +394,10 @@ export default function SeasoningIngredientsPage() {
                       openEdit(row);
                     }}
                   />
-                  <SkeuActionButton
-                    label="查看"
-                    tone="primary"
-                    icon={<Eye className="h-3.5 w-3.5" />}
+                  <SkeuIconAction
+                    label={`查看调料 ${row.name}`}
+                    tip="查看"
+                    icon={<Eye className="h-4 w-4" />}
                     onClick={(event) => {
                       event.stopPropagation();
                       openView(row);

@@ -187,7 +187,7 @@ describe("转净料与新增净料弹窗", () => {
     );
     expect(
       screen.getByRole("button", { name: "关闭" })
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("skeu-btn-primary");
     expect(screen.queryByRole("button", { name: "编辑" })).not.toBeInTheDocument();
 
     await waitFor(() => {
@@ -231,7 +231,7 @@ describe("转净料与新增净料弹窗", () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "选择来源原料" })
-    ).toHaveClass("bg-primary");
+    ).toHaveClass("skeu-btn-primary");
 
     fireEvent.click(
       screen.getByRole("button", { name: "选择来源原料" })

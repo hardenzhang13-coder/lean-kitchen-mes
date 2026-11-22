@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
 import { SelectDialog } from "@/app/components/ui/select-dialog";
+import { SkeuComboboxTrigger } from "@/app/components/ui/skeu-combobox-trigger";
 import { cn } from "@/lib/shared/utils";
 
 export type SelectTileOption = {
@@ -89,26 +89,13 @@ export function SelectTileMode({
 
   return (
     <div className={className}>
-      <Button
-        type="button"
-        variant="outline"
-        role="combobox"
+      <SkeuComboboxTrigger
+        label={selected ? selected.label : undefined}
+        placeholder={placeholder}
         disabled={disabled}
+        open={open}
         onClick={() => setOpen(true)}
-        className="h-11 w-full justify-between px-4 text-base font-normal"
-      >
-        <span
-          className={cn(
-            "truncate",
-            selected ? "text-foreground" : "text-muted-foreground"
-          )}
-        >
-          {selected ? selected.label : placeholder}
-        </span>
-        <span className="flex items-center gap-1 ml-2 shrink-0">
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-        </span>
-      </Button>
+      />
 
       <SelectDialog
         open={open}

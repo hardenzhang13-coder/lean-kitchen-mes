@@ -1,12 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Check, ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown } from "lucide-react";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Dialog,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { cn } from "@/lib/shared/utils";
 
 export interface CategoryFilterNode {
@@ -28,17 +31,10 @@ interface CategoryFilterProps {
   className?: string;
 }
 
-function optionMatches(name: string, code: string, term: string) {
-  if (!term) return true;
-  return (
-    name.toLowerCase().includes(term) || code.toLowerCase().includes(term)
-  );
-}
-
 /**
  * 一二级分类筛选器（食材库标准件）。
- * 轻拟物触发器 + 弹层分栏：左栏一级分类、右栏该分类下的二级；
- * 选项超过 5 个时自动出现搜索框，避免长下拉。
+ * 与表单级联选择同款的级联弹窗：左栏一级列表、右栏二级磁贴，点选即生效。
+ * 点一级切换右侧并即时应用；点二级 /「全部」应用后关闭；底部可清空筛选。
  * 小料 / 调料只有二级时传 `fixedL1`，退化为单栏二级选择。
  */
 export function CategoryFilter({
@@ -51,7 +47,6 @@ export function CategoryFilter({
   className,
 }: CategoryFilterProps) {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
 
   const nodes = useMemo(
     () => (fixedL1 ? categories.filter((c) => c.code === fixedL1) : categories),
@@ -60,14 +55,6 @@ export function CategoryFilter({
   const activeL1 = fixedL1 || l1;
   const l1Node = nodes.find((node) => node.code === activeL1);
   const children = l1Node?.children ?? [];
-
-  const term = search.trim().toLowerCase();
-  const filteredNodes = nodes.filter((node) =>
-    optionMatches(node.name, node.code, term)
-  );
-  const filteredChildren = children.filter((child) =>
-    optionMatches(child.name, child.code, term)
-  );
 
   const activeL2 = children.find((child) => child.code === l2);
   const label = fixedL1
@@ -79,30 +66,26 @@ export function CategoryFilter({
       : placeholder || "全部分类";
   const isActive = fixedL1 ? !!l2 : !!(l1 || l2);
 
-  const close = () => {
-    setOpen(false);
-    setSearch("");
-  };
+  const close = () => setOpen(false);
 
   const clear = () => {
     onChange(fixedL1 ?? "", "");
     close();
   };
 
-  const showSearch = children.length > 5;
+  const selectL2 = (code: string) => {
+    onChange(activeL1, code);
+    close();
+  };
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) setSearch("");
-      }}
-    >
-      <PopoverTrigger
+    <>
+      <button
+        type="button"
         aria-label="分类筛选"
+        onClick={() => setOpen(true)}
         className={cn(
-          "flex h-11 items-center gap-2 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:border-[var(--sk-focus)] focus-visible:bg-[var(--sk-control-bg)] focus-visible:outline-none",
+          "flex h-11 w-full items-center justify-between gap-2 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:border-[var(--sk-focus)] focus-visible:bg-[var(--sk-control-bg)] focus-visible:outline-none",
           className
         )}
       >
@@ -115,143 +98,105 @@ export function CategoryFilter({
           {label}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-      </PopoverTrigger>
+      </button>
 
-      <PopoverContent
-        align="start"
-        sideOffset={6}
-        className={cn(
-          "overflow-hidden rounded-[var(--sk-radius-md)] border-skeu-border bg-popover p-0 shadow-sk-2 ring-0",
-          fixedL1 ? "w-[320px]" : "w-[560px]"
-        )}
-      >
-        {fixedL1 ? (
-          <div className="p-3">
-            <PaneHeader
-              label={l1Node?.name ?? ""}
-              onClear={isActive ? clear : undefined}
-            />
-            {showSearch && <SearchBox value={search} onChange={setSearch} />}
-            <ChipGrid
-              options={filteredChildren}
-              value={l2}
-              allLabel="全部"
-              onSelect={(code) => {
-                onChange(fixedL1, code);
-                close();
-              }}
-              emptyText="该分类下暂无二级分类"
-            />
-          </div>
-        ) : (
-          <div className="flex">
-            <div className="w-[180px] shrink-0 border-r border-skeu-border bg-[var(--sk-surface-muted)] p-2">
-              <div className="max-h-[300px] overflow-auto">
-                <ListRow
+      <Dialog open={open} onOpenChange={setOpen}>
+        <AppDialogContent size="wide" className="flex flex-col max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="text-lg">
+              {fixedL1 ? `筛选${l1Node?.name ?? "分类"}` : "筛选食材分类"}
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              左侧选择一级分类，右侧选择二级分类，点选即生效
+            </DialogDescription>
+          </DialogHeader>
+
+          {fixedL1 ? (
+            <div className="flex-1 min-h-0 bg-white overflow-y-auto skeu-scroll p-4 rounded-xl border border-skeu-border">
+              <TileGrid
+                options={children}
+                value={l2}
+                allLabel="全部"
+                onSelect={(code) => {
+                  onChange(fixedL1, code);
+                  close();
+                }}
+                emptyText="该分类下暂无二级分类"
+              />
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 grid grid-cols-[180px_1fr] border border-skeu-border rounded-xl overflow-hidden">
+              <div className="skeu-surface-muted border-r border-skeu-border overflow-y-auto skeu-scroll p-2 space-y-0.5">
+                <L1Row
                   active={!l1}
                   onClick={() => {
                     onChange("", "");
-                    setSearch("");
+                    close();
                   }}
                 >
                   全部一级
-                </ListRow>
-                {filteredNodes.map((node) => (
-                  <ListRow
+                </L1Row>
+                {nodes.map((node) => (
+                  <L1Row
                     key={node.code}
                     active={node.code === l1}
-                    onClick={() => {
-                      onChange(node.code, "");
-                      setSearch("");
-                    }}
+                    onClick={() => onChange(node.code, "")}
                   >
                     <span className="truncate">{node.name}</span>
                     <span className="ml-auto text-xs tabular-nums text-muted-foreground">
                       {node.children?.length ?? 0}
                     </span>
-                  </ListRow>
+                  </L1Row>
                 ))}
               </div>
+              <div className="bg-white overflow-y-auto skeu-scroll p-4">
+                {l1Node ? (
+                  <>
+                    <div className="text-xs text-muted-foreground mb-3">
+                      {l1Node.name} · 选择二级分类
+                    </div>
+                    <TileGrid
+                      options={children}
+                      value={l2}
+                      allLabel={`全部${l1Node.name}`}
+                      onSelect={selectL2}
+                      emptyText="该分类下暂无二级分类"
+                    />
+                  </>
+                ) : (
+                  <p className="py-10 text-center text-sm text-muted-foreground">
+                    请先在左侧选择一级分类
+                  </p>
+                )}
+              </div>
             </div>
+          )}
 
-            <div className="min-w-0 flex-1 p-3">
-              <PaneHeader
-                label={l1Node?.name ?? "二级分类"}
-                onClear={isActive ? clear : undefined}
-              />
-              {l1Node ? (
-                <>
-                  {showSearch && (
-                    <SearchBox value={search} onChange={setSearch} />
-                  )}
-                  <ChipGrid
-                    options={filteredChildren}
-                    value={l2}
-                    allLabel={`全部${l1Node.name}`}
-                    onSelect={(code) => {
-                      onChange(l1Node.code, code);
-                      close();
-                    }}
-                    emptyText="该分类下暂无二级分类"
-                  />
-                </>
-              ) : (
-                <p className="py-10 text-center text-sm text-muted-foreground">
-                  先选择左侧一级分类
-                </p>
+          <div className="flex items-center justify-between gap-3 pt-2">
+            <div className="text-[13px] text-muted-foreground min-w-0 truncate">
+              当前筛选：
+              <b className="text-[var(--sk-primary-ink)] font-semibold">
+                {isActive ? label : "全部分类"}
+              </b>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              {isActive && (
+                <SkeuButton variant="ghost" size="sm" onClick={clear}>
+                  清空筛选
+                </SkeuButton>
               )}
+              <SkeuButton variant="primary" size="sm" onClick={close}>
+                完成
+              </SkeuButton>
             </div>
           </div>
-        )}
-      </PopoverContent>
-    </Popover>
+        </AppDialogContent>
+      </Dialog>
+    </>
   );
 }
 
-function PaneHeader({
-  label,
-  onClear,
-}: {
-  label: string;
-  onClear?: () => void;
-}) {
-  return (
-    <div className="mb-2 flex h-6 items-center justify-between">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      {onClear && (
-        <button
-          type="button"
-          onClick={onClear}
-          className="text-xs font-medium text-[var(--sk-primary-ink)] hover:underline"
-        >
-          清除筛选
-        </button>
-      )}
-    </div>
-  );
-}
-
-function SearchBox({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="mb-2 flex h-9 items-center gap-2 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong bg-white px-2.5 focus-within:border-[var(--sk-focus)]">
-      <Search className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="搜索分类..."
-        className="h-full w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground/50"
-      />
-    </label>
-  );
-}
-
-function ListRow({
+function L1Row({
   active,
   onClick,
   children,
@@ -265,9 +210,10 @@ function ListRow({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex h-9 w-full items-center gap-2 rounded-[var(--sk-radius-xs)] px-2.5 text-left text-sm transition-colors hover:bg-muted/60",
-        active &&
-          "bg-[var(--sk-primary-soft-solid)] font-semibold text-[var(--sk-primary-ink)] hover:bg-[var(--sk-primary-soft-solid)]"
+        "w-full flex items-center rounded-lg px-3 py-2.5 text-sm text-left transition-colors",
+        active
+          ? "bg-[var(--sk-primary-soft)] text-[var(--sk-primary-ink)] font-semibold shadow-sk-inset"
+          : "text-foreground hover:bg-white/70"
       )}
     >
       {children}
@@ -275,7 +221,7 @@ function ListRow({
   );
 }
 
-function ChipGrid({
+function TileGrid({
   options,
   value,
   allLabel,
@@ -289,44 +235,50 @@ function ChipGrid({
   emptyText: string;
 }) {
   return (
-    <div className="grid max-h-[280px] grid-cols-2 gap-1.5 overflow-auto">
-      <button
-        type="button"
-        onClick={() => onSelect("")}
-        className={cn(
-          "flex h-9 items-center gap-2 rounded-[var(--sk-radius-xs)] border px-2.5 text-left text-sm transition-colors",
-          !value
-            ? "border-[var(--sk-primary-ink)] bg-[var(--sk-primary-soft-solid)] font-semibold text-[var(--sk-primary-ink)]"
-            : "border-skeu-border bg-white hover:border-skeu-border-strong"
-        )}
-      >
-        <span className="truncate">{allLabel}</span>
-        {!value && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
-      </button>
-      {options.map((option) => {
-        const active = option.code === value;
-        return (
-          <button
-            key={option.code}
-            type="button"
-            onClick={() => onSelect(option.code)}
-            className={cn(
-              "flex h-9 items-center gap-2 rounded-[var(--sk-radius-xs)] border px-2.5 text-left text-sm transition-colors",
-              active
-                ? "border-[var(--sk-primary-ink)] bg-[var(--sk-primary-soft-solid)] font-semibold text-[var(--sk-primary-ink)]"
-                : "border-skeu-border bg-white hover:border-skeu-border-strong"
-            )}
-          >
-            <span className="truncate">{option.name}</span>
-            {active && <Check className="ml-auto h-3.5 w-3.5 shrink-0" />}
-          </button>
-        );
-      })}
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+      <Tile active={!value} onClick={() => onSelect("")}>
+        {allLabel}
+      </Tile>
+      {options.map((option) => (
+        <Tile
+          key={option.code}
+          active={option.code === value}
+          onClick={() => onSelect(option.code)}
+        >
+          {option.name}
+        </Tile>
+      ))}
       {options.length === 0 && (
-        <p className="col-span-2 py-6 text-center text-sm text-muted-foreground">
+        <p className="col-span-full py-6 text-center text-sm text-muted-foreground">
           {emptyText}
         </p>
       )}
     </div>
+  );
+}
+
+function Tile({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm transition-colors",
+        active
+          ? "border-[var(--sk-primary-to)] text-[var(--sk-primary-ink)] font-semibold bg-[var(--sk-primary-soft)] shadow-[var(--sk-primary-shadow)]"
+          : "border-skeu-border-strong skeu-surface hover:border-[#f97316aa]"
+      )}
+    >
+      <span className="truncate">{children}</span>
+      {active && <Check className="h-4 w-4 shrink-0 ml-1" />}
+    </button>
   );
 }
