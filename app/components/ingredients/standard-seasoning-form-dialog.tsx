@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, PackageOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   DialogFooter,
   DialogHeader,
@@ -262,19 +263,17 @@ export function StandardSeasoningFormDialog({
         </div>
 
         <DialogFooter className="border-t px-6 py-4">
-          <Button
+          <SkeuButton
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
           >
             取消
-          </Button>
-          <Button
+          </SkeuButton>
+          <SkeuButton
             onClick={() => {
               void submit();
             }}
             disabled={submitting}
-            className="h-11 px-6"
           >
             <span aria-live="polite" className="inline-flex items-center">
               {submitting && (
@@ -282,7 +281,7 @@ export function StandardSeasoningFormDialog({
               )}
               保存
             </span>
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
     </FormDialog>

@@ -227,3 +227,12 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 - **树形列表**：食材分类点击一级行即展开/收起，且同一时间只展开一个；二级行不触发展开，光标恢复默认。
 - **编号弱化**：列表中的编号/编码统一用 `CodeText`（12px、等宽、70% 对比），不再使用 `font-medium`；数字统计仍保留等宽加粗。
 - **一级页面清单**：菜品库、食材库、库存、采购、排程、生产计划、内部生产单、工作台、设置。
+
+## 9. 设置首页入口卡（2026-11-22）
+
+- **组件**：`app/components/ui/entry-card.tsx` 的 `EntryCard`，设置首页与 `/ui-kit` 共用，不得在页面内复制一套卡片样式。
+- **分组**：基础数据 / 账号与权限；组头 15px / 600 + 13px 描述 + 右侧项数。
+- **网格**：sm 2 列、xl 3 列，gap 12px，最大宽 1080px 居中。
+- **卡片**：min-h 108px、12px 圆角、1px `--sk-border`、`skeu-surface`、`shadow-sk-raised`；hover 上浮 2px + `shadow-sk-2`；active 内凹。
+- **图标**：44px 内凹磁贴，默认 muted；hover 浅橙底 + 主色。禁止彩虹色图标。
+- **弹窗底栏**：取消 / 保存统一 `SkeuButton`；outline 必须有 1px `--sk-border-strong` 描边（v008），不得再用 shadcn `Button` 作为弹窗取消。

@@ -8,6 +8,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   DialogHeader,
   DialogTitle,
@@ -755,19 +756,17 @@ export function NetIngredientFormDialog({
         )}
 
         <DialogFooter className="border-t px-6 pt-4 pb-5">
-          <Button
+          <SkeuButton
             variant="outline"
             onClick={() => onOpenChange(false)}
-            className="h-11 px-6"
           >
             取消
-          </Button>
-          <Button
+          </SkeuButton>
+          <SkeuButton
             onClick={() => {
               void handleSubmit();
             }}
             disabled={submitting}
-            className="h-11 px-6"
           >
             <span aria-live="polite" className="inline-flex items-center">
               {submitting && (
@@ -775,7 +774,7 @@ export function NetIngredientFormDialog({
               )}
               保存
             </span>
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
 

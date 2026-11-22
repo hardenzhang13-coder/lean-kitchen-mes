@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Dialog,
   DialogFooter,
@@ -104,13 +104,13 @@ function NetLabelPrintForm({
         </div>
       </div>
       <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <SkeuButton variant="outline" onClick={() => onOpenChange(false)}>
           取消
-        </Button>
-        <Button onClick={confirm}>
-          <Printer className="mr-2 h-4 w-4" />
+        </SkeuButton>
+        <SkeuButton onClick={confirm}>
+          <Printer className="h-4 w-4" />
           进入打印
-        </Button>
+        </SkeuButton>
       </DialogFooter>
     </>
   );
