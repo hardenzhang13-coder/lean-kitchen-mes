@@ -6,7 +6,6 @@ import {
   ArrowUp,
   CheckCircle2,
   ClipboardList,
-  FolderTree,
   Inbox,
   Layers3,
   PackageOpen,
@@ -14,7 +13,6 @@ import {
   Plus,
   PlusCircle,
   Power,
-  Ruler,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -43,7 +41,6 @@ import {
 } from "@/app/components/ui/form-controls";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { EmptyState } from "@/app/components/ui/empty-state";
-import { EntryCard } from "@/app/components/ui/entry-card";
 import {
   FormField,
   FormLayout,
@@ -171,29 +168,6 @@ function MaterialKit() {
           <SkeuButton variant="secondary">次级</SkeuButton>
           <SkeuButton variant="ghost">幽灵</SkeuButton>
           <SkeuButton variant="danger">危险</SkeuButton>
-        </div>
-      </section>
-
-      <section className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold">入口卡</h2>
-          <p className="text-sm text-muted-foreground">
-            设置首页与 hub 页共用；暖白纸面 + 内凹图标磁贴，不铺彩色。
-          </p>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <EntryCard
-            href="/settings/classes"
-            label="食材分类"
-            description="管理食材一级和二级分类体系"
-            icon={FolderTree}
-          />
-          <EntryCard
-            href="/settings/units"
-            label="单位"
-            description="管理重量、体积、计数等单位"
-            icon={Ruler}
-          />
         </div>
       </section>
 
