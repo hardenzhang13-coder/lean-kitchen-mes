@@ -1,8 +1,9 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { formatMonthDay, getWeekDay } from "@/lib/shared/date-format";
+import { useState } from "react";
+import { getWeekDayShort } from "@/lib/shared/date-format";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import type { ScheduleListItem } from "@/app/components/schedule/list-types";
 
 interface ScheduleCardProps {
@@ -11,76 +12,143 @@ interface ScheduleCardProps {
   /** 只读角色（如业务运营）不渲染写操作，只保留查看 */
   canWrite?: boolean;
   onOpen: () => void;
+  onEdit: () => void;
   onActivate: () => void;
   onGotoPlan: (planId: number) => void;
 }
 
+const PREVIEW_ROWS = 3;
+
+/**
+ * 排程索引卡：卡册舌 + 状态色头部 + 日期盒 + 前三道菜品预览。
+ * 三态着色只落在舌片与头部，卡身保持中性纸面（data-status 驱动 CSS 变量）。
+ */
 export function ScheduleCard({
   item,
   busy = false,
   canWrite = false,
   onOpen,
+  onEdit,
   onActivate,
   onGotoPlan,
 }: ScheduleCardProps) {
   const plan = item.productionPlan;
-  const operator = item.operatorName || item.operator || "—";
+  const [expanded, setExpanded] = useState(false);
+
+  const storeName = item.store?.name ?? item.title;
+  const day = item.scheduleDate.slice(8, 10);
+  const month = Number(item.scheduleDate.slice(5, 7));
+  const weekday = getWeekDayShort(item.scheduleDate);
+  const hiddenCount = Math.max(0, item.items.length - PREVIEW_ROWS);
+  const visibleItems = expanded ? item.items : item.items.slice(0, PREVIEW_ROWS);
 
   return (
-    <Card
-      className="cursor-pointer gap-0 py-0 transition-colors hover:border-primary/40"
+    <article
+      className="skeu-index-card cursor-pointer"
+      data-status={item.status}
       onClick={onOpen}
     >
-      <CardContent className="space-y-2.5 p-4">
-        <h3 className="text-base font-semibold leading-snug">{item.title}</h3>
+      <span className="skeu-index-tab" aria-hidden />
 
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <span>
-            <b className="font-mono font-semibold">{item.dishCount}</b>
-            <span className="ml-1 text-muted-foreground">菜品</span>
-          </span>
-          <span>
-            <b className="font-mono font-semibold">{item.totalQuantity}</b>
-            <span className="ml-1 text-muted-foreground">份</span>
-          </span>
-          <span className="text-muted-foreground">
-            {formatMonthDay(item.scheduleDate)} {getWeekDay(item.scheduleDate)}
-          </span>
+      <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
+        <div className="skeu-index-head">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <div className="min-w-0">
+              <span className="block text-xs font-bold tracking-[0.12em] text-muted-foreground">
+                门店
+              </span>
+              <h3 className="mt-0.5 truncate text-xl leading-tight font-bold text-[color:var(--ic-head)]">
+                {storeName}
+              </h3>
+            </div>
+            <div className="skeu-datebox">
+              <b className="text-[19px] leading-none font-bold tabular-nums">{day}</b>
+              <span className="mt-0.5 text-xs font-bold">
+                {month}月 · {weekday}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div
-          className="flex items-center justify-between gap-2 pt-1"
-          onClick={(event) => event.stopPropagation()}
-        >
-          <span className="text-xs text-muted-foreground">制单人 {operator}</span>
+        <div className="mt-2.5 min-h-0 flex-1">
+          {visibleItems.map((row) => (
+            <div
+              key={row.dishId}
+              className="grid h-[31px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--ic-row)]"
+            >
+              <span className="truncate text-[13px] font-semibold text-[color:var(--ic-body)]">
+                {row.dish.name}
+              </span>
+              <span className="text-[13px] font-bold text-[color:var(--ic-head)] tabular-nums">
+                {row.quantity}
+                <small className="ml-0.5 text-xs font-normal text-muted-foreground">份</small>
+              </span>
+            </div>
+          ))}
+          {hiddenCount > 0 && (
+            <div className="flex h-[30px] items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">
+                还有 {hiddenCount} 道
+              </span>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setExpanded((next) => !next);
+                }}
+                className="h-6 rounded-md px-1.5 text-xs font-bold text-[#77695a] transition-colors hover:bg-[#f4f0ea]"
+              >
+                {expanded ? "收起" : "查看更多"}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
 
+      <footer
+        className="mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 px-3 py-2"
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span className="text-xs font-bold text-muted-foreground tabular-nums">
+          <b className="text-base text-[color:var(--ic-head)]">{item.dishCount}</b> 菜 /{" "}
+          <b className="text-base text-[color:var(--ic-head)]">{item.totalQuantity}</b> 份
+        </span>
+        <span className="flex items-center gap-1.5">
           {!canWrite && (
-            <Button variant="outline" size="sm" onClick={onOpen}>
+            <SkeuButton variant="outline" size="sm" onClick={onOpen}>
               查看详情
-            </Button>
+            </SkeuButton>
           )}
           {canWrite && item.status === "待生效" && (
-            <Button size="sm" onClick={onActivate} disabled={busy}>
-              确认生产
-            </Button>
+            <>
+              <SkeuButton variant="outline" size="sm" onClick={onEdit}>
+                改菜单
+              </SkeuButton>
+              <SkeuActionButton
+                label={busy ? "确认中..." : "确认菜单"}
+                tone="primary"
+                onClick={onActivate}
+                disabled={busy}
+              />
+            </>
           )}
           {canWrite && item.status === "进行中" && plan && (
-            <Button variant="outline" size="sm" onClick={() => onGotoPlan(plan.id)}>
-              查看生产计划
-            </Button>
+            <SkeuButton variant="outline" size="sm" onClick={() => onGotoPlan(plan.id)}>
+              查看生产
+            </SkeuButton>
           )}
           {canWrite && item.status === "进行中" && !plan && (
-            <Button variant="outline" size="sm" disabled>
+            <SkeuButton variant="outline" size="sm" disabled>
               等待排产
-            </Button>
+            </SkeuButton>
           )}
           {canWrite && item.status === "已完成" && (
-            <Button variant="outline" size="sm" onClick={onOpen}>
+            <SkeuButton variant="outline" size="sm" onClick={onOpen}>
               查看详情
-            </Button>
+            </SkeuButton>
           )}
-        </div>
-      </CardContent>
-    </Card>
+        </span>
+      </footer>
+    </article>
   );
 }

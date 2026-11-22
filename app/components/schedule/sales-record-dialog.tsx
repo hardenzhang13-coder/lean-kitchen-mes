@@ -2,7 +2,6 @@
 
 import { useMemo, useRef, useState } from "react";
 import { Download, ClipboardPaste, CircleAlert } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   DialogHeader,
   DialogTitle,
@@ -10,6 +9,7 @@ import {
 } from "@/components/ui/dialog";
 import { FormDialog } from "@/app/components/ui/form-dialog";
 import { Input } from "@/app/components/ui/form-controls";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { toast } from "sonner";
 import { parseCSV, downloadCSV } from "@/lib/client/csv";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -382,17 +382,17 @@ export function SalesRecordDialog({
           {mode === "manual" ? (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={fillAllSold}>
+                <SkeuButton variant="outline" size="sm" onClick={fillAllSold}>
                   全部售罄
-                </Button>
-                <Button variant="ghost" size="sm" onClick={clearAll}>
+                </SkeuButton>
+                <SkeuButton variant="ghost" size="sm" onClick={clearAll}>
                   清空
-                </Button>
+                </SkeuButton>
                 <span className="text-xs text-muted-foreground ml-auto">
                   售出 &gt; 计划记为超售，不阻断保存；留空 = 未录
                 </span>
               </div>
-              <div className="rounded-lg border overflow-x-auto">
+              <div className="skeu-scroll overflow-x-auto rounded-[var(--sk-radius-md)] border border-skeu-border bg-white shadow-sk-raised">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground border-b">
@@ -459,13 +459,13 @@ export function SalesRecordDialog({
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={downloadTemplate}>
-                  <Download className="mr-1 h-4 w-4" />
+                <SkeuButton variant="outline" size="sm" onClick={downloadTemplate}>
+                  <Download className="h-4 w-4" />
                   下载 CSV 模板
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
+                </SkeuButton>
+                <SkeuButton variant="outline" size="sm" onClick={() => fileRef.current?.click()}>
                   选择 CSV 文件
-                </Button>
+                </SkeuButton>
                 <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
               </div>
               <textarea
@@ -475,17 +475,17 @@ export function SalesRecordDialog({
                 onChange={(e) => setCsvText(e.target.value)}
               />
               <div className="flex items-center gap-2">
-                <Button size="sm" onClick={parseImport}>
-                  <ClipboardPaste className="mr-1 h-4 w-4" />
+                <SkeuButton size="sm" onClick={parseImport}>
+                  <ClipboardPaste className="h-4 w-4" />
                   解析预览
-                </Button>
+                </SkeuButton>
                 {importRows.length > 0 && (
                   <span className="text-xs text-muted-foreground">核对匹配结果后确认导入</span>
                 )}
               </div>
 
               {importRows.length > 0 && (
-                <div className="rounded-lg border overflow-x-auto">
+                <div className="skeu-scroll overflow-x-auto rounded-[var(--sk-radius-md)] border border-skeu-border bg-white shadow-sk-raised">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-xs text-muted-foreground border-b">
@@ -587,17 +587,17 @@ export function SalesRecordDialog({
             )}
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
+            <SkeuButton variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
               取消
-            </Button>
+            </SkeuButton>
             {mode === "manual" ? (
-              <Button onClick={saveManual} disabled={saving || summary.errs}>
+              <SkeuButton onClick={saveManual} disabled={saving || summary.errs}>
                 保存回录
-              </Button>
+              </SkeuButton>
             ) : (
-              <Button onClick={saveImport} disabled={saving || importSummary.validCount === 0}>
+              <SkeuButton onClick={saveImport} disabled={saving || importSummary.validCount === 0}>
                 确认导入
-              </Button>
+              </SkeuButton>
             )}
           </div>
         </DialogFooter>

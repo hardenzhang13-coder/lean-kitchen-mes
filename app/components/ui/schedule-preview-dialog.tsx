@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FileQuestion } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
   Dialog,
   DialogFooter,
@@ -14,7 +14,7 @@ import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
+import { PageTabs } from "@/app/components/ui/page-tabs";
 import { ScheduleCuttingTable } from "@/app/components/schedule/schedule-cutting-table";
 import { ScheduleMenuTable } from "@/app/components/schedule/schedule-menu-table";
 import { SchedulePurchaseTable } from "@/app/components/schedule/schedule-purchase-table";
@@ -97,7 +97,7 @@ export function SchedulePreviewDialog({
     >
       <AppDialogContent
         size="workbench"
-        className="[&>button]:cursor-pointer p-0 flex flex-col max-h-[calc(100dvh-24px)]"
+        className="[&>button]:cursor-pointer p-0 flex h-[min(780px,calc(100dvh-24px))] flex-col"
       >
         <DialogHeader className="border-b px-6 pb-4 pt-6">
           <DialogTitle className="text-lg">
@@ -129,10 +129,10 @@ export function SchedulePreviewDialog({
             />
           ) : (
             <>
-              <SectionTabs
+              <PageTabs
                 ariaLabel="排程预览内容"
                 value={tab}
-                onChange={setTab}
+                onChange={(value) => setTab(value as QuickTab)}
                 tabs={[
                   { value: "menu", label: "排程菜单", count: detail.items.length },
                   { value: "cutting", label: "切配工单", count: detail.cuttingOrders.length },
@@ -155,12 +155,12 @@ export function SchedulePreviewDialog({
         </div>
 
         <DialogFooter className="border-t px-6 pb-5 pt-4">
-          <Button
+          <SkeuButton
             onClick={() => detail && router.push(`/schedules/${detail.id}`)}
             disabled={!detail}
           >
             查看完整详情
-          </Button>
+          </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
     </Dialog>

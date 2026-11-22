@@ -1,7 +1,6 @@
 "use client";
 
 import { Download, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { downloadCSV } from "@/lib/client/csv";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import type { ScheduleDocMeta } from "./schedule-cutting-table";
@@ -88,23 +88,23 @@ export function SchedulePurchaseTable({ rows, meta }: SchedulePurchaseTableProps
   return (
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h4 className="font-medium text-sm">采购计划明细</h4>
+        <h4 className="font-semibold text-sm">采购计划明细</h4>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="mr-1 h-4 w-4" />
+          <SkeuButton variant="outline" size="sm" onClick={handleDownload}>
+            <Download className="h-4 w-4" />
             下载 CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={printAll}>
-            <Printer className="mr-1 h-4 w-4" />
+          </SkeuButton>
+          <SkeuButton variant="outline" size="sm" onClick={printAll}>
+            <Printer className="h-4 w-4" />
             打印采购单（全部）
-          </Button>
-          <Button variant="outline" size="sm" onClick={printBySupplier}>
-            <Printer className="mr-1 h-4 w-4" />
+          </SkeuButton>
+          <SkeuButton variant="outline" size="sm" onClick={printBySupplier}>
+            <Printer className="h-4 w-4" />
             按供应商打印
-          </Button>
+          </SkeuButton>
         </div>
       </div>
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
+      <div className="skeu-table-scroll skeu-scroll min-w-0 max-w-full overflow-auto rounded-[12px] border border-skeu-border">
         <Table>
           <TableHeader>
             <TableRow>

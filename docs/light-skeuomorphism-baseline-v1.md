@@ -230,7 +230,7 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 | `SkeuButton` | 拟物按钮 | variant：primary / outline / secondary / ghost / danger |
 | `SkeuToggle` | 拨动开关 | 内凹轨道 + 立体圆钮；用于「全部展开 / 收起」等状态语义开关 |
 | `SkeuDotSelect` | 圆点状态筛选 | 圆点三色（全部灰 / 启用中绿 / 已停用琥珀）；选中浅橙底 + 勾 |
-| `SkeuListSelect` | 平铺浮层下拉（**仅选项 >10 个的枚举筛选**，如菜品类别） | 无遮罩 Popover 而非弹窗；磁贴全量平铺、一行最多 3 列、**不出现滚动条**；可搜索；点击即生效；首项「全部」；触发器为 skeu-trigger 标准件。≤10 选项用 `SkeuDotSelect` / `SkeuSegmented` |
+| `SkeuListSelect` | 平铺浮层下拉（**仅选项 >10 个的枚举筛选**，如菜品类别） | 无遮罩 Popover 而非弹窗；磁贴全量平铺、一行最多 3 列、**不出现滚动条**；可搜索；点击即生效；首项「全部」；触发器为 skeu-trigger 标准件。**选项个数分工：≤5 个（如门店）直接用普通下拉 `SkeuDotSelect`，不上平铺浮层**；6–10 个用 `SkeuDotSelect` / `SkeuSegmented`；>10 个才用本组件 |
 | `SkeuSearch` | 搜索框 | 内凹、无聚焦发光；有内容时右侧圆形清除钮 |
 
 改造：
@@ -378,3 +378,49 @@ Tailwind 侧通过 `@theme inline` 映射为 `shadow-sk-*`、`border-skeu-*` 工
 - 主字段（名称）`font-semibold text-primary`；编号 `CodeText`。
 - 空值统一 `EmptyValue`（短横线 + 40% 对比），不再手写 `—`。
 - 底栏汇总只显示「共 N 条」，不带业务名词后缀。
+
+## 10. 2026-11-22 排程模块拟物件
+
+适用：去排菜弹窗（`schedule-create-dialog`）与排程看板卡片（`schedule-card`）。规格样张见 `/ui-kit`「v2 材质 → 排程拟物件」。
+
+### 10.1 菜品选择卡（`.skeu-dish-card`）
+
+- 菜品库网格单元：暖白纸面 + 顶部高光，hover 上浮 1px，active 下压内凹。
+- 选中态 `data-on="true"`：橙粉纸面（`--sk-primary-soft` 同源）+ 描边 `#f5b48d`，右上角单选圆点 `.skeu-pick-dot` 打勾。
+- 卡内信息：分类（中性灰识别片，不带分类色）、菜名、编号（等宽）、份量 `PortionTag`、售价（`font-mono` 右对齐）。
+
+### 10.2 已选卡（`.skeu-picked-card`）
+
+- 绿纸面（`#f5fbf7 → #e9f4ee`）+ 4px 左色条，表达「已入菜单」。
+- 行内步进器用 `SkeuButton size="icon-sm" variant="outline"`；份数为 `.skeu-input` 内凹小输入。
+- **排序规则：最新选中的排最前**（`toggleDish` 用 unshift；复制来源保留原单顺序）。
+
+### 10.3 筛选片（`.skeu-fchip`）
+
+- 筛选浮层内的条件片：中性底凸起，`data-on="true"` 切橙粉软底。
+- 仅用于浮层分组筛选（类别 / 份量 / 售价），不替代 `SkeuDotSelect`（状态语义）与 `SkeuChipSelect`（取值自带识别色）。
+
+### 10.4 排程索引卡（`.skeu-index-card`）
+
+- 看板卡片形态：卡册舌 `.skeu-index-tab` + 状态色头部 `.skeu-index-head` + 日期盒 `.skeu-datebox`。
+- 三态（待生效 / 进行中 / 已完成）用 `data-status` 驱动整套 CSS 变量（`--ic-*`），**着色只落舌片与头部，卡身保持中性纸面**。
+- 菜品预览默认前 3 行，超出「还有 N 道 / 查看更多」行内展开。
+
+### 10.5 排菜模块交互收口（2026-11-23）
+
+- **改菜单 = 去排菜弹窗编辑态**：看板卡片「改菜单」与详情页「修改」都打开 `schedule-create-dialog` 的 `editId` 模式（加载原单回填、PUT 保存），不跳独立编辑页；原 `/schedules/[id]/edit` 路由与 `ScheduleForm` 已下线。复制仍走 `copyFromId`（新建 POST）。
+- **卡片主操作降一级**：看板卡片上「确认生产」用 `SkeuButton variant="outline"`（与「改菜单」同级），主色只留给弹窗内提交按钮。
+- **日期盒 `.skeu-datebox`**：宽度随内容自适应（栅格列 `auto` + `white-space: nowrap`），「N月 · 周X」必须一行；整体 50px 高、日数字 19px。
+- **门店筛选选项个数分工**（已并入 §0 组件表 `SkeuListSelect` 条目）：≤5 直接下拉（`SkeuDotSelect`），>10 才用平铺浮层。
+- **打印入口**：排程详情只保留「打印切配工单」（`?doc=cutting`），门店点菜单打印模板已删除。
+
+### 10.6 看板状态列宽与卡片密度（2026-11-23）
+
+适用：排菜（`/schedules`）、生产计划单（`/production-plans`）、内部生产单（`/self-production-orders`）共用的状态看板 `KanbanBoard`。
+
+- 看板行**固定 3 栅格**（`lg:grid-cols-3`），不随可见列数改成 2 栅格或 1 栅格。
+- 三列全显：各 1/3，卡片单列纵向堆叠（现状不变）。
+- 关掉一列：剩余两列**不均匀拉伸**——被关列的 workflow 上游邻列（枚举顺序 `待生效 → 进行中 → 已完成` 的循环左邻）扩为 2/3，另一列保持 1/3；扩宽的列内卡片**两列平铺**。
+  - 关「已完成」→「进行中」2/3；关「进行中」→「待生效」2/3；关「待生效」→「已完成」2/3。
+- 只剩一列：撑满整行（3/3），列内卡片**三列平铺**。
+- 卡片平铺只为保持卡片恒定舒适宽度（约 420–450px），窄屏（<lg）始终单列。

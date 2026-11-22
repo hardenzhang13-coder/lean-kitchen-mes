@@ -1,7 +1,6 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Table,
   TableBody,
@@ -10,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { downloadCSV } from "@/lib/client/csv";
 import type { ScheduleDocMeta } from "./schedule-cutting-table";
 
@@ -77,26 +77,26 @@ export function ScheduleMenuTable({ items, meta }: ScheduleMenuTableProps) {
     <div className="min-w-0 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <h4 className="font-medium text-sm">排程菜单</h4>
-          <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+          <h4 className="font-semibold text-sm">排程菜单</h4>
+          <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
             总份数 <b className="text-foreground">{totalQty}</b>
           </span>
-          <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+          <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
             成本合计 <b className="text-foreground">¥{totalCost.toFixed(2)}</b>
           </span>
-          <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+          <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
             计划销售额 <b className="text-foreground">¥{totalSales.toFixed(2)}</b>
           </span>
-          <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1" title="预计毛利率 =（计划销售额 − 成本合计）÷ 计划销售额 × 100%">
+          <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground" title="预计毛利率 =（计划销售额 − 成本合计）÷ 计划销售额 × 100%">
             预计毛利率 <b className="text-foreground">{grossMargin}</b>
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={handleDownload}>
-          <Download className="mr-1 h-4 w-4" />
+        <SkeuButton variant="outline" size="sm" onClick={handleDownload}>
+          <Download className="h-4 w-4" />
           下载 CSV
-        </Button>
+        </SkeuButton>
       </div>
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
+      <div className="skeu-table-scroll skeu-scroll min-w-0 max-w-full overflow-auto rounded-[12px] border border-skeu-border">
         <Table>
           <TableHeader>
             <TableRow>

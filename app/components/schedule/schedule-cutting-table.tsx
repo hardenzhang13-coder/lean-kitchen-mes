@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { Download, Printer } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogFooter,
@@ -10,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { Input } from "@/app/components/ui/form-controls";
 import {
   Table,
@@ -154,17 +154,17 @@ export function ScheduleCuttingTable({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h4 className="font-medium text-sm">切配工单明细</h4>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownload}>
-            <Download className="mr-1 h-4 w-4" />
+          <SkeuButton variant="outline" size="sm" onClick={handleDownload}>
+            <Download className="h-4 w-4" />
             下载 CSV
-          </Button>
-          <Button variant="outline" size="sm" onClick={handlePrint}>
-            <Printer className="mr-1 h-4 w-4" />
+          </SkeuButton>
+          <SkeuButton variant="outline" size="sm" onClick={handlePrint}>
+            <Printer className="h-4 w-4" />
             打印切配单
-          </Button>
+          </SkeuButton>
         </div>
       </div>
-      <div className="min-w-0 max-w-full overflow-x-auto rounded-lg border">
+      <div className="skeu-table-scroll skeu-scroll min-w-0 max-w-full overflow-auto rounded-[12px] border border-skeu-border">
         <Table>
           <TableHeader>
             <TableRow>
@@ -251,7 +251,7 @@ export function ScheduleCuttingTable({
                         : calculatePrepLabelCopies(row.requiredQty, row.packageSpec);
                     return (
                       <TableCell className="text-right">
-                        <Button
+                        <SkeuButton
                           variant="ghost"
                           size="sm"
                           onClick={() => openLabelPrint(row)}
@@ -262,9 +262,9 @@ export function ScheduleCuttingTable({
                               : "缺少有效包装规格，无法打印标签"
                           }
                         >
-                          <Printer className="mr-1 h-4 w-4" />
+                          <Printer className="h-4 w-4" />
                           打印标签
-                        </Button>
+                        </SkeuButton>
                       </TableCell>
                     );
                   })()}
@@ -287,7 +287,7 @@ export function ScheduleCuttingTable({
                 : calculatePrepLabelCopies(printRow.requiredQty, printRow.packageSpec);
             return (
               <div className="space-y-3">
-                <div className="rounded-lg border bg-muted/30 p-3 text-sm">
+                <div className="rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] p-3 text-sm shadow-sk-raised">
                   <p className="font-medium">{printRow.itemName}</p>
                   <p className="mt-1 text-muted-foreground">
                     包装规格：{printRow.packageSpec}g · 本行共 {maxCopies} 张
@@ -320,11 +320,11 @@ export function ScheduleCuttingTable({
             );
           })()}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPrintRow(null)}>取消</Button>
-            <Button onClick={confirmLabelPrint}>
-              <Printer className="mr-2 h-4 w-4" />
+            <SkeuButton variant="outline" onClick={() => setPrintRow(null)}>取消</SkeuButton>
+            <SkeuButton onClick={confirmLabelPrint}>
+              <Printer className="h-4 w-4" />
               进入打印
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

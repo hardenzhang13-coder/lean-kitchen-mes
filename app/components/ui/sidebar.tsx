@@ -19,7 +19,7 @@ import { canAccessPage } from "@/lib/shared/access-control";
 
 const navItems = [
   { href: "/", label: "工作台", icon: LayoutDashboard },
-  { href: "/schedules", label: "排程", icon: CalendarDays },
+  { href: "/schedules", label: "排菜", icon: CalendarDays },
   { href: "/production-plans", label: "生产", icon: ClipboardList },
   {
     href: "/purchases",

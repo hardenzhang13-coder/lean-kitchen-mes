@@ -453,6 +453,174 @@
 
 /* ---------- 徽章：胶囊 + 顶部高光 ---------- */
 
+/* ---------- 去排菜：菜品选择卡 / 已选卡 / 筛选片（2026-11-22 排程模块） ---------- */
+.skeu-dish-card {
+  position: relative;
+  min-height: 112px;
+  border: 1px solid #ded9cd;
+  border-radius: var(--sk-radius-xs);
+  background: linear-gradient(180deg, #fffdf8 0%, #faf7f1 100%);
+  box-shadow: var(--sk-highlight-top), 0 6px 14px rgba(15, 23, 42, 0.05);
+  text-align: left;
+  transition: transform 0.12s ease, border-color 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+}
+.skeu-dish-card:hover {
+  transform: translateY(-1px);
+  border-color: #cbc5b8;
+}
+.skeu-dish-card:active {
+  transform: translateY(1px);
+  box-shadow: var(--sk-inset);
+}
+.skeu-dish-card[data-on="true"] {
+  border-color: #f5b48d;
+  background: linear-gradient(180deg, #fff8f1 0%, #fdeee1 100%);
+  box-shadow: var(--sk-highlight-top), 0 6px 16px rgba(234, 88, 12, 0.1);
+}
+/* 单选圆点：右上角拟物 Radio */
+.skeu-pick-dot {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid var(--sk-border-strong);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-pick-dot svg {
+  position: absolute;
+  inset: 5px;
+  width: 14px;
+  height: 14px;
+  color: var(--sk-primary-ink);
+  opacity: 0;
+  transition: opacity 0.12s ease;
+}
+[data-on="true"] .skeu-pick-dot {
+  border-color: #ea7a3c;
+  background: var(--sk-primary-soft);
+}
+[data-on="true"] .skeu-pick-dot svg { opacity: 1; }
+/* 已选菜品卡：绿纸面 + 左色条 */
+.skeu-picked-card {
+  position: relative;
+  border: 1px solid #bfdacd;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #f5fbf7 0%, #e9f4ee 100%);
+  box-shadow: var(--sk-highlight-top), 0 6px 13px rgba(15, 23, 42, 0.05);
+}
+.skeu-picked-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #bfdacd 0%, #98bfa9 100%);
+}
+/* 筛选浮层选择片 */
+.skeu-fchip {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: var(--sk-radius-xs);
+  color: #6d675f;
+  background: var(--sk-surface-muted);
+  border: 1px solid var(--sk-border);
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+  transition: transform 0.1s ease;
+}
+.skeu-fchip:hover { background: #f6f3ef; }
+.skeu-fchip:active { transform: translateY(1px); box-shadow: var(--sk-inset); }
+.skeu-fchip[data-on="true"] {
+  color: var(--sk-primary-ink);
+  background: var(--sk-primary-soft);
+  border-color: #f5b48d;
+  box-shadow: inset 0 2px 3px rgba(194, 65, 12, 0.1), var(--sk-highlight-top);
+}
+
+/* ---------- 排程看板索引卡（2026-11-22 排程模块） ---------- */
+.skeu-index-card {
+  --ic-p1: #fffdfb;
+  --ic-p2: #faf8f4;
+  --ic-bd: #dedbd3;
+  --ic-head: #33302b;
+  --ic-dbg: #f6f4f0;
+  --ic-dbd: #dfdad2;
+  --ic-dink: #6d675f;
+  --ic-row: #e7e4dd;
+  --ic-body: #59544d;
+  --ic-tab1: #fffaeb;
+  --ic-tab2: #f5e8c8;
+  --ic-tab-bd: #ddc98f;
+  --ic-head-bg: linear-gradient(180deg, #fffaf0 0%, #f8efd9 100%);
+  --ic-head-bd: #e2d3a8;
+  position: relative;
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  min-height: 262px;
+  margin-top: 10px;
+  border: 1px solid var(--ic-bd);
+  border-radius: var(--sk-radius-md);
+  background: linear-gradient(180deg, var(--ic-p1) 0%, var(--ic-p2) 100%);
+  box-shadow: var(--sk-highlight-top), 0 1px 2px rgba(15, 23, 42, 0.05), 0 9px 20px rgba(15, 23, 42, 0.07);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.skeu-index-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--sk-highlight-top), 0 15px 28px rgba(15, 23, 42, 0.1);
+}
+.skeu-index-card[data-status="进行中"] {
+  --ic-p1: #fdfdfc; --ic-p2: #f7f7f5; --ic-bd: #dbdad6;
+  --ic-head: #33322f; --ic-dbg: #f5f5f2; --ic-dbd: #dedcd7; --ic-dink: #65625d;
+  --ic-row: #e6e5e1; --ic-body: #575551;
+  --ic-tab1: #f2faf5; --ic-tab2: #dff0e6; --ic-tab-bd: #b8d8c3;
+  --ic-head-bg: linear-gradient(180deg, #f4fbf7 0%, #e9f4ee 100%); --ic-head-bd: #c3ddd0;
+}
+.skeu-index-card[data-status="已完成"] {
+  --ic-p1: #f8f8f6; --ic-p2: #efefec; --ic-bd: #d8d6d1;
+  --ic-head: #565450; --ic-dbg: #f2f2ef; --ic-dbd: #d9d7d2; --ic-dink: #6d6b67;
+  --ic-row: #e2e0dc; --ic-body: #61605c;
+  --ic-tab1: #f8faf8; --ic-tab2: #e7e9e6; --ic-tab-bd: #c9cdc7;
+  --ic-head-bg: linear-gradient(180deg, #f7f8f6 0%, #eef0ed 100%); --ic-head-bd: #d3d6d1;
+}
+.skeu-index-tab {
+  position: absolute;
+  top: -12px;
+  left: 22px;
+  width: 112px;
+  height: 18px;
+  border: 1px solid var(--ic-tab-bd);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  background: linear-gradient(180deg, var(--ic-tab1) 0%, var(--ic-tab2) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 2px 5px rgba(15, 23, 42, 0.06);
+}
+.skeu-index-head {
+  padding: 10px;
+  border: 1px solid var(--ic-head-bd);
+  border-radius: var(--sk-radius-xs);
+  background: var(--ic-head-bg);
+  box-shadow: var(--sk-highlight-top);
+}
+.skeu-datebox {
+  height: 50px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  border-radius: var(--sk-radius-xs);
+  background: var(--ic-dbg);
+  border: 1px solid var(--ic-dbd);
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+  color: var(--ic-dink);
+}
+
 /* ---------- 表格 ---------- */
 .skeu-table-scroll {
   background-color: var(--sk-panel-body);

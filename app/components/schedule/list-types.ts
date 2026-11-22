@@ -27,6 +27,11 @@ export interface ScheduleListItem {
   createdAt: string;
   dishCount: number;
   totalQuantity: number;
+  items: Array<{
+    dishId: number;
+    quantity: number;
+    dish: { id: number; name: string; code: string };
+  }>;
   productionPlan: PlanRef | null;
 }
 

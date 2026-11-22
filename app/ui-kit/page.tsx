@@ -5,11 +5,13 @@ import {
   ArrowDown,
   ArrowUp,
   Boxes,
+  Check,
   CheckCircle2,
   ClipboardList,
   History,
   Inbox,
   Layers3,
+  Minus,
   PackageOpen,
   Pencil,
   Plus,
@@ -17,6 +19,7 @@ import {
   Power,
   PowerOff,
   Trash2,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -493,6 +496,153 @@ function MaterialKit() {
             <span className="text-[13px] text-muted-foreground">
               上一页 · 1 · 下一页
             </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-semibold">排程拟物件（2026-11-22）</h2>
+          <p className="text-sm text-muted-foreground">
+            去排菜弹窗与排程看板卡片的专用件：菜品选择卡、已选卡、筛选片、索引卡。
+            三态着色只落在索引卡舌片与头部，卡身保持中性纸面。
+          </p>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="text-sm font-semibold">菜品选择卡 · skeu-dish-card</div>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button type="button" data-on="true" className="skeu-dish-card p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex h-[22px] items-center rounded-full bg-[#f4f1eb] px-1.5 text-xs font-bold text-[#6d675f]">
+                    猪肉类
+                  </span>
+                  <span className="skeu-pick-dot">
+                    <Check strokeWidth={3} />
+                  </span>
+                </div>
+                <div className="mt-2 truncate pr-5 text-sm font-bold text-[#36312a]">红烧肉</div>
+                <div className="mt-0.5 font-mono text-xs text-muted-foreground">DSH-PORK-0001</div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <PortionTag portion="小碗菜" className="h-[22px] px-1.5 text-xs" />
+                  <span className="font-mono text-[13px] font-bold text-[#7a4a2a] tabular-nums">
+                    ¥16.00
+                  </span>
+                </div>
+              </button>
+              <button type="button" data-on="false" className="skeu-dish-card p-2.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="inline-flex h-[22px] items-center rounded-full bg-[#f4f1eb] px-1.5 text-xs font-bold text-[#6d675f]">
+                    蔬菜类
+                  </span>
+                  <span className="skeu-pick-dot">
+                    <Check strokeWidth={3} />
+                  </span>
+                </div>
+                <div className="mt-2 truncate pr-5 text-sm font-bold text-[#36312a]">清炒时蔬</div>
+                <div className="mt-0.5 font-mono text-xs text-muted-foreground">DSH-VEG-0003</div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <PortionTag portion="社区·2份" className="h-[22px] px-1.5 text-xs" />
+                  <span className="font-mono text-[13px] font-bold text-[#7a4a2a] tabular-nums">
+                    ¥8.00
+                  </span>
+                </div>
+              </button>
+            </div>
+            <div className="text-sm font-semibold">已选卡 · skeu-picked-card（最新选中在前）</div>
+            <div className="skeu-picked-card grid grid-cols-[minmax(0,1fr)_auto] gap-2.5 px-3 py-2.5 pl-4">
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold text-[#2f4237]">红烧肉</div>
+                <div className="mt-1 flex flex-wrap items-center gap-1 text-xs text-[#687a70]">
+                  <span className="inline-flex h-5 items-center rounded-full border border-[#d4e3d9] bg-white/75 px-1.5 text-xs font-bold text-[#5d7265]">
+                    猪肉类
+                  </span>
+                  <PortionTag portion="小碗菜" className="h-5 text-xs" />
+                  <span className="font-mono font-bold">¥16.00</span>
+                </div>
+              </div>
+              <button
+                type="button"
+                aria-label="移除示例"
+                className="skeu-icon-btn size-7 shrink-0 text-muted-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+              <div className="col-span-2 mt-1.5 flex items-center justify-end gap-1.5">
+                <SkeuButton size="icon-sm" variant="outline" aria-label="减少份数">
+                  <Minus className="h-3 w-3" />
+                </SkeuButton>
+                <span className="skeu-input grid h-7 w-14 place-items-center font-mono text-sm font-bold">
+                  12
+                </span>
+                <SkeuButton size="icon-sm" variant="outline" aria-label="增加份数">
+                  <Plus className="h-3 w-3" />
+                </SkeuButton>
+                <span className="ml-1 text-xs text-muted-foreground">份</span>
+              </div>
+            </div>
+            <div className="text-sm font-semibold">筛选片 · skeu-fchip</div>
+            <div className="flex flex-wrap gap-1.5">
+              <button type="button" data-on="true" className="skeu-fchip">全部</button>
+              <button type="button" data-on="false" className="skeu-fchip">猪肉类</button>
+              <button type="button" data-on="false" className="skeu-fchip">¥10 - ¥20</button>
+            </div>
+          </div>
+          <div className="space-y-3 rounded-xl border bg-card p-4">
+            <div className="text-sm font-semibold">排程索引卡 · skeu-index-card</div>
+            {(["待生效", "进行中", "已完成"] as const).map((status) => (
+              <article key={status} className="skeu-index-card" data-status={status}>
+                <span className="skeu-index-tab" aria-hidden />
+                <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
+                  <div className="skeu-index-head">
+                    <div className="grid grid-cols-[minmax(0,1fr)_68px] items-center gap-3">
+                      <div className="min-w-0">
+                        <span className="block text-xs font-bold tracking-[0.12em] text-muted-foreground">
+                          门店
+                        </span>
+                        <h3 className="mt-0.5 truncate text-xl leading-tight font-bold text-[color:var(--ic-head)]">
+                          新金食堂
+                        </h3>
+                      </div>
+                      <div className="skeu-datebox">
+                        <b className="text-[22px] leading-none font-bold tabular-nums">24</b>
+                        <span className="mt-1 text-xs font-bold">11月 · 周二</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-2.5">
+                    <div className="grid h-[31px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--ic-row)]">
+                      <span className="truncate text-[13px] font-semibold text-[color:var(--ic-body)]">
+                        红烧肉
+                      </span>
+                      <span className="text-[13px] font-bold text-[color:var(--ic-head)] tabular-nums">
+                        20<small className="ml-0.5 text-xs font-normal text-muted-foreground">份</small>
+                      </span>
+                    </div>
+                    <div className="grid h-[31px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--ic-row)]">
+                      <span className="truncate text-[13px] font-semibold text-[color:var(--ic-body)]">
+                        番茄炒蛋
+                      </span>
+                      <span className="text-[13px] font-bold text-[color:var(--ic-head)] tabular-nums">
+                        16<small className="ml-0.5 text-xs font-normal text-muted-foreground">份</small>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <footer className="mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 px-3 py-2">
+                  <span className="text-xs font-bold text-muted-foreground tabular-nums">
+                    <b className="text-base text-[color:var(--ic-head)]">8</b> 菜 /{" "}
+                    <b className="text-base text-[color:var(--ic-head)]">56</b> 份
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <SkeuButton variant="outline" size="sm">
+                      {status === "待生效" ? "改菜单" : "查看详情"}
+                    </SkeuButton>
+                    {status === "待生效" && <SkeuButton size="sm">确认生产</SkeuButton>}
+                  </span>
+                </footer>
+              </article>
+            ))}
           </div>
         </div>
       </section>

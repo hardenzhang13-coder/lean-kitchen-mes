@@ -1,7 +1,6 @@
 "use client";
 
 import { Columns3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -33,13 +32,16 @@ export function StatusColumnMenu({ visible, onChange }: StatusColumnMenuProps) {
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
-          <Button variant="outline" type="button">
-            <Columns3 className="mr-1.5 h-4 w-4" />
+          <button
+            type="button"
+            className="skeu-btn skeu-btn-outline inline-flex h-11 items-center gap-1.5 rounded-[var(--sk-radius-sm)] px-[18px] text-sm font-semibold"
+          >
+            <Columns3 className="h-4 w-4" />
             状态显示
-          </Button>
+          </button>
         }
       />
-      <DropdownMenuContent align="end" className="w-48">
+      <DropdownMenuContent align="end" className="skeu-popover w-48">
         <DropdownMenuGroup>
           <DropdownMenuLabel>列表展示的状态</DropdownMenuLabel>
           <DropdownMenuSeparator />

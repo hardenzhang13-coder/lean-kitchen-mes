@@ -9,7 +9,8 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { SkeuListSelect } from "@/app/components/ui/skeu-list-select";
+import { SkeuDotSelect } from "@/app/components/ui/skeu-dot-select";
 import { SchedulePreviewDialog } from "@/app/components/ui/schedule-preview-dialog";
 import { ScheduleCard } from "@/app/components/schedule/schedule-card";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
@@ -34,7 +35,10 @@ export default function SchedulesPage() {
   const [actionId, setActionId] = useState<number | null>(null);
 
   const [previewId, setPreviewId] = useState<number | null>(null);
-  const [createState, setCreateState] = useState<{ copyFromId: number | null } | null>(null);
+  const [createState, setCreateState] = useState<{
+    copyFromId: number | null;
+    editId: number | null;
+  } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -42,9 +46,9 @@ export default function SchedulesPage() {
     // 以 transition 更新，避免该 effect 同步触发级联渲染
     startTransition(() => {
       if (Number.isInteger(copy) && copy > 0) {
-        setCreateState({ copyFromId: copy });
+        setCreateState({ copyFromId: copy, editId: null });
       } else if (params.get("create") === "1") {
-        setCreateState({ copyFromId: null });
+        setCreateState({ copyFromId: null, editId: null });
       }
     });
   }, []);
@@ -95,13 +99,13 @@ export default function SchedulesPage() {
       header={
         <PageHeader
           variant="topbar"
-          title="菜品排程单"
-          description="门店按日期报菜品与份数；确认后进入进行中，由切配中心汇总成生产计划单"
+          title="排菜"
+          description="门店按售卖日期排菜品与份数；确认后进入进行中，由切配中心汇总成生产计划单"
           actions={
             canWrite ? (
-              <SkeuButton onClick={() => setCreateState({ copyFromId: null })}>
+              <SkeuButton onClick={() => setCreateState({ copyFromId: null, editId: null })}>
                 <Plus className="h-4 w-4" />
-                菜品排程
+                去排菜
               </SkeuButton>
             ) : undefined
           }
@@ -122,20 +126,38 @@ export default function SchedulesPage() {
           value={board.date}
           onChange={board.setDate}
           placeholder="售卖日期"
-          className="w-[380px]"
+          className="w-[200px]"
           showWeekday
         />
-        <SelectTileMode
-          options={[
-            { value: "all", label: "全部门店" },
-            ...stores.map((store) => ({ value: String(store.id), label: store.name })),
-          ]}
-          value={board.storeId}
-          onChange={board.setStoreId}
-          placeholder="全部门店"
-          title="选择门店"
-          className="w-[180px]"
-        />
+        {stores.length <= 5 ? (
+          <SkeuDotSelect
+            value={board.storeId}
+            onChange={board.setStoreId}
+            options={[
+              { value: "", label: "全部门店", tone: "all" },
+              ...stores.map((store) => ({
+                value: String(store.id),
+                label: store.name,
+                tone: "all" as const,
+              })),
+            ]}
+            aria-label="选择门店"
+          />
+        ) : (
+          <SkeuListSelect
+            options={[
+              ...stores.map((store) => ({
+                value: String(store.id),
+                label: store.name,
+              })),
+            ]}
+            value={board.storeId}
+            onChange={board.setStoreId}
+            allLabel="全部门店"
+            ariaLabel="选择门店"
+            className="w-[160px]"
+          />
+        )}
       </ListToolbar>
 
       <div className="min-h-0 flex-1 overflow-auto">
@@ -154,6 +176,7 @@ export default function SchedulesPage() {
                 busy={actionId === row.id}
                 canWrite={canWrite}
                 onOpen={() => setPreviewId(row.id)}
+                onEdit={() => setCreateState({ copyFromId: null, editId: row.id })}
                 onActivate={() => activateSchedule(row.id)}
                 onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
               />
@@ -170,7 +193,12 @@ export default function SchedulesPage() {
       {createState && (
         <ScheduleCreateDialog
           copyFromId={createState.copyFromId}
+          editId={createState.editId}
           onClose={() => setCreateState(null)}
+          onEdited={() => {
+            setCreateState(null);
+            board.refresh();
+          }}
           onCreated={(id) => {
             setCreateState(null);
             board.refresh();

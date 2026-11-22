@@ -15,7 +15,6 @@ import {
   Printer,
   Trash2,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogFooter,
@@ -30,8 +29,10 @@ import { InfoTile } from "@/app/components/ui/info-tile";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
+import { PageTabs } from "@/app/components/ui/page-tabs";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { ScheduleCreateDialog } from "@/app/components/schedule/schedule-create-dialog";
 import { formatDate, getWeekDay } from "@/lib/shared/date-format";
 import { canAccessApi } from "@/lib/shared/access-control";
 import { useCurrentRole } from "@/lib/client/use-current-role";
@@ -108,6 +109,7 @@ export default function ScheduleDetailPage() {
   const [activateOpen, setActivateOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<DetailTab>("menu");
   const [recordOpen, setRecordOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
 
   const refresh = () => {
@@ -193,7 +195,7 @@ export default function ScheduleDetailPage() {
           icon={FileStack}
           title="排程不存在"
           description="该排程可能已被删除，或当前链接已失效。"
-          action={{ label: "返回排程列表", onClick: () => router.push("/schedules") }}
+          action={{ label: "返回排菜列表", onClick: () => router.push("/schedules") }}
         />
       </PageShell>
     );
@@ -220,7 +222,7 @@ export default function ScheduleDetailPage() {
       <PageHeader
         showBack
         backHref="/schedules"
-        backLabel="返回排程列表"
+        backLabel="返回排菜列表"
         title={data.title}
         meta={<ScheduleStatusTag status={data.status} />}
         description={
@@ -230,65 +232,61 @@ export default function ScheduleDetailPage() {
         }
         actions={
           <>
-            <Button
+            <SkeuButton
               variant="outline"
               onClick={() =>
                 window.open(
-                  `/schedules/${id}/print?doc=menu`,
+                  `/schedules/${id}/print?doc=cutting`,
                   "_blank",
                   "noopener,noreferrer"
                 )
               }
             >
-              <Printer className="mr-2 h-4 w-4" />
-              打印点菜单
-            </Button>
+              <Printer className="h-4 w-4" />
+              打印切配工单
+            </SkeuButton>
             {canWrite && (
-              <Button
+              <SkeuButton
                 variant="outline"
                 onClick={() => router.push(`/schedules?copyFrom=${id}`)}
                 disabled={actionLoading}
               >
-                <Copy className="mr-2 h-4 w-4" />
+                <Copy className="h-4 w-4" />
                 复制
-              </Button>
+              </SkeuButton>
             )}
             {canWrite && data.status === "待生效" && (
               <>
-                <Button
-                  variant="outline"
-                  onClick={() => router.push(`/schedules/${id}/edit`)}
-                  disabled={actionLoading}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
+                <SkeuButton variant="outline" onClick={() => setEditOpen(true)} disabled={actionLoading}>
+                  <Pencil className="h-4 w-4" />
                   修改
-                </Button>
-                <Button
+                </SkeuButton>
+                <SkeuButton
                   variant="ghost"
-                  className="text-destructive hover:text-destructive"
+                  className="text-[#b42318] hover:bg-[#fdecea] hover:text-[#b42318]"
                   onClick={() => setDeleteOpen(true)}
                   disabled={actionLoading}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
+                  <Trash2 className="h-4 w-4" />
                   删除
-                </Button>
-                <Button onClick={() => setActivateOpen(true)} disabled={actionLoading}>
-                  <Play className="mr-2 h-4 w-4" />
+                </SkeuButton>
+                <SkeuButton onClick={() => setActivateOpen(true)} disabled={actionLoading}>
+                  <Play className="h-4 w-4" />
                   确认生产
-                </Button>
+                </SkeuButton>
               </>
             )}
             {canWrite && data.status === "进行中" && !plan && (
-              <Button onClick={() => router.push(`/production-plans?scheduleId=${id}`)}>
-                <Plus className="mr-2 h-4 w-4" />
+              <SkeuButton onClick={() => router.push(`/production-plans/new?scheduleId=${id}`)}>
+                <Plus className="h-4 w-4" />
                 纳入生产计划单
-              </Button>
+              </SkeuButton>
             )}
             {data.status === "进行中" && plan && (
-              <Button variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
-                <FileStack className="mr-2 h-4 w-4" />
+              <SkeuButton variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
+                <FileStack className="h-4 w-4" />
                 查看生产计划
-              </Button>
+              </SkeuButton>
             )}
           </>
         }
@@ -321,7 +319,7 @@ export default function ScheduleDetailPage() {
       </div>
 
       {plan ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] px-4 py-3 text-sm shadow-sk-raised">
           <FileStack className="h-4 w-4 text-muted-foreground" />
           <span className="flex-1">
             已纳入生产计划单{" "}
@@ -329,43 +327,43 @@ export default function ScheduleDetailPage() {
             {" · "}
             {plan.title}
           </span>
-          <Button size="sm" variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
+          <SkeuButton size="sm" variant="outline" onClick={() => router.push(`/production-plans/${plan.id}`)}>
             查看生产计划
-          </Button>
+          </SkeuButton>
         </div>
       ) : (
         data.status === "进行中" && (
-          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <div className="flex flex-wrap items-center gap-3 rounded-[var(--sk-radius-md)] border border-skeu-border bg-[linear-gradient(180deg,#fff,#fdfcfb)] px-4 py-3 text-sm shadow-sk-raised">
             <FileStack className="h-4 w-4 text-muted-foreground" />
             <span className="flex-1 text-muted-foreground">
               尚未纳入生产计划单，切配中心汇总后才会开始切配与入库。
             </span>
-            <Button size="sm" variant="outline" onClick={() => router.push(`/production-plans?scheduleId=${id}`)}>
+            <SkeuButton size="sm" variant="outline" onClick={() => router.push(`/production-plans/new?scheduleId=${id}`)}>
               纳入生产计划单
-            </Button>
+            </SkeuButton>
           </div>
         )
       )}
 
       {showSalesTab && pendingSoldCount > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm">
+        <div className="flex flex-wrap items-center gap-3 rounded-[var(--sk-radius-md)] border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm shadow-sk-raised">
           <span className="flex-1 text-[var(--status-warning)]">
             <b className="text-foreground">
               还有 {pendingSoldCount} 个菜品未回录售出份数
             </b>
             {" "}· 回录后用于复盘与下一次排程
           </span>
-          <Button size="sm" onClick={() => setRecordOpen(true)}>
+          <SkeuButton size="sm" onClick={() => setRecordOpen(true)}>
             去回录
-          </Button>
+          </SkeuButton>
         </div>
       )}
 
       <div className="min-w-0">
-        <SectionTabs
+        <PageTabs
           ariaLabel="排程内容"
           value={activeTab}
-          onChange={setActiveTab}
+          onChange={(value) => setActiveTab(value as DetailTab)}
           tabs={[
             { value: "menu", label: "排程菜单", count: data.items.length },
             { value: "cutting", label: "切配工单", count: data.cuttingOrders.length },
@@ -396,7 +394,7 @@ export default function ScheduleDetailPage() {
             (data.cuttingOrders.length > 0 ? (
               <div className="min-w-0 space-y-3">
                 {missingPackageSpec.length > 0 && (
-                  <div className="rounded-lg border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm">
+                  <div className="rounded-[var(--sk-radius-md)] border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm shadow-sk-raised">
                     <b className="text-foreground">
                       {missingPackageSpec.length} 个净料/小料缺少封装规格
                     </b>
@@ -444,6 +442,21 @@ export default function ScheduleDetailPage() {
         onSaved={refresh}
       />
 
+      {editOpen && (
+        <ScheduleCreateDialog
+          editId={id}
+          onClose={() => setEditOpen(false)}
+          onEdited={() => {
+            setEditOpen(false);
+            refresh();
+          }}
+          onCreated={() => {
+            setEditOpen(false);
+            refresh();
+          }}
+        />
+      )}
+
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AppDialogContent size="compact">
           <DialogHeader>
@@ -453,17 +466,12 @@ export default function ScheduleDetailPage() {
             确定要删除这条排程吗？切配工单与采购计划将一并删除，此操作不可撤销。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setDeleteOpen(false)}>
               取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={actionLoading}
-              className="h-11 px-6"
-            >
+            </SkeuButton>
+            <SkeuButton variant="danger" onClick={handleDelete} disabled={actionLoading}>
               删除
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>
@@ -478,12 +486,12 @@ export default function ScheduleDetailPage() {
             下一步把它纳入生产计划单，切配中心才会开始执行。
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setActivateOpen(false)} className="h-11 px-6">
+            <SkeuButton variant="outline" onClick={() => setActivateOpen(false)}>
               取消
-            </Button>
-            <Button onClick={handleActivate} disabled={actionLoading} className="h-11 px-6">
+            </SkeuButton>
+            <SkeuButton onClick={handleActivate} disabled={actionLoading}>
               确认并进入生产
-            </Button>
+            </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
       </Dialog>

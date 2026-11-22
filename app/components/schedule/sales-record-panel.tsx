@@ -1,7 +1,8 @@
 "use client";
 
 import { ClipboardList, PencilLine } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/app/components/ui/empty-state";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import type { SalesRecordItem } from "./sales-record-dialog";
 
@@ -41,19 +42,12 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
   // ===== 未回录：空状态 =====
   if (recordedCount === 0) {
     return (
-      <div className="border border-dashed rounded-lg py-12 px-6 text-center">
-        <div className="text-3xl mb-2">🧾</div>
-        <p className="font-medium mb-1">尚未回录销售数据</p>
-        <p className="text-sm text-muted-foreground mb-4">
-          每天生产结束后，将各菜品实际售出份数录回系统
-          <br />
-          支持手动逐菜录入，或上传门店 CSV 批量导入
-        </p>
-        <Button onClick={onOpenRecord}>
-          <ClipboardList className="mr-2 h-4 w-4" />
-          立即回录
-        </Button>
-      </div>
+      <EmptyState
+        icon={ClipboardList}
+        title="尚未回录销售数据"
+        description="每天生产结束后，将各菜品实际售出份数录回系统；支持手动逐菜录入，或上传门店 CSV 批量导入"
+        action={{ label: "立即回录", onClick: onOpenRecord }}
+      />
     );
   }
 
@@ -63,26 +57,26 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
       <div className="flex items-center gap-2 flex-wrap">
         {allRecorded ? (
           <>
-            <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+            <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
               售出 <b className="text-foreground">{soldQty}</b> 份
             </span>
-            <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+            <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
               售出率 <b className="text-foreground">{fmtPct(sellThrough)}</b>
             </span>
-            <span className="text-xs text-muted-foreground bg-muted rounded-md px-2 py-1">
+            <span className="rounded-full border border-skeu-border bg-white px-2.5 py-1 text-xs text-muted-foreground">
               营收 <b className="text-foreground">{fmtMoney(revenue)}</b>
             </span>
           </>
         ) : (
-          <span className="text-xs bg-[var(--status-warning-bg)] text-[var(--status-warning)] rounded-md px-2 py-1">
+          <span className="rounded-full border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-2.5 py-1 text-xs text-[var(--status-warning)]">
             已回录 {recordedCount}/{totalCount} 道 · 可随时继续补录
           </span>
         )}
         <span className="flex-1" />
-        <Button variant="outline" size="sm" onClick={onOpenRecord}>
-          <PencilLine className="mr-1 h-4 w-4" />
+        <SkeuButton variant="outline" size="sm" onClick={onOpenRecord}>
+          <PencilLine className="h-4 w-4" />
           {allRecorded ? "修改回录" : "继续回录"}
-        </Button>
+        </SkeuButton>
       </div>
 
       {!allRecorded && (
@@ -104,7 +98,7 @@ export function SalesRecordPanel({ items, onOpenRecord }: SalesRecordPanelProps)
       )}
 
       {/* 复盘表 */}
-      <div className="rounded-lg border overflow-x-auto">
+      <div className="skeu-scroll overflow-x-auto rounded-[var(--sk-radius-md)] border border-skeu-border bg-white shadow-sk-raised">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left text-xs text-muted-foreground border-b">

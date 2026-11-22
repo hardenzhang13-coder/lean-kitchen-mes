@@ -28,8 +28,7 @@ export default async function SchedulePrintPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const doc =
-    sp.doc === "purchase" ? "purchase" : sp.doc === "menu" ? "menu" : "cutting";
+  const doc = sp.doc === "purchase" ? "purchase" : "cutting";
   const bySupplier = doc === "purchase" && sp.mode === "supplier";
   const detail = await getScheduleDetail(Number(id));
   if (!detail) notFound();
@@ -44,75 +43,6 @@ export default async function SchedulePrintPage({
       <div className="no-print">
         <PrintActions />
       </div>
-
-      {doc === "menu" && (
-        <div className="doc">
-          <div className="doc-title">门 店 点 菜 单</div>
-          <div className="doc-sub">精益厨房 · {detail.title}</div>
-          <div className="pm-meta">
-            <span>门店：<b>{detail.store?.name ?? "—"}</b></span>
-            <span>售卖日期：<b>{fmtDate(detail.scheduleDate)}</b></span>
-            <span>单号：<b>{scheduleNo}</b></span>
-            <span>打印时间：<b>{printTime}</b></span>
-          </div>
-          <table>
-            <thead>
-              <tr>
-                <th className="w-10">序号</th>
-                <th>菜品编号</th>
-                <th>菜品名称</th>
-                <th>份量</th>
-                <th>荤素</th>
-                <th className="num">数量（份）</th>
-                <th className="num">售价/份</th>
-                <th className="num">计划销售额</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.items.map((item, i) => (
-                <tr key={item.id}>
-                  <td>{i + 1}</td>
-                  <td>{item.dish.code}</td>
-                  <td>{item.dish.name}</td>
-                  <td>{item.dish.portion || "—"}</td>
-                  <td>{item.dish.meatType || "—"}</td>
-                  <td className="num">{item.quantity}</td>
-                  <td className="num">
-                    {item.dish.price != null ? "¥" + Number(item.dish.price).toFixed(2) : "—"}
-                  </td>
-                  <td className="num">
-                    {item.dish.price != null
-                      ? "¥" + (Number(item.dish.price) * item.quantity).toFixed(2)
-                      : "—"}
-                  </td>
-                </tr>
-              ))}
-              <tr className="total">
-                <td colSpan={5}>合计</td>
-                <td className="num">
-                  {detail.items.reduce((sum, item) => sum + item.quantity, 0)}
-                </td>
-                <td className="num"></td>
-                <td className="num">
-                  ¥
-                  {detail.items
-                    .reduce(
-                      (sum, item) =>
-                        sum + (item.dish.price != null ? Number(item.dish.price) * item.quantity : 0),
-                      0
-                    )
-                    .toFixed(2)}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-          <div className="sign">
-            <span>制单：{detail.operatorName || detail.operator || "—"}</span>
-            <span>店长签字：＿＿＿＿＿＿</span>
-            <span>后厨接收：＿＿＿＿＿＿</span>
-          </div>
-        </div>
-      )}
 
       {doc === "cutting" && (
         <div className="doc">
