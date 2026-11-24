@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     const [rows, totalItems] = await Promise.all([
       prisma.netPackaging.findMany({
         where,
-        orderBy: { id: "asc" },
+        orderBy: [{ sortOrder: "asc" }, { id: "asc" }],
         skip,
         take: pageSize,
       }),
@@ -72,13 +72,32 @@ export async function POST(req: NextRequest) {
       return conflict("该包装名称与尺寸已存在");
     }
 
+    // 新包装排在末尾：sortOrder 取当前最大值 +1
+    const maxRow = await prisma.netPackaging.aggregate({
+      _max: { sortOrder: true },
+      where: { deletedAt: null },
+    });
+
     // 软删除记录重新创建时直接恢复，避免唯一索引导致无法再次添加
     const row = existing
       ? await prisma.netPackaging.update({
           where: { id: existing.id },
-          data: { deletedAt: null, isActive, name, size },
+          data: {
+            deletedAt: null,
+            isActive,
+            name,
+            size,
+            sortOrder: (maxRow._max.sortOrder ?? 0) + 1,
+          },
         })
-      : await prisma.netPackaging.create({ data: { name, size, isActive } });
+      : await prisma.netPackaging.create({
+          data: {
+            name,
+            size,
+            isActive,
+            sortOrder: (maxRow._max.sortOrder ?? 0) + 1,
+          },
+        });
 
     await logOperation(req, {
       action: existing ? "RESTORE" : "CREATE",

@@ -58,6 +58,12 @@ Ingredient（调料，SEA 体系）
 - 业务表中的 `l2Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查，被引用时禁止并引导停用。
 - 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类。
 
+### 包装字典
+
+| 模型 | 说明 |
+|------|------|
+| `NetPackaging` | 净菜包装字典（`name` + `size` 唯一）；`sortOrder` 展示顺序（2026-11-24，迁移 20261124120000），设置页可上下移，列表按 `(sort_order, id)` 排序；软删除，被净料/小料引用时禁止改名称/尺寸 |
+
 ### 份量档案
 
 | 模型 | 说明 |
@@ -76,7 +82,7 @@ Ingredient（调料，SEA 体系）
 
 | 模型 | 说明 |
 |------|------|
-| `DishCategory` | 菜品分类，编码唯一；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
+| `DishCategory` | 菜品分类，编码唯一；`sortOrder` 展示顺序（设置页可上下移，列表按 `(sort_order, id)` 排序）；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
 | `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「单人份」（2026-11-24 起，迁移 20261124100000） |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |

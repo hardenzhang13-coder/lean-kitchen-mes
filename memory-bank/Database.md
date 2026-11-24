@@ -56,6 +56,7 @@
 | code | varchar(20) UNIQUE | 编号，如 PORK、BEEF |
 | name | varchar(50) | 名称，如 猪肉类、牛肉类 |
 | description | text | 说明 |
+| sort_order | int | 展示顺序（2026-11-24，迁移 20261106090000），设置页可上下移；列表按 `(sort_order, id)` 排序 |
 
 数据：19条（PORK/BEEF/MUTTON/CHICKEN/DUCK/EGG/PERCH/GRASS/CRUCIAN/WUCHANG/BLACK/HAIRTAIL/YELLOW/SHRIMP/SPECIAL/TOFU/MUSHROOM/VEGETABLE/SOUP）
 
@@ -158,6 +159,7 @@
 | name | varchar(50) | 包装名称，如 密封袋 |
 | size | varchar(100) | 包装尺寸，如 50cm×40cm |
 | is_active | bool | 启用状态，停用后新增净料不可选 |
+| sort_order | int | 展示顺序（2026-11-24，迁移 20261124120000），设置页可上下移；存量默认 0，列表按 `(sort_order, id)` 排序 |
 | created_at / updated_at / deleted_at | timestamp | 软删除 |
 
 唯一约束：`(name, size)`。被净料/小料引用时不可删除或修改名称/尺寸，只能停用。

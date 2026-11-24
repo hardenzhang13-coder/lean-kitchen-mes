@@ -15,8 +15,13 @@ export async function PUT(req: NextRequest) {
 
     const { ids } = validation.data;
 
-    const count = await prisma.dishCategory.count({ where: { id: { in: ids } } });
+    const [count, total] = await Promise.all([
+      prisma.dishCategory.count({ where: { id: { in: ids } } }),
+      prisma.dishCategory.count(),
+    ]);
     if (count !== ids.length) return badRequest("存在无效的类别 ID");
+    // 排序值按序写入，id 列表必须覆盖全部类别，否则会出现重复顺序值
+    if (total !== ids.length) return badRequest("类别列表已变化，请刷新后重试");
 
     await prisma.$transaction(async (tx) => {
       for (let i = 0; i < ids.length; i++) {

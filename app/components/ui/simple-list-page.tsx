@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -9,6 +9,7 @@ import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { DataTable, type ColumnDef } from "@/app/components/ui/data-table";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
+import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import {
   usePagination,
   DEFAULT_PAGE_SIZE,
@@ -33,6 +34,16 @@ const STATUS_OPTIONS: SkeuDotOption[] = [
   { value: "active", label: "启用中", tone: "success" },
   { value: "inactive", label: "已停用", tone: "warning" },
 ];
+
+/** 排序能力配置：开启后操作列前置上移 / 下移 */
+export interface SimpleListSortable<T> {
+  /** 重排接口：PUT，body 为 { ids: number[] }（按新顺序排列的完整 id 列表） */
+  endpoint: string;
+  /** 取行唯一 id */
+  getId: (row: T) => number;
+  /** 取行名，用于无障碍标签 */
+  getLabel?: (row: T) => string;
+}
 
 export interface SimpleListPageProps<T extends object> {
   title: string;
@@ -61,6 +72,8 @@ export interface SimpleListPageProps<T extends object> {
   columns: ColumnDef<T>[];
   /** 行操作；ctx.refresh 供启停 / 删除成功后刷新 */
   rowActions?: (row: T, ctx: SimpleListCtx<T>) => ReactNode;
+  /** 开启排序：操作列前置上移 / 下移按钮 */
+  sortable?: SimpleListSortable<T>;
   /** 操作列宽度；默认按三个带文字操作预留 */
   actionsWidth?: string;
   emptyTitle?: string;
@@ -89,7 +102,8 @@ export function SimpleListPage<T extends object>({
   showIndex = true,
   columns,
   rowActions,
-  actionsWidth = "w-[260px]",
+  sortable,
+  actionsWidth,
   emptyTitle = "暂无数据",
   children,
 }: SimpleListPageProps<T>) {
@@ -98,6 +112,7 @@ export function SimpleListPage<T extends object>({
   const [reloadKey, setReloadKey] = useState(0);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [reordering, setReordering] = useState(false);
 
   const refresh = () => {
     setLoading(true);
@@ -160,6 +175,82 @@ export function SimpleListPage<T extends object>({
     loading,
     currentPage,
     pageSize,
+  };
+
+  // 排序：搜索或状态筛选会隐藏部分行，此时上下移动的目标行不明确，禁用
+  const filterActive = !!search.trim() || (statusFilter && status !== "all");
+  const sortDisabled = filterActive || reordering;
+  const sortHint = search.trim() ? "搜索时不可排序" : "筛选时不可排序";
+
+  /** 上移 / 下移：与当前可见列表的相邻行交换，提交完整有序 id 列表 */
+  const moveRow = async (row: T, dir: -1 | 1) => {
+    if (!sortable) return;
+    const id = sortable.getId(row);
+    const visibleIdx = filtered.findIndex((r) => sortable.getId(r) === id);
+    if (visibleIdx < 0) return;
+    const targetIdx = visibleIdx + dir;
+    if (targetIdx < 0 || targetIdx >= filtered.length) return;
+
+    const targetId = sortable.getId(filtered[targetIdx]);
+    const gi = data.findIndex((r) => sortable.getId(r) === id);
+    const gj = data.findIndex((r) => sortable.getId(r) === targetId);
+    if (gi < 0 || gj < 0) return;
+
+    const ids = data.map((r) => sortable.getId(r));
+    [ids[gi], ids[gj]] = [ids[gj], ids[gi]];
+    setReordering(true);
+    try {
+      const res = await fetch(sortable.endpoint, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || "调整顺序失败");
+        return;
+      }
+      const nextData = [...data];
+      [nextData[gi], nextData[gj]] = [nextData[gj], nextData[gi]];
+      setData(nextData);
+      toast.success("顺序已调整");
+    } catch {
+      toast.error("调整顺序失败");
+    } finally {
+      setReordering(false);
+    }
+  };
+
+  /** 行首的排序按钮（上移 / 下移） */
+  const renderSortActions = (row: T): ReactNode => {
+    if (!sortable) return null;
+    const id = sortable.getId(row);
+    const visibleIdx = filtered.findIndex((r) => sortable.getId(r) === id);
+    const label = sortable.getLabel?.(row) ?? entityLabel;
+    return (
+      <>
+        <SkeuIconAction
+          label={`上移 ${label}`}
+          tip={sortDisabled ? sortHint : "上移"}
+          disabled={sortDisabled || visibleIdx <= 0}
+          icon={<ChevronUp className="h-4 w-4" />}
+          onClick={(event) => {
+            event.stopPropagation();
+            moveRow(row, -1);
+          }}
+        />
+        <SkeuIconAction
+          label={`下移 ${label}`}
+          tip={sortDisabled ? sortHint : "下移"}
+          disabled={sortDisabled || visibleIdx < 0 || visibleIdx >= filtered.length - 1}
+          icon={<ChevronDown className="h-4 w-4" />}
+          onClick={(event) => {
+            event.stopPropagation();
+            moveRow(row, 1);
+          }}
+        />
+      </>
+    );
   };
 
   const indexColumn: ColumnDef<T> | null = showIndex
@@ -244,8 +335,17 @@ export function SimpleListPage<T extends object>({
               onPageSizeChange: setPageSize,
             }}
             emptyState={{ title: emptyTitle }}
-            actionsWidth={actionsWidth}
-            rowActions={rowActions ? (row) => rowActions(row, ctx) : undefined}
+            actionsWidth={actionsWidth ?? (sortable ? "w-[340px]" : "w-[260px]")}
+            rowActions={
+              rowActions || sortable
+                ? (row) => (
+                    <>
+                      {renderSortActions(row)}
+                      {rowActions?.(row, ctx)}
+                    </>
+                  )
+                : undefined
+            }
           />
         </CardContent>
       </Card>

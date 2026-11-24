@@ -158,6 +158,11 @@ export default function CategoriesPage() {
       searchPlaceholder="搜索编号或名称..."
       searchIn={(row) => [row.name, row.code]}
       statusFilter
+      sortable={{
+        endpoint: "/api/dish-categories/reorder",
+        getId: (row) => row.id,
+        getLabel: (row) => row.name,
+      }}
       createLabel="新增"
       onCreate={openCreate}
       columns={[

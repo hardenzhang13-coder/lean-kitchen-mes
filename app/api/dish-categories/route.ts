@@ -44,8 +44,16 @@ export async function POST(req: NextRequest) {
     if (!validation.success) return validation.response;
 
     const { code, name, description, isActive } = validation.data;
+    // 新类别排在末尾：sortOrder 取当前最大值 +1
+    const maxRow = await prisma.dishCategory.aggregate({ _max: { sortOrder: true } });
     const row = await prisma.dishCategory.create({
-      data: { code, name, description: description || null, isActive: isActive ?? true },
+      data: {
+        code,
+        name,
+        description: description || null,
+        isActive: isActive ?? true,
+        sortOrder: (maxRow._max.sortOrder ?? 0) + 1,
+      },
     });
     await logOperation(req, { action: "CREATE", entity: "DishCategory", entityId: row.id, description: `创建: ${row.name || row.code}` });
     return NextResponse.json(row, { status: 201 });

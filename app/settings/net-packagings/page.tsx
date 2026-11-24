@@ -145,6 +145,11 @@ export default function NetPackagingsPage() {
       searchPlaceholder="搜索包装名称或尺寸..."
       searchIn={(row) => [row.name, row.size]}
       statusFilter
+      sortable={{
+        endpoint: "/api/net-packagings/reorder",
+        getId: (row) => row.id,
+        getLabel: (row) => `${row.name} / ${row.size}`,
+      }}
       createLabel="新增包装"
       onCreate={openCreate}
       columns={[

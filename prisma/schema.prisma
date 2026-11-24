@@ -165,6 +165,8 @@ model NetPackaging {
   // 包装尺寸，如 50cm×40cm
   size      String    @db.VarChar(100)
   isActive  Boolean   @default(true) @map("is_active")
+  // 展示顺序：设置页可上下移调整，越小越靠前
+  sortOrder Int       @default(0) @map("sort_order")
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")

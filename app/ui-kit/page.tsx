@@ -7,6 +7,8 @@ import {
   Boxes,
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   History,
   Inbox,
@@ -406,8 +408,10 @@ function MaterialKit() {
           <p className="text-sm text-muted-foreground">
             设置类简单 CRUD 清单的唯一模板：搜索 + 状态圆点筛选；设置模块主字段只加粗
             （业务列表才上主题色），空值统一 <code className="text-xs">EmptyValue</code>；行操作统一
-            带文字幽灵态，从左到右 排序（纯图标，仅树形）→ 删除（红）→ 启停（琥珀/绿）→ 编辑，
-            主操作最右；删除确认走 DeleteConfirmDialog。新页面直接复用
+            带文字幽灵态，从左到右 排序（纯图标）→ 删除（红）→ 启停（琥珀/绿）→ 编辑，
+            主操作最右；删除确认走 DeleteConfirmDialog。开 <code className="text-xs">sortable</code>{" "}
+            即在操作列最左插入上移 / 下移纯图标按钮，首行禁用上移、末行禁用下移，
+            搜索或状态筛选生效时整体禁用并提示「搜索时不可排序」。新页面直接复用
             <code className="mx-1 text-xs">SimpleListPage</code>，不再手工拼骨架。
           </p>
         </div>
@@ -445,6 +449,17 @@ function MaterialKit() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-0.5">
+                      <SkeuIconAction
+                        label="上移 斤"
+                        tip="上移"
+                        disabled
+                        icon={<ChevronUp className="h-4 w-4" />}
+                      />
+                      <SkeuIconAction
+                        label="下移 斤"
+                        tip="下移"
+                        icon={<ChevronDown className="h-4 w-4" />}
+                      />
                       <SkeuActionButton
                         label="删除"
                         tone="danger"
@@ -471,6 +486,17 @@ function MaterialKit() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center justify-end gap-0.5">
+                      <SkeuIconAction
+                        label="上移 克"
+                        tip="上移"
+                        icon={<ChevronUp className="h-4 w-4" />}
+                      />
+                      <SkeuIconAction
+                        label="下移 克"
+                        tip="下移"
+                        disabled
+                        icon={<ChevronDown className="h-4 w-4" />}
+                      />
                       <SkeuActionButton
                         label="删除"
                         tone="danger"

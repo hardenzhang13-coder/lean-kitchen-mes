@@ -29,3 +29,8 @@ export const netPackagingQuerySchema = paginationQuerySchema.extend({
   /** 设置页/表单需要展示停用项时传 1 */
   includeInactive: z.enum(["1", "true"]).optional(),
 });
+
+/** 批量排序：传入按新顺序排列的 id 数组 */
+export const reorderNetPackagingsSchema = z.object({
+  ids: z.array(z.number().int().positive()).min(1),
+});
