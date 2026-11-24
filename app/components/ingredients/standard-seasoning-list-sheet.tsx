@@ -185,7 +185,7 @@ export function StandardSeasoningListSheet({
         toast.error(message);
         return;
       }
-      toast.success("调料规格已删除");
+      toast.success("调料清单已删除");
       setDeleteTarget(null);
       await load();
       onChanged?.();
@@ -213,7 +213,7 @@ export function StandardSeasoningListSheet({
       <RecordSheet
         open={open}
         onOpenChange={onOpenChange}
-        title="封装调料"
+        title="调料清单"
         meta={
           <span>
             {sourceName ? `${sourceName} 的标准规格` : "标准规格"}
@@ -260,7 +260,7 @@ export function StandardSeasoningListSheet({
               cell: (row) => <PortionTag portion={row.portion} />,
             },
             {
-              header: "调料单价",
+              header: "调味品单价",
               className: "whitespace-nowrap tabular-nums text-right",
               cell: (row) =>
                 row.unitPrice != null
@@ -295,7 +295,7 @@ export function StandardSeasoningListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                title="编辑调料规格"
+                title="编辑调料清单"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditing({
@@ -320,7 +320,7 @@ export function StandardSeasoningListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive"
-                title="删除调料规格"
+                title="删除调料清单"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteTarget(row);
@@ -331,10 +331,10 @@ export function StandardSeasoningListSheet({
             </div>
           )}
           emptyState={{
-            title: loading ? "加载中…" : "暂无封装调料",
+            title: loading ? "加载中…" : "暂无调料清单",
             description: loading
               ? undefined
-              : "该调料尚未转化出标准规格，可在调料清单点击「转调料」创建",
+              : "该调味品尚未转化出调料清单档案，可在调味品列表点击「转化」创建",
           }}
           pagination={
             pagination && pagination.totalItems > PAGE_SIZE
@@ -375,11 +375,11 @@ export function StandardSeasoningListSheet({
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除调料规格「{deleteTarget?.name}」
+            确定要删除调料清单「{deleteTarget?.name}」
             {deleteTarget?.packageSpec != null
               ? `（${deleteTarget.packageSpec}g）`
               : ""}
-            吗？删除后不再可用于菜品 BOM。
+            吗？删除后不可恢复。
           </p>
           <DialogFooter>
             <SkeuButton

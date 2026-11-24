@@ -13,10 +13,10 @@ export interface BomItem {
   amountG: string;
   unitPrice: number;
   unit: string;
-  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
+  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调味品 = 每斤单价 */
   costPrice?: number | null;
   cost?: number | null;
-  /** 份量（净料/小料口径）：份量档案 portion_profiles 落库标签；调料与酱料为空 */
+  /** 份量（净料/小料口径）：份量档案 portion_profiles 落库标签；调味品与酱料为空 */
   portion?: string | null;
   l1Code?: string;
   l2Code?: string;
@@ -52,18 +52,18 @@ export interface IngredientOption {
   code: string;
   name: string;
   productName?: string | null;
-  /** 规格：净料/小料 = 封装规格（如 500g）；调料 = 采购规格；酱料 = 规格 */
+  /** 规格：净料/小料 = 封装规格（如 500g）；调味品 = 采购规格；酱料 = 规格 */
   spec?: string | null;
   unitPrice: number | null;
-  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
+  /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调味品 = 每斤单价 */
   costPrice?: number | null;
-  /** 净料/小料封装规格（g）；标准化调料的标准规格（g） */
+  /** 净料/小料封装规格（g）；调料清单的标准规格（g） */
   packageSpec?: number | null;
-  /** 份量（份量档案标签）：净料/小料共用同一套档案；调料与酱料为空 */
+  /** 份量（份量档案标签）：净料/小料共用同一套档案；调味品与酱料为空 */
   portion?: string | null;
   /** 标准规格价（元/份）：出库价 × 包装规格 ÷ 500；净料/小料进入菜品 BOM 的单份成本 */
   standardPackagePrice?: number | null;
-  /** 价格口径单位：净料/小料/调料为「斤」 */
+  /** 价格口径单位：净料/小料/调味品为「斤」 */
   unit: string | null;
   l1Code?: string;
   l2Code?: string;
@@ -84,7 +84,7 @@ export const BOM_TYPE_LABELS: Record<BomType, string> = {
   main: "主料",
   support: "辅料",
   minor: "小料",
-  seasoning: "调料",
+  seasoning: "调味品",
   sauce: "酱料",
 };
 
@@ -180,22 +180,22 @@ export interface DishDetail {
     netIngredient?: { id: number; code: string; name: string; unitPrice: number | null; outPricePerJin?: number | null; unit: string | null; packageSpec?: number | null; portion?: string | null } | null;
   }>;
   seasoningDetails?: Array<{
-    /** 来源调料 ID（ingredients.id，SEA 调味品体系） */
+    /** 来源调味品 ID（ingredients.id，SEA 调味品体系） */
     sourceId: number;
     /** 标准规格 ID：标准规格功能暂时下线，正常为空，仅作历史追溯 */
     specId?: number | null;
-    /** 克需求（g）：调料按克直接计成本，服务端不覆盖 */
+    /** 克需求（g）：调味品按克直接计成本，服务端不覆盖 */
     amountG: number | string;
     brand?: string | null;
     cost?: number | null;
     name?: string;
     unitPrice?: number | null;
-    /** 每斤单价（元/斤）：调料 BOM 成本口径 */
+    /** 每斤单价（元/斤）：调味品 BOM 成本口径 */
     pricePerJin?: number | null;
     unit?: string | null;
     /** 采购规格（对照展示，如 1.9L*6） */
     spec?: string | null;
-    /** 份量：调料不参与份量口径，恒为空 */
+    /** 份量：调味品不参与份量口径，恒为空 */
     portion?: string | null;
   }>;
   sauceDetails?: Array<{
@@ -299,7 +299,7 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
     const name = d.name ?? "";
     const unitPrice = d.unitPrice ?? 0;
     const unit = d.unit ?? "g";
-    // 调料成本价 = 每斤单价（元/斤）；克需求直接取存储值，服务端不覆盖
+    // 调味品成本价 = 每斤单价（元/斤）；克需求直接取存储值，服务端不覆盖
     const costPrice = d.pricePerJin ?? null;
     const parsedAmount = Number(d.amountG);
     const amountG = Number.isFinite(parsedAmount) ? parsedAmount : 0;
@@ -395,14 +395,14 @@ export function validateGrossMargin(
   return null;
 }
 
-/** 调料用量校验：克需求必须大于 0（调料按克直接计成本） */
+/** 调味品用量校验：克需求必须大于 0（调味品按克直接计成本） */
 export function validateSeasoningAmounts(
   bom: Record<BomType, BomItem[]>
 ): string | null {
   for (const item of bom.seasoning) {
     const amount = Number(item.amountG);
     if (!Number.isFinite(amount) || amount <= 0) {
-      return `调料「${item.name || "未命名"}」的用量必须大于 0`;
+      return `调味品「${item.name || "未命名"}」的用量必须大于 0`;
     }
   }
   return null;
@@ -483,7 +483,7 @@ export function calcCost(
   const amount = typeof amountG === "string" ? parseFloat(amountG) : amountG;
   if (Number.isNaN(amount) || amount <= 0) return null;
   if (pricePerJin == null) return null;
-  // 全部元/斤口径（1 斤 = 500g）：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
+  // 全部元/斤口径（1 斤 = 500g）：净料/小料 = 出库价、调味品 = 每斤单价、酱料 = 出库价
   const gramsPerPriceUnit = 500;
   return Number(((pricePerJin * amount) / gramsPerPriceUnit).toFixed(4));
 }
@@ -550,7 +550,7 @@ export function normalizeIngredients(items: unknown[]): IngredientOption[] {
         productName: String(record.alias || ""),
         spec: String(record.purchaseSpec || ""),
         unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
-        // 调料成本价 = 每斤单价（元/斤）
+        // 调味品成本价 = 每斤单价（元/斤）
         costPrice: record.pricePerJin != null ? Number(record.pricePerJin) : null,
         unit: "斤",
         l2Code: String(record.l2Code || ""),

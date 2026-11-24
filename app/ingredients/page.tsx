@@ -13,13 +13,14 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 
-// 五类食材节点（颜色 = 全站统一的食材类型色）
+// 四类食材节点（颜色 = 全站统一的食材类型色）
+// 2026-11-24：「酱料」节点隐藏（现有酱料模块只隐入口，模型/API/菜品 BOM 保留），
+// 业务流向收敛为：食材 → 净料/小料、调味品 → 调料清单
 const NODES = [
   { id: "raw", name: "食材", glyph: "原", color: "#f97316", desc: "采购入库、库存管理的基本单位", href: "/ingredients/raw" },
-  { id: "seasoning", name: "调料", glyph: "调", color: "#3b82f6", desc: "标准化产品形态的基础调味品", href: "/ingredients/seasoning" },
+  { id: "seasoning", name: "调味品", glyph: "调", color: "#3b82f6", desc: "可转化为调料清单，按单品/复合/成品酱料分类", href: "/ingredients/seasoning" },
   { id: "net", name: "净料", glyph: "净", color: "#10b981", desc: "原料初加工后的规格化半成品", href: "/ingredients/net" },
   { id: "minor", name: "小料", glyph: "料", color: "#f43f5e", desc: "增香提味、按标准规格封装", href: "/ingredients/minor" },
-  { id: "sauce", name: "酱料", glyph: "酱", color: "#8b5cf6", desc: "复合调味半成品，决定菜品味型", href: "/ingredients/sauce" },
 ] as const;
 
 type NodeId = (typeof NODES)[number]["id"];
@@ -28,8 +29,6 @@ type NodeId = (typeof NODES)[number]["id"];
 const FLOWS: Array<{ from: NodeId; to: NodeId; color: string }> = [
   { from: "raw", to: "net", color: "#f97316" },
   { from: "raw", to: "minor", color: "#fb923c" },
-  { from: "minor", to: "sauce", color: "#f43f5e" },
-  { from: "seasoning", to: "sauce", color: "#3b82f6" },
 ];
 
 // 血缘：上游/下游（悬停高亮用）
@@ -97,7 +96,7 @@ function PricingRulesDialog({
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
               style={{ background: "#f59e0b" }}
             >
-              原料 · 调料
+              原料 · 调味品
             </span>
             <span className="text-muted-foreground">
               成本价 = 每斤单价（元/斤）
@@ -150,7 +149,7 @@ function PricingRulesDialog({
 
 export default function IngredientsPage() {
   const router = useRouter();
-  const [counts, setCounts] = useState<Counts>({ raw: 0, net: 0, minor: 0, seasoning: 0, sauce: 0 });
+  const [counts, setCounts] = useState<Counts>({ raw: 0, net: 0, minor: 0, seasoning: 0 });
   const [hoverId, setHoverId] = useState<NodeId | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [paths, setPaths] = useState<Record<string, string>>({});
@@ -226,9 +225,7 @@ export default function IngredientsPage() {
         onMouseEnter={() => setHoverId(n.id)}
         onMouseLeave={() => setHoverId(null)}
         onClick={() => router.push(n.href)}
-        className={`relative cursor-pointer rounded-2xl border-[1.5px] bg-white p-5 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)] ${
-          n.id === "sauce" ? "border-[#ddd6fe] bg-gradient-to-b from-white from-60% to-[#faf8ff]" : "border-[#e2e8f0]"
-        } ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
+        className={`relative cursor-pointer rounded-2xl border-[1.5px] bg-white p-5 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)] border-[#e2e8f0] ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
       >
         <span className="absolute right-4 top-4 text-xs font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
           进入清单 →
@@ -251,16 +248,6 @@ export default function IngredientsPage() {
             <span className="ml-0.5 text-xs text-slate-500">种</span>
           </div>
         </div>
-        {n.id === "sauce" && (
-          <div className="mt-3.5 flex gap-2">
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
-              <b className="mb-px block text-xs">自制</b>由调料与小料配比而成
-            </div>
-            <div className="flex-1 rounded-[10px] border border-[#e9e2ff] bg-[#f3efff] p-2 px-[11px] text-xs leading-normal text-[#6d28d9]">
-              <b className="mb-px block text-xs">外购</b>成品酱料直接采购
-            </div>
-          </div>
-        )}
       </div>
     );
   };
@@ -271,8 +258,8 @@ export default function IngredientsPage() {
       header={
         <PageHeader
           variant="topbar"
-          title="原料库"
-          description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
+          title="食材库"
+          description="食材与调味品经初加工、配比组合，转化为净料、小料与调料清单"
           actions={
             <SkeuButton
               variant="outline"
@@ -286,7 +273,7 @@ export default function IngredientsPage() {
       }
     >
       <div className="min-h-0 flex-1 overflow-auto">
-      {/* 主体：五个食材清单与转化流 */}
+      {/* 主体：食材清单与转化流（酱料节点已隐入口，模型/API/菜品 BOM 保留） */}
       {/* pt-4 是给卡片 hover 上浮预留的空间：滚动容器会裁切越界内容，
           没有这段内边距，卡片上浮时顶部边框会被切掉 */}
       <div className="mt-20 overflow-x-auto pt-4">
@@ -350,9 +337,6 @@ export default function IngredientsPage() {
             {nodeCard(NODES[3])}
           </div>
           <div />
-          <div className="relative z-[2] flex flex-col justify-center">
-            {nodeCard(NODES[4])}
-          </div>
         </div>
       </div>
       </div>

@@ -261,7 +261,7 @@ export function IngredientDetailSheet({
     kind === "raw"
       ? "原料详情"
       : kind === "seasoning"
-        ? "调料详情"
+        ? "调味品详情"
         : kind === "minor"
           ? "小料详情"
           : "净料详情";
@@ -287,14 +287,14 @@ export function IngredientDetailSheet({
       ? kind === "raw"
         ? "编辑原料"
           : kind === "seasoning"
-            ? "编辑调料"
+            ? "编辑调味品"
             : kind === "minor"
               ? "编辑小料"
               : "编辑净料"
       : kind === "raw"
         ? "原料详情"
         : kind === "seasoning"
-          ? "调料详情"
+          ? "调味品详情"
           : kind === "minor"
             ? "小料详情"
             : "净料详情"
@@ -429,7 +429,7 @@ export function IngredientDetailSheet({
                           onClick={() => setPackagedOpen(true)}
                         >
                           <PackageOpen className="h-4 w-4" />
-                          查看封装调料
+                          查看调料清单
                         </SkeuButton>
                       ) : null}
                       {onCopy ? (
@@ -466,7 +466,7 @@ export function IngredientDetailSheet({
                     !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                       <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                         <ArrowRightLeft className="h-4 w-4" />
-                        {kind === "seasoning" ? "转调料" : "转化"}
+                        转化
                       </SkeuButton>
                     ) : (kind === "net" || kind === "minor") &&
                       onPrintLabel ? (
@@ -535,7 +535,7 @@ export function IngredientDetailSheet({
                   !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                     <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                       <ArrowRightLeft className="h-4 w-4" />
-                      {kind === "seasoning" ? "转调料" : "转化"}
+                      转化
                     </SkeuButton>
                   ) : !onEdit ? (
                     <SkeuButton size="sm"
@@ -637,7 +637,7 @@ export function IngredientDetailSheet({
           kind === "raw"
             ? "原料"
             : kind === "seasoning"
-              ? "调料"
+              ? "调味品"
               : kind === "minor"
                 ? "小料"
                 : "净料"

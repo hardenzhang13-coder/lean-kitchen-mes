@@ -99,7 +99,7 @@ const STORAGE_OPTIONS = [
 
 const LINE_TYPE_LABELS: Record<"net" | "seasoning", string> = {
   net: "净料/小料",
-  seasoning: "调料",
+  seasoning: "调味品",
 };
 
 const newKey = () => Math.random().toString(36).slice(2, 9);
@@ -692,7 +692,7 @@ export default function SauceIngredientsPage() {
                           }}
                         >
                           <Plus className="mr-1 h-3 w-3" />
-                          加调料
+                          加调味品
                         </Button>
                     </div>
                     {recipeLines.length === 0 ? (
@@ -772,7 +772,7 @@ export default function SauceIngredientsPage() {
 
               </>
             ) : (
-              <FormSection title="采购信息（同调料录入逻辑）" cols={2}>
+              <FormSection title="采购信息（同调味品录入逻辑）" cols={2}>
                 <FormField label="品牌">
                   <Input
                     value={form.brand}
@@ -925,7 +925,7 @@ export default function SauceIngredientsPage() {
           open={pickerMode !== null}
           onOpenChange={(open) => !open && setPickerMode(null)}
           type={pickerMode === "seasoning" ? "seasoning" : "support"}
-          title={pickerMode === "seasoning" ? "选择调料" : "选择净料/小料"}
+          title={pickerMode === "seasoning" ? "选择调味品" : "选择净料/小料"}
           allCategories={pickerMode === "net"}
           onSelect={handlePickerSelect}
           refs={{ ingredientCategories: categories }}

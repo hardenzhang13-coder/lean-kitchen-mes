@@ -17,11 +17,11 @@ import { usePortionProfiles, toPortionOptions } from "@/lib/client/use-portion-p
 import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
 
 export interface StandardSeasoningFormData {
-  /** 调料名称：沿用来源调料名 */
+  /** 调味品名称：沿用来源调味品名 */
   name: string;
-  /** 来源调料 ID（进入弹窗时锁定） */
+  /** 来源调味品 ID（进入弹窗时锁定） */
   sourceIngredientId: string;
-  /** 包装规格（g）：调料标准规格统一以 g 计 */
+  /** 包装规格（g）：调味品标准规格统一以 g 计 */
   packageSpec: string;
   /** 份量（份量档案标签）：与净料、小料、菜品共用同一套档案 */
   portion: string;
@@ -39,9 +39,9 @@ export interface StandardSeasoningSource {
   name: string;
   /** 采购规格（如 1.2kg/瓶），仅作对照展示，不参与计算 */
   purchaseSpec?: string | null;
-  /** 来源调料当前每斤单价，用于派生单价 */
+  /** 来源调味品当前每斤单价，用于派生单价 */
   pricePerJin?: number | null;
-  /** 来源调料二级分类名称 */
+  /** 来源调味品二级分类名称 */
   l2Name?: string | null;
 }
 
@@ -55,7 +55,7 @@ export interface StandardSeasoningFormFieldsProps {
 }
 
 /**
- * 调料标准规格表单。
+ * 调味品标准规格表单。
  * 版式与「转净料」弹窗完全一致：顶部一行基本信息 + 三列并排（规格指标 / 加工指标 / 价格指标）。
  */
 export function StandardSeasoningFormFields({
@@ -104,11 +104,11 @@ export function StandardSeasoningFormFields({
     <div className="space-y-4">
       <FormSection cols={1} className={sectionClassName}>
         <FormField
-          label="调料"
+          label="调味品"
           required
           readOnly={viewMode}
           error={errors?.name}
-          hint="沿用来源调料名称；同一调料的不同包装规格以此区分"
+          hint="沿用来源调味品名称；同一调味品的不同调料清单以此区分"
         >
           {viewMode ? (
             <ReadOnlyValue value={form.name} emphasis />
@@ -132,7 +132,7 @@ export function StandardSeasoningFormFields({
             optionalHint={false}
             labelClassName="text-primary"
             error={errors?.packageSpec}
-            hint="调料标准规格统一以 g 计；菜品 BOM 的调料用量即等于此值"
+            hint="调料清单统一以 g 计"
           >
             {viewMode ? (
               <ReadOnlyValue value={`${form.packageSpec}g`} numeric />
@@ -204,11 +204,11 @@ export function StandardSeasoningFormFields({
           </FormField>
 
           <FormField
-            label="调料单价（元/斤）"
+            label="调味品单价（元/斤）"
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.unitPrice}
-            hint="根据来源调料当前每斤单价和出成率自动计算"
+            hint="根据来源调味品当前每斤单价和出成率自动计算"
           >
             <ReadOnlyValue
               value={
@@ -285,7 +285,7 @@ export function StandardSeasoningFormFields({
             label="成本价（元/斤）"
             readOnly={viewMode}
             optionalHint={false}
-            hint="= 调料单价 + 封装加工费"
+            hint="= 调味品单价 + 封装加工费"
           >
             <ReadOnlyValue
               value={

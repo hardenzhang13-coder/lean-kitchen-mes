@@ -143,8 +143,8 @@ describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
     );
 
     await waitFor(() => expect(screen.getByText("生抽")).toBeInTheDocument());
-    // 调料字段：调料名称 / 商品名称 / 采购规格 / 每斤单价
-    expect(screen.getByText("调料名称")).toBeInTheDocument();
+    // 调味品字段：调味品名称 / 商品名称 / 采购规格 / 每斤单价
+    expect(screen.getByText("调味品名称")).toBeInTheDocument();
     expect(screen.getByText("商品名称")).toBeInTheDocument();
     expect(screen.getByText("采购规格")).toBeInTheDocument();
     expect(screen.getByText("每斤单价")).toBeInTheDocument();

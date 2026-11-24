@@ -39,12 +39,12 @@ export type StandardSeasoningFormItem = {
 interface StandardSeasoningFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 来源调料（新建与编辑都必填，进入弹窗时锁定来源） */
+  /** 来源调味品（新建与编辑都必填，进入弹窗时锁定来源） */
   source: StandardSeasoningSource;
-  /** 编辑态初始数据；缺省为新建（转调料） */
+  /** 编辑态初始数据；缺省为新建（转化为调料清单） */
   initialData?: StandardSeasoningFormItem;
   onSuccess?: (savedId: number) => void;
-  /** 点击「查看已有封装调料」时回调，由外层打开封装调料列表 */
+  /** 点击「查看已有调料清单」时回调，由外层打开调料清单列表 */
   onViewExisting?: () => void;
 }
 
@@ -56,7 +56,7 @@ function buildInitialForm(
   defaultPortion: string
 ): StandardSeasoningFormData {
   return {
-    // 名称沿用来源调料名
+    // 名称沿用来源调味品名
     name: initialData?.name ?? source.name ?? "",
     sourceIngredientId: String(initialData?.sourceIngredientId ?? source.id),
     packageSpec:
@@ -79,7 +79,7 @@ function validateStandardSeasoningForm(
   values: StandardSeasoningFormData
 ): RecordFormErrors {
   const next: RecordFormErrors = {};
-  if (!values.name.trim()) next.name = "调料名称不能为空";
+  if (!values.name.trim()) next.name = "调味品名称不能为空";
   const spec = Number(values.packageSpec);
   if (!Number.isFinite(spec) || spec <= 0) {
     next.packageSpec = "请填写包装规格（g）";
@@ -112,7 +112,7 @@ export function StandardSeasoningFormDialog({
     }
     return DEFAULT_PORTION;
   }, [profiles]);
-  // 该来源调料已有的标准规格数量（头部「查看已有封装调料」入口用）
+  // 该来源调味品已有的调料清单数量（头部「查看已有调料清单」入口用）
   // initialValues 随档案到达重算，但 useRecordForm 仅在 resetKey 变化时重置表单，不会覆盖用户输入
   const [existingCount, setExistingCount] = useState<number | null>(null);
   const initialValues = useMemo(
@@ -166,7 +166,7 @@ export function StandardSeasoningFormDialog({
           ? (json as { data?: { id?: number } }).data
           : undefined;
 
-      toast.success(isEdit ? "调料规格已更新" : "调料规格已创建");
+      toast.success(isEdit ? "调料清单已更新" : "已加入调料清单");
       void loadExistingCount();
       onSuccess?.(Number(data?.id ?? 0));
       onOpenChange(false);
@@ -202,9 +202,9 @@ export function StandardSeasoningFormDialog({
     [setField]
   );
 
-  const dialogTitle = isEdit ? "编辑调料规格" : "转调料";
+  const dialogTitle = isEdit ? "编辑调料清单" : "转化为调料清单";
 
-  // 来源调料摘要：与「转净料」弹窗一致
+  // 来源调味品摘要：与「转化」弹窗一致
   const sourceSummary = (
     <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs">
@@ -244,7 +244,7 @@ export function StandardSeasoningFormDialog({
           onClick={onViewExisting}
         >
           <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
-          查看已有封装调料
+          查看已有调料清单
           {existingCount != null ? `（${existingCount}）` : ""}
         </Button>
       ) : null}

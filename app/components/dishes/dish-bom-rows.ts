@@ -12,7 +12,7 @@ export interface DishBomRow {
   spec: string | null;
   productName: string | null;
   amountG: string | number | null;
-  /** 份量：净料/小料口径，调料与酱料恒为空 */
+  /** 份量：净料/小料口径，调味品与酱料恒为空 */
   portion: string | null;
   cost: number | null;
 }

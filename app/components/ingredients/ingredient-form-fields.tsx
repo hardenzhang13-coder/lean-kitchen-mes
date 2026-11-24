@@ -76,15 +76,15 @@ export function IngredientFormFields({
   );
 
   const filteredCategories = useMemo(() => {
-    // MIN（小料）分类不用于原料/调料建档：小料是转化品，其采购原料归在蔬菜-香辛料等业务分类
+    // MIN（小料）分类不用于原料/调味品建档：小料是转化品，其采购原料归在蔬菜-香辛料等业务分类
     if (mode === "auto") {
       return categories.filter((l1) => l1.code !== "MIN");
     }
     if (mode === "seasoning") {
-      // 调料体系 = SEA（调味品）一级分类（编码识别，不受分类改名影响）
+      // 调味品体系 = SEA（调味品）一级分类（编码识别，不受分类改名影响）
       return categories.filter((l1) => l1.code === "SEA");
     }
-    // mode === "ingredient"：排除 SEA（调料）与 MIN（小料）
+    // mode === "ingredient"：排除 SEA（调味品）与 MIN（小料）
     return categories.filter(
       (l1) => l1.code !== "SEA" && l1.code !== "MIN"
     ) as CategoryL1[];
@@ -129,7 +129,7 @@ export function IngredientFormFields({
         <FormSection cols={1}>
           <FormField
             id="ingredient-name"
-            label={mode === "seasoning" ? "调料名称" : "食材名称"}
+            label={mode === "seasoning" ? "调味品名称" : "食材名称"}
             required
             readOnly={viewMode}
             error={errors.name}

@@ -453,7 +453,7 @@ export default function ScheduleDetailPage() {
               <EmptyState
                 icon={ChefHat}
                 title="暂无采购计划"
-                description="菜单中没有原料、调料或酱料需求。"
+                description="菜单中没有原料、调味品或酱料需求。"
               />
             ))}
           {activeTab === "sales" && (

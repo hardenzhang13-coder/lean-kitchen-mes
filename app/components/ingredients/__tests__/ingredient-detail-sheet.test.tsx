@@ -243,7 +243,7 @@ describe("原料详情抽屉", () => {
   });
 });
 
-describe("调料详情抽屉", () => {
+describe("调味品详情抽屉", () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -256,7 +256,7 @@ describe("调料详情抽屉", () => {
     jest.clearAllMocks();
   });
 
-  it("查看态在抽屉内切换为调料编辑态", async () => {
+  it("查看态在抽屉内切换为调味品编辑态", async () => {
     render(
       <IngredientDetailSheet
         open
@@ -277,27 +277,27 @@ describe("调料详情抽屉", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "调料详情" })
+      await screen.findByRole("heading", { name: "调味品详情" })
     ).toBeInTheDocument();
     const editButton = screen.getByRole("button", { name: "编辑" });
     expect(editButton).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "转化" })
     ).not.toBeInTheDocument();
-    // 调料转标准规格功能暂时下线：底部不再提供「查看封装调料」
+    // 调料清单链路已复活：底部提供「查看调料清单」入口
     expect(
-      screen.queryByRole("button", { name: "查看封装调料" })
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "查看调料清单" })
+    ).toBeInTheDocument();
 
     fireEvent.click(editButton);
 
     expect(
-      screen.getByRole("heading", { name: "编辑调料" })
+      screen.getByRole("heading", { name: "编辑调味品" })
     ).toBeInTheDocument();
     expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
   });
 
-  it("调料转标准规格功能暂时下线：不展示「转调料」入口", async () => {
+  it("调味品详情提供「转化」入口并回调", async () => {
     const onConvert = jest.fn();
     render(
       <IngredientDetailSheet
@@ -319,14 +319,9 @@ describe("调料详情抽屉", () => {
       />
     );
 
-    await screen.findByRole("heading", { name: "调料详情" });
-    expect(
-      screen.queryByRole("button", { name: "转调料" })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "转化" })
-    ).not.toBeInTheDocument();
-    expect(onConvert).not.toHaveBeenCalled();
+    await screen.findByRole("heading", { name: "调味品详情" });
+    fireEvent.click(screen.getByRole("button", { name: "转化" }));
+    expect(onConvert).toHaveBeenCalledWith(11);
   });
 });
 

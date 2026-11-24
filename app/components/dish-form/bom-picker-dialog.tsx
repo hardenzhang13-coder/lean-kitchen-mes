@@ -45,7 +45,7 @@ interface BomPickerDialogProps {
   showAmountInput?: boolean;
   /** 单选模式：菜品 BOM 添加一次只选一项；酱料配方默认多选 */
   singleSelect?: boolean;
-  /** 用量输入框的默认值（g）：菜品 BOM 调料传 10，酱料配方默认 100 */
+  /** 用量输入框的默认值（g）：菜品 BOM 调味品传 10，酱料配方默认 100 */
   defaultAmountG?: string;
 }
 
@@ -53,7 +53,7 @@ const TYPE_TITLES: Record<BomType, string> = {
   main: "选择主料",
   support: "选择辅料",
   minor: "选择小料",
-  seasoning: "选择调料",
+  seasoning: "选择调味品",
   sauce: "选择酱料",
 };
 
@@ -200,7 +200,7 @@ export function BomPickerDialog({
     const items = Array.from(selectedItems.values()).map((option) => ({
       option,
       // 菜品 BOM 不手填用量：直接采用食材规格
-      // （净料/小料 = 封装规格；调料按克需求手填；其余回退 100g）
+      // （净料/小料 = 封装规格；调味品按克需求手填；其余回退 100g）
       amountG: showAmountInput ? amountG : String(option.packageSpec ?? 100),
     }));
     onSelect(items);
@@ -284,11 +284,11 @@ export function BomPickerDialog({
     },
   ];
 
-  // 调料：调料名称 / 商品名称 / 采购规格 / 每斤单价
+  // 调味品：调味品名称 / 商品名称 / 采购规格 / 每斤单价
   const seasoningColumns: ColumnDef<IngredientOption>[] = [
     seqColumn,
     {
-      header: "调料名称",
+      header: "调味品名称",
       className: "w-[150px]",
       cell: (row) => (
         <span className="font-semibold text-primary">{row.name}</span>

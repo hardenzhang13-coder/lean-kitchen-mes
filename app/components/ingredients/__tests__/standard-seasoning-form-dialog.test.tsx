@@ -66,7 +66,7 @@ describe("转调料弹窗", () => {
     global.fetch = fetchMock;
   });
 
-  it("头部展示来源调料摘要，名称默认取调料名", () => {
+  it("头部展示来源调味品摘要，名称默认取调味品名", () => {
     render(
       <StandardSeasoningFormDialog
         open
@@ -75,17 +75,17 @@ describe("转调料弹窗", () => {
       />
     );
 
-    expect(screen.getByText("转调料")).toBeTruthy();
+    expect(screen.getByText("转化为调料清单")).toBeTruthy();
     expect(screen.getByText("SEA-0006")).toBeTruthy();
     expect(screen.getByText("蒸鱼双椒酱")).toBeTruthy();
     expect(screen.getByText("采购规格 1.2kg/瓶")).toBeTruthy();
-    // 名称沿用来源调料名，不拼规格后缀
+    // 名称沿用来源调味品名，不拼规格后缀
     expect(
       (screen.getByDisplayValue("蒸鱼双椒酱") as HTMLInputElement).value
     ).toBe("蒸鱼双椒酱");
   });
 
-  it("提供「查看已有封装调料」入口并显示已有数量", async () => {
+  it("提供「查看已有调料清单」入口并显示已有数量", async () => {
     const onViewExisting = jest.fn();
     render(
       <StandardSeasoningFormDialog
@@ -97,10 +97,10 @@ describe("转调料弹窗", () => {
     );
 
     const button = await screen.findByRole("button", {
-      name: /查看已有封装调料/,
+      name: /查看已有调料清单/,
     });
     await waitFor(() => {
-      expect(screen.getByText(/查看已有封装调料（2）/)).toBeTruthy();
+      expect(screen.getByText(/查看已有调料清单（2）/)).toBeTruthy();
     });
     fireEvent.click(button);
     expect(onViewExisting).toHaveBeenCalled();
