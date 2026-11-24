@@ -48,7 +48,7 @@ export const createOutboundSchema = z.object({
     .number({ message: "请选择收货门店" })
     .int({ message: "请选择收货门店" })
     .positive({ message: "请选择收货门店" }),
-  // 省略时由服务端取当前时间；禁止把出库单创建成未来凭证
+  // 省略时由服务端取当前时间；不对出库时间做限制（允许补录未来时间）
   outboundAt: z.coerce.date({ message: "出库时间无效" }).optional(),
   remark: z.string({ message: "备注无效" }).max(200, "备注最长 200 字").optional(),
   items: z
@@ -73,13 +73,6 @@ export const createOutboundSchema = z.object({
       code: "custom",
       path: ["scheduleId"],
       message: "排程单出库与生产批次出库二选一",
-    });
-  }
-  if (value.outboundAt != null && value.outboundAt.getTime() > Date.now()) {
-    ctx.addIssue({
-      code: "custom",
-      path: ["outboundAt"],
-      message: "出库时间不能晚于当前时间",
     });
   }
   const totalPortions = value.items.reduce(

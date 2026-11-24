@@ -384,7 +384,6 @@ export default function NewOutboundPage({
   const getOutboundTimeError = useCallback((): string | null => {
     const date = parseOutboundTime(outboundTime);
     if (!date) return "请选择有效出库时间";
-    if (date.getTime() > Date.now()) return "出库时间不能晚于当前时间";
     return null;
   }, [outboundTime]);
 
@@ -507,7 +506,6 @@ export default function NewOutboundPage({
     >
       <Input
         type="datetime-local"
-        max={toDatetimeInputValue(new Date())}
         value={outboundTime}
         onChange={(event) => setOutboundTime(event.target.value)}
         className="w-full"

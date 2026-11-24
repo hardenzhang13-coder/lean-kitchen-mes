@@ -81,7 +81,7 @@ describe("createOutboundSchema", () => {
     }
   });
 
-  it("拒绝未来出库时间", () => {
+  it("接受未来出库时间（不对出库时间做限制）", () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     const result = createOutboundSchema.safeParse({
       productionPlanId: 1,
@@ -90,9 +90,9 @@ describe("createOutboundSchema", () => {
       items: [{ sourceType: "net", sourceId: 1, shippedPortions: 1 }],
     });
 
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      expect(result.error.issues[0]?.message).toBe("出库时间不能晚于当前时间");
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.outboundAt?.toISOString()).toBe(future);
     }
   });
 
