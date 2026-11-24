@@ -174,7 +174,7 @@ export default function ScheduleDetailPage() {
       }
       toast.success("排程单已作废，回退到待生效");
       setVoidOpen(false);
-      refresh();
+      router.push("/schedules");
     } catch {
       toast.error("操作出错");
     } finally {

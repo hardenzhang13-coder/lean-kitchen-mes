@@ -158,6 +158,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       if (row.status !== "待生效") {
         throw new Error("只有待生效的排程可以删除");
       }
+      // 作废回退的排程仍被已软删的切配计划单经关联表引用（该外键无级联），先解除引用再物理删除
+      await tx.productionPlanSchedule.deleteMany({ where: { scheduleId } });
       await tx.schedule.delete({ where: { id: scheduleId } });
       return row;
     });
