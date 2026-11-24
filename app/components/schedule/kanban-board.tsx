@@ -40,7 +40,7 @@ const COLUMN_STYLES: Record<string, ColumnStyle> = {
   },
   已完成: {
     icon: CheckCircle2,
-    hint: "已入库，仅可查看",
+    hint: "已出库，仅可查看",
     text: "text-[var(--status-done-solid)]",
   },
 };

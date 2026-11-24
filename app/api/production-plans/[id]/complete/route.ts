@@ -102,6 +102,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           bizRefCode: plan.code ?? `PPL-${planId}`,
           scheduleId: null,
           storeId: null,
+          productionPlanId: planId,
           operator,
         },
         stockInItems.map(({ row, portions }) => ({
@@ -113,6 +114,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           l2Name: row.l2Name,
           portions,
           qtyG: round2(portions * (row.packageSpec as number)),
+          batchPackageSpec: row.packageSpec,
+          batchPlannedPortions: row.portions,
         }))
       );
 

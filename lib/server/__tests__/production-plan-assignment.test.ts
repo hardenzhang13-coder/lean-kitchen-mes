@@ -51,7 +51,7 @@ function createTx(orders: Array<{ scheduleId: number; status: string }>) {
 }
 
 describe("syncSourceScheduleStatuses", () => {
-  it("只完成全部切配行均已终态的来源排程", async () => {
+  it("生产计划完成不回写来源排程；排程完成改由出库单触发", async () => {
     const { tx, updateMany } = createTx([
       { scheduleId: 1, status: "completed" },
       { scheduleId: 1, status: "unfinished" },
@@ -60,14 +60,11 @@ describe("syncSourceScheduleStatuses", () => {
 
     const completed = await syncSourceScheduleStatuses(tx, [1, 2], true);
 
-    expect(completed).toEqual([1, 2]);
-    expect(updateMany).toHaveBeenCalledWith({
-      where: { id: { in: [1, 2] }, status: "进行中" },
-      data: { status: "已完成" },
-    });
+    expect(completed).toEqual([]);
+    expect(updateMany).not.toHaveBeenCalled();
   });
 
-  it("生产计划未完成时不更新来源排程", async () => {
+  it("生产计划未完成时也不更新来源排程", async () => {
     const { tx, updateMany } = createTx([
       { scheduleId: 3, status: "completed" },
       { scheduleId: 4, status: "pending" },

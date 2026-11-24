@@ -95,7 +95,7 @@ Ingredient（调料，SEA 体系）
 
 | 模型 | 说明 |
 |------|------|
-| `Schedule` | 生产排程主表，`status`：待生效 / 进行中 / 已完成 |
+| `Schedule` | 生产排程主表，`status`：待生效 / 进行中 / 已完成；门店排程完成由成功出库单回写 |
 | `ScheduleItem` | 排程菜品及份数 |
 | `CuttingOrder` | 切配工单，由 `buildCuttingOrders()` 自动生成 |
 | `PurchasePlan` | 采购计划，由 `buildPurchasePlans()` 自动生成 |
@@ -126,7 +126,8 @@ Ingredient（调料，SEA 体系）
 |------|------|
 | `PreppedStock` | 净菜当前库存（份 + g 双单位），唯一键 `(sourceType, sourceId)` |
 | `PreppedStockLedger` | 净菜库存流水，不可删除，记录 `changeType`（stock_in / stock_out / stock_rollback） |
-| `OutboundOrder` | 净菜出库单：`subjectType` 区分门店（来源排程单）/ 切配中心（历史内部生产单来源）；新建仅接受门店排程单（`selfOrderId` 被 schema 拒绝并给下线文案），历史单据渲染逻辑保留 |
+| `PreppedStockBatch` | 生产批次库存：批次 = 切配计划单（PPL），按净菜行追踪生产量与批次余量；总库存仍以 `PreppedStock` 为准 |
+| `OutboundOrder` | 净菜出库单：`outbound_at` 是业务出库时间；新建支持生产批次（`production_plan_id` + 收货门店）或门店排程单来源，内部生产单来源仍下线。批次可拆多店多单，出库同步扣批次余量与总库存；排程出库成功后回写排程完成 |
 | `OutboundOrderItem` | 出库单明细快照（含出库价与金额） |
 | `Inventory` | 旧原料库存，已停用 |
 | `InventoryLedger` | 旧库存流水，已停用 |

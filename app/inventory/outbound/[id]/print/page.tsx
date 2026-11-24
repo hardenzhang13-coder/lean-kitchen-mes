@@ -65,10 +65,17 @@ export default async function OutboundPrintPage({
 
   const printerName =
     currentUser?.name?.trim() || currentUser?.username?.trim() || "—";
-  const outboundTime = fmtDateTime(new Date());
+  const outboundTime = fmtDateTime(new Date(detail.outboundAt));
   const voided = detail.status === "voided";
   const isCuttingCenter = detail.subjectType === "cutting_center";
-  const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
+  const sourceLabel =
+    isCuttingCenter
+      ? "内部生产单"
+      : detail.scheduleId != null
+        ? "排程单"
+        : detail.productionPlanId != null
+          ? "生产批次"
+          : "出库单";
 
   return (
     <div className="print-root">
@@ -143,7 +150,11 @@ export default async function OutboundPrintPage({
               <td className="num">{formatPortionsValue(detail.totalPortions)}</td>
               <td className="num">¥{detail.totalAmount.toFixed(2)}</td>
               <td className="center">
-                {detail.asPlanned ? "按计划出库" : "未按计划出库"}
+                {detail.scheduleId == null && detail.productionPlanId != null
+                  ? "生产批次出库"
+                  : detail.asPlanned
+                    ? "按计划出库"
+                    : "未按计划出库"}
               </td>
             </tr>
           </tbody>

@@ -49,6 +49,8 @@ export const scheduleQuerySchema = z.object({
   q: z.string().max(100).optional(),
   storeId: z.coerce.number().int().positive().optional(),
   availableForPlan: z.enum(["0", "1"]).transform((value) => value === "1").optional(),
+  /** 库存创建出库单来源列表：进行中 + 生产计划已完成 + 有切配工单 */
+  availableForOutbound: z.enum(["0", "1"]).transform((value) => value === "1").optional(),
   excludePlanId: z.coerce.number().int().positive().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

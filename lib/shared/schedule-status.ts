@@ -1,7 +1,7 @@
 /**
  * 排程 / 生产计划状态枚举（前后端共用，唯一真源）。
  *
- * 两张单据共用同一套三态：待生效 → 进行中 → 已完成。
+ * 状态值由排程与生产计划共用；两者的「已完成」触发动作不同。
  * 落库为中文短值，`label` 只用于展示；渲染入口见
  * `app/components/ui/schedule-status-tag.tsx`。
  */
@@ -29,13 +29,13 @@ export const SCHEDULE_STATUS_OPTIONS: readonly ScheduleStatusOption[] = [
   {
     value: "进行中",
     label: "进行中",
-    description: "已确认，可纳入生产计划单；不可修改或删除",
+    description: "已确认；生产完成后保持进行中，直到门店出库完成",
     variant: "info",
   },
   {
     value: "已完成",
     label: "已完成",
-    description: "生产计划单完成生产后自动回写，终态",
+    description: "排程由出库完成回写；生产计划由完成生产回写",
     variant: "success",
   },
 ] as const;

@@ -1,11 +1,12 @@
 import type { Prisma } from "@prisma/client";
-import { getOutboundLines, getSelfOrderOutboundLines } from "../outbound-utils";
+import { getOutboundLines, getProductionBatchOutboundLines, getSelfOrderOutboundLines, limitOutboundLinesToProductionBatch, type OutboundLine } from "../outbound-utils";
 
 interface MockOptions {
   selfOrder?: unknown;
   cuttingOrders?: unknown[];
   nets?: unknown[];
   stock?: unknown[];
+  batches?: unknown[];
   l2?: unknown[];
   l1?: unknown[];
 }
@@ -18,6 +19,7 @@ function createTx(options: MockOptions) {
     cuttingOrder: { findMany: jest.fn().mockResolvedValue(options.cuttingOrders ?? []) },
     netIngredient: { findMany: jest.fn().mockResolvedValue(options.nets ?? []) },
     preppedStock: { findMany: jest.fn().mockResolvedValue(options.stock ?? []) },
+    preppedStockBatch: { findMany: jest.fn().mockResolvedValue(options.batches ?? []) },
     ingredientCategoryL2: { findMany: jest.fn().mockResolvedValue(options.l2 ?? []) },
     ingredientCategoryL1: { findMany: jest.fn().mockResolvedValue(options.l1 ?? []) },
   } as unknown as Prisma.TransactionClient;
@@ -125,6 +127,69 @@ describe("getSelfOrderOutboundLines", () => {
     });
 
     await expect(getSelfOrderOutboundLines(tx, 9)).rejects.toThrow("缺少封装规格");
+  });
+});
+
+describe("getProductionBatchOutboundLines", () => {
+  it("使用批次余量而非聚合库存，且默认出库数为 0", async () => {
+    const tx = createTx({
+      batches: [
+        {
+          sourceType: "net",
+          sourceId: 100,
+          packageSpec: 500,
+          currentPortions: 6,
+          currentQty: 3000,
+        },
+      ],
+      nets: [net],
+      stock: [{ sourceType: "net", sourceId: 100, currentPortions: 99 }],
+      ...categories,
+    });
+
+    const [line] = await getProductionBatchOutboundLines(tx, 8);
+
+    expect(line).toMatchObject({
+      key: "net:100",
+      packageSpec: 500,
+      availablePortions: 6,
+      prepStatus: "normal",
+      suggestedPortions: 6,
+    });
+  });
+});
+
+describe("limitOutboundLinesToProductionBatch", () => {
+  it("排程出库可用量被归属 PPL 批次余量限制", async () => {
+    const tx = createTx({
+      batches: [
+        {
+          sourceType: "net",
+          sourceId: 100,
+          packageSpec: 500,
+          currentPortions: 2,
+          currentQty: 1000,
+        },
+      ],
+      ...categories,
+    });
+    const baseLine = {
+      key: "net:100",
+      sourceType: "net",
+      sourceId: 100,
+      requiredPortions: 5,
+      availablePortions: 99,
+      prepStatus: "normal" as const,
+      suggestedPortions: 5,
+    };
+
+    const [line] = await limitOutboundLinesToProductionBatch(tx, 8, [baseLine as unknown as OutboundLine]);
+
+    expect(line).toMatchObject({
+      availablePortions: 2,
+      prepStatus: "insufficient",
+      suggestedPortions: 2,
+    });
   });
 });
 

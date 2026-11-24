@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
       q,
       storeId,
       availableForPlan,
+      availableForOutbound,
       excludePlanId,
       page,
       pageSize,
@@ -52,6 +53,15 @@ export async function GET(req: NextRequest) {
         },
       ];
     }
+    if (availableForOutbound) {
+      // 出库来源必须是生产已入库、尚未出库的进行中排程
+      where.status = "进行中";
+      where.cuttingOrders = { some: {} };
+      where.productionPlanRefs = {
+        some: { plan: { deletedAt: null, status: "已完成" } },
+      };
+    }
+
     if (availableForPlan) {
       const planWhere: Prisma.ProductionPlanWhereInput = { deletedAt: null };
       if (excludePlanId != null) {

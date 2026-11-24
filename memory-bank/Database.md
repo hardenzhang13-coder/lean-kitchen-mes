@@ -36,7 +36,8 @@
 | | ~~`inventory_ledger`~~ | 旧原料库存台账 | ⚠️ 已停用，**代码引用已全部移除，待删表**（2026-11-15） |
 | | `prepped_stock` | 净菜库存表（份+g 双单位） | ✅ v002 |
 | | `prepped_stock_ledger` | 净菜库存台账（双单位流水） | ✅ v002 |
-| | `outbound_orders` | 净菜出库单主表（主体：门店 / 切配中心） | ✅ v002 |
+| | `prepped_stock_batches` | 生产批次库存（批次 = PPL，按净菜行追踪余量） | ✅ 2026-11 |
+| `outbound_orders` | 净菜出库单主表（`outbound_at` 业务出库时间；支持生产批次或门店排程来源，必选收货门店） | ✅ v002 |
 | | `outbound_order_items` | 净菜出库单明细 | ✅ v002 |
 | **生产计划（切配计划单）** | `production_plans` | 切配计划单（汇总快照；一级菜单「切配」） | ✅ |
 | | `production_plan_schedules` | 计划 ↔ 来源门店排程 | ✅ |
@@ -494,7 +495,7 @@ UNIQUE(sauce_id, line_type, ref_id)
 | title | varchar(200) | 排程标题 |
 | schedule_date | date | 排程日期 |
 | store_id | int FK | 关联门店（stores.id），原 scope 自由文本字段已废弃 |
-| status | varchar(20) | 待生效 / 进行中 / 已完成；进行中的单可「作废」回退待生效恢复可编辑（已有切配完成记录或已纳入未删除切配计划单时拦截） |
+| status | varchar(20) | 待生效 / 进行中 / 已完成；生产完成保持进行中，成功出库后已完成；作废最后一张有效出库单回置进行中。待生效可作废回退（已有切配完成记录或已纳入未删除切配计划单时拦截） |
 | operator | varchar(50) | 操作人 |
 | created_at | timestamp | |
 | updated_at | timestamp | |

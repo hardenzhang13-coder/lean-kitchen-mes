@@ -13,6 +13,8 @@ interface WorkbenchDialogProps {
   children: ReactNode;
   footer?: ReactNode;
   className?: string;
+  /** 需要完全消除弹窗级滚动条时，由子页面自行管理内部滚动 */
+  bodyClassName?: string;
 }
 
 /**
@@ -27,6 +29,7 @@ export function WorkbenchDialog({
   children,
   footer,
   className,
+  bodyClassName,
 }: WorkbenchDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -46,7 +49,7 @@ export function WorkbenchDialog({
           ) : null}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-auto px-6 py-4">
+        <div className={cn("min-h-0 flex-1 overflow-auto px-6 py-4", bodyClassName)}>
           {children}
         </div>
 

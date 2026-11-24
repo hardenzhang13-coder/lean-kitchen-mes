@@ -20,7 +20,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const operator = user?.username || null;
 
   try {
+    let scheduleRestored = false;
+  let batchRestored = false;
     await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT id
+        FROM outbound_orders
+        WHERE id = ${orderId}
+        FOR UPDATE
+      `;
       const order = await tx.outboundOrder.findUnique({
         where: { id: orderId },
         include: { items: true },
@@ -42,6 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           bizRefCode: order.code,
           scheduleId: order.scheduleId,
           storeId: order.storeId,
+          productionPlanId: order.productionPlanId,
           operator,
         },
         order.items
@@ -57,13 +66,65 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             qtyG: Number(it.shippedQty),
           }))
       );
+
+      // 最后一张有效出库单作废后，排程重新回到可出库状态
+      if (order.scheduleId != null) {
+        await tx.$queryRaw`
+          SELECT id
+          FROM schedules
+          WHERE id = ${order.scheduleId}
+          FOR UPDATE
+        `;
+        const otherActiveCount = await tx.outboundOrder.count({
+          where: {
+            scheduleId: order.scheduleId,
+            status: "confirmed",
+            id: { not: orderId },
+          },
+        });
+        if (otherActiveCount === 0) {
+          await tx.schedule.updateMany({
+            where: { id: order.scheduleId, status: "已完成" },
+            data: { status: "进行中" },
+          });
+          scheduleRestored = true;
+        }
+      } else if (order.productionPlanId != null) {
+        // 批次余量回滚后，来源排程恢复为可继续拆店出库。
+        const remainingBatchRows = await tx.preppedStockBatch.count({
+          where: {
+            productionPlanId: order.productionPlanId,
+            currentPortions: { gt: 0 },
+          },
+        });
+        if (remainingBatchRows > 0) {
+          await tx.$queryRaw`
+            SELECT id
+            FROM production_plans
+            WHERE id = ${order.productionPlanId}
+            FOR UPDATE
+          `;
+          const planSchedules = await tx.productionPlanSchedule.findMany({
+            where: { planId: order.productionPlanId },
+            select: { scheduleId: true },
+          });
+          await tx.schedule.updateMany({
+            where: {
+              id: { in: planSchedules.map((s) => s.scheduleId) },
+              status: "已完成",
+            },
+            data: { status: "进行中" },
+          });
+          batchRestored = true;
+        }
+      }
     });
 
     await logOperation(req, {
       action: "UPDATE",
       entity: "OutboundOrder",
       entityId: orderId,
-      description: `作废出库单 #${orderId}：${reason.trim()}`,
+      description: `作废出库单 #${orderId}：${reason.trim()}${scheduleRestored ? "；来源排程已恢复可出库" : batchRestored ? "；生产批次来源排程已恢复可出库" : ""}`,
     });
 
     return success({ ok: true });

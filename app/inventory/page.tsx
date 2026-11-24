@@ -87,7 +87,8 @@ export default function InventoryPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         title="创建出库单"
-        description="按门店排程单或切配中心内部生产单生成，按份出库，金额按净菜档案出库价自动核算"
+        className="h-[min(860px,calc(100dvh-24px))]"
+        bodyClassName="overflow-hidden"
       >
         {createOpen ? (
           <NewOutboundPage

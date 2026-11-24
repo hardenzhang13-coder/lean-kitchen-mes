@@ -99,43 +99,15 @@ export async function nextProductionPlanCode(
 }
 
 /**
- * 生产计划完成时同步全部来源排程状态。
- * 只有整张计划已无待确认行，才允许来源排程进入「已完成」。
+ * 生产计划完成不再回写来源排程「已完成」。
+ * 排程完成统一由门店出库单成功触发；保留函数返回空数组以稳定调用方契约。
  */
 export async function syncSourceScheduleStatuses(
-  tx: Prisma.TransactionClient,
-  scheduleIds: number[],
-  planCompleted: boolean
+  _tx: Prisma.TransactionClient,
+  _scheduleIds: number[],
+  _planCompleted: boolean
 ): Promise<number[]> {
-  if (!planCompleted || scheduleIds.length === 0) return [];
-
-  const orders = await tx.cuttingOrder.findMany({
-    where: { scheduleId: { in: scheduleIds } },
-    select: { scheduleId: true, status: true },
-  });
-  const statusesBySchedule = new Map<number, string[]>();
-  for (const order of orders) {
-    const statuses = statusesBySchedule.get(order.scheduleId) ?? [];
-    statuses.push(order.status);
-    statusesBySchedule.set(order.scheduleId, statuses);
-  }
-
-  const completedScheduleIds = scheduleIds.filter((scheduleId) => {
-    const statuses = statusesBySchedule.get(scheduleId) ?? [];
-    return statuses.length > 0 && statuses.every((status) => status !== "pending");
-  });
-
-  if (completedScheduleIds.length > 0) {
-    await tx.schedule.updateMany({
-      where: {
-        id: { in: completedScheduleIds },
-        status: "进行中",
-      },
-      data: { status: "已完成" },
-    });
-  }
-
-  return completedScheduleIds;
+  return [];
 }
 
 /**

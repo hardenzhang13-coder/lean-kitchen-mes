@@ -18,6 +18,10 @@ export interface StockChangeItem {
   portions: number;
   /** 变动克重（正数；调用方按当时封装规格换算） */
   qtyG: number;
+  /** 生产批次入库时快照封装规格；出库/回滚不需要传 */
+  batchPackageSpec?: number | null;
+  /** 生产批次入库时的计划份数；缺省按实际入库份数记录 */
+  batchPlannedPortions?: number | null;
 }
 
 export interface StockChangeContext {
@@ -28,6 +32,8 @@ export interface StockChangeContext {
   bizRefCode?: string | null;
   scheduleId?: number | null;
   storeId?: number | null;
+  /** 生产批次 ID；传入后库存变动会同步维护批次余量 */
+  productionPlanId?: number | null;
   operator?: string | null;
 }
 
@@ -43,7 +49,28 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
   let balancePortions: number;
   let balanceQty: number;
 
+  const batchPlanId = ctx.productionPlanId;
+
   if (ctx.changeType === "stock_out") {
+    if (batchPlanId != null) {
+      const batchUpdated = await ctx.tx.preppedStockBatch.updateMany({
+        where: {
+          productionPlanId: batchPlanId,
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+          currentPortions: { gte: portions },
+          currentQty: { gte: qtyG },
+        },
+        data: {
+          currentPortions: { decrement: portions },
+          currentQty: { decrement: qtyG },
+        },
+      });
+      if (batchUpdated.count === 0) {
+        throw new Error(`净菜 ${item.itemName} 生产批次余量不足（需出库 ${portions} 份），请刷新批次`);
+      }
+    }
+
     const updated = await ctx.tx.preppedStock.updateMany({
       where: { sourceType: item.sourceType, sourceId: item.sourceId, currentPortions: { gte: portions } },
       data: {
@@ -60,6 +87,39 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
     });
     balancePortions = round2(Number(row?.currentPortions ?? 0));
     balanceQty = round2(Number(row?.currentQty ?? 0));
+  } else if (ctx.changeType === "stock_rollback") {
+    if (batchPlanId != null) {
+      const batchUpdated = await ctx.tx.preppedStockBatch.updateMany({
+        where: {
+          productionPlanId: batchPlanId,
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+        },
+        data: {
+          currentPortions: { increment: portions },
+          currentQty: { increment: qtyG },
+        },
+      });
+      if (batchUpdated.count === 0) {
+        throw new Error(`净菜 ${item.itemName} 生产批次行不存在，无法回滚`);
+      }
+    }
+
+    const row = await ctx.tx.preppedStock.upsert({
+      where: { sourceType_sourceId: { sourceType: item.sourceType, sourceId: item.sourceId } },
+      create: {
+        sourceType: item.sourceType,
+        sourceId: item.sourceId,
+        currentPortions: portions,
+        currentQty: qtyG,
+      },
+      update: {
+        currentPortions: { increment: portions },
+        currentQty: { increment: qtyG },
+      },
+    });
+    balancePortions = round2(Number(row.currentPortions));
+    balanceQty = round2(Number(row.currentQty));
   } else {
     const row = await ctx.tx.preppedStock.upsert({
       where: { sourceType_sourceId: { sourceType: item.sourceType, sourceId: item.sourceId } },
@@ -76,6 +136,34 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
     });
     balancePortions = round2(Number(row.currentPortions));
     balanceQty = round2(Number(row.currentQty));
+
+    if (batchPlanId != null) {
+      const planned = round2(item.batchPlannedPortions ?? portions);
+      await ctx.tx.preppedStockBatch.upsert({
+        where: {
+          productionPlanId_sourceType_sourceId: {
+            productionPlanId: batchPlanId,
+            sourceType: item.sourceType,
+            sourceId: item.sourceId,
+          },
+        },
+        create: {
+          productionPlanId: batchPlanId,
+          sourceType: item.sourceType,
+          sourceId: item.sourceId,
+          packageSpec: item.batchPackageSpec ?? null,
+          plannedPortions: planned,
+          producedPortions: portions,
+          currentPortions: portions,
+          currentQty: qtyG,
+        },
+        update: {
+          producedPortions: { increment: portions },
+          currentPortions: { increment: portions },
+          currentQty: { increment: qtyG },
+        },
+      });
+    }
   }
 
   await ctx.tx.preppedStockLedger.create({

@@ -6,11 +6,10 @@ import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
-  Check,
+  ChevronRight,
   Loader2,
   MapPin,
   RefreshCw,
-  Search,
 } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
 import {
@@ -23,7 +22,10 @@ import {
 } from "@/components/ui/table";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
+import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { StatusBadge } from "@/app/components/ui/status-badge";
+import { FormField, FormSection } from "@/app/components/ui/form-field";
+import { LoadingState } from "@/app/components/ui/loading-state";
 import { toast } from "sonner";
 import {
   calcPortionAmount,
@@ -38,13 +40,25 @@ interface StoreItem {
   code: string;
 }
 
-/** 来源单据：门店排程单 */
 interface SourceDoc {
   id: number;
   code: string | null;
   title: string;
   date: string;
   status: string;
+  dishCount: number;
+  totalQuantity: number;
+}
+
+interface BatchDoc {
+  id: number;
+  code: string | null;
+  title: string;
+  date: string;
+  status: string;
+  itemCount: number;
+  totalPortions: number;
+  totalQty: number;
 }
 
 interface QuoteLine {
@@ -65,23 +79,36 @@ interface QuoteLine {
   suggestedPortions: number;
 }
 
-interface ScheduleResponse {
-  id: number;
-  code: string | null;
-  title: string;
-  scheduleDate: string;
-  status: string;
-}
-
 interface PagedResponse<T> {
   data?: T[];
   pagination?: { totalPages?: number };
 }
 
+type OutboundMode = "batch" | "schedule";
+
+const OUTBOUND_MODES = [
+  { value: "batch", label: "切配单" },
+  { value: "schedule", label: "排程单" },
+] as const;
+
 function parseShipped(raw: string): number | null {
   if (raw.trim() === "") return null;
   const value = Number(raw);
   return Number.isFinite(value) ? value : null;
+}
+
+function toDatetimeInputValue(date: Date): string {
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+function parseOutboundTime(raw: string): Date | null {
+  if (!raw.trim()) return null;
+  const date = new Date(raw);
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 async function fetchAllPages<T>(baseUrl: string): Promise<T[]> {
@@ -124,7 +151,7 @@ function InlineError({
 }) {
   return (
     <div
-      className="flex min-h-[220px] flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center"
+      className="flex min-h-[180px] flex-col items-center justify-center rounded-lg border border-dashed px-4 text-center"
       role="alert"
     >
       <AlertCircle className="mb-3 h-6 w-6 text-destructive" />
@@ -139,33 +166,38 @@ function InlineError({
 }
 
 interface NewOutboundPageProps {
-  /** 嵌入大弹窗时隐藏返回按钮与页头，由弹窗提供外框 */
   embedded?: boolean;
-  /** 创建成功回调；不传则保持独立页面的跳转行为 */
   onDone?: (id: number) => void;
   onCancel?: () => void;
 }
-
 export default function NewOutboundPage({
   embedded = false,
   onDone,
   onCancel,
 }: NewOutboundPageProps = {}) {
   const router = useRouter();
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [view, setView] = useState<"select" | "detail">("select");
+  const [mode, setMode] = useState<OutboundMode>("batch");
   const [stores, setStores] = useState<StoreItem[]>([]);
   const [sources, setSources] = useState<SourceDoc[]>([]);
+  const [batches, setBatches] = useState<BatchDoc[]>([]);
   const [storeId, setStoreId] = useState<number | null>(null);
   const [sourceId, setSourceId] = useState<number | null>(null);
+  const [batchId, setBatchId] = useState<number | null>(null);
   const [lines, setLines] = useState<QuoteLine[]>([]);
   const [shipMap, setShipMap] = useState<Record<string, string>>({});
+  const [outboundTime, setOutboundTime] = useState("");
+  const [remark, setRemark] = useState("");
   const [storeSearch, setStoreSearch] = useState("");
   const [sourceSearch, setSourceSearch] = useState("");
+  const [batchSearch, setBatchSearch] = useState("");
   const [storesLoading, setStoresLoading] = useState(true);
   const [sourcesLoading, setSourcesLoading] = useState(false);
+  const [batchesLoading, setBatchesLoading] = useState(true);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [storesError, setStoresError] = useState<string | null>(null);
   const [sourcesError, setSourcesError] = useState<string | null>(null);
+  const [batchesError, setBatchesError] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -186,73 +218,92 @@ export default function NewOutboundPage({
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
+  const loadBatches = useCallback(async () => {
+    setBatchesLoading(true);
+    setBatchesError(null);
+    try {
+      const rows = await fetchAllPages<BatchDoc>(
+        "/api/outbound-orders/production-batches"
+      );
+      setBatches(rows);
+    } catch (e) {
+      setBatches([]);
+      setBatchesError(e instanceof Error ? e.message : "加载切配单失败");
+    } finally {
+      setBatchesLoading(false);
+    }
+  }, []);
+
+  /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式；setState 均发生在 await 后的异步回调中。 */
   useEffect(() => {
+    setOutboundTime(toDatetimeInputValue(new Date()));
     void loadStores();
-  }, [loadStores]);
+    void loadBatches();
+  }, [loadStores, loadBatches]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  const loadSources = useCallback(
-    async (id: number) => {
-      const requestId = sourceRequestRef.current + 1;
-      sourceRequestRef.current = requestId;
-      setSourcesLoading(true);
-      setSourcesError(null);
-      try {
-        const [active, completed] = await Promise.all([
-          fetchAllPages<ScheduleResponse>(
-            `/api/schedules?status=${encodeURIComponent("进行中")}&storeId=${id}`
-          ),
-          fetchAllPages<ScheduleResponse>(
-            `/api/schedules?status=${encodeURIComponent("已完成")}&storeId=${id}`
-          ),
-        ]);
-        const unique = new Map([...active, ...completed].map((item) => [item.id, item]));
-        const rows: SourceDoc[] = [...unique.values()].map((item) => ({
-          id: item.id,
-          code: item.code,
-          title: item.title,
-          date: item.scheduleDate,
-          status: item.status,
-        }));
-        if (sourceRequestRef.current !== requestId) return;
-        setSources(
-          rows.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-        );
-      } catch (e) {
-        if (sourceRequestRef.current !== requestId) return;
-        setSources([]);
-        setSourcesError(e instanceof Error ? e.message : "加载排程单失败");
-      } finally {
-        if (sourceRequestRef.current === requestId) setSourcesLoading(false);
-      }
-    },
-    []
-  );
+  const loadSources = useCallback(async (id: number) => {
+    const requestId = sourceRequestRef.current + 1;
+    sourceRequestRef.current = requestId;
+    setSourcesLoading(true);
+    setSourcesError(null);
+    try {
+      const rows = await fetchAllPages<SourceDoc>(
+        `/api/schedules?status=${encodeURIComponent("进行中")}` +
+          `&storeId=${id}&availableForOutbound=1`
+      );
+      if (sourceRequestRef.current !== requestId) return;
+      setSources(
+        rows.sort(
+          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        )
+      );
+    } catch (e) {
+      if (sourceRequestRef.current !== requestId) return;
+      setSources([]);
+      setSourcesError(e instanceof Error ? e.message : "加载排程单失败");
+    } finally {
+      if (sourceRequestRef.current === requestId) setSourcesLoading(false);
+    }
+  }, []);
 
   const resetSourceSelection = () => {
+    quoteRequestRef.current += 1;
     setSourceId(null);
+    setBatchId(null);
     setSources([]);
     setLines([]);
     setShipMap({});
     setSourceSearch("");
+    setBatchSearch("");
+    setQuoteError(null);
+    setQuoteLoading(false);
   };
 
-  const pickStore = async (id: number) => {
+  const changeMode = (next: OutboundMode) => {
+    setMode(next);
+    resetSourceSelection();
+    setView("select");
+  };
+
+  const pickStore = (id: number) => {
     setStoreId(id);
     resetSourceSelection();
-    setStep(2);
-    await loadSources(id);
+    if (mode === "schedule") void loadSources(id);
   };
 
   const loadQuote = useCallback(
-    async (id: number) => {
+    async (nextMode: OutboundMode, source: number) => {
       const requestId = quoteRequestRef.current + 1;
       quoteRequestRef.current = requestId;
       setQuoteLoading(true);
       setQuoteError(null);
       try {
-        const res = await fetch(`/api/outbound-orders?scheduleId=${id}`);
+        const query =
+          nextMode === "schedule"
+            ? `scheduleId=${source}`
+            : `productionPlanId=${source}`;
+        const res = await fetch(`/api/outbound-orders?${query}`);
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "加载出库明细失败");
         if (quoteRequestRef.current !== requestId) return;
@@ -275,14 +326,29 @@ export default function NewOutboundPage({
     []
   );
 
-  const pickSource = async (id: number) => {
+  const pickSchedule = (id: number) => {
     setSourceId(id);
-    setStep(3);
+    setBatchId(null);
     setLines([]);
     setShipMap({});
-    await loadQuote(id);
+    void loadQuote("schedule", id);
   };
 
+  const pickBatch = (id: number) => {
+    setBatchId(id);
+    setSourceId(null);
+    setLines([]);
+    setShipMap({});
+    void loadQuote("batch", id);
+  };
+
+  const goToDetail = () => {
+    if (storeId == null) return;
+    if (mode === "schedule" && sourceId == null) return;
+    if (mode === "batch" && batchId == null) return;
+    if (quoteLoading) return;
+    setView("detail");
+  };
   const filteredStores = useMemo(() => {
     const keyword = storeSearch.trim().toLowerCase();
     if (!keyword) return stores;
@@ -304,15 +370,36 @@ export default function NewOutboundPage({
     );
   }, [sourceSearch, sources]);
 
-  const getLineError = useCallback((line: QuoteLine): string | null => {
-    const shipped = parseShipped(shipMap[line.key] ?? "");
-    if (shipped === null) return "请输入有效出库数";
-    if (shipped < 0) return "出库数不能为负数";
-    if (shipped > line.availablePortions) {
-      return `最多可出 ${formatPortionsCount(line.availablePortions)}`;
-    }
+  const filteredBatches = useMemo(() => {
+    const keyword = batchSearch.trim().toLowerCase();
+    if (!keyword) return batches;
+    return batches.filter(
+      (batch) =>
+        batch.title.toLowerCase().includes(keyword) ||
+        (batch.code ?? "").toLowerCase().includes(keyword) ||
+        new Date(batch.date).toLocaleDateString("zh-CN").includes(keyword)
+    );
+  }, [batchSearch, batches]);
+
+  const getOutboundTimeError = useCallback((): string | null => {
+    const date = parseOutboundTime(outboundTime);
+    if (!date) return "请选择有效出库时间";
+    if (date.getTime() > Date.now()) return "出库时间不能晚于当前时间";
     return null;
-  }, [shipMap]);
+  }, [outboundTime]);
+
+  const getLineError = useCallback(
+    (line: QuoteLine): string | null => {
+      const shipped = parseShipped(shipMap[line.key] ?? "");
+      if (shipped === null) return "请输入有效出库数";
+      if (shipped < 0) return "出库数不能为负数";
+      if (shipped > line.availablePortions) {
+        return `最多可出 ${formatPortionsCount(line.availablePortions)}`;
+      }
+      return null;
+    },
+    [shipMap]
+  );
 
   const invalidLines = useMemo(
     () => lines.filter((line) => getLineError(line) !== null),
@@ -342,8 +429,15 @@ export default function NewOutboundPage({
   }, [lines, shipMap]);
 
   const submit = async () => {
-    if (!sourceId || lines.length === 0) return;
+    if (storeId == null || lines.length === 0) return;
+    if (mode === "schedule" && sourceId == null) return;
+    if (mode === "batch" && batchId == null) return;
 
+    const timeError = getOutboundTimeError();
+    if (timeError) {
+      toast.error(timeError);
+      return;
+    }
     const firstInvalid = lines.find((line) => getLineError(line) !== null);
     if (firstInvalid) {
       inputRefs.current[firstInvalid.key]?.focus();
@@ -361,7 +455,12 @@ export default function NewOutboundPage({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          scheduleId: sourceId,
+          storeId,
+          ...(mode === "schedule"
+            ? { scheduleId: sourceId }
+            : { productionPlanId: batchId }),
+          outboundAt: parseOutboundTime(outboundTime)?.toISOString(),
+          remark: remark.trim() || undefined,
           items: lines.map((line) => ({
             sourceType: line.sourceType,
             sourceId: line.sourceId,
@@ -387,19 +486,323 @@ export default function NewOutboundPage({
     }
   };
 
-  const store = stores.find((item) => item.id === storeId);
-  const source = sources.find((item) => item.id === sourceId);
-  const subjectName = store?.name ?? "—";
+  const timeError = getOutboundTimeError();
+  const selectedSourceId = mode === "batch" ? batchId : sourceId;
+  const canProceed = storeId != null && selectedSourceId != null && !quoteLoading;
   const canSubmit =
     !submitting &&
     !quoteLoading &&
+    storeId != null &&
+    (mode === "batch" ? batchId != null : sourceId != null) &&
+    timeError === null &&
     invalidLines.length === 0 &&
     summary.shipP > 0;
 
+  const outboundTimeField = (
+    <FormField
+      id="outbound-time"
+      label="出库时间"
+      required
+      error={timeError ?? undefined}
+    >
+      <Input
+        type="datetime-local"
+        max={toDatetimeInputValue(new Date())}
+        value={outboundTime}
+        onChange={(event) => setOutboundTime(event.target.value)}
+        className="w-full"
+        aria-label="出库时间"
+      />
+    </FormField>
+  );
+
+  const remarkField = (
+    <FormField id="outbound-remark" label="备注">
+      <Input
+        maxLength={200}
+        value={remark}
+        onChange={(event) => setRemark(event.target.value)}
+        className="w-full"
+        aria-label="备注"
+      />
+    </FormField>
+  );
+  const storeList = (
+    <section className="skeu-panel flex min-h-0 flex-col overflow-hidden">
+      <div className="skeu-panel-toolbar shrink-0 px-3.5 py-3">
+        <Input
+          className="h-10"
+          placeholder="搜索收货门店名称或编号"
+          aria-label="搜索收货门店"
+          value={storeSearch}
+          onChange={(event) => setStoreSearch(event.target.value)}
+        />
+      </div>
+      <div className="skeu-scroll min-h-0 flex-1 overflow-y-auto px-3.5 pt-3 pb-3">
+        {storesLoading ? (
+          <LoadingState type="list" rows={5} className="px-0" />
+        ) : storesError ? (
+          <InlineError message={storesError} onRetry={loadStores} />
+        ) : filteredStores.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <p className="font-medium">
+              {stores.length === 0 ? "暂无可用门店" : "未找到匹配门店"}
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {stores.length === 0
+                ? "请先在设置中新增并启用门店"
+                : "请调整搜索关键词"}
+            </p>
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {filteredStores.map((item) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => pickStore(item.id)}
+                  aria-pressed={storeId === item.id}
+                  className={
+                    "flex min-h-16 w-full items-center justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
+                    (storeId === item.id
+                      ? "border-primary bg-primary/5"
+                      : "border-border")
+                  }
+                >
+                  <span className="min-w-0">
+                    <span className="flex items-center gap-2 font-medium">
+                      <MapPin className="h-4 w-4 text-muted-foreground" />
+                      <span className="truncate">{item.name}</span>
+                    </span>
+                    <span className="mt-1 block font-mono text-xs text-muted-foreground">
+                      {item.code}
+                    </span>
+                  </span>
+                  <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+
+  const schedulePanel = (
+    <section className="skeu-panel flex min-h-0 flex-col overflow-hidden">
+      <div className="skeu-panel-toolbar flex shrink-0 flex-wrap items-center gap-3 px-3.5 py-3">
+        <SkeuSegmented
+          value={mode}
+          onChange={(value) => changeMode(value as OutboundMode)}
+          options={[...OUTBOUND_MODES]}
+          ariaLabel="出库来源类型"
+          className="shrink-0"
+        />
+        <Input
+          className="ml-auto h-10 w-full max-w-[280px] min-w-[180px]"
+          placeholder="搜索排程标题、编号或日期"
+          aria-label="搜索排程单"
+          disabled={storeId === null}
+          value={sourceSearch}
+          onChange={(event) => setSourceSearch(event.target.value)}
+        />
+      </div>
+      <div className="skeu-scroll min-h-0 flex-1 overflow-y-auto px-3.5 pt-3 pb-3">
+        {storeId === null ? (
+          <div className="flex h-full min-h-[240px] items-center justify-center rounded-lg border border-dashed text-center">
+            <p className="text-sm text-muted-foreground">请先选择收货门店</p>
+          </div>
+        ) : sourcesLoading ? (
+          <LoadingState type="list" rows={4} className="px-0" />
+        ) : sourcesError ? (
+          <InlineError
+            message={sourcesError}
+            onRetry={() => void loadSources(storeId)}
+          />
+        ) : filteredSources.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <p className="font-medium">
+              {sources.length === 0 ? "该门店暂无可出库排程" : "未找到匹配单据"}
+            </p>
+
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {filteredSources.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => pickSchedule(item.id)}
+                aria-pressed={sourceId === item.id}
+                className={
+                  "min-h-28 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
+                  (sourceId === item.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border")
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 flex-1 truncate font-medium" title={item.title}>
+                    {item.title}
+                  </span>
+                  <StatusBadge status={item.status} />
+                </div>
+                <div className="mt-1 font-mono text-xs text-muted-foreground">
+                  {item.code ?? "排程单 #" + item.id}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {new Date(item.date).toLocaleDateString("zh-CN")}
+                  </span>
+                  <span className="tabular-nums">
+                    {item.dishCount} 类 / {item.totalQuantity} 份
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+  const batchPanel = (
+    <section className="skeu-panel flex min-h-0 flex-col overflow-hidden">
+      <div className="skeu-panel-toolbar flex shrink-0 flex-wrap items-center gap-3 px-3.5 py-3">
+        <SkeuSegmented
+          value={mode}
+          onChange={(value) => changeMode(value as OutboundMode)}
+          options={[...OUTBOUND_MODES]}
+          ariaLabel="出库来源类型"
+          className="shrink-0"
+        />
+        <Input
+          className="ml-auto h-10 w-full max-w-[280px] min-w-[180px]"
+          placeholder="搜索切配单编号或日期"
+          aria-label="搜索切配单"
+          value={batchSearch}
+          onChange={(event) => setBatchSearch(event.target.value)}
+        />
+      </div>
+      <div className="skeu-scroll min-h-0 flex-1 overflow-y-auto px-3.5 pt-3 pb-3">
+        {batchesLoading ? (
+          <LoadingState type="list" rows={4} className="px-0" />
+        ) : batchesError ? (
+          <InlineError message={batchesError} onRetry={loadBatches} />
+        ) : filteredBatches.length === 0 ? (
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <p className="font-medium">暂无可出库切配单</p>
+
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+            {filteredBatches.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                disabled={storeId === null}
+                onClick={() => pickBatch(item.id)}
+                aria-pressed={batchId === item.id}
+                className={
+                  "min-h-28 rounded-lg border p-4 text-left transition-colors enabled:hover:border-primary enabled:hover:bg-muted/40 disabled:cursor-not-allowed disabled:opacity-50 " +
+                  (batchId === item.id
+                    ? "border-primary bg-primary/5"
+                    : "border-border")
+                }
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 flex-1 truncate font-medium" title={item.title}>
+                    {item.title}
+                  </span>
+                  <StatusBadge status={item.status} />
+                </div>
+                <div className="mt-1 font-mono text-xs text-muted-foreground">
+                  {item.code ?? "切配单 #" + item.id}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="h-3.5 w-3.5" />
+                    {new Date(item.date).toLocaleDateString("zh-CN")}
+                  </span>
+                  <span className="tabular-nums">
+                    {item.itemCount} 种 / {formatPortionsCount(item.totalPortions)}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+
+  const operationArea = (
+    <div
+      className={
+        embedded
+          ? "-mx-6 -mb-4 flex shrink-0 items-center justify-between gap-3 border-t bg-white px-6 pt-4 pb-5"
+          : "-mx-8 -mb-8 flex shrink-0 items-center justify-between gap-3 border-t bg-white px-8 pt-4 pb-5"
+      }
+    >
+      {view === "select" ? (
+        <>
+          <span />
+          <SkeuButton
+            type="button"
+            onClick={goToDetail}
+            disabled={!canProceed}
+          >
+            {quoteLoading && selectedSourceId != null ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : null}
+            下一步
+          </SkeuButton>
+        </>
+      ) : (
+        <>
+          <SkeuButton
+            type="button"
+            variant="outline"
+            onClick={() => setView("select")}
+          >
+            返回上一步
+          </SkeuButton>
+          <div className="flex items-center justify-end gap-2">
+            {embedded && (
+              <SkeuButton
+                type="button"
+                variant="outline"
+                onClick={() => onCancel?.()}
+              >
+                取消
+              </SkeuButton>
+            )}
+            <SkeuButton
+              type="button"
+              onClick={() => void submit()}
+              disabled={!canSubmit}
+            >
+              {submitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              {submitting ? "提交中…" : "确认出库"}
+            </SkeuButton>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
-    <div className={embedded ? "flex flex-col gap-6" : "flex flex-col gap-6 p-8"}>
+    <div
+      className={
+        embedded
+          ? "flex h-full min-h-0 flex-col gap-5"
+          : "flex min-h-0 flex-1 flex-col gap-6 p-8"
+      }
+    >
       {!embedded && (
-        <div className="flex items-center gap-3">
+        <div className="flex shrink-0 items-center gap-3">
           <SkeuButton
             variant="ghost"
             size="icon-sm"
@@ -408,211 +811,28 @@ export default function NewOutboundPage({
           >
             <ArrowLeft className="h-5 w-5" />
           </SkeuButton>
-          <PageHeader
-            title="创建出库单"
-            description="按门店排程单生成，按份出库，金额按净菜档案出库价自动核算"
-          />
+          <PageHeader title="创建出库单" />
         </div>
       )}
 
-      <div className="flex items-center gap-3 text-sm" aria-label="创建出库单步骤">
-        {([
-          { number: 1, label: "选择门店" },
-          { number: 2, label: "选择排程单" },
-          { number: 3, label: "确认出库明细" },
-        ] as const).map((item) => (
-          <div key={item.number} className="flex items-center gap-3">
-            <div
-              className={
-                "flex items-center gap-1.5 " +
-                (step === item.number
-                  ? "font-medium text-primary"
-                  : step > item.number
-                    ? "text-success"
-                    : "text-muted-foreground")
-              }
-              aria-current={step === item.number ? "step" : undefined}
-            >
-              <span
-                className={
-                  "inline-flex h-6 w-6 items-center justify-center rounded-full text-xs " +
-                  (step === item.number
-                    ? "bg-primary text-primary-foreground"
-                    : step > item.number
-                      ? "bg-success-muted text-success"
-                      : "bg-muted")
-                }
-              >
-                {step > item.number ? <Check className="h-3.5 w-3.5" /> : item.number}
-              </span>
-              {item.label}
+      {view === "select" && (
+        <>
+          <FormSection cols={2} className="shrink-0">
+            {outboundTimeField}
+            {remarkField}
+          </FormSection>
+          <div className="flex min-h-0 flex-1 flex-col gap-4">
+            <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(300px,4fr)_minmax(0,8fr)]">
+              {storeList}
+              {mode === "batch" ? batchPanel : schedulePanel}
             </div>
-            {item.number < 3 && <div className="h-px w-8 bg-border" />}
           </div>
-        ))}
-      </div>
-
-      {step === 1 && (
-        <div className="space-y-4">
-          <div className="relative w-full max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="h-9 pl-8"
-              placeholder="搜索门店名称或编号"
-              aria-label="搜索门店"
-              value={storeSearch}
-              onChange={(event) => setStoreSearch(event.target.value)}
-            />
-          </div>
-
-          {storesLoading ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="正在加载门店">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="h-24 rounded-lg bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : storesError ? (
-            <InlineError message={storesError} onRetry={loadStores} />
-          ) : (
-            <>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                {filteredStores.map((item) => (
-                  <button
-                    key={item.id}
-                    type="button"
-                    onClick={() => void pickStore(item.id)}
-                    aria-pressed={storeId === item.id}
-                    className={
-                      "min-h-24 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
-                      (storeId === item.id ? "border-primary bg-primary/5" : "border-border")
-                    }
-                  >
-                    <div className="flex items-center gap-2 font-medium">
-                      <MapPin className="h-4 w-4 text-muted-foreground" />
-                      {item.name}
-                    </div>
-                    <div className="mt-1 font-mono text-xs text-muted-foreground">{item.code}</div>
-                  </button>
-                ))}
-              </div>
-
-              {filteredStores.length === 0 && (
-                <div className="rounded-lg border border-dashed p-10 text-center">
-                  <p className="font-medium">
-                    {stores.length === 0 ? "暂无可用门店" : "未找到匹配门店"}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {stores.length === 0 ? "请先在设置中新增并启用门店" : "请调整搜索关键词"}
-                  </p>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+        </>
       )}
-
-      {step === 2 && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted/30 px-4 py-3">
-            <div>
-              <div className="text-xs text-muted-foreground">当前门店</div>
-              <div className="font-medium">{subjectName}</div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  className="h-9 w-[260px] pl-8"
-                  placeholder="搜索排程标题、编号或日期"
-                  aria-label="搜索排程单"
-                  value={sourceSearch}
-                  onChange={(event) => setSourceSearch(event.target.value)}
-                />
-              </div>
-              <SkeuButton type="button" variant="outline" onClick={() => setStep(1)}>
-                更换门店
-              </SkeuButton>
-            </div>
-          </div>
-
-          {sourcesLoading ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3" aria-label="正在加载排程单">
-              {[1, 2, 3].map((item) => (
-                <div key={item} className="h-28 rounded-lg bg-muted animate-pulse" />
-              ))}
-            </div>
-          ) : sourcesError ? (
-            <InlineError
-              message={sourcesError}
-              onRetry={() =>
-                storeId != null && void loadSources(storeId)
-              }
-            />
-          ) : filteredSources.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center">
-              <p className="font-medium">
-                {sources.length === 0 ? "该门店暂无可出库排程" : "未找到匹配单据"}
-              </p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {sources.length === 0 ? "仅展示进行中或已完成的排程单" : "请调整搜索关键词"}
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {filteredSources.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => void pickSource(item.id)}
-                  aria-pressed={sourceId === item.id}
-                  className={
-                    "min-h-28 rounded-lg border p-4 text-left transition-colors hover:border-primary hover:bg-muted/40 " +
-                    (sourceId === item.id ? "border-primary bg-primary/5" : "border-border")
-                  }
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span className="min-w-0 flex-1 truncate font-medium" title={item.title}>
-                      {item.title}
-                    </span>
-                    <StatusBadge status={item.status} />
-                  </div>
-                  <div className="mt-1 font-mono text-xs text-muted-foreground">
-                    {item.code ?? "排程单 #" + item.id}
-                  </div>
-                  <div className="mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <CalendarDays className="h-3.5 w-3.5" />
-                    {new Date(item.date).toLocaleDateString("zh-CN")}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {step === 3 && (
-        <div className="space-y-4">
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <b>{subjectName}</b>
-            </span>
-            <span className="min-w-0 truncate">
-              排程单：<b>{source?.title ?? "—"}</b>
-            </span>
-            {source && (
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <CalendarDays className="h-4 w-4" />
-                {new Date(source.date).toLocaleDateString("zh-CN")}
-              </span>
-            )}
-            <span className="text-muted-foreground">
-              按当前实际库存计算可出量，未切配的净菜默认不出库
-            </span>
-          </div>
-
-          {quoteLoading ? (
-            <div className="space-y-2" aria-label="正在加载出库明细">
+      {view === "detail" && (
+        <div className="flex min-h-0 flex-1 flex-col gap-4">
+                    {quoteLoading ? (
+            <div className="shrink-0 space-y-2" aria-label="正在加载出库明细">
               <div className="h-10 rounded-lg bg-muted animate-pulse" />
               {[1, 2, 3, 4, 5].map((item) => (
                 <div key={item} className="h-12 rounded-lg bg-muted animate-pulse" />
@@ -621,10 +841,13 @@ export default function NewOutboundPage({
           ) : quoteError ? (
             <InlineError
               message={quoteError}
-              onRetry={() => sourceId != null && void loadQuote(sourceId)}
+              onRetry={() => {
+                if (mode === "schedule" && sourceId != null) void loadQuote("schedule", sourceId);
+                if (mode === "batch" && batchId != null) void loadQuote("batch", batchId);
+              }}
             />
           ) : (
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="skeu-table-scroll skeu-scroll min-h-0 flex-1 overflow-auto rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -633,13 +856,19 @@ export default function NewOutboundPage({
                     <TableHead>序号</TableHead>
                     <TableHead>名称</TableHead>
                     <TableHead>封装规格</TableHead>
-                    <TableHead className="text-right">计划出库数（份）</TableHead>
-                    <TableHead className="text-right">计划量</TableHead>
                     <TableHead className="text-right">单价</TableHead>
-                    <TableHead className="text-right">库存份数</TableHead>
+                    {mode === "schedule" && (
+                      <>
+                        <TableHead className="text-right">计划出库数（份）</TableHead>
+                        <TableHead className="text-right">计划量</TableHead>
+                      </>
+                    )}
+                    <TableHead className="text-right">
+                      {mode === "batch" ? "梳理（份）" : "库存份数"}
+                    </TableHead>
                     <TableHead className="text-right">本次出库数（份）</TableHead>
                     <TableHead className="text-right">金额</TableHead>
-                    <TableHead>备货状态</TableHead>
+                    {mode === "schedule" && <TableHead>备货状态</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -654,9 +883,9 @@ export default function NewOutboundPage({
                       <TableRow
                         key={line.key}
                         className={
-                          line.prepStatus === "unfinished"
+                          mode === "schedule" && line.prepStatus === "unfinished"
                             ? "bg-danger-muted/40"
-                            : line.prepStatus === "insufficient"
+                            : mode === "schedule" && line.prepStatus === "insufficient"
                               ? "bg-warning-muted/40"
                               : ""
                         }
@@ -679,16 +908,20 @@ export default function NewOutboundPage({
                         <TableCell className="text-muted-foreground">
                           {line.packageSpec} g/份
                         </TableCell>
-                        <TableCell className="text-right font-medium tabular-nums">
-                          {formatPortionsCount(line.requiredPortions)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground tabular-nums">
-                          {formatWeight(line.requiredQty)}
-                        </TableCell>
                         <TableCell className="text-right text-muted-foreground tabular-nums">
                           {formatMoney(line.standardPackagePrice, "份")}
                         </TableCell>
-                        <TableCell className="text-right text-muted-foreground tabular-nums">
+                        {mode === "schedule" && (
+                          <>
+                            <TableCell className="text-right font-medium tabular-nums">
+                              {formatPortionsCount(line.requiredPortions)}
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground tabular-nums">
+                              {formatWeight(line.requiredQty)}
+                            </TableCell>
+                          </>
+                        )}
+                        <TableCell className="text-right font-medium tabular-nums">
                           {formatPortionsCount(line.availablePortions)}
                         </TableCell>
                         <TableCell className="text-right">
@@ -703,9 +936,7 @@ export default function NewOutboundPage({
                             inputMode="decimal"
                             aria-label={`${line.itemName} 本次出库数`}
                             aria-invalid={lineError !== null}
-                            aria-describedby={
-                              lineError ? `outbound-error-${line.key}` : undefined
-                            }
+                            aria-describedby={lineError ? `outbound-error-${line.key}` : undefined}
                             className={
                               "inline-block h-9 w-24 text-right tabular-nums " +
                               (lineError ? "border-destructive" : "")
@@ -730,7 +961,9 @@ export default function NewOutboundPage({
                         <TableCell className="text-right font-medium tabular-nums">
                           {amount != null ? "¥" + amount.toFixed(2) : "价缺失"}
                         </TableCell>
-                        <TableCell>{prepBadge(line.prepStatus)}</TableCell>
+                        {mode === "schedule" && (
+                          <TableCell>{prepBadge(line.prepStatus)}</TableCell>
+                        )}
                       </TableRow>
                     );
                   })}
@@ -738,21 +971,26 @@ export default function NewOutboundPage({
               </Table>
             </div>
           )}
-
           {!quoteLoading && !quoteError && (
             <div
               className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-lg border bg-muted/30 p-4 text-sm"
               role="status"
             >
               <span>共 <b>{lines.length}</b> 行</span>
-              <span>计划 <b>{formatPortionsCount(summary.planP)}</b></span>
-              <span>本次出库 <b className="text-primary">{formatPortionsCount(summary.shipP)}</b></span>
+              {mode === "schedule" && (
+                <span>计划 <b>{formatPortionsCount(summary.planP)}</b></span>
+              )}
+              <span>
+                本次出库 <b className="text-primary">{formatPortionsCount(summary.shipP)}</b>
+              </span>
               <span>合计金额 <b className="text-primary">¥{summary.amount.toFixed(2)}</b></span>
-              <span>未切配 <b className="text-destructive">{summary.unfinished}</b> 行</span>
+              {mode === "schedule" && (
+                <span>未切配 <b className="text-destructive">{summary.unfinished}</b> 行</span>
+              )}
               {summary.shipP <= 0 && (
                 <span className="text-sm text-destructive">本次出库总数必须大于 0</span>
               )}
-              {summary.unfinished > 0 && (
+              {mode === "schedule" && summary.unfinished > 0 && (
                 <span className="text-sm text-warning">
                   未切配的净菜默认不出库，本单将标记为未按计划出库
                 </span>
@@ -760,26 +998,10 @@ export default function NewOutboundPage({
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
-            {embedded && (
-              <SkeuButton
-                type="button"
-                variant="outline"
-                onClick={() => onCancel?.()}
-              >
-                取消
-              </SkeuButton>
-            )}
-            <SkeuButton type="button" variant="outline" onClick={() => setStep(2)}>
-              上一步
-            </SkeuButton>
-            <SkeuButton type="button" onClick={() => void submit()} disabled={!canSubmit}>
-              {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {submitting ? "提交中…" : "确认出库"}
-            </SkeuButton>
-          </div>
         </div>
       )}
+
+      {operationArea}
     </div>
   );
 }

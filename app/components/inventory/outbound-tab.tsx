@@ -17,6 +17,8 @@ interface OutboundRow {
   code: string;
   subjectType: "store" | "cutting_center";
   subjectName: string;
+  scheduleId: number | null;
+  productionPlanId: number | null;
   sourceCode: string | null;
   sourceTitle: string;
   sourceDate: string;
@@ -25,6 +27,7 @@ interface OutboundRow {
   asPlanned: boolean;
   status: string;
   operator: string;
+  outboundAt: string;
   createdAt: string;
 }
 
@@ -174,12 +177,20 @@ export function OutboundTab() {
               {
                 header: "是否按计划",
                 className: "w-[110px]",
-                cell: (row) => (
-                  <StatusBadge
-                    status={row.asPlanned ? "是" : "否"}
-                    variant={row.asPlanned ? "success" : "warning"}
-                  />
-                ),
+                cell: (row) =>
+                  row.scheduleId != null ? (
+                    <StatusBadge
+                      status={row.asPlanned ? "是" : "否"}
+                      variant={row.asPlanned ? "success" : "warning"}
+                    />
+                  ) : row.productionPlanId != null ? (
+                    <span className="text-muted-foreground">—</span>
+                  ) : (
+                    <StatusBadge
+                      status={row.asPlanned ? "是" : "否"}
+                      variant={row.asPlanned ? "success" : "warning"}
+                    />
+                  ),
               },
               {
                 header: "状态",
@@ -197,11 +208,11 @@ export function OutboundTab() {
                 cell: (row) => row.operator,
               },
               {
-                header: "创建时间",
+                header: "出库时间",
                 className: "w-[170px]",
                 cell: (row) => (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(row.createdAt).toLocaleString("zh-CN")}
+                    {new Date(row.outboundAt).toLocaleString("zh-CN")}
                   </span>
                 ),
               },
@@ -228,8 +239,6 @@ export function OutboundTab() {
             }}
             emptyState={{
               title: "还没有出库单",
-              description:
-                "点击右上角「创建出库单」，按排程单或内部生产单出库净菜",
             }}
           />
         )}

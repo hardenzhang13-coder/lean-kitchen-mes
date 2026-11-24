@@ -125,6 +125,96 @@ async function buildOutboundLines(
   });
 }
 
+export interface ProductionBatchOutboundSource {
+  sourceType: "net" | "minor";
+  sourceId: number;
+}
+
+/**
+ * 生产批次出库：批次余量来自 prepped_stock_batches，
+ * 而不是把全店聚合库存误认成某个 PPL 的剩余量。
+ */
+export async function getProductionBatchOutboundLines(
+  tx: Prisma.TransactionClient | PrismaClientLike,
+  productionPlanId: number,
+  sources?: ProductionBatchOutboundSource[]
+): Promise<OutboundLine[]> {
+  const batchRows = await tx.preppedStockBatch.findMany({
+    where: {
+      productionPlanId,
+      currentPortions: { gt: 0 },
+      ...(sources?.length
+        ? {
+            OR: sources.map((s) => ({ sourceType: s.sourceType, sourceId: s.sourceId })),
+          }
+        : {}),
+    },
+    orderBy: [{ sourceType: "asc" }, { sourceId: "asc" }],
+  });
+  if (!batchRows.length) return [];
+
+  const rawLines = batchRows.map((b) => ({
+    sourceType: b.sourceType,
+    sourceId: b.sourceId,
+    itemCode: null,
+    itemName: null,
+    l2Code: null,
+    packageSpec: b.packageSpec,
+    requiredQty: null,
+    requiredPortions: 0,
+    prepared: true,
+  }));
+  const lines = await buildOutboundLines(tx, rawLines);
+  const batchMap = new Map(
+    batchRows.map((b) => [`${b.sourceType}:${b.sourceId}`, b])
+  );
+
+  return lines.map((line) => {
+    const batch = batchMap.get(line.key);
+    if (!batch) return line;
+    return {
+      ...line,
+      availablePortions: round2(Number(batch.currentPortions)),
+      prepStatus: "normal" as const,
+      suggestedPortions: round2(Number(batch.currentPortions)),
+    };
+  });
+}
+
+/**
+ * 排程出库的计划行仍来自本排程切配工单，
+ * 但可用量必须二次限制到其归属 PPL 批次，避免绕过批次余量。
+ */
+export async function limitOutboundLinesToProductionBatch(
+  tx: Prisma.TransactionClient | PrismaClientLike,
+  productionPlanId: number,
+  lines: OutboundLine[]
+): Promise<OutboundLine[]> {
+  if (!lines.length) return lines;
+
+  const batches = await tx.preppedStockBatch.findMany({
+    where: { productionPlanId, currentPortions: { gt: 0 } },
+  });
+  const batchMap = new Map(
+    batches.map((b) => [`${b.sourceType}:${b.sourceId}`, b])
+  );
+
+  return lines.map((line) => {
+    const batch = batchMap.get(line.key);
+    const batchAvailable = batch
+      ? round2(Number(batch.currentPortions))
+      : 0;
+    const available = round2(Math.min(line.availablePortions, batchAvailable));
+    return {
+      ...line,
+      availablePortions: available,
+      prepStatus:
+        available < line.requiredPortions ? ("insufficient" as const) : line.prepStatus,
+      suggestedPortions: round2(Math.min(line.suggestedPortions, available)),
+    };
+  });
+}
+
 /** 门店出库：以排程切配工单为计划口径 */
 export async function getOutboundLines(
   tx: Prisma.TransactionClient | PrismaClientLike,
@@ -189,6 +279,7 @@ type PrismaClientLike = Pick<
   | "selfProductionOrder"
   | "netIngredient"
   | "preppedStock"
+  | "preppedStockBatch"
   | "ingredientCategoryL2"
   | "ingredientCategoryL1"
 >;

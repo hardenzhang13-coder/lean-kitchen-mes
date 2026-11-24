@@ -31,6 +31,9 @@ interface OutboundDetail {
   sourceCode: string | null;
   sourceTitle: string;
   sourceDate: string;
+  scheduleId: number | null;
+  productionPlanId: number | null;
+  outboundAt: string;
   selfOrderId: number | null;
   totalPortions: number;
   totalAmount: number;
@@ -160,7 +163,14 @@ export default function OutboundDetailPage({
 
   const voided = data.status === "voided";
   const isCuttingCenter = data.subjectType === "cutting_center";
-  const sourceLabel = isCuttingCenter ? "内部生产单" : "排程单";
+  const sourceLabel =
+    isCuttingCenter
+      ? "内部生产单"
+      : data.scheduleId != null
+        ? "排程单"
+        : data.productionPlanId != null
+          ? "生产批次"
+          : "出库单";
 
   return (
     <div className={embedded ? "flex flex-col gap-6" : "flex flex-col gap-6 p-8"}>
@@ -188,7 +198,7 @@ export default function OutboundDetailPage({
               ) : (
                 <StatusBadge status="已出库" variant="success" />
               )}
-              {!voided && (
+              {!voided && data.scheduleId == null && (
                 data.asPlanned ? (
                   <StatusBadge status="按计划出库" variant="success" />
                 ) : (
@@ -197,7 +207,7 @@ export default function OutboundDetailPage({
               )}
             </h1>
             <p className="text-sm text-muted-foreground">
-              {data.subjectName} · {sourceLabel} {data.sourceTitle} · 制单人 {data.operator} · {new Date(data.createdAt).toLocaleString("zh-CN")}
+              {data.subjectName} · {sourceLabel} {data.sourceTitle} · 制单人 {data.operator} · 出库时间 {new Date(data.outboundAt).toLocaleString("zh-CN")}
             </p>
           </div>
         </div>
