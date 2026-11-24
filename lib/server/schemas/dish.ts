@@ -40,7 +40,8 @@ export const dishQuerySchema = z.object({
   technique: z.string().optional(),
   meatType: z.string().optional(),
   portion: z.string().optional(),
-  portionGroup: z.enum(["single", "community", "canteen"]).optional(),
+  // 份量分组 = 份量档案（portion_profiles）的 scenario，自由字符串
+  portionGroup: z.string().trim().max(50).optional(),
   status: dishStatusSchema.optional(),
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),

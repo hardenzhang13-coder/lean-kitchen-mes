@@ -41,10 +41,7 @@ import {
   DishDetail,
   calcGrossMarginPercent,
 } from "@/app/components/dish-form/types";
-import {
-  isDishPortionGroup,
-  type DishPortionGroup,
-} from "@/lib/shared/portion-scale";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -67,20 +64,51 @@ const MEAT_FILTER_OPTIONS: SkeuDotOption[] = [
   { value: "素菜", label: "素菜", tone: "green" },
 ];
 
-const GROUP_TABS = [
-  { value: "single", label: "单人份", icon: User },
-  { value: "community", label: "社区", icon: Users },
-  { value: "canteen", label: "团餐食堂", icon: Building2 },
-] as const;
+/** 份量分组页签图标：档案场景按序循环复用 */
+const GROUP_ICONS = [User, Users, Building2];
+
+/** 档案加载失败时的兜底页签：value 必须是份量档案 scenario（服务端按 scenario 过滤） */
+const LEGACY_GROUP_VALUES = ["单人份", "社区", "团餐食堂"];
 
 export default function DishesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const dishIdParam = searchParams.get("dishId");
   const groupParam = searchParams.get("group");
-  const group: DishPortionGroup = isDishPortionGroup(groupParam)
-    ? groupParam
-    : "single";
+  // 份量分组唯一来源是份量档案 scenario；档案未就绪/失败时回退兜底三组（值仍是 scenario）
+  const { profiles, loading: profilesLoading, error: profilesError } =
+    usePortionProfiles();
+
+  /** 场景有序集合：按档案 sortOrder 顺序去重 */
+  const scenarios = useMemo(() => {
+    const list: string[] = [];
+    (profiles ?? []).forEach((p) => {
+      if (p.isActive && !list.includes(p.scenario)) list.push(p.scenario);
+    });
+    return list;
+  }, [profiles]);
+
+  const groupTabs = useMemo(
+    () =>
+      (profilesError || scenarios.length === 0 ? LEGACY_GROUP_VALUES : scenarios).map(
+        (value, i) => ({ value, label: value, icon: GROUP_ICONS[i % GROUP_ICONS.length] })
+      ),
+    [profilesError, scenarios]
+  );
+
+  const group: string =
+    groupParam && groupTabs.some((t) => t.value === groupParam)
+      ? groupParam
+      : (groupTabs[0]?.value ?? "");
+
+  // URL 分组参数不在档案场景内（含首次进入无参数）：档案就绪后回写为第一个场景
+  useEffect(() => {
+    if (profilesLoading) return;
+    if (groupTabs.length === 0) return;
+    if (!groupParam || !groupTabs.some((t) => t.value === groupParam)) {
+      router.replace(`/dishes?group=${encodeURIComponent(groupTabs[0].value)}`);
+    }
+  }, [profilesLoading, groupTabs, groupParam, router]);
   const [dishes, setDishes] = useState<DishDetail[]>([]);
   const [categories, setCategories] = useState<Array<{ id: number; code: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -119,6 +147,7 @@ export default function DishesPage() {
   }, []);
 
   useEffect(() => {
+    if (!group || profilesLoading) return;
     const controller = new AbortController();
     const load = async () => {
       setLoading(true);
@@ -160,7 +189,7 @@ export default function DishesPage() {
     };
     load();
     return () => controller.abort();
-  }, [group, filterCategory, filterMeatType, filterStatus, search, page, pageSize, refreshKey, dishIdParam, fetchDetail]);
+  }, [group, profilesLoading, filterCategory, filterMeatType, filterStatus, search, page, pageSize, refreshKey, dishIdParam, fetchDetail]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -247,13 +276,13 @@ export default function DishesPage() {
     >
       <div className="skeu-panel flex min-h-0 flex-1 flex-col overflow-hidden">
         <PageTabs
-          tabs={[...GROUP_TABS]}
+          tabs={groupTabs}
           value={group}
           onChange={(next) => {
-            if (!isDishPortionGroup(next)) return;
+            if (!groupTabs.some((t) => t.value === next)) return;
             setPage(1);
             setDetailOpen(false);
-            router.replace(`/dishes?group=${next}`);
+            router.replace(`/dishes?group=${encodeURIComponent(next)}`);
           }}
           ariaLabel="菜品份量分类"
         />

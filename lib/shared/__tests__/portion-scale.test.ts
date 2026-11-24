@@ -1,7 +1,5 @@
 import {
-  getDishPortionGroup,
   getPortionOption,
-  isDishPortionGroup,
   parsePortionCount,
   portionScaleFactor,
   toPortionOption,
@@ -48,14 +46,13 @@ describe("份量档案与换算", () => {
     expect(parsePortionCount(undefined)).toBeNull();
   });
 
-  it("菜品库按 单人份 / 10 份 / 其余归入三档", () => {
-    expect(getDishPortionGroup("单人份")).toBe("single");
-    expect(getDishPortionGroup("小碗菜")).toBe("single");
-    expect(getDishPortionGroup("小碗菜·10份")).toBe("canteen");
-    expect(getDishPortionGroup("社区·2份")).toBe("community");
-    expect(getDishPortionGroup(null)).toBe("community");
-    expect(isDishPortionGroup("single")).toBe(true);
-    expect(isDishPortionGroup("unknown")).toBe(false);
+  it("场景（scenario）从档案行按序去重即可得分组", () => {
+    // 菜品库分组已由档案 scenario 驱动（app/dishes/page.tsx），此处只锁定去重语义
+    const scenarios: string[] = [];
+    profiles.forEach((p) => {
+      if (p.isActive && !scenarios.includes(p.scenario)) scenarios.push(p.scenario);
+    });
+    expect(scenarios).toEqual(["单人份", "社区", "团餐食堂"]);
   });
 
   it("转化倍率 = 目标档案 multiplier ÷ 源档案 multiplier", () => {

@@ -26,13 +26,19 @@ export async function GET(req: NextRequest) {
     if (meatType) where.meatType = meatType;
     if (portion) {
       where.portion = portion;
-    } else if (portionGroup === "single") {
-      // 「小碗菜」为数据迁移前的存量标签，过渡期内并集保留
-      where.portion = { in: ["单人份", "小碗菜"] };
-    } else if (portionGroup === "canteen") {
-      where.portion = { in: ["小碗菜·10份"] };
-    } else if (portionGroup === "community") {
-      where.portion = { notIn: ["单人份", "小碗菜", "小碗菜·10份"] };
+    } else if (portionGroup) {
+      // 分组 = 份量档案 scenario：查该场景下全部 portion 标签做 IN 过滤
+      const rows = await prisma.portionProfile.findMany({
+        where: { scenario: portionGroup, isActive: true },
+        select: { portion: true },
+      });
+      const portions = rows.map((r) => r.portion);
+      if (portions.length > 0) {
+        where.portion = { in: portions };
+      } else {
+        // 场景无档案行：返回空集（不可能条件，MySQL 兼容）
+        where.id = -1;
+      }
     }
     if (status) where.status = status;
     if (q) {

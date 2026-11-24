@@ -24,7 +24,7 @@
 - `technique` — 做法
 - `meatType` — 荤素类型
 - `portion` — 份量规格
-- `portionGroup` — 份量分组：`single`（单人份，含迁移前存量标签「小碗菜」）/ `community`（社区·N 份及其余）/ `canteen`（小碗菜·10 份）
+- `portionGroup` — 份量分组：值为份量档案（`portion_profiles`）的 `scenario`（如 `单人份` / `社区` / `团餐食堂`）；服务端按该场景下启用中的档案行取 `portion` 集合做 IN 过滤，场景无档案行时返回空集
 - `status` — 状态（draft / published / inactive）
 - `q` — 按名称或编码模糊搜索
 - `page` / `pageSize` — 分页

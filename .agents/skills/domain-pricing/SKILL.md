@@ -71,7 +71,7 @@ description: 涉及净料价格、菜品成本、出成率、单位换算、份�
 - 服务端写校验：`lib/server/portion-profile-utils.ts` 的 `validatePortionForCreate`（启用行）/ `validatePortionForUpdate`（任意状态行 ∪ 现值）
 - 客户端选项：`lib/client/use-portion-profiles.ts` 的 `usePortionProfiles` hook（模块级 60s 缓存）→ `toPortionOption` 映射；接口失败降级 `LEGACY_PORTION_OPTIONS` 兜底展示，不写回
 - 转化倍率 = 目标行 `multiplier` ÷ 源行 `multiplier`（`portionScaleFactor(source, target, profiles)`，profiles 必填）；旧 `bowlEquivalent`（社区 2N）口径作废，历史数据不做兼容
-- 菜品库分组：`getDishPortionGroup`（单人份/小碗菜→single、小碗菜·10份→canteen、其余→community）
+- 菜品库分组 Tab 按档案 `scenario` 动态生成（`app/dishes/page.tsx` 用 `usePortionProfiles` 按序去重场景；`GET /api/dishes?portionGroup=<scenario>` 服务端按场景启用行做 IN 过滤）；原 `getDishPortionGroup` / `DISH_PORTION_GROUPS` 三档常量已删除，勿再引用
 - 渲染组件：`PortionTag`（`app/components/ui/portion-tag.tsx`），色板按档案场景映射，未知场景 muted 兜底
 
 **枚举字典契约**：跨模块使用的枚举必须落在 `lib/shared/`，并同时提供「枚举值数组 + 选项元数据 + 取值解析 + 合法性判断 + 渲染组件」五件套；服务端 zod enum 与前端选项从同一份导入，不得各写一份字面量。渲染组件放 `app/components/ui/`（份量用 `PortionTag`）。详见 `docs/system-iteration-foundation-v1.md` C1。份量是**档案驱动**的反例参照：选项来自数据库，五件套中的「枚举值数组」由档案行承担，不再硬编码。
