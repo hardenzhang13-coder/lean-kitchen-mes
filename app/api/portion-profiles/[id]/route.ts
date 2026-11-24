@@ -23,14 +23,34 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }
 
     const { portion, scenario, multiplier, isActive } = validation.data;
-    const row = await prisma.portionProfile.update({
-      where: { id: Number(id) },
-      data: {
-        ...(portion !== undefined ? { portion } : {}),
-        ...(scenario !== undefined ? { scenario } : {}),
-        ...(multiplier !== undefined ? { multiplier } : {}),
-        ...(isActive !== undefined ? { isActive } : {}),
-      },
+    const renamed = portion !== undefined && portion !== existing.portion;
+    // 业务表（菜品/净料/调料清单）存的是份量标签字符串，与档案弱引用：
+    // 改名必须在同一事务内级联，否则菜品库份量分组 Tab 按新标签 IN 过滤会失配
+    const row = await prisma.$transaction(async (tx) => {
+      const updated = await tx.portionProfile.update({
+        where: { id: Number(id) },
+        data: {
+          ...(portion !== undefined ? { portion } : {}),
+          ...(scenario !== undefined ? { scenario } : {}),
+          ...(multiplier !== undefined ? { multiplier } : {}),
+          ...(isActive !== undefined ? { isActive } : {}),
+        },
+      });
+      if (renamed) {
+        await tx.dish.updateMany({
+          where: { portion: existing.portion },
+          data: { portion },
+        });
+        await tx.netIngredient.updateMany({
+          where: { portion: existing.portion },
+          data: { portion },
+        });
+        await tx.standardSeasoning.updateMany({
+          where: { portion: existing.portion },
+          data: { portion },
+        });
+      }
+      return updated;
     });
     await logOperation(req, { action: "UPDATE", entity: "PortionProfile", entityId: row.id, description: `更新: ${row.portion}` });
     return success(row);
