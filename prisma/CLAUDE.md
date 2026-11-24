@@ -71,6 +71,7 @@ Ingredient（调料，SEA 体系）
 | `PortionProfile` | 份量档案（设置模块「份量」，迁移 20261123083624）。每行 = 一个具体份量选项；`portion` 标签全表唯一；`scenario` 同场景允许多行；`multiplier` 为正整数倍率（份量 = 单人份 × 倍率）；`isBase` = 单人份基本单元锁定，API 拒绝编辑/停用/删除（zod 不接受 isBase 字段）；无业务表引用，物理删除 |
 
 - **打通状态（2026-11-24，迁移 20261124100000）**：`Dish` / `NetIngredient` / `StandardSeasoning` 的 `portion` 字段统一落本表标签（存量「小碗菜」已迁为「单人份」）；写校验 `lib/server/portion-profile-utils.ts`，客户端选项 `lib/client/use-portion-profiles.ts`；转化倍率 = 目标 multiplier ÷ 源 multiplier
+- **菜品库表头分组（2026-11-24）**：菜品库份量分组 Tab 按本表 `scenario` 动态生成（`app/dishes/page.tsx` + `GET /api/dishes?portionGroup=<scenario>`，服务端按场景档案行做 IN 过滤）；原硬编码 single/community/canteen 三档已下线
 
 ### 建档时间（createdAt）
 

@@ -86,6 +86,8 @@
 
 数据：40条，逐条导入现有 JSON。
 
+- **调味品业务分类（2026-11-24，种子 + 迁移 `20261124130000_seed_seasoning_categories`）**：SEA 下新增三个二级分类 `SEA-ITM` 单品调料 / `SEA-COM` 复合调料 / `SEA-SAU` 成品酱料（幂等 INSERT IGNORE）；创建/编辑调味品时分类下拉可选，调味品页四个 Tab 按此过滤
+
 ---
 
 ### 1.4 `units` — 单位字典
@@ -183,6 +185,7 @@
 - 唯一约束：`portion`；索引：`(scenario, sort_order)`
 - 种子（仅缺失时创建，不覆盖运营修改）：单人份/单人份/×1（锁定）、社区·2份/社区/×2、小碗菜·10份/团餐食堂/×10
 - **打通状态（2026-11-24，迁移 20261124100000）**：`dishes` / `net_ingredients` / `standard_seasonings` 的 `portion` 字段统一落本表标签；写校验走 `lib/server/portion-profile-utils.ts`；客户端选项走 `lib/client/use-portion-profiles.ts`；转化倍率 = 目标 multiplier ÷ 源 multiplier（旧 bowlEquivalent 口径作废，存量已迁移：基本单元「小碗菜」→「单人份」）
+- **菜品库表头分组（2026-11-24）**：菜品库份量分组 Tab 按 `scenario` 动态生成（`app/dishes/page.tsx` 用 `usePortionProfiles` 去重场景 + `GET /api/dishes?portionGroup=<scenario>`，服务端按该场景启用中的档案行取 portion 集合做 IN 过滤，无档案行返回空集）；原硬编码 single/community/canteen 三档及 `portion-scale.ts` 的 DISH_PORTION_GROUPS 系列常量已删除
 - 无业务表外键引用（业务表为字符串标签弱引用），删除为物理删除（单人份行除外，服务端拒绝）
 
 ---
@@ -294,14 +297,12 @@
 
 ---
 
-### 2.5 `standard_seasonings` — 标准化调料表（2026-11 调料标准化，迁移 20261120100000）
+### 2.5 `standard_seasonings` — 调料清单表（2026-11 调料标准化，迁移 20261120100000）
 
-> **2026-11-21 起暂时下线**：调料在菜品 BOM 里回到「直接选调料 + 填克数」口径，本表不再被 BOM 引用。
-> 表结构、API（`/api/standard-seasonings`）、既有记录与组件文件全部保留未删；UI 入口由
-> `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 统一控制（当前 `false`）。
-> 恢复时把该常量置 `true`，并回滚菜品 BOM / 成本口径里的规格化分支。
+> **2026-11-24 复活为「调料清单」**：调味品可经「转化」创建本表档案（完整复刻食材→净料链路：来源调味品 + 包装规格 + 出成率 + 价格派生 + 份量档案校验），UI 由 `STANDARD_SEASONING_ENABLED = true` 控制。
+> 菜品 BOM 口径本期不变——仍直接选调味品 + 手填克数，本表档案不进 BOM 计算。
 
-由「调料采购档案」转化而来的标准规格档案（**当前未被菜品 BOM 引用**）。编号从 SEA-SP-0001 起。
+由「调味品采购档案」转化而来的调料清单档案（**当前未被菜品 BOM 引用**）。编号从 SEA-SP-0001 起。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|

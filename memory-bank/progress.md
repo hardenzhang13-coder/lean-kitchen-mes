@@ -6,6 +6,24 @@
 
 ---
 
+## 2026-11-24 — 份量数据迭代收尾：菜品库分组档案化 + 食材库规范 + 调味品模块升级
+
+### 背景与决策
+- 菜品库表头单人份/社区/团餐食堂三档为硬编码（GROUP_TABS / API where / portion-scale 常量三份互不同步），且 community 用 notIn 开集兜底、single 含已迁完的「小碗菜」，语义漂移——改为份量档案 `scenario` 驱动。
+- 食材库命名规范：入口页与清单页标题「食材库」（侧边栏维持「原料」）；拍板规范：凡有核心主操作的列表页，主操作固定操作列最右。
+- 调料更名「调味品」：与食材同属一种实体属性；SEA 下新增单品调料/复合调料/成品酱料三个二级分类；复活 `standard_seasonings` 为「调料清单」（完整复刻食材→净料转化链路）；现有酱料模块只隐入口（模型/API/菜品 BOM 保留）。
+
+### 交付
+- **261a4c5 feat(seasoning)**：SEA 三分类 seed（仅缺失时创建）+ 幂等迁移 `20261124130000`；调味品页四 Tab 重构（SeasoningListPanel）；`STANDARD_SEASONING_ENABLED` 置 true；全量文案更名 调料→调味品；看板酱料节点隐藏。
+- **1c64cec feat(dishes)**：分组 Tab 由 `usePortionProfiles` 按 scenario 动态生成（加载失败回退三组兜底值）；`GET /api/dishes?portionGroup=` 改自由字符串、按场景启用档案行 IN 过滤；清理 portion-scale.ts DISH_PORTION_GROUPS 系列作废常量。
+- **41e3054 feat(ingredients)**：清单页标题「食材库」、首 Tab「食材」；原料列表操作列 查看 → 编辑 → 转化；交互基线 §6.2 操作顺序条款更新。
+
+### 验证
+- `npm run verify` 全绿（tsc + ESLint + 407 Jest）；Prisma 零差异校验通过。
+- 运行时 curl 验证：`portionGroup=单人份/社区/团餐食堂/不存在场景` 返回 2/1/1/0；`l2Code=SEA-COM` 过滤正确；`POST /api/standard-seasonings` 创建成功且价格链派生正确（测试档案已删）。
+
+---
+
 ## 2026-11-23 — 生产模块第二轮：菜单改名「切配」+ 索引卡重构 + 新建改弹窗两视图
 
 ### 背景与决策

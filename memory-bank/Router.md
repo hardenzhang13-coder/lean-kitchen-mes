@@ -43,8 +43,9 @@
 │   ├── /ingredients/net           净料清单
 │   ├── /ingredients/net/[id]/labels    净料标签打印
 │   ├── /ingredients/minor         小料清单
-│   ├── /ingredients/seasoning     调料清单
-│   └── /ingredients/sauce         酱料清单
+│   ├── /ingredients/food           食材清单（食材/净料/小料三 Tab，标题「食材库」）
+│   ├── /ingredients/seasoning     调味品（四 Tab：调味品/单品调料/复合调料/成品酱料）
+│   └── /ingredients/sauce         酱料清单（2026-11-24 起入口隐藏，直达仍可用）
 │
 ├── /purchases                     采购管理（试运行期间锁定）
 │   ├── /purchases                 采购单列表
@@ -257,17 +258,17 @@
 ### 3.5 食材库 `/ingredients`
 
 #### 总览 `/ingredients`
-食材转化流程图：原料与调料经初加工、配比组合转化为净料、小料与酱料；统一计价规则面板。
+食材转化流程图：食材与调味品经初加工、配比组合转化为净料、小料与调料清单；统一计价规则面板。**2026-11-24 起「酱料」节点隐藏**（只隐入口，模型/API/菜品 BOM 保留）。
 
-#### 5 类清单页
-`/ingredients/raw` | `/ingredients/net` | `/ingredients/minor` | `/ingredients/seasoning` | `/ingredients/sauce`
+#### 清单页
+`/ingredients/food`（食材清单三 Tab：食材/净料/小料）| `/ingredients/seasoning`（调味品四 Tab）| `/ingredients/sauce`（酱料清单，入口已隐藏，直达仍可用）
 
 | 清单 | 突出字段 | 操作顺序 |
 |---|---|---|
-| 原料 | 名称、每斤单价 | 编辑 → 转净料 → 删除 |
+| 食材（原料） | 名称、每斤单价 | 查看 → 编辑 → 转化（转净料/小料，主操作最右） |
 | 净料 | 名称、标准规格价 | 编辑 → 删除 |
 | 小料 | 名称、标准规格价 | 编辑 → 删除 |
-| 调料 | 名称、每斤单价 | 复制 → 编辑 |
+| 调味品 | 名称、每斤单价 | 查看 → 编辑 → 转化（转调料清单，主操作最右） |
 | 酱料 | 名称、标准规格价 | 编辑 → 删除 |
 
 通用交互（按交互视觉基线 v1）：
@@ -276,13 +277,13 @@
 - 详情通过**点击整行**进入半屏抽屉（50vw），按「基础信息 / 采购与计量 / 包装与规格 / 价格与成本」分组
 - 操作列直接展示当前行可执行的全部业务动作图标，不折叠进「更多」菜单
 
-#### 调料详情
-- 调料详情抽屉底部功能区：左侧「删除」，中间「复制 / 编辑」（与基线 §6.2.4 一致）
-- **2026-11-21 起暂时下线**「转调料」与「查看封装调料」：调料转标准规格功能暂停，入口由
-  `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 控制（当前 `false`）；
-  表、API 与组件文件保留，恢复时置 `true` 即可
+#### 调味品 `/ingredients/seasoning`（2026-11-24 升级）
+- 四 Tab：**调味品 / 单品调料 / 复合调料 / 成品酱料**；后三个挂 SEA 新二级分类 SEA-ITM / SEA-COM / SEA-SAU（种子+迁移 `20261124130000_seed_seasoning_categories`）
+- 「转化」= 转调料清单：创建 `standard_seasonings` 档案（完整复刻食材→净料链路：来源调味品 + 包装规格 + 出成率 + 价格派生 + 份量档案校验）；编辑/删除走「查看调料清单」抽屉（`StandardSeasoningListSheet`）
+- 调味品详情抽屉底部功能区：左侧「删除」，中间「复制 / 编辑」（与基线 §6.2.4 一致）
 - 行操作：编辑、删除（被菜品引用时拒绝删除）
-- 调料**直接**进入菜品 BOM（不再要求先标准化）
+- 调味品**直接**进入菜品 BOM（本期不动 BOM 口径，仍选调味品+手填克数）
+- 开关 `STANDARD_SEASONING_ENABLED` 已置 `true`（2026-11-24 复活调料清单链路）
 
 #### 原料详情 `/ingredients/raw/[id]`
 #### 净料标签 `/ingredients/net/[id]/labels`
