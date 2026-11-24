@@ -13,22 +13,34 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { PageHeader } from "@/app/components/ui/page-header";
 
-// 四类食材节点（颜色 = 全站统一的食材类型色）
-// 2026-11-24：「酱料」节点隐藏（现有酱料模块只隐入口，模型/API/菜品 BOM 保留），
-// 业务流向收敛为：食材 → 净料/小料、调味品 → 调料清单
+// 三类食材节点（颜色 = 全站统一的食材类型色），统一流向菜品库
+// 2026-11-24：净料/小料节点撤下首页（清单页保留）；新增「香料」占位节点，与食材、调味品同级；
+// 「酱料」节点维持隐藏（模型/API/菜品 BOM 保留）
 const NODES = [
   { id: "raw", name: "食材", glyph: "原", color: "#f97316", desc: "采购入库、库存管理的基本单位", href: "/ingredients/raw" },
-  { id: "seasoning", name: "调味品", glyph: "调", color: "#3b82f6", desc: "可转化为调料清单，按单品/复合/成品酱料分类", href: "/ingredients/seasoning" },
-  { id: "net", name: "净料", glyph: "净", color: "#10b981", desc: "原料初加工后的规格化半成品", href: "/ingredients/net" },
-  { id: "minor", name: "小料", glyph: "料", color: "#f43f5e", desc: "增香提味、按标准规格封装", href: "/ingredients/minor" },
+  { id: "seasoning", name: "调味品", glyph: "调", color: "#3b82f6", desc: "按单品/复合/成品酱料归类，可转化调料清单", href: "/ingredients/seasoning" },
+  { id: "spice", name: "香料", glyph: "香", color: "#f59e0b", desc: "占位模块：与食材、调味品同级，后续接入", href: null },
 ] as const;
 
 type NodeId = (typeof NODES)[number]["id"];
 
-// 转化流：颜色跟随来源节点；箭头表达「谁转化成谁」
-const FLOWS: Array<{ from: NodeId; to: NodeId; color: string }> = [
-  { from: "raw", to: "net", color: "#f97316" },
-  { from: "raw", to: "minor", color: "#fb923c" },
+// 流向终点：三类食材统一汇入菜品配方
+const DISH_TARGET = {
+  id: "dish",
+  name: "菜品库",
+  glyph: "菜",
+  color: "#8b5cf6",
+  desc: "三类食材统一流向菜品配方",
+  href: "/dishes",
+} as const;
+
+type BoardId = NodeId | (typeof DISH_TARGET)["id"];
+
+// 流向：三类食材 → 菜品库；颜色跟随来源节点
+const FLOWS: Array<{ from: NodeId; to: BoardId; color: string }> = [
+  { from: "raw", to: "dish", color: "#f97316" },
+  { from: "seasoning", to: "dish", color: "#3b82f6" },
+  { from: "spice", to: "dish", color: "#f59e0b" },
 ];
 
 // 血缘：上游/下游（悬停高亮用）
@@ -51,7 +63,7 @@ function lineage(id: string): Set<string> {
   return set;
 }
 
-type Counts = Record<NodeId, number>;
+type Counts = Record<Extract<BoardId, "raw" | "seasoning">, number>;
 
 /** 计价规则弹窗：统一链路 + 各类型成本价由来 */
 function PricingRulesDialog({
@@ -149,12 +161,12 @@ function PricingRulesDialog({
 
 export default function IngredientsPage() {
   const router = useRouter();
-  const [counts, setCounts] = useState<Counts>({ raw: 0, net: 0, minor: 0, seasoning: 0 });
-  const [hoverId, setHoverId] = useState<NodeId | null>(null);
+  const [counts, setCounts] = useState<Counts>({ raw: 0, seasoning: 0 });
+  const [hoverId, setHoverId] = useState<BoardId | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [paths, setPaths] = useState<Record<string, string>>({});
   const boardRef = useRef<HTMLDivElement>(null);
-  const nodeRefs = useRef<Partial<Record<NodeId, HTMLDivElement | null>>>({});
+  const nodeRefs = useRef<Partial<Record<BoardId, HTMLDivElement | null>>>({});
 
   const fetchCounts = useCallback(async () => {
     try {
@@ -214,8 +226,18 @@ export default function IngredientsPage() {
   const isFlowActive = (i: number) =>
     hoverId !== null && (FLOWS[i].from === hoverId || FLOWS[i].to === hoverId);
 
-  const nodeCard = (n: (typeof NODES)[number]) => {
+  const nodeCard = (n: {
+    id: BoardId;
+    name: string;
+    glyph: string;
+    color: string;
+    desc: string;
+    href: string | null;
+  }) => {
     const dimmed = hoverSet !== null && !hoverSet.has(n.id);
+    const clickable = n.href !== null;
+    const count =
+      n.id === "raw" || n.id === "seasoning" ? counts[n.id] : null;
     return (
       <div
         key={n.id}
@@ -224,12 +246,22 @@ export default function IngredientsPage() {
         }}
         onMouseEnter={() => setHoverId(n.id)}
         onMouseLeave={() => setHoverId(null)}
-        onClick={() => router.push(n.href)}
-        className={`relative cursor-pointer rounded-2xl border-[1.5px] bg-white p-5 transition-all duration-200 hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)] border-[#e2e8f0] ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
+        onClick={clickable ? () => router.push(n.href as string) : undefined}
+        className={`relative rounded-2xl border-[1.5px] bg-white p-5 transition-all duration-200 border-[#e2e8f0] ${
+          clickable
+            ? "cursor-pointer hover:-translate-y-[3px] hover:shadow-[0_12px_32px_rgba(15,23,42,0.10)]"
+            : "cursor-default"
+        } ${dimmed ? "scale-[0.985] opacity-[0.18]" : ""}`}
       >
-        <span className="absolute right-4 top-4 text-xs font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
-          进入清单 →
-        </span>
+        {clickable ? (
+          <span className="absolute right-4 top-4 text-xs font-semibold text-[#a78bfa] opacity-0 transition-opacity hover:opacity-100">
+            进入清单 →
+          </span>
+        ) : (
+          <span className="absolute right-4 top-4 rounded-md bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
+            占位
+          </span>
+        )}
         <div className="flex items-center gap-3.5">
           <span
             className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[15px] text-[22px] font-extrabold text-white shadow-[0_4px_12px_rgba(15,23,42,0.12)]"
@@ -241,12 +273,14 @@ export default function IngredientsPage() {
             <div className="text-[17px] font-extrabold">{n.name}</div>
             <div className="mt-0.5 text-xs leading-normal text-slate-500">{n.desc}</div>
           </div>
-          <div className="ml-auto shrink-0 pl-2.5 text-right">
-            <b className="text-[26px] font-extrabold leading-none" style={{ color: n.color }}>
-              {counts[n.id]}
-            </b>
-            <span className="ml-0.5 text-xs text-slate-500">种</span>
-          </div>
+          {count !== null && (
+            <div className="ml-auto shrink-0 pl-2.5 text-right">
+              <b className="text-[26px] font-extrabold leading-none" style={{ color: n.color }}>
+                {count}
+              </b>
+              <span className="ml-0.5 text-xs text-slate-500">种</span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -259,7 +293,7 @@ export default function IngredientsPage() {
         <PageHeader
           variant="topbar"
           title="食材库"
-          description="食材与调味品经初加工、配比组合，转化为净料、小料与调料清单"
+          description="食材、调味品、香料，统一流向菜品库"
           actions={
             <SkeuButton
               variant="outline"
@@ -273,13 +307,13 @@ export default function IngredientsPage() {
       }
     >
       <div className="min-h-0 flex-1 overflow-auto">
-      {/* 主体：食材清单与转化流（酱料节点已隐入口，模型/API/菜品 BOM 保留） */}
+      {/* 主体：三类食材节点与流向菜品库（香料为占位节点；酱料节点已隐入口，模型/API/菜品 BOM 保留） */}
       {/* pt-4 是给卡片 hover 上浮预留的空间：滚动容器会裁切越界内容，
           没有这段内边距，卡片上浮时顶部边框会被切掉 */}
       <div className="mt-20 overflow-x-auto pt-4">
         <div
           ref={boardRef}
-          className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr_110px_1fr]"
+          className="relative mx-auto grid min-w-[1180px] max-w-[1240px] grid-cols-[1fr_110px_1fr]"
         >
           <svg className="pointer-events-none absolute inset-0 z-[1] h-full w-full overflow-visible">
             <defs>
@@ -327,16 +361,13 @@ export default function IngredientsPage() {
             })}
           </svg>
 
-          <div className="relative z-[2] flex flex-col justify-center gap-24">
-            {nodeCard(NODES[0])}
-            {nodeCard(NODES[1])}
+          <div className="relative z-[2] flex flex-col justify-center gap-16">
+            {NODES.map((n) => nodeCard(n))}
           </div>
           <div />
-          <div className="relative z-[2] flex flex-col justify-center gap-24">
-            {nodeCard(NODES[2])}
-            {nodeCard(NODES[3])}
+          <div className="relative z-[2] flex flex-col justify-center">
+            {nodeCard(DISH_TARGET)}
           </div>
-          <div />
         </div>
       </div>
       </div>

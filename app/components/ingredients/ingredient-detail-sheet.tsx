@@ -46,6 +46,8 @@ export type RawDetail = {
   name: string;
   alias: string | null;
   l2Code: string;
+  /** 调味品类型：单品调料/复合调料/成品酱料；空 = 基础调味品 */
+  seasoningType?: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -147,6 +149,7 @@ export function IngredientDetailSheet({
             code: raw.code,
             name: raw.name,
             l2Code: raw.l2Code,
+            seasoningType: raw.seasoningType,
             alias: raw.alias,
             purchaseSpec: raw.purchaseSpec,
             purchaseUnit: raw.purchaseUnit,
@@ -666,6 +669,12 @@ function RawDetailContent({
           label={kind === "seasoning" ? "商品名称" : "品牌名称"}
           value={data.alias || "—"}
         />
+        {kind === "seasoning" && (
+          <InfoCell
+            label="调味品类型"
+            value={data.seasoningType || "—"}
+          />
+        )}
         <InfoCell label="分类" value={categoryName || data.l2Code} />
       </DetailSection>
       <DetailSection title="采购与计量">

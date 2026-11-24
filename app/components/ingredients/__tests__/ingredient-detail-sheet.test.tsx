@@ -288,6 +288,8 @@ describe("调味品详情抽屉", () => {
     expect(
       screen.getByRole("button", { name: "查看调料清单" })
     ).toBeInTheDocument();
+    // 调味品类型独立字段：查看态基础信息展示（本条档案未设置 → —）
+    expect(screen.getByText("调味品类型")).toBeInTheDocument();
 
     fireEvent.click(editButton);
 

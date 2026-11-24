@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { created, paginated, internalError } from "@/lib/server/api-response";
+import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import { createIngredientSchema, ingredientQuerySchema } from "@/lib/server/schemas/ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
@@ -18,11 +18,14 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(ingredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { l1Code, l2Code, kind, q, page, pageSize } = validation.data;
+    const { l1Code, l2Code, kind, seasoningType, q, page, pageSize } = validation.data;
     const where: Prisma.IngredientWhereInput = { deletedAt: null };
     const categoryFilters: Prisma.IngredientWhereInput[] = [];
     if (l2Code) {
       categoryFilters.push({ l2Code });
+    }
+    if (seasoningType) {
+      categoryFilters.push({ seasoningType });
     }
     if (l1Code) {
       const children = await prisma.ingredientCategoryL2.findMany({
@@ -86,6 +89,7 @@ export async function POST(req: NextRequest) {
       season,
       storage,
       defaultSupplierId,
+      seasoningType,
     } = validation.data;
 
     const dupCheck = await checkDuplicateName(name);
@@ -94,6 +98,10 @@ export async function POST(req: NextRequest) {
     }
 
     const seasoningL2Codes = await getSeasoningL2Codes();
+    // 调味品类型是 SEA 体系专属属性：非调味品分类携带类型直接拒绝
+    if (seasoningType && !seasoningL2Codes.includes(l2Code)) {
+      return badRequest("调味品类型仅适用于调味品");
+    }
     const prefix = seasoningL2Codes.includes(l2Code) ? "SEA" : "ING";
 
     const last = await prisma.ingredient.findFirst({
@@ -123,6 +131,7 @@ export async function POST(req: NextRequest) {
         defaultSupplierId: defaultSupplierId ?? null,
         season: season ?? "四季",
         storage: storage ?? "常温",
+        seasoningType: seasoningType || null,
       },
     });
     await logOperation(req, {

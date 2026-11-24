@@ -105,6 +105,8 @@ model Ingredient {
   pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
   season         String                @default("四季") @map("season")
   storage        String                @default("常温") @map("storage")
+  // 调味品类型（2026-11-24 独立字段）：单品调料/复合调料/成品酱料；不占食材二级分类
+  seasoningType  String?               @map("seasoning_type") @db.VarChar(20)
   createdAt      DateTime              @default(now()) @map("created_at")
   deletedAt      DateTime?             @map("deleted_at")
   inventory      Inventory?

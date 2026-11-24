@@ -23,10 +23,8 @@ const categories = [
     code: "SEA",
     name: "调味品",
     children: [
-      { code: "SEA-SOL", name: "固体调味品", parentCode: "SEA" },
-      { code: "SEA-ITM", name: "单品调料", parentCode: "SEA" },
-      { code: "SEA-COM", name: "复合调料", parentCode: "SEA" },
-      { code: "SEA-SAU", name: "成品酱料", parentCode: "SEA" },
+      { code: "SEA-SOL", name: "固体类", parentCode: "SEA" },
+      { code: "SEA-LIQ", name: "液体类", parentCode: "SEA" },
     ],
   },
 ];
@@ -39,7 +37,8 @@ const rows = [
     code: "SEA-0001",
     name: "生抽",
     alias: null,
-    l2Code: "SEA-ITM",
+    l2Code: "SEA-LIQ",
+    seasoningType: "单品调料",
     purchaseSpec: "500ml/瓶",
     purchaseUnit: "瓶",
     stockUnit: "斤",
@@ -53,7 +52,8 @@ const rows = [
     code: "SEA-0002",
     name: "十三香",
     alias: null,
-    l2Code: "SEA-COM",
+    l2Code: "SEA-SOL",
+    seasoningType: "复合调料",
     purchaseSpec: "45g/盒",
     purchaseUnit: "盒",
     stockUnit: "斤",
@@ -114,28 +114,32 @@ describe("调味品清单", () => {
     await waitFor(() =>
       expect(ingredientListRequests().length).toBeGreaterThan(0)
     );
-    expect(ingredientListRequests().every((u) => !u.includes("l2Code"))).toBe(
-      true
-    );
+    expect(
+      ingredientListRequests().every(
+        (u) => !u.includes("l2Code") && !u.includes("seasoningType")
+      )
+    ).toBe(true);
   });
 
   it.each([
-    ["item", "SEA-ITM", "单品调料"],
-    ["compound", "SEA-COM", "复合调料"],
-    ["sauce", "SEA-SAU", "成品酱料"],
+    ["item", "单品调料"],
+    ["compound", "复合调料"],
+    ["sauce", "成品酱料"],
   ] as const)(
-    "tab=%s 挂 %s 分类过滤",
-    async (tab, l2Code, label) => {
+    "tab=%s 挂类型「%s」过滤",
+    async (tab, seasoningType) => {
       currentSearchParams = new URLSearchParams(`tab=${tab}`);
       render(<SeasoningIngredientsPage />);
 
       expect(
-        screen.getByRole("tab", { name: label })
+        screen.getByRole("tab", { name: seasoningType })
       ).toHaveAttribute("aria-selected", "true");
 
       await waitFor(() => expect(ingredientListRequests().length).toBeGreaterThan(0));
       expect(
-        ingredientListRequests().some((u) => u.includes(`l2Code=${l2Code}`))
+        ingredientListRequests().some((u) =>
+          u.includes(`seasoningType=${encodeURIComponent(seasoningType)}`)
+        )
       ).toBe(true);
     }
   );

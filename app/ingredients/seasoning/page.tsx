@@ -13,11 +13,12 @@ import { toast } from "sonner";
 
 type SeasoningTab = "all" | "item" | "compound" | "sauce";
 
-const TABS: Array<{ value: SeasoningTab; label: string; l2Code: string }> = [
-  { value: "all", label: "调味品", l2Code: "" },
-  { value: "item", label: "单品调料", l2Code: "SEA-ITM" },
-  { value: "compound", label: "复合调料", l2Code: "SEA-COM" },
-  { value: "sauce", label: "成品酱料", l2Code: "SEA-SAU" },
+// 页签过滤走调味品类型字段（ingredients.seasoning_type），不占食材分类体系
+const TABS: Array<{ value: SeasoningTab; label: string; seasoningType: string }> = [
+  { value: "all", label: "调味品", seasoningType: "" },
+  { value: "item", label: "单品调料", seasoningType: "单品调料" },
+  { value: "compound", label: "复合调料", seasoningType: "复合调料" },
+  { value: "sauce", label: "成品酱料", seasoningType: "成品酱料" },
 ];
 
 function getTab(value: string | null): SeasoningTab {
@@ -89,12 +90,10 @@ function SeasoningListContent() {
     router.replace(`/ingredients/seasoning?tab=${next}`);
   };
 
-  // 新建调味品默认分类：优先单品调料（SEA-ITM），其次 SEA 下第一个启用二级分类
+  // 新建调味品默认分类：SEA 下第一个启用二级分类（固体类/液体类）
   const defaultL2Code = useMemo(() => {
     const sea = categories.find((l1) => l1.code === "SEA");
-    if (!sea) return undefined;
-    const itm = sea.children.find((c) => c.code === "SEA-ITM");
-    return (itm ?? sea.children[0])?.code;
+    return sea?.children[0]?.code;
   }, [categories]);
 
   return (
@@ -106,7 +105,7 @@ function SeasoningListContent() {
           showBack
           backHref="/ingredients"
           title="调味品"
-          description="调味品可转化为调料清单档案；单品/复合/成品酱料按分类归属"
+          description="调味品可转化为调料清单档案；单品/复合/成品酱料按类型归属"
           actions={
             <SkeuButton onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -138,7 +137,7 @@ function SeasoningListContent() {
               <SeasoningListPanel
                 categories={categories}
                 units={units}
-                fixedL2Code="SEA-ITM"
+                fixedSeasoningType="单品调料"
                 refreshToken={refreshTokens.item}
               />
             </div>
@@ -148,7 +147,7 @@ function SeasoningListContent() {
               <SeasoningListPanel
                 categories={categories}
                 units={units}
-                fixedL2Code="SEA-COM"
+                fixedSeasoningType="复合调料"
                 refreshToken={refreshTokens.compound}
               />
             </div>
@@ -158,7 +157,7 @@ function SeasoningListContent() {
               <SeasoningListPanel
                 categories={categories}
                 units={units}
-                fixedL2Code="SEA-SAU"
+                fixedSeasoningType="成品酱料"
                 refreshToken={refreshTokens.sauce}
               />
             </div>

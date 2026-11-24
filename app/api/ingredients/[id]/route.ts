@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       season,
       storage,
       defaultSupplierId,
+      seasoningType,
     } = validation.data;
 
     if (name !== undefined) {
@@ -105,6 +106,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               ),
         season: season !== undefined ? season || "四季" : existing.season,
         storage: storage !== undefined ? storage || "常温" : existing.storage,
+        seasoningType:
+          seasoningType !== undefined
+            ? seasoningType || null
+            : existing.seasoningType,
       },
     });
     await logOperation(req, { action: "UPDATE", entity: "Ingredient", entityId: row.id, description: `更新食材: ${row.name}` });

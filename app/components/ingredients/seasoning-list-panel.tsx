@@ -8,6 +8,7 @@ import {
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
 import { CategoryTag } from "@/app/components/ui/category-tag";
+import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
@@ -32,6 +33,8 @@ type Ingredient = {
   name: string;
   alias: string | null;
   l2Code: string;
+  /** 调味品类型：单品调料/复合调料/成品酱料；空 = 基础调味品 */
+  seasoningType: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -59,15 +62,15 @@ type Unit = {
 export interface SeasoningListPanelProps {
   categories: CategoryL1[];
   units: Unit[];
-  /** 分类过滤：空 = 全部调味品；否则只显示该二级分类（如 SEA-ITM） */
-  fixedL2Code?: string;
+  /** 类型过滤：空 = 全部调味品；否则只显示该调味品类型（单品调料/复合调料/成品酱料） */
+  fixedSeasoningType?: string;
   refreshToken: number;
 }
 
 export function SeasoningListPanel({
   categories,
   units,
-  fixedL2Code = "",
+  fixedSeasoningType = "",
   refreshToken,
 }: SeasoningListPanelProps) {
   const [data, setData] = useState<Ingredient[]>([]);
@@ -97,7 +100,7 @@ export function SeasoningListPanel({
         pageSize: String(pageSize),
       });
       if (search.trim()) params.set("q", search.trim());
-      if (fixedL2Code) params.set("l2Code", fixedL2Code);
+      if (fixedSeasoningType) params.set("seasoningType", fixedSeasoningType);
       const ingRes = await fetch(`/api/ingredients?${params.toString()}`);
       const json = await ingRes.json();
       setData(json.data || []);
@@ -107,7 +110,7 @@ export function SeasoningListPanel({
     } finally {
       setLoading(false);
     }
-  }, [fixedL2Code, page, pageSize, search]);
+  }, [fixedSeasoningType, page, pageSize, search]);
 
   useEffect(() => {
     const timer = setTimeout(fetchData, 300);
@@ -117,7 +120,7 @@ export function SeasoningListPanel({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setPage(1);
-  }, [fixedL2Code, search]);
+  }, [fixedSeasoningType, search]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const openView = (row: Ingredient) => {
@@ -140,6 +143,7 @@ export function SeasoningListPanel({
     buildInitialData: (row) => ({
       alias: row.alias,
       l2Code: row.l2Code,
+      seasoningType: row.seasoningType,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
       stockUnit: row.stockUnit,
@@ -217,7 +221,10 @@ export function SeasoningListPanel({
                 header: "调味品名称",
                 className: "w-[132px]",
                 cell: (row) => (
-                  <span className="font-semibold text-primary">{row.name}</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="font-semibold text-primary">{row.name}</span>
+                    <SeasoningTypeTag type={row.seasoningType} />
+                  </span>
                 ),
               },
               {

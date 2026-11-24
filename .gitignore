@@ -57,6 +57,8 @@ next-env.d.ts
 # Claude Code / browser debug tmp files
 tmp-*.json
 .tabbit-run/
+# 仓库整份暂存副本（不属于源码，避免误提交/误收集测试）
+/.tmp-stage/
 
 # scratch scripts (临时脚本用完即删，或放这里)
 /scripts/tmp/

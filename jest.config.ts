@@ -18,9 +18,9 @@ const config: Config = {
   },
   testMatch: ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
   // .claude/worktrees 里是仓库副本，不排除会把同一批用例重复收集一遍
-  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/.claude/"],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/.claude/", "/.tmp-stage/"],
   transformIgnorePatterns: ["node_modules/(?!(jose)/)"],
-  modulePathIgnorePatterns: ["<rootDir>/.next/"],
+  modulePathIgnorePatterns: ["<rootDir>/.next/", "<rootDir>/.tmp-stage/"],
   collectCoverageFrom: [
     "app/**/*.{ts,tsx}",
     "lib/**/*.{ts,tsx}",

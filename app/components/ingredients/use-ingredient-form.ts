@@ -19,6 +19,7 @@ export type IngredientFormInitialData = {
   code?: string;
   name?: string;
   l2Code?: string;
+  seasoningType?: string | null;
   alias?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
@@ -34,6 +35,7 @@ export type SavedIngredientRecord = {
   name: string;
   alias?: string | null;
   l2Code: string;
+  seasoningType?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   stockUnit?: string | null;
@@ -73,6 +75,7 @@ function buildForm(
     name: initialData?.name || "",
     l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
+    seasoningType: initialData?.seasoningType || "",
     alias: initialData?.alias || "",
     purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
     purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
@@ -189,6 +192,7 @@ export function useIngredientForm({
     initialData?.id ?? "new",
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
+    initialData?.seasoningType ?? "",
     initialData?.alias ?? "",
     initialData?.purchaseSpec ?? "",
     initialData?.purchaseUnit ?? "",
@@ -243,6 +247,8 @@ export function useIngredientForm({
         // 更新时传空字符串才能清空已有品牌；API 会把空字符串落为 null
         alias: form.alias.trim(),
         l2Code: form.l2Code,
+        // 空字符串 = 清空调味品类型（同 alias 口径）
+        seasoningType: form.seasoningType,
         purchaseSpec,
         purchaseUnit: form.purchaseUnit,
         stockUnit: form.stockUnit,
@@ -287,6 +293,8 @@ export function useIngredientForm({
         name: readString(record.name, form.name.trim()),
         alias: typeof record.alias === "string" ? record.alias : null,
         l2Code: readString(record.l2Code, form.l2Code),
+        seasoningType:
+          typeof record.seasoningType === "string" ? record.seasoningType : null,
         purchaseSpec:
           typeof record.purchaseSpec === "string"
             ? record.purchaseSpec

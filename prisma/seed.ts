@@ -88,12 +88,9 @@ async function main() {
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
     // SEA-SEA「调料」已停用（保留编码兼容，服务端识别仍覆盖）；调料按物理形态分为固体/液体
+    // 单品/复合/成品酱料不占分类体系：2026-11-24 起为 Ingredient.seasoningType 独立字段
     { code: "SEA-SOL", name: "固体类", parentCode: "SEA", description: "" },
     { code: "SEA-LIQ", name: "液体类", parentCode: "SEA", description: "" },
-    // 调味品业务分类：单品/复合/成品酱料（2026-11-24 调味品模块升级，创建调味品时可选）
-    { code: "SEA-ITM", name: "单品调料", parentCode: "SEA", description: "" },
-    { code: "SEA-COM", name: "复合调料", parentCode: "SEA", description: "" },
-    { code: "SEA-SAU", name: "成品酱料", parentCode: "SEA", description: "" },
     { code: "MIN-GAR", name: "姜蒜类", parentCode: "MIN", description: "" },
     { code: "MIN-ONI", name: "葱香类", parentCode: "MIN", description: "" },
     { code: "MIN-PEP", name: "椒香类", parentCode: "MIN", description: "" },
