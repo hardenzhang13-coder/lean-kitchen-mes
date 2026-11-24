@@ -31,6 +31,20 @@ async function main() {
   ];
   await prisma.dishCategory.createMany({ data: dishCategories, skipDuplicates: true });
 
+  // 1.5 份量档案：单人份为基本单元（锁定，固定首行）；场景份量 = 单人份 × 倍率
+  //     只在缺失时创建，不覆盖运营调整过的场景、倍率、顺序与停用状态
+  const portionProfiles = [
+    { portion: "单人份", scenario: "单人份", multiplier: 1, isBase: true, sortOrder: 0 },
+    { portion: "社区·2份", scenario: "社区", multiplier: 2, isBase: false, sortOrder: 1 },
+    { portion: "小碗菜·10份", scenario: "团餐食堂", multiplier: 10, isBase: false, sortOrder: 2 },
+  ];
+  for (const p of portionProfiles) {
+    const existing = await prisma.portionProfile.findUnique({ where: { portion: p.portion } });
+    if (!existing) {
+      await prisma.portionProfile.create({ data: p });
+    }
+  }
+
   // 2. 食材一级分类
   const l1Categories = [
     { code: "VEG", name: "蔬菜" },

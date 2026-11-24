@@ -5,6 +5,7 @@ import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
 import { enrichOperatorNames } from "@/lib/server/user-resolve";
 import { created, badRequest, internalError, paginated } from "@/lib/server/api-response";
 import { createDishSchema, dishQuerySchema } from "@/lib/server/schemas/dish";
+import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { nextCode } from "@/lib/shared/code-gen";
@@ -26,11 +27,12 @@ export async function GET(req: NextRequest) {
     if (portion) {
       where.portion = portion;
     } else if (portionGroup === "single") {
-      where.portion = { in: ["小碗菜"] };
+      // 「小碗菜」为数据迁移前的存量标签，过渡期内并集保留
+      where.portion = { in: ["单人份", "小碗菜"] };
     } else if (portionGroup === "canteen") {
       where.portion = { in: ["小碗菜·10份"] };
     } else if (portionGroup === "community") {
-      where.portion = { notIn: ["小碗菜", "小碗菜·10份"] };
+      where.portion = { notIn: ["单人份", "小碗菜", "小碗菜·10份"] };
     }
     if (status) where.status = status;
     if (q) {
@@ -108,6 +110,10 @@ export async function POST(req: NextRequest) {
 
     const { name, intro, categoryId, cuisine, technique, taste, portion, season, meatType, price } =
       validation.data;
+
+    // 份量须命中份量档案（portion_profiles），zod 只校验形态
+    const portionError = await validatePortionForCreate(portion);
+    if (portionError) return badRequest(portionError);
 
     const user = getUserFromRequest(req);
     const operator = user?.username || null;

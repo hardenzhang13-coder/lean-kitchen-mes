@@ -2,12 +2,14 @@
 
 import { cn } from "@/lib/shared/utils";
 import { getPortionOption } from "@/lib/shared/portion-scale";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 
 /**
  * 份量标签：净料/小料档案与菜品 BOM 选择器共用。
  *
- * 份量枚举的唯一真源是 `lib/shared/portion-scale.ts`；本组件只负责渲染，
- * 不在这里硬编码枚举值。新增份量取值时需同步补色板。
+ * 份量取值唯一真源是份量档案表（设置模块「份量」）；本组件只负责渲染。
+ * 色板按档案场景映射（单人份 / 社区 / 团餐食堂），未知场景走 muted 兜底；
+ * 档案接口不可达时按历史标签前缀兜底。
  * 文字统一深墨（--capsule-ink），色相识别靠底色 + 圆点，避免与主色橙冲突。
  */
 
@@ -16,35 +18,25 @@ type PortionTone = {
   dot: string;
 };
 
-const PORTION_TONES: Record<string, PortionTone> = {
-  小碗菜: {
-    bg: "var(--portion-single-bg)",
-    dot: "var(--portion-single-dot)",
-  },
-  "小碗菜·10份": {
-    bg: "var(--portion-canteen-bg)",
-    dot: "var(--portion-canteen-dot)",
-  },
-  "社区·1份": {
-    bg: "var(--portion-comm1-bg)",
-    dot: "var(--portion-comm1-dot)",
-  },
-  "社区·2份": {
-    bg: "var(--portion-comm2-bg)",
-    dot: "var(--portion-comm2-dot)",
-  },
-  "社区·3份": {
-    bg: "var(--portion-comm3-bg)",
-    dot: "var(--portion-comm3-dot)",
-  },
-  "社区·4份": {
-    bg: "var(--portion-comm4-bg)",
-    dot: "var(--portion-comm4-dot)",
-  },
+const SINGLE_TONE: PortionTone = {
+  bg: "var(--portion-single-bg)",
+  dot: "var(--portion-single-dot)",
+};
+const COMMUNITY_TONE: PortionTone = {
+  bg: "var(--portion-comm1-bg)",
+  dot: "var(--portion-comm1-dot)",
+};
+const CANTEEN_TONE: PortionTone = {
+  bg: "var(--portion-canteen-bg)",
+  dot: "var(--portion-canteen-dot)",
+};
+const MUTED_TONE: PortionTone = {
+  bg: "var(--muted)",
+  dot: "var(--muted-foreground)",
 };
 
 interface PortionTagProps {
-  /** 份量枚举值；为空或非法值显示占位符 */
+  /** 份量档案落库标签；为空或未知值显示占位符 */
   portion?: string | null;
   className?: string;
   /** 无值时的占位文案 */
@@ -56,7 +48,8 @@ export function PortionTag({
   className,
   emptyText = "–",
 }: PortionTagProps) {
-  const option = getPortionOption(portion);
+  const { profiles } = usePortionProfiles();
+  const option = getPortionOption(portion, profiles);
   if (!option) {
     return (
       <span className={cn("text-muted-foreground/60", className)}>
@@ -65,10 +58,20 @@ export function PortionTag({
     );
   }
 
-  const tone = PORTION_TONES[option.value] ?? {
-    bg: "var(--muted)",
-    dot: "var(--muted-foreground)",
-  };
+  const row = profiles?.find((p) => p.portion === portion);
+  let tone = MUTED_TONE;
+  if (row) {
+    if (row.isBase) tone = SINGLE_TONE;
+    else if (row.scenario.includes("社区")) tone = COMMUNITY_TONE;
+    else if (row.scenario.includes("团餐") || row.scenario.includes("食堂"))
+      tone = CANTEEN_TONE;
+  } else if (portion === "单人份" || portion === "小碗菜") {
+    tone = SINGLE_TONE;
+  } else if (portion?.startsWith("社区")) {
+    tone = COMMUNITY_TONE;
+  } else if (portion === "小碗菜·10份") {
+    tone = CANTEEN_TONE;
+  }
 
   return (
     <span

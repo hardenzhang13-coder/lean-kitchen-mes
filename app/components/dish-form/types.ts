@@ -16,7 +16,7 @@ export interface BomItem {
   /** 成本价（元/斤）：净料/小料 = 净料单价+封装加工费；调料 = 每斤单价 */
   costPrice?: number | null;
   cost?: number | null;
-  /** 份量（净料/小料口径）：小碗菜 / 社区·N份；调料与酱料为空 */
+  /** 份量（净料/小料口径）：份量档案 portion_profiles 落库标签；调料与酱料为空 */
   portion?: string | null;
   l1Code?: string;
   l2Code?: string;
@@ -59,7 +59,7 @@ export interface IngredientOption {
   costPrice?: number | null;
   /** 净料/小料封装规格（g）；标准化调料的标准规格（g） */
   packageSpec?: number | null;
-  /** 份量（小碗菜 / 社区口径）：净料/小料共用同一套枚举；调料与酱料为空 */
+  /** 份量（份量档案标签）：净料/小料共用同一套档案；调料与酱料为空 */
   portion?: string | null;
   /** 标准规格价（元/份）：出库价 × 包装规格 ÷ 500；净料/小料进入菜品 BOM 的单份成本 */
   standardPackagePrice?: number | null;
@@ -224,7 +224,7 @@ export function dishToFormData(dish: DishDetail): DishFormData {
     cuisine: dish.cuisine || "",
     technique: dish.technique || "",
     taste: dish.taste || "",
-    portion: dish.portion || "小碗菜",
+    portion: dish.portion || "单人份",
     season: dish.season || "四季",
     meatType: dish.meatType || "",
     price: dish.price != null ? String(dish.price) : "",
@@ -520,7 +520,7 @@ export function normalizeNetIngredients(items: unknown[]): IngredientOption[] {
         // 出库价（元/斤，含加工费与毛利），BOM 成本口径
         costPrice: outPrice,
         packageSpec,
-        // 份量：净料/小料档案的份量口径（小碗菜 / 社区）
+        // 份量：净料/小料档案的份量口径（份量档案标签）
         portion: record.portion != null ? String(record.portion) : null,
         // 标准规格价（元/份）：出库价 × 包装规格 ÷ 500，即该用料进 BOM 的单份成本
         standardPackagePrice:

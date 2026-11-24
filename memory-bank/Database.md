@@ -4,11 +4,12 @@
 
 ---
 
-## 总表清单（24张）
+## 总表清单（25张）
 
 | 分组 | 表名 | 说明 | 状态 |
 |------|------|------|------|
 | **基础字典** | `dish_categories` | 菜品类别 | ✅ |
+| | `portion_profiles` | 份量档案 | ✅ 2026-11（迁移 20261123083624） |
 | | `ingredient_categories_l1` | 食材一级分类 | ✅ |
 | | `ingredient_categories_l2` | 食材二级分类 | ✅ |
 | | `units` | 单位字典 | ✅ |
@@ -140,6 +141,7 @@
 | manager | varchar(50) | 负责人 |
 | phone | varchar(20) | 联系电话 |
 | address | varchar(200) | 地址 |
+| scenario | varchar(191) NULL | 门店场景（2026-11-24 起）：打通份量档案 `portion_profiles.scenario`，取值必须命中档案场景（含停用行）；新建必填，存量可空 |
 | is_system | bool | 系统内置门店（不可删除/停用） |
 | is_active | bool | 启用状态，停用后不出现在排程下拉 |
 | created_at / updated_at / deleted_at | timestamp | 软删除 |
@@ -159,6 +161,27 @@
 | created_at / updated_at / deleted_at | timestamp | 软删除 |
 
 唯一约束：`(name, size)`。被净料/小料引用时不可删除或修改名称/尺寸，只能停用。
+
+---
+
+### 1.8 `portion_profiles` — 份量档案（2026-11，迁移 20261123083624；2026-11-24 起为全系统份量唯一真源）
+
+设置模块「份量」主数据。每行 = 一个具体份量选项；业务语义 **份量 = 单人份 × 倍率**。
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | serial PK | |
+| portion | varchar(191) | 份量标签，**全表唯一**（如 单人份、社区·2份、小碗菜·10份） |
+| scenario | varchar(191) | 场景（单人份/社区/团餐食堂），同一场景允许多行（不同倍率） |
+| multiplier | int | 倍率，正整数 |
+| is_base | bool | 单人份基本单元锁定（seed 置 true）；API 拒绝编辑/停用/删除 |
+| is_active | bool | 启用状态 |
+| sort_order | int | 展示顺序，单人份固定 0 |
+
+- 唯一约束：`portion`；索引：`(scenario, sort_order)`
+- 种子（仅缺失时创建，不覆盖运营修改）：单人份/单人份/×1（锁定）、社区·2份/社区/×2、小碗菜·10份/团餐食堂/×10
+- **打通状态（2026-11-24，迁移 20261124100000）**：`dishes` / `net_ingredients` / `standard_seasonings` 的 `portion` 字段统一落本表标签；写校验走 `lib/server/portion-profile-utils.ts`；客户端选项走 `lib/client/use-portion-profiles.ts`；转化倍率 = 目标 multiplier ÷ 源 multiplier（旧 bowlEquivalent 口径作废，存量已迁移：基本单元「小碗菜」→「单人份」）
+- 无业务表外键引用（业务表为字符串标签弱引用），删除为物理删除（单人份行除外，服务端拒绝）
 
 ---
 
@@ -285,7 +308,7 @@
 | name | varchar(191) | **调料名称**：沿用来源调料名，不拼规格后缀（同一调料的不同包装规格以此区分） | 蒸鱼双椒酱 |
 | source_ingredient_id | int FK→ingredients.id | **来源调料**（必填，须属 SEA 调味品体系） |
 | package_spec | int | **标准规格（g）**：统一以 g 计，不引入瓶/袋等单位；是 BOM 用量的唯一真源 |
-| portion | varchar(50) | 份量，与净料/小料/菜品共用同一套枚举（`PORTION_VALUES`） |
+| portion | varchar(50) | 份量，落份量档案 `portion_profiles.portion` 标签（2026-11-24 起与净料/小料/菜品共用同一套档案） |
 | yield_rate | decimal(5,2) | 出成率 %，标准化分装的出成率 |
 | unit_price | decimal(10,2) | 单价（元/斤）= 来源调料每斤单价 ÷ (出成率/100)，服务端实时派生 |
 | processing_fee_per_jin | decimal(10,2) | 封装加工费（元/斤），空 = 0 |

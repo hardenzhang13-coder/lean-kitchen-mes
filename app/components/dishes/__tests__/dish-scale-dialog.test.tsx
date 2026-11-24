@@ -14,7 +14,7 @@ const dish = {
   id: 1,
   code: "DSH-HOT-0001",
   name: "宫保鸡丁",
-  portion: "小碗菜",
+  portion: "单人份",
   cost: 12,
   price: 18,
   status: "published",
@@ -29,7 +29,7 @@ const plan: DishScalePlan = {
       sourceNetIngId: 101,
       sourceName: "鸡丁",
       sourceCode: "PRD-0101",
-      sourcePortion: "小碗菜",
+      sourcePortion: "单人份",
       sourcePackageSpec: 100,
       l2Code: "MEA-CHK",
       sourceIngredientId: 11,
@@ -63,7 +63,7 @@ const plan: DishScalePlan = {
       sourceNetIngId: 102,
       sourceName: "葱花•20g",
       sourceCode: "PRD-0102",
-      sourcePortion: "小碗菜",
+      sourcePortion: "单人份",
       sourcePackageSpec: 20,
       l2Code: "MIN-VEG",
       sourceIngredientId: 12,
@@ -91,11 +91,23 @@ function mockFetch() {
     if (url.includes("/scale/preview")) {
       return { ok: true, json: async () => ({ success: true, data: plan }) };
     }
+    if (url.includes("/api/portion-profiles")) {
+      return {
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [
+            { portion: "单人份", scenario: "单人份", multiplier: 1, isBase: true, isActive: true, sortOrder: 0 },
+            { portion: "小碗菜·10份", scenario: "团餐食堂", multiplier: 10, isBase: false, isActive: true, sortOrder: 1 },
+          ],
+        }),
+      };
+    }
     return {
       ok: true,
       json: async () => ({
         success: true,
-        data: { id: 2, code: "DSH-HOT-0002", name: "宫保鸡丁·社区·3份" },
+        data: { id: 2, code: "DSH-HOT-0002", name: "宫保鸡丁·小碗菜·10份" },
       }),
     };
   });

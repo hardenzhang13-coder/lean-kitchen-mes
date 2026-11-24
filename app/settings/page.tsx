@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Store, Tags, FolderTree, Ruler, Truck, Users, Package } from "lucide-react";
+import { Store, Tags, FolderTree, Ruler, Truck, Users, Package, Scale } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -13,6 +13,13 @@ const settingsItems = [
     desc: "管理食材一级和二级分类体系",
     icon: FolderTree,
     color: "text-emerald-500 dark:text-emerald-400",
+  },
+  {
+    href: "/settings/portions",
+    label: "份量",
+    desc: "管理份量档案：场景、份量标签与计算倍率",
+    icon: Scale,
+    color: "text-orange-500 dark:text-orange-400",
   },
   {
     href: "/settings/categories",

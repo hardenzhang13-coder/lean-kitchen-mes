@@ -13,7 +13,7 @@ const netIngredient = {
   name: "鸡丁•100g",
   sourceIngredientId: 11,
   sourceIngredient: { id: 11, name: "鸡肉", pricePerJin: 20 },
-  portion: "小碗菜",
+  portion: "单人份",
   packageSpec: 100,
   packageMaterial: "密封袋",
   packageSize: "50cm×40cm",
@@ -24,13 +24,19 @@ const netIngredient = {
   l2Code: "MEA-CHK",
 };
 
+// 份量档案（倍率新口径：转化倍率 = 目标 multiplier ÷ 源 multiplier）
+const portionProfiles = [
+  { portion: "单人份", scenario: "单人份", multiplier: 1, isBase: true, isActive: true, sortOrder: 0 },
+  { portion: "社区·3份", scenario: "社区", multiplier: 3, isBase: false, isActive: true, sortOrder: 1 },
+];
+
 function makeSource(
   overrides: Partial<DishScaleSource> = {}
 ): DishScaleSource {
   return {
     id: 1,
     name: "宫保鸡丁",
-    portion: "小碗菜",
+    portion: "单人份",
     categoryId: 1,
     category: { code: "HOT" },
     netDetails: [
@@ -65,6 +71,9 @@ function makeSource(
 function makeDb(existingIds: Array<number | null>) {
   const queue = [...existingIds];
   return {
+    portionProfile: {
+      findMany: jest.fn().mockResolvedValue(portionProfiles),
+    },
     netIngredient: {
       findFirst: jest.fn().mockImplementation(async () => {
         const id = queue.shift();
@@ -74,7 +83,7 @@ function makeDb(existingIds: Array<number | null>) {
               id,
               code: `PRD-0${id}`,
               name: "已存在规格",
-              packageSpec: 600,
+              packageSpec: 300,
               portion: "社区·3份",
             };
       }),
@@ -87,15 +96,15 @@ describe("菜品转化计划", () => {
     const db = makeDb([201, null]);
     const plan = await buildDishScalePlan(db, makeSource(), "社区·3份");
 
-    expect(plan.factor).toBe(6);
+    expect(plan.factor).toBe(3);
     expect(plan.net).toHaveLength(1);
     expect(plan.net[0].status).toBe("existing");
     expect(plan.net[0].existing?.id).toBe(201);
-    expect(plan.net[0].proposal.name).toBe("鸡丁•600g");
+    expect(plan.net[0].proposal.name).toBe("鸡丁•300g");
 
     expect(plan.minor).toHaveLength(1);
     expect(plan.minor[0].status).toBe("missing");
-    expect(plan.minor[0].proposal.packageSpec).toBe(120);
+    expect(plan.minor[0].proposal.packageSpec).toBe(60);
     expect(plan.minor[0].proposal.yieldRate).toBe(65);
     expect(plan.minor[0].canCreate).toBe(true);
   });
@@ -167,7 +176,7 @@ describe("菜品转化计划", () => {
       packageSpec: 800,
       yieldRate: 60,
     });
-    expect(inputs.get("minor:102")?.packageSpec).toBe(120);
+    expect(inputs.get("minor:102")?.packageSpec).toBe(60);
 
     expect(() =>
       resolveScaleSpecInputs(plan, [

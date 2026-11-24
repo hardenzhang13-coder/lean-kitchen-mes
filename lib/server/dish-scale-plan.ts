@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from "@prisma/client";
 import { nextCode } from "@/lib/shared/code-gen";
 import { syncNamePackageSpec } from "@/lib/shared/name-utils";
 import { portionScaleFactor } from "@/lib/shared/portion-scale";
+import { listPortionProfiles } from "@/lib/server/portion-profile-utils";
 import type {
   DishScalePlan,
   DishScaleSpecInput,
@@ -195,10 +196,12 @@ export async function buildDishScalePlan(
   source: DishScaleSource,
   targetPortion: string
 ): Promise<DishScalePlan> {
-  const factor = portionScaleFactor(source.portion, targetPortion);
+  // 倍率新口径：目标档案行 multiplier ÷ 源档案行 multiplier（份量档案即真源）
+  const profiles = await listPortionProfiles(db);
+  const factor = portionScaleFactor(source.portion, targetPortion, profiles);
   if (factor == null || factor <= 0) {
     throw new DishScaleValidationError(
-      `无法从源份量「${source.portion ?? "未知"}」推导转化倍率`
+      `无法从源份量「${source.portion ?? "未知"}」推导转化倍率，请确认源与目标份量均已在设置-份量中维护`
     );
   }
 

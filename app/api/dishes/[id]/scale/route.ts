@@ -11,7 +11,6 @@ import {
 } from "@/lib/server/api-response";
 import { scaleDishSchema } from "@/lib/server/schemas/dish";
 import { validateBody } from "@/lib/server/validate";
-import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
 import { syncNamePackageSpec } from "@/lib/shared/name-utils";
 import { getCurrentDishCostMap } from "@/lib/server/dish-costing";
@@ -23,6 +22,7 @@ import {
   generateNetIngredientCode,
   resolveScaleSpecInputs,
 } from "@/lib/server/dish-scale-plan";
+import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
 import { logger } from "@/lib/server/logger";
 
 /**
@@ -60,12 +60,9 @@ export async function POST(
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }
 
-  const factor = portionScaleFactor(source.portion, portion);
-  if (factor == null || factor <= 0) {
-    return badRequest(
-      `无法从源份量「${source.portion ?? "未知"}」推导转化倍率`
-    );
-  }
+  // 目标份量须命中启用中的份量档案；倍率由档案行 multiplier 推导（新口径）
+  const targetPortionError = await validatePortionForCreate(portion);
+  if (targetPortionError) return badRequest(targetPortionError);
 
   // 转化后的菜品沿用源菜品名称，份量由 portion 字段区分
   const newName = name?.trim() || source.name;

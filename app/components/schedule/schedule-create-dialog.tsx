@@ -26,6 +26,7 @@ import { RecordSheet } from "@/app/components/ui/record-sheet";
 import { dayOffsetInputValue, getWeekDay } from "@/lib/shared/date-format";
 import { formatMoney } from "@/lib/shared/display-format";
 import { getPortionOption } from "@/lib/shared/portion-scale";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { parseObject } from "@/lib/client/api";
 import { toast } from "sonner";
 
@@ -187,16 +188,17 @@ export function ScheduleCreateDialog({
     [dishes]
   );
 
+  const { profiles } = usePortionProfiles();
   const portionOptions = useMemo(
     () =>
       Array.from(
         new Set(
           dishes
-            .map((dish) => getPortionOption(dish.portion)?.label)
+            .map((dish) => getPortionOption(dish.portion, profiles)?.label)
             .filter((label): label is string => !!label)
         )
       ),
-    [dishes]
+    [dishes, profiles]
   );
 
   const normalizedSearch = search.trim().toLowerCase();
@@ -208,7 +210,7 @@ export function ScheduleCreateDialog({
     const matchCategory =
       categoryFilter === "all" || dish.category?.name === categoryFilter;
     const matchPortion =
-      portionFilter === "all" || getPortionOption(dish.portion)?.label === portionFilter;
+      portionFilter === "all" || getPortionOption(dish.portion, profiles)?.label === portionFilter;
     const matchPrice = matchPriceFilter(dish.price, priceFilter);
     return matchSearch && matchCategory && matchPortion && matchPrice;
   });

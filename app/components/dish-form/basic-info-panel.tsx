@@ -6,7 +6,8 @@ import { Input } from "@/app/components/ui/form-controls";
 import { FormField, FormSection } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { DishFormData, calcPriceByMargin } from "./types";
-import { PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { LEGACY_PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { usePortionProfiles, toPortionOptions } from "@/lib/client/use-portion-profiles";
 import {
   CUISINE_OPTIONS as cuisineOptions,
   MEAT_TYPE_OPTIONS as meatTypeOptions,
@@ -24,15 +25,13 @@ interface BasicInfoPanelProps {
   readOnly?: boolean;
 }
 
-// 份量与净料/小料档案共用同一套枚举（lib/shared/portion-scale.ts），避免建档时填错口径
-const portionOptions = PORTION_OPTIONS.map((option) => ({
-  value: option.value,
-  label: option.label,
-  description: option.description,
-}));
-
 export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: BasicInfoPanelProps) {
   const categoryOptions = categories.map((c) => ({ value: String(c.id), label: c.name }));
+  // 份量选项唯一来源：份量档案（设置模块）；接口失败时降级历史兜底，不写回
+  const { profiles } = usePortionProfiles();
+  const portionOptions = profiles
+    ? toPortionOptions(profiles)
+    : Object.values(LEGACY_PORTION_OPTIONS);
 
   // 毛利率本地编辑态：null 表示跟随售价派生显示；编辑中保留原始输入，避免派生值归一化打断输入/清空
   const [marginInput, setMarginInput] = useState<string | null>(null);
@@ -80,7 +79,7 @@ export function BasicInfoPanel({ data, onChange, categories, cost, readOnly }: B
         <FormField id="portion" label="份量" required readOnly={readOnly}>
           <SelectTileMode
             options={portionOptions}
-            value={data.portion || "小碗菜"}
+            value={data.portion || "单人份"}
             onChange={(v) => update({ portion: v })}
             placeholder="请选择份量"
             title="选择份量"

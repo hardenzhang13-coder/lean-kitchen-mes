@@ -21,7 +21,12 @@ import { Input } from "@/app/components/ui/form-controls";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import type { DishDetail } from "@/app/components/dish-form/types";
-import { PORTION_OPTIONS, portionScaleFactor } from "@/lib/shared/portion-scale";
+import {
+  LEGACY_PORTION_OPTIONS,
+  portionScaleFactor,
+  toPortionOption,
+} from "@/lib/shared/portion-scale";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { syncNamePackageSpec } from "@/lib/shared/name-utils";
 import { cn } from "@/lib/shared/utils";
 import type {
@@ -97,12 +102,21 @@ export function DishScaleDialog({
   onOpenChange,
   onSuccess,
 }: DishScaleDialogProps) {
-  const defaultPortion = useMemo(
+  // 目标份量选项唯一来源：份量档案（设置模块），排除源份量。
+  // 档案加载中不渲染选项（避免出现档案外的历史兜底选中项）；接口失败才降级历史兜底。
+  const { profiles, error: profilesError } = usePortionProfiles();
+  const portionOptions = useMemo(
     () =>
-      PORTION_OPTIONS.find((option) => option.value !== dish.portion)?.value ??
-      "",
-    [dish.portion]
+      profiles
+        ? profiles.filter((p) => p.portion !== dish.portion).map(toPortionOption)
+        : profilesError
+          ? Object.values(LEGACY_PORTION_OPTIONS).filter(
+              (option) => option.value !== dish.portion
+            )
+          : [],
+    [profiles, profilesError, dish.portion]
   );
+  const defaultPortion = portionOptions[0]?.value ?? "";
   const [portion, setPortion] = useState(defaultPortion);
   const [plan, setPlan] = useState<DishScalePlan | null>(null);
   const [edits, setEdits] = useState<Record<string, EditSpec>>({});
@@ -143,6 +157,21 @@ export function DishScaleDialog({
     if (!open || !portion) return;
     void loadPreview(portion);
   }, [open, portion, loadPreview]);
+
+  // 份量档案异步到达后补齐初始目标份量（首渲染时档案可能尚未加载）；
+  // 已选目标不在档案中（如首渲染时的历史兜底值）时回退到默认目标
+  useEffect(() => {
+    if (!open) return;
+    if (!portion) {
+      if (defaultPortion) setPortion(defaultPortion);
+      return;
+    }
+    if (profiles && !profiles.some((p) => p.portion === portion)) {
+      setPortion(defaultPortion);
+      setPlan(null);
+      setEdits({});
+    }
+  }, [open, portion, defaultPortion, profiles]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const handlePortionChange = (value: string) => {
@@ -163,7 +192,8 @@ export function DishScaleDialog({
     : [];
   const blockedSpecs = missingSpecs.filter((item) => !item.canCreate);
   const factor =
-    plan?.factor ?? portionScaleFactor(dish.portion, portion) ?? null;
+    plan?.factor ??
+    (profiles ? portionScaleFactor(dish.portion, portion, profiles) : null);
   const canSubmit =
     Boolean(plan) &&
     !loading &&
@@ -236,9 +266,7 @@ export function DishScaleDialog({
           <div className="space-y-1.5">
             <span className="text-sm font-medium">目标份量</span>
             <div role="group" aria-label="目标份量" className="grid grid-cols-3 gap-2">
-              {PORTION_OPTIONS.filter(
-                (option) => option.value !== dish.portion
-              ).map((option) => {
+              {portionOptions.map((option) => {
                 const active = option.value === portion;
                 return (
                   <button

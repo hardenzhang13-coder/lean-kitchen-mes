@@ -49,6 +49,18 @@ describe("转调料弹窗", () => {
           }),
         } as Response;
       }
+      if (url.includes("/api/portion-profiles")) {
+        return {
+          ok: true,
+          json: async () => ({
+            success: true,
+            data: [
+              { portion: "单人份", scenario: "单人份", multiplier: 1, isBase: true, isActive: true, sortOrder: 0 },
+              { portion: "小碗菜·10份", scenario: "团餐食堂", multiplier: 10, isBase: false, isActive: true, sortOrder: 1 },
+            ],
+          }),
+        } as Response;
+      }
       return { ok: true, json: async () => ({ data: [] }) } as Response;
     }) as unknown as jest.Mock;
     global.fetch = fetchMock;
@@ -94,7 +106,7 @@ describe("转调料弹窗", () => {
     expect(onViewExisting).toHaveBeenCalled();
   });
 
-  it("份量默认来自净料/小料的同一套枚举", () => {
+  it("份量默认取份量档案中倍率=10 的首个启用行", () => {
     render(
       <StandardSeasoningFormDialog
         open

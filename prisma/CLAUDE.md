@@ -38,7 +38,7 @@ Ingredient（调料，SEA 体系）
    └── StandardSeasoning（标准化调料，2026-11 新增）
           │
           ├── packageSpec：标准规格（g），统一以 g 计，不引入瓶/袋等单位
-          ├── portion：份量，与净料/小料/菜品共用同一套枚举
+          ├── portion：份量，与净料/小料/菜品共用同一套份量档案（portion_profiles 标签）
           ├── yieldRate：出成率（%），标准化分装的出成率
           ├── 价格体系：单价(元/斤) = 调料每斤单价 ÷ 出成率；成本价 = 单价 + 加工费；
           │   出库价 = 成本价 ÷ (1 − 毛利率/100)；
@@ -58,6 +58,14 @@ Ingredient（调料，SEA 体系）
 - 业务表中的 `l2Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查，被引用时禁止并引导停用。
 - 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类。
 
+### 份量档案
+
+| 模型 | 说明 |
+|------|------|
+| `PortionProfile` | 份量档案（设置模块「份量」，迁移 20261123083624）。每行 = 一个具体份量选项；`portion` 标签全表唯一；`scenario` 同场景允许多行；`multiplier` 为正整数倍率（份量 = 单人份 × 倍率）；`isBase` = 单人份基本单元锁定，API 拒绝编辑/停用/删除（zod 不接受 isBase 字段）；无业务表引用，物理删除 |
+
+- **打通状态（2026-11-24，迁移 20261124100000）**：`Dish` / `NetIngredient` / `StandardSeasoning` 的 `portion` 字段统一落本表标签（存量「小碗菜」已迁为「单人份」）；写校验 `lib/server/portion-profile-utils.ts`，客户端选项 `lib/client/use-portion-profiles.ts`；转化倍率 = 目标 multiplier ÷ 源 multiplier
+
 ### 建档时间（createdAt）
 
 - `Ingredient`（原料 + 调料）、`NetIngredient`（净料 + 小料）、`SauceIngredient`（酱料）三张表都有 `createdAt`，默认 `now()`。
@@ -69,7 +77,7 @@ Ingredient（调料，SEA 体系）
 | 模型 | 说明 |
 |------|------|
 | `DishCategory` | 菜品分类，编码唯一；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
-| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「小碗菜」（2026-11-22 起，迁移 20261122123000） |
+| `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「单人份」（2026-11-24 起，迁移 20261124100000） |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |
 | `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，`source_id` 关联 `Ingredient`（调料），`spec_id` 关联 `StandardSeasoning`（标准化规格）；`spec_id` 为空的存量行保持旧口径 |
@@ -84,6 +92,7 @@ Ingredient（调料，SEA 体系）
 | `ScheduleItem` | 排程菜品及份数 |
 | `CuttingOrder` | 切配工单，由 `buildCuttingOrders()` 自动生成 |
 | `PurchasePlan` | 采购计划，由 `buildPurchasePlans()` 自动生成 |
+| `Store` | 门店（排程组织单位），`scenario` 场景打通份量档案 `portion_profiles.scenario`（2026-11-24，新建必填、服务端查表校验）；`isSystem` 系统店不可删/停用；被排程引用禁删 |
 
 ### 生产计划域
 

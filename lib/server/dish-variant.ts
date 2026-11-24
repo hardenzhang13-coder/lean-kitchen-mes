@@ -19,7 +19,7 @@ export type DishVariantSource = Prisma.DishGetPayload<{
 export type DishVariantOptions = {
   name: string;
   portion: string;
-  /** 缩放倍率：复制 = 1，转化 = 目标等价份数 ÷ 源等价份数 */
+  /** 缩放倍率：复制 = 1，转化 = 目标份量档案 multiplier ÷ 源份量档案 multiplier */
   factor: number;
   /** 源菜品当前成本（元/份），按倍率缩放后写入新档案 */
   cost: number | null;
@@ -54,7 +54,7 @@ async function generateDishCode(
 /**
  * 由源菜品生成一条独立草稿档案：
  * - 复制：factor = 1、portion 与源相同、名称加「-副本」
- * - 转化：factor 由份量规格推导、portion 为目标份量
+ * - 转化：factor = 目标份量倍率 ÷ 源份量倍率（份量档案 multiplier）、portion 为目标份量
  * BOM 用量/成本与售价按倍率缩放，工序原样复制。
  */
 export async function createDishVariant(

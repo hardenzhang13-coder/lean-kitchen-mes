@@ -41,11 +41,13 @@ import {
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { toast } from "sonner";
+import { cn } from "@/lib/shared/utils";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import {
   buildNetIngredientDefaultName,
   isDefaultNetIngredientName,
 } from "@/lib/shared/net-name";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 
 export type NetIngredientItem = {
   id: number;
@@ -61,7 +63,7 @@ export type NetIngredientItem = {
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
   grossMarginRate: number | null;
-  /** 份量（小碗菜 / 社区口径） */
+  /** 份量（份量档案标签） */
   portion?: string | null;
   unit: string;
   sourceIngredientId: number | null;
@@ -80,7 +82,7 @@ export type NetIngredientFormItem = {
   yieldRate?: number | null;
   unitPrice?: number | null;
   grossMarginRate?: number | null;
-  /** 份量（小碗菜 / 社区口径） */
+  /** 份量（份量档案标签） */
   portion?: string | null;
   sourceIngredientId?: number | null;
   l2Code?: string | null;
@@ -97,6 +99,8 @@ interface NetIngredientFormDialogProps {
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
   onSuccess?: () => void;
+  /** 转化场景是否允许在净料/小料间选择 */
+  allowTargetChoice?: boolean;
   /** 自定义弹窗标题（复制场景：复制净料 / 复制小料） */
   title?: string;
 }
@@ -115,7 +119,7 @@ const emptyForm: NetIngredientFormData = {
   yieldRate: "",
   unitPrice: "",
   grossMarginRate: "0",
-  // 新建净料/转净料默认份量
+  // 新建净料/转净料默认份量（兜底；打开弹窗时按份量档案覆盖，见 defaultPortionRef）
   portion: "小碗菜·10份",
 };
 
@@ -142,8 +146,25 @@ export function NetIngredientFormDialog({
   rawIngredients,
   onSuccess,
   title,
+  allowTargetChoice = false,
 }: NetIngredientFormDialogProps) {
   const [form, setForm] = useState<NetIngredientFormData>(emptyForm);
+  // 默认份量读份量档案：倍率=10 的首个启用行（历史口径 小碗菜·10份），档案不可达时兜底 legacy 值
+  const { profiles } = usePortionProfiles();
+  const defaultPortion = useMemo(() => {
+    if (profiles) {
+      const row =
+        profiles.find((p) => p.isActive && p.multiplier === 10) ??
+        profiles.find((p) => p.isActive);
+      if (row) return row.portion;
+    }
+    return "小碗菜·10份";
+  }, [profiles]);
+  // 打开重置表单时取当时的默认值；档案异步加载不触发二次重置，避免覆盖用户已选份量
+  const defaultPortionRef = useRef(defaultPortion);
+  useEffect(() => {
+    defaultPortionRef.current = defaultPortion;
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [rightList, setRightList] = useState<NetIngredientItem[]>([]);
@@ -159,8 +180,16 @@ export function NetIngredientFormDialog({
   const [listOpen, setListOpen] = useState(false);
   const [listRefreshKey, setListRefreshKey] = useState(0);
   const listRequestSeq = useRef(0);
+  const [convertTarget, setConvertTarget] = useState<"net" | "minor">("net");
 
-  const isMinor = mode === "minor";
+  const targetMode =
+    mode === "convert"
+      ? allowTargetChoice
+        ? convertTarget
+        : "net"
+      : mode;
+  const isMinorMode = mode === "minor";
+  const isMinor = targetMode === "minor";
   const isConvert = mode === "convert";
   const usesNetLayout =
     mode === "net" || mode === "convert" || mode === "minor";
@@ -188,12 +217,20 @@ export function NetIngredientFormDialog({
   const selectedL2 = selectedL1?.children.find(
     (category) => category.code === form.l2Code
   );
+  // 转化时头部固定展示来源原料的原分类；下方分类随转化目标变化
+  const sourceL1 = findParentL1(selectedSource?.l2Code);
+  const sourceL2 = sourceL1?.children.find(
+    (category) => category.code === selectedSource?.l2Code
+  );
+  const minorL1 = categories.find((category) => category.code === "MIN");
+  const firstMinorL2 = minorL1?.children[0];
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
 
     setErrors({});
+    setConvertTarget("net");
     setListPage(1);
     setSourceSelectorOpen(false);
     setListOpen(false);
@@ -202,7 +239,7 @@ export function NetIngredientFormDialog({
       const parentL1 = findParentL1(initialData.l2Code);
       setForm({
         name: initialData.name || "",
-        l1Code: isMinor ? "MIN" : parentL1?.code || "",
+        l1Code: isMinorMode ? "MIN" : parentL1?.code || "",
         l2Code: initialData.l2Code || "",
         sourceIngredientId: initialData.sourceIngredientId
           ? String(initialData.sourceIngredientId)
@@ -235,6 +272,7 @@ export function NetIngredientFormDialog({
       const parentL1 = raw ? findParentL1(raw.l2Code) : undefined;
       setForm({
         ...emptyForm,
+        portion: defaultPortionRef.current,
         // 默认名称：原料名称•加工方式•500g
         name: buildNetIngredientDefaultName(
           raw?.name ?? sourceIngredientName,
@@ -247,11 +285,12 @@ export function NetIngredientFormDialog({
       return;
     }
 
-    if (isMinor) {
+    if (isMinorMode) {
       const minorL1 = categories.find((category) => category.code === "MIN");
       const firstL2 = minorL1?.children[0];
       setForm({
         ...emptyForm,
+        portion: defaultPortionRef.current,
         l1Code: "MIN",
         l2Code: firstL2?.code || "",
       });
@@ -259,12 +298,12 @@ export function NetIngredientFormDialog({
     }
 
     // 新增净料先从来源原料开始，不再预选一个无来源的分类。
-    setForm({ ...emptyForm });
+    setForm({ ...emptyForm, portion: defaultPortionRef.current });
   }, [
     open,
     initialData,
     isConvert,
-    isMinor,
+    isMinorMode,
     propSourceId,
     sourceIngredientName,
     findParentL1,
@@ -501,7 +540,11 @@ export function NetIngredientFormDialog({
         return;
       }
 
-      toast.success(initialData?.id ? "更新成功" : "创建成功");
+      toast.success(
+        initialData?.id
+          ? "更新成功"
+          : `已创建${isMinor ? "小料" : "净料"}`,
+      );
       onOpenChange(false);
       onSuccess?.();
     } catch {
@@ -541,12 +584,77 @@ export function NetIngredientFormDialog({
 
   const dialogTitle = useMemo(() => {
     if (title) return title;
+    if (isConvert) return "转化食材";
     if (isMinor && initialData?.id) return "编辑小料";
     if (isMinor) return "新增小料";
     if (initialData?.id) return "编辑净料";
-    if (isConvert) return "转净料";
     return "新增净料";
   }, [title, isMinor, initialData, isConvert]);
+
+  const handleConvertTargetChange = (next: "net" | "minor") => {
+    if (next === convertTarget) return;
+    if (next === "minor" && !firstMinorL2) {
+      setErrors((previous) => ({
+        ...previous,
+        l2Code: "请先维护小料二级分类",
+      }));
+      return;
+    }
+
+    setConvertTarget(next);
+    setErrors({});
+    setListPage(1);
+    setForm((previous) => {
+      if (next === "minor") {
+        return {
+          ...previous,
+          l1Code: "MIN",
+          l2Code: firstMinorL2?.code || "",
+        };
+      }
+
+      const raw = getRawIngredient(Number(previous.sourceIngredientId));
+      const parentL1 = findParentL1(raw?.l2Code);
+      return {
+        ...previous,
+        l1Code: parentL1?.code || "",
+        l2Code: raw?.l2Code || "",
+      };
+    });
+  };
+
+  const convertTargetSelector = isConvert && allowTargetChoice && (
+    <div
+      role="group"
+      aria-label="转化目标"
+      className="skeu-segmented mt-3 w-fit"
+    >
+      <button
+        type="button"
+        aria-pressed={convertTarget === "net"}
+        className={cn(
+          "skeu-segmented-btn",
+          convertTarget === "net" && "skeu-segmented-btn-active"
+        )}
+        onClick={() => handleConvertTargetChange("net")}
+      >
+        净料
+      </button>
+      <button
+        type="button"
+        aria-pressed={convertTarget === "minor"}
+        disabled={!firstMinorL2}
+        title={firstMinorL2 ? "转化为小料" : "请先维护小料二级分类"}
+        className={cn(
+          "skeu-segmented-btn",
+          convertTarget === "minor" && "skeu-segmented-btn-active"
+        )}
+        onClick={() => handleConvertTargetChange("minor")}
+      >
+        小料
+      </button>
+    </div>
+  );
 
   const existingCount = listPagination?.totalItems;
   const sourceSummary = (
@@ -567,14 +675,14 @@ export function NetIngredientFormDialog({
               ·
             </span>
             <span className="text-muted-foreground">
-              {selectedL1?.name}
+              {sourceL1?.name}
             </span>
             <span aria-hidden="true" className="text-muted-foreground">
               ·
             </span>
             <CategoryTag
-              l2Code={selectedL2?.code}
-              name={selectedL2?.name || "—"}
+              l2Code={sourceL2?.code}
+              name={sourceL2?.name || "—"}
             />
           </>
         ) : (
@@ -620,6 +728,7 @@ export function NetIngredientFormDialog({
       >
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <DialogTitle className="text-lg">{dialogTitle}</DialogTitle>
+          {convertTargetSelector}
           {usesNetLayout && sourceSummary}
           {usesNetLayout &&
             (errors.sourceIngredientId || errors.l2Code) && (
@@ -637,6 +746,7 @@ export function NetIngredientFormDialog({
               onChange={handleChange}
               categories={categories}
               rawIngredients={rawIngredients}
+              mode={isMinor ? "minor" : "net"}
               errors={errors}
               autoSelectFirst={!isConvert}
             />
@@ -774,7 +884,9 @@ export function NetIngredientFormDialog({
               {submitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              保存
+              {initialData?.id
+                ? "保存"
+                : `创建${isMinor ? "小料" : "净料"}`}
             </span>
           </SkeuButton>
         </DialogFooter>

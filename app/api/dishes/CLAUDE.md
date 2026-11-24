@@ -24,7 +24,7 @@
 - `technique` — 做法
 - `meatType` — 荤素类型
 - `portion` — 份量规格
-- `portionGroup` — 份量分组：`single`（小碗菜）/ `community`（社区·1–4 份及其余）/ `canteen`（小碗菜·10 份）
+- `portionGroup` — 份量分组：`single`（单人份，含迁移前存量标签「小碗菜」）/ `community`（社区·N 份及其余）/ `canteen`（小碗菜·10 份）
 - `status` — 状态（draft / published / inactive）
 - `q` — 按名称或编码模糊搜索
 - `page` / `pageSize` — 分页
@@ -107,8 +107,8 @@ BOM 数据包含四层：
 
 `POST /api/dishes/[id]/scale`，body `{ portion, name?, specs? }`
 
-1. 任意份量档案都可作为源；目标份量必须来自 `PORTION_VALUES` 且与源不同
-2. 倍率由 `lib/shared/portion-scale.ts` 的 `portionScaleFactor` 推导（目标等价份数 ÷ 源等价份数）
+1. 任意份量档案行都可作为源；目标份量必须命中启用中的份量档案（`portion_profiles`）且与源不同
+2. 倍率新口径 = 目标行 `multiplier` ÷ 源行 `multiplier`（`portionScaleFactor(source, target, profiles)`，档案行由 `lib/server/portion-profile-utils.ts` 查表注入）
 3. 同步转化 BOM 引用的净料/小料：
    - 食材库已有「同来源原料 + 目标份量 + 同分类」规格 → 直接复用
    - 没有 → 按倍率推导封装规格，读取 `specs` 中用户确认的值自动建档

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { PORTION_VALUES } from "@/lib/shared/portion-scale";
 
 // 净料/小料统一口径：均由原料转化而来（来源原料 + 出成率 + 包装规格），价格体系元/斤
 export const createNetIngredientSchema = z.object({
@@ -18,8 +17,8 @@ export const createNetIngredientSchema = z.object({
   grossMarginRate: z.number().min(0).max(95).nullish(),
   // 出成率（%）：必填。可超过 100——上浆/挂糊类食材出成率会大于 100（如 120 = 出 1.2 斤成品）
   yieldRate: z.number().min(0.01).max(500),
-  // 份量（小碗菜 / 社区口径）：新建必填，与菜品份量共用同一套枚举
-  portion: z.enum(PORTION_VALUES),
+  // 份量标签：与菜品共用份量档案（portion_profiles）；形态校验在 zod，合法性由路由层查表
+  portion: z.string().trim().min(1).max(50),
   // 兼容旧客户端，服务端会忽略并始终按来源原料实时价格派生
   unitPrice: z.number().nonnegative().nullish(),
   l2Code: z.string().min(1).max(20),
@@ -31,7 +30,7 @@ export const updateNetIngredientSchema = createNetIngredientSchema
   .partial()
   .extend({
     // 显式传 null 表示清空份量；不传表示保持原值
-    portion: z.enum(PORTION_VALUES).nullish(),
+    portion: z.string().trim().min(1).max(50).nullish(),
   });
 
 export const netIngredientQuerySchema = z.object({

@@ -4,6 +4,7 @@ import { logOperation, getUserFromRequest } from "@/lib/server/api-auth";
 import { resolveUsernameToName } from "@/lib/server/user-resolve";
 import { success, badRequest, notFound, conflict } from "@/lib/server/api-response";
 import { updateDishSchema } from "@/lib/server/schemas/dish";
+import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
@@ -237,7 +238,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const existing = await prisma.dish.findUnique({
       where: { id: Number(id) },
-      select: { status: true },
+      select: { status: true, portion: true },
     });
     if (!existing) return notFound("菜品不存在");
     if (existing.status !== "draft") {
@@ -248,6 +249,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }
     }
 
+    // 份量须命中份量档案（portion_profiles）；允许保持现值不变
+    const effectivePortion = portion !== undefined ? portion || "单人份" : undefined;
+    if (effectivePortion !== undefined) {
+      const portionError = await validatePortionForUpdate(effectivePortion, existing.portion);
+      if (portionError) return badRequest(portionError);
+    }
+
     const updateData: Record<string, unknown> = { operator };
     if (name !== undefined) updateData.name = name;
     if (intro !== undefined) updateData.intro = intro || null;
@@ -255,7 +263,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (cuisine !== undefined) updateData.cuisine = cuisine || null;
     if (technique !== undefined) updateData.technique = technique || null;
     if (taste !== undefined) updateData.taste = taste || null;
-    if (portion !== undefined) updateData.portion = portion || "小碗菜";
+    if (portion !== undefined) updateData.portion = effectivePortion;
     if (season !== undefined) updateData.season = season || "四季";
     if (meatType !== undefined) updateData.meatType = meatType || null;
     if (price !== undefined) updateData.price = price != null ? price : null;

@@ -22,7 +22,9 @@ jest.mock("@/lib/server/prisma", () => ({
     dishSeasoningDetail: {
       groupBy: jest.fn(),
     },
-
+    portionProfile: {
+      findUnique: jest.fn(),
+    },
   },
 }));
 
@@ -44,6 +46,7 @@ const mockedPrisma = prisma as unknown as {
   ingredient: { findFirst: jest.Mock; findUnique: jest.Mock };
   ingredientCategoryL2: { findMany: jest.Mock };
   dishSeasoningDetail: { groupBy: jest.Mock };
+  portionProfile: { findUnique: jest.Mock };
 };
 const mockedLogOperation = logOperation as jest.Mock;
 
@@ -144,6 +147,10 @@ describe("POST /api/standard-seasonings", () => {
     });
     mockedPrisma.standardSeasoning.findFirst.mockResolvedValue({
       code: "SEA-SP-0000",
+    });
+    // 份量档案：validPayload 的份量标签命中启用行
+    mockedPrisma.portionProfile.findUnique.mockResolvedValue({
+      isActive: true,
     });
     mockedPrisma.standardSeasoning.create.mockResolvedValue({
       id: 3,

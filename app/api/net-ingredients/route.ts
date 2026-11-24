@@ -8,6 +8,7 @@ import {
   netIngredientQuerySchema,
 } from "@/lib/server/schemas/net-ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
+import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
 import { nextCode } from "@/lib/shared/code-gen";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
@@ -77,7 +78,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body: unknown = await req.json();
-    // 份量：新建必填，先给出可读提示，再交由 zod 校验枚举合法性
+    // 份量：新建必填，先给出可读提示，形态由 zod 校验，档案合法性由路由层查表
     const rawPortion =
       typeof body === "object" && body !== null && "portion" in body
         ? (body as { portion?: unknown }).portion
@@ -87,6 +88,9 @@ export async function POST(req: NextRequest) {
     }
     const validation = validateBody(createNetIngredientSchema, body);
     if (!validation.success) return validation.response;
+
+    const portionError = await validatePortionForCreate(validation.data.portion);
+    if (portionError) return badRequest(portionError);
 
     const {
       name,

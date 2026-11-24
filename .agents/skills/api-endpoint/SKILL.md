@@ -14,7 +14,7 @@ description: 新增或修改 app/api 下的路由、调整请求/响应契约、
 放在 `lib/server/schemas/{domain}.ts`，不要写在 route 文件里。
 
 - 创建与更新分开导出；更新用 `.partial()`，需要「显式 null = 清空」时用 `.nullish()`。
-- 枚举优先复用 `lib/shared/` 下的常量（如 `PORTION_VALUES`），避免前后端各写一份。
+- 枚举优先复用 `lib/shared/` 下的常量，避免前后端各写一份；档案驱动字段（如份量 `portion`）zod 只做形态校验（string/长度），合法性由路由层查表校验（`lib/server/portion-profile-utils.ts`）。
 - 查询 schema 用 `z.coerce.number()` 处理 page/pageSize，默认 `page=1, pageSize=20`，上限 100。
 
 ### 2. 路由骨架

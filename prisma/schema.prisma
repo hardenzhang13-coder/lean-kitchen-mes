@@ -19,6 +19,24 @@ model DishCategory {
   @@map("dish_categories")
 }
 
+model PortionProfile {
+  id         Int     @id @default(autoincrement())
+  // 份量标签，全表唯一（如 小碗菜、社区·2份、小碗菜·10份）
+  portion    String  @unique
+  // 场景（如 单人份/社区/团餐食堂），同一场景允许多行（不同倍率）
+  scenario   String
+  // 倍率：正整数，业务语义 份量 = 单人份 × multiplier
+  multiplier Int
+  // 单人份基本单元锁定：seed 置 true；API 拒绝编辑/停用/删除
+  isBase     Boolean @default(false) @map("is_base")
+  isActive   Boolean @default(true) @map("is_active")
+  // 展示顺序：越小越靠前（单人份固定 0）
+  sortOrder  Int     @default(0) @map("sort_order")
+
+  @@index([scenario, sortOrder])
+  @@map("portion_profiles")
+}
+
 model IngredientCategoryL1 {
   id          Int                    @id @default(autoincrement())
   code        String                 @unique
@@ -229,7 +247,7 @@ model Dish {
   cuisine          String?
   technique        String?
   taste            String?
-  portion          String                @default("小碗菜")
+  portion          String                @default("单人份")
   season           String                @default("四季")
   meatType         String?               @map("meat_type")
   cost             Decimal?              @db.Decimal(10, 2)
@@ -348,6 +366,8 @@ model Store {
   manager   String?
   phone     String?
   address   String?
+  // 门店场景：打通份量档案 portion_profiles.scenario（设置模块份量页维护）
+  scenario  String?    @map("scenario")
   // 系统内置门店（不可删除、不可停用）
   isSystem  Boolean    @default(false) @map("is_system")
   isActive  Boolean    @default(true) @map("is_active")

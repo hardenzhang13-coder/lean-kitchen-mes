@@ -9,6 +9,7 @@ import {
   conflict,
 } from "@/lib/server/api-response";
 import { updateStandardSeasoningSchema } from "@/lib/server/schemas/standard-seasoning";
+import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
 import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { logger } from "@/lib/server/logger";
@@ -73,6 +74,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { id: specId, deletedAt: null },
         });
         if (!existing) throw new Error("标准化调料不存在或已删除");
+
+        // 份量须命中份量档案（portion_profiles）；允许保持现值不变
+        if (typeof portion === "string") {
+          const portionError = await validatePortionForUpdate(portion, existing.portion, tx);
+          if (portionError) throw new Error(portionError);
+        }
 
         const finalName = (name ?? existing.name).trim();
         if (!finalName) throw new Error("名称不能为空");

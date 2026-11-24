@@ -31,27 +31,27 @@
 
 一个枚举字典必须同时提供五件套，缺一不可：
 
-| 件 | 形态 | 样板（份量） |
+| 件 | 形态 | 样板（份量，2026-11-24 起为档案驱动） |
 |---|---|---|
-| 枚举值数组 | `as const` 字符串数组 | `PORTION_VALUES` |
-| 选项元数据 | 数组，含 `value` / `label` / `description` + 业务元数据 | `PORTION_OPTIONS`（含 `bowlEquivalent`） |
-| 取值解析 | `getXOption(value)` → 选项或 `null` | `getPortionOption` |
-| 合法性判断 | `isValidX(value)` → boolean | `isValidPortion` |
+| 枚举值数组 | `as const` 字符串数组 | 份量档案行 `portion_profiles`（`lib/client/use-portion-profiles.ts` 拉取） |
+| 选项元数据 | 数组，含 `value` / `label` / `description` + 业务元数据 | `toPortionOption`（倍率元数据 = 档案 `multiplier`） |
+| 取值解析 | `getXOption(value)` → 选项或 `null` | `getPortionOption`（档案优先，`LEGACY_PORTION_OPTIONS` 兜底） |
+| 合法性判断 | `isValidX(value)` → boolean | `validatePortionForCreate/Update`（`lib/server/portion-profile-utils.ts` 查表） |
 | 渲染组件 | 通用层标签组件 | `app/components/ui/portion-tag.tsx` |
 
 **附加约定**
 
 - **落库存短值**：枚举落库用短值（如「社区·2份」），括号内容只作描述文案，不进数据库。
-- **等价系数是唯一口径**：需要换算的枚举必须带一个业务系数（如 `bowlEquivalent`），换算函数只认这个系数，不做字符串反推。
+- **等价系数是唯一口径**：需要换算的枚举必须带一个业务系数；档案驱动后系数即档案 `multiplier`（份量 = 单人份 × 倍率），换算函数只认这个系数，不做字符串反推。
 - **前后端共用同一份**：服务端 zod enum 与前端选项都从 `lib/shared/` 导入。`lib/server/schemas/` 不得另抄一份字面量。
-- **历史值保留兼容解析**：枚举重构后，旧值在解析函数里保留映射（`LEGACY_PORTION_COUNTS`），不静默变成 `null`。
+- **历史值保留兼容解析**：枚举/档案重构后，旧值在解析函数里保留映射（`LEGACY_PORTION_OPTIONS` / `parsePortionCount`），不静默变成 `null`。
 
-**强制载体**：`lib/shared/portion-scale.ts` 是唯一样板；`.agents/skills/ui-baseline` 与 `.agents/skills/domain-pricing` 写明约束。
+**强制载体**：`lib/shared/portion-scale.ts` 是份量样板（档案驱动反例参照：选项来自数据库而非硬编码数组）；`.agents/skills/ui-baseline` 与 `.agents/skills/domain-pricing` 写明约束。
 
 **反例**
 
 - 在 `app/components/dishes/` 里另写一份份量选项数组。
-- 服务端 `z.enum(["小碗菜", ...])` 手写字面量，与 `PORTION_VALUES` 各改各的。
+- 服务端 `z.enum(["单人份", ...])` 手写字面量，与份量档案各改各的。
 
 ---
 

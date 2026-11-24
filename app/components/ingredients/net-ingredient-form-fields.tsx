@@ -28,7 +28,8 @@ import {
   calcStandardPackagePrice,
 } from "@/lib/shared/net-price";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
-import { PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { LEGACY_PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { usePortionProfiles, toPortionOptions } from "@/lib/client/use-portion-profiles";
 import { formatPercent } from "@/lib/shared/display-format";
 
 export type CategoryL1 = SelectorCategoryL1;
@@ -53,7 +54,7 @@ export interface NetIngredientFormData {
   unitPrice: string;
   /** 毛利率（%）：默认 0；真毛利率口径，出库价 = 成本价 ÷ (1 - 毛利率/100) */
   grossMarginRate: string;
-  /** 份量（小碗菜 / 社区口径）：与菜品份量共用同一套枚举 */
+  /** 份量（份量档案标签）：与菜品份量共用同一套档案 */
   portion: string;
 }
 
@@ -101,14 +102,14 @@ export function NetIngredientFormFields({
     [categories]
   );
 
+  // 份量选项唯一来源：份量档案（设置模块）；接口失败时降级历史兜底，不写回
+  const { profiles } = usePortionProfiles();
   const portionOptions = useMemo(
     () =>
-      PORTION_OPTIONS.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-    []
+      profiles
+        ? toPortionOptions(profiles)
+        : Object.values(LEGACY_PORTION_OPTIONS),
+    [profiles]
   );
 
   const l2Options = useMemo(() => {
@@ -249,7 +250,7 @@ export function NetIngredientFormFields({
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.portion}
-            hint="净料档案的份量口径，与菜品份量共用同一套枚举"
+            hint="净料档案的份量口径，与菜品份量共用同一套份量档案"
           >
             {viewMode ? (
               <ReadOnlyValue value={form.portion || null} />
@@ -657,7 +658,7 @@ export function NetIngredientFormFields({
           readOnly={viewMode}
           optionalHint={false}
           error={errors?.portion}
-          hint="净料档案的份量口径，与菜品份量共用同一套枚举"
+          hint="净料档案的份量口径，与菜品份量共用同一套份量档案"
         >
           {viewMode ? (
             <ReadOnlyValue value={form.portion || null} />

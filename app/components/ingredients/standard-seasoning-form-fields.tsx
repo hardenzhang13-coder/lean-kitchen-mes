@@ -12,7 +12,8 @@ import {
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { LEGACY_PORTION_OPTIONS } from "@/lib/shared/portion-scale";
+import { usePortionProfiles, toPortionOptions } from "@/lib/client/use-portion-profiles";
 import { deriveStandardSeasoningPrices } from "@/lib/shared/seasoning-spec";
 
 export interface StandardSeasoningFormData {
@@ -22,7 +23,7 @@ export interface StandardSeasoningFormData {
   sourceIngredientId: string;
   /** 包装规格（g）：调料标准规格统一以 g 计 */
   packageSpec: string;
-  /** 份量（小碗菜 / 社区口径）：与净料、小料、菜品共用同一套枚举 */
+  /** 份量（份量档案标签）：与净料、小料、菜品共用同一套档案 */
   portion: string;
   /** 出成率（%） */
   yieldRate: string;
@@ -64,14 +65,14 @@ export function StandardSeasoningFormFields({
   errors,
   viewMode = false,
 }: StandardSeasoningFormFieldsProps) {
+  // 份量选项唯一来源：份量档案（设置模块）；接口失败时降级历史兜底，不写回
+  const { profiles } = usePortionProfiles();
   const portionOptions = useMemo(
     () =>
-      PORTION_OPTIONS.map((option) => ({
-        value: option.value,
-        label: option.label,
-        description: option.description,
-      })),
-    []
+      profiles
+        ? toPortionOptions(profiles)
+        : Object.values(LEGACY_PORTION_OPTIONS),
+    [profiles]
   );
 
   // 价格链路与净料同构，唯一真源在 lib/shared/seasoning-spec.ts
@@ -154,7 +155,7 @@ export function StandardSeasoningFormFields({
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.portion}
-            hint="与净料、小料、菜品共用同一套份量枚举"
+            hint="与净料、小料、菜品共用同一套份量档案"
           >
             {viewMode ? (
               <ReadOnlyValue value={form.portion || null} />

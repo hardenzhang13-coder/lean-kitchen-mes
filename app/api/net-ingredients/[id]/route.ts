@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError, conflict } from "@/lib/server/api-response";
 import { updateNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
+import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 import { syncBomAmountsForNetIngredient } from "@/lib/server/bom-package-sync";
@@ -56,6 +57,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { id: netIngredientId, deletedAt: null },
         });
         if (!existing) throw new Error("净料不存在或已删除");
+
+        // 份量须命中份量档案（portion_profiles）；允许保持现值不变
+        if (typeof portion === "string") {
+          const portionError = await validatePortionForUpdate(portion, existing.portion, tx);
+          if (portionError) throw new Error(portionError);
+        }
 
         if (!name?.trim() || !l2Code?.trim()) {
           throw new Error("名称和二级分类不能为空");

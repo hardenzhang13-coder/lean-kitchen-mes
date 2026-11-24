@@ -525,7 +525,7 @@ function MaterialKit() {
                 <div className="mt-2 truncate pr-5 text-sm font-bold text-[#36312a]">红烧肉</div>
                 <div className="mt-0.5 font-mono text-xs text-muted-foreground">DSH-PORK-0001</div>
                 <div className="mt-2 flex items-center justify-between gap-2">
-                  <PortionTag portion="小碗菜" className="h-[22px] px-1.5 text-xs" />
+                  <PortionTag portion="单人份" className="h-[22px] px-1.5 text-xs" />
                   <span className="font-mono text-[13px] font-bold text-[#7a4a2a] tabular-nums">
                     ¥16.00
                   </span>
@@ -558,7 +558,7 @@ function MaterialKit() {
                   <span className="inline-flex h-5 items-center rounded-full border border-[#d4e3d9] bg-white/75 px-1.5 text-xs font-bold text-[#5d7265]">
                     猪肉类
                   </span>
-                  <PortionTag portion="小碗菜" className="h-5 text-xs" />
+                  <PortionTag portion="单人份" className="h-5 text-xs" />
                   <span className="font-mono font-bold">¥16.00</span>
                 </div>
               </div>
@@ -1058,17 +1058,16 @@ export default function UiKitPage() {
             <div>
               <h2 className="text-lg font-semibold">份量标签</h2>
               <p className="text-sm text-muted-foreground">
-                份量枚举的唯一渲染入口，取值来自 lib/shared/portion-scale.ts。
+                份量的唯一渲染入口，取值来自份量档案（设置模块「份量」）。
+                色板按档案场景映射：单人份 / 社区 / 团餐食堂，未知场景 muted 兜底。
                 文字统一深墨（--capsule-ink），色相识别靠底色 + 圆点，避免与主色橙冲突。
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-card p-4">
-              <PortionTag portion="小碗菜" />
-              <PortionTag portion="社区·1份" />
+              <PortionTag portion="单人份" />
               <PortionTag portion="社区·2份" />
-              <PortionTag portion="社区·3份" />
-              <PortionTag portion="社区·4份" />
               <PortionTag portion="小碗菜·10份" />
+              <PortionTag portion="未知场景·5份" />
               <PortionTag portion={null} />
             </div>
           </section>

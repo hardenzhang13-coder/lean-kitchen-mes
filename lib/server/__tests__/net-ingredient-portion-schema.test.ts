@@ -24,15 +24,20 @@ describe("净料份量校验", () => {
     }
   });
 
-  it("非法份量枚举值被拒绝", () => {
-    const result = createNetIngredientSchema.safeParse({
-      ...basePayload,
-      portion: "超大份",
-    });
-    expect(result.success).toBe(false);
+  it("份量形态校验：非字符串/超长被拒绝（合法性由路由层查份量档案）", () => {
+    expect(
+      createNetIngredientSchema.safeParse({ ...basePayload, portion: 123 })
+        .success
+    ).toBe(false);
+    expect(
+      createNetIngredientSchema.safeParse({
+        ...basePayload,
+        portion: "份".repeat(51),
+      }).success
+    ).toBe(false);
   });
 
-  it("合法份量枚举值通过", () => {
+  it("合法份量标签通过形态校验", () => {
     const result = createNetIngredientSchema.safeParse({
       ...basePayload,
       portion: "社区·2份",

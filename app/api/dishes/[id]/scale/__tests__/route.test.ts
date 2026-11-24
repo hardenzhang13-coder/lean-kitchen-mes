@@ -19,6 +19,9 @@ jest.mock("@/lib/server/prisma", () => ({
       findUnique: jest.fn(),
       findFirst: jest.fn(),
     },
+    portionProfile: {
+      findUnique: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -48,6 +51,7 @@ jest.mock("@/lib/server/dish-scale-plan", () => {
 
 const mockedPrisma = prisma as unknown as {
   dish: { findUnique: jest.Mock; findFirst: jest.Mock };
+  portionProfile: { findUnique: jest.Mock };
   $transaction: jest.Mock;
 };
 const mockedLogOperation = logOperation as jest.Mock;
@@ -120,6 +124,9 @@ describe("POST /api/dishes/[id]/scale", () => {
   beforeEach(() => {
     mockedPrisma.dish.findUnique.mockReset();
     mockedPrisma.dish.findFirst.mockReset();
+    mockedPrisma.portionProfile.findUnique.mockReset();
+    // 目标份量命中启用中的份量档案行
+    mockedPrisma.portionProfile.findUnique.mockResolvedValue({ isActive: true });
     mockedPrisma.$transaction.mockReset();
     mockedPrisma.$transaction.mockImplementation(async (callback) =>
       callback({ netIngredient: { create: mockedNetCreate } })

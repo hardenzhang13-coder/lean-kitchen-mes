@@ -9,6 +9,7 @@ import {
   buildDishScalePlan,
   dishScaleSourceInclude,
 } from "@/lib/server/dish-scale-plan";
+import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
 import { logger } from "@/lib/server/logger";
 
 /**
@@ -39,6 +40,10 @@ export async function POST(
     if (portion === source.portion) {
       return badRequest("目标份量与源菜品份量相同，无需转化");
     }
+
+    // 目标份量须命中启用中的份量档案
+    const targetPortionError = await validatePortionForCreate(portion);
+    if (targetPortionError) return badRequest(targetPortionError);
 
     const plan = await buildDishScalePlan(prisma, source, portion);
     return success(plan);

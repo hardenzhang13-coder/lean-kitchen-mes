@@ -22,6 +22,7 @@ import {
   type RecordFormErrors,
 } from "@/app/components/ui/use-record-form";
 import { toast } from "sonner";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 
 export type StandardSeasoningFormItem = {
   id?: number;
@@ -51,7 +52,8 @@ const DEFAULT_PORTION = "小碗菜·10份";
 
 function buildInitialForm(
   initialData: StandardSeasoningFormItem | undefined,
-  source: StandardSeasoningSource
+  source: StandardSeasoningSource,
+  defaultPortion: string
 ): StandardSeasoningFormData {
   return {
     // 名称沿用来源调料名
@@ -59,7 +61,7 @@ function buildInitialForm(
     sourceIngredientId: String(initialData?.sourceIngredientId ?? source.id),
     packageSpec:
       initialData?.packageSpec != null ? String(initialData.packageSpec) : "",
-    portion: initialData?.portion ?? DEFAULT_PORTION,
+    portion: initialData?.portion ?? defaultPortion,
     yieldRate:
       initialData?.yieldRate != null ? String(initialData.yieldRate) : "100",
     processingFeePerJin:
@@ -99,11 +101,23 @@ export function StandardSeasoningFormDialog({
   onViewExisting,
 }: StandardSeasoningFormDialogProps) {
   const isEdit = Boolean(initialData?.id);
+  // 默认份量读份量档案：倍率=10 的首个启用行（历史口径 小碗菜·10份），档案不可达时兜底 legacy 值
+  const { profiles } = usePortionProfiles();
+  const defaultPortion = useMemo(() => {
+    if (profiles) {
+      const row =
+        profiles.find((p) => p.isActive && p.multiplier === 10) ??
+        profiles.find((p) => p.isActive);
+      if (row) return row.portion;
+    }
+    return DEFAULT_PORTION;
+  }, [profiles]);
   // 该来源调料已有的标准规格数量（头部「查看已有封装调料」入口用）
+  // initialValues 随档案到达重算，但 useRecordForm 仅在 resetKey 变化时重置表单，不会覆盖用户输入
   const [existingCount, setExistingCount] = useState<number | null>(null);
   const initialValues = useMemo(
-    () => buildInitialForm(initialData, source),
-    [initialData, source]
+    () => buildInitialForm(initialData, source, defaultPortion),
+    [initialData, source, defaultPortion]
   );
   const resetKey = `${source.id}-${initialData?.id ?? "new"}`;
 
