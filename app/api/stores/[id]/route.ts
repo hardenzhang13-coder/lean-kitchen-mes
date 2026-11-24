@@ -4,6 +4,7 @@ import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success, internalError, conflict, badRequest, notFound } from "@/lib/server/api-response";
 import { updateStoreSchema } from "@/lib/server/schemas/store";
+import { validateStoreScenario } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
 import { normalizeName } from "@/lib/shared/name-utils";
 import { logger } from "@/lib/server/logger";
@@ -45,7 +46,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const validation = validateBody(updateStoreSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, manager, phone, address, isActive } = validation.data;
+    const { name, manager, phone, address, scenario, isActive } = validation.data;
 
     // 系统内置门店保护：名称与启用状态不可修改
     if (
@@ -54,6 +55,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         (isActive !== undefined && !isActive))
     ) {
       return conflict("系统内置门店不允许修改名称或停用");
+    }
+
+    // 场景打通份量档案：取值必须命中 portion_profiles.scenario（含停用行）
+    if (scenario !== undefined) {
+      const scenarioError = await validateStoreScenario(scenario);
+      if (scenarioError) return badRequest(scenarioError);
     }
 
     if (name !== undefined) {
@@ -68,6 +75,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (manager !== undefined) data.manager = manager?.trim() || null;
     if (phone !== undefined) data.phone = phone?.trim() || null;
     if (address !== undefined) data.address = address?.trim() || null;
+    if (scenario !== undefined) data.scenario = scenario.trim();
     if (isActive !== undefined) data.isActive = isActive;
 
     const row = await prisma.store.update({ where: { id: storeId }, data });

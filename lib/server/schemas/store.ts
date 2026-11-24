@@ -6,6 +6,8 @@ export const createStoreSchema = z.object({
   manager: z.string().max(50).nullish(),
   phone: z.string().max(20).nullish(),
   address: z.string().max(200).nullish(),
+  // 场景打通份量档案 portion_profiles.scenario，必填，取值合法性由路由层查表
+  scenario: z.string().trim().min(1, "请选择场景").max(50),
 });
 
 export const updateStoreSchema = z.object({
@@ -13,6 +15,8 @@ export const updateStoreSchema = z.object({
   manager: z.string().max(50).nullish(),
   phone: z.string().max(20).nullish(),
   address: z.string().max(200).nullish(),
+  // 必填口径下不允许清空；省略 = 保持不变
+  scenario: z.string().trim().min(1, "请选择场景").max(50).optional(),
   isActive: z.boolean().optional(),
 });
 

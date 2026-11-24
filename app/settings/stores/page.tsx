@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
 import { FormField } from "@/app/components/ui/form-field";
+import { SelectField } from "@/app/components/ui/select-field";
 import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import { SimpleListPage } from "@/app/components/ui/simple-list-page";
@@ -17,12 +18,15 @@ import {
   SimpleForm,
   isRecordDirty,
 } from "@/app/components/ui/record-dialog";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { toast } from "sonner";
 
 type Store = {
   id: number;
   code: string;
   name: string;
+  /** 门店场景：打通份量档案 portion_profiles.scenario */
+  scenario: string | null;
   manager: string | null;
   phone: string | null;
   address: string | null;
@@ -32,6 +36,7 @@ type Store = {
 
 const emptyForm = {
   name: "",
+  scenario: "",
   manager: "",
   phone: "",
   address: "",
@@ -48,6 +53,12 @@ export default function StoresPage() {
   const [deleteTarget, setDeleteTarget] = useState<Store | null>(null);
   const [deleteError, setDeleteError] = useState<DeleteErrorInfo | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // 场景选项唯一来源：份量档案启用行的 distinct scenario（设置模块份量页维护）
+  const { profiles: portionProfiles } = usePortionProfiles();
+  const scenarioOptions = Array.from(
+    new Set((portionProfiles ?? []).filter((p) => p.isActive).map((p) => p.scenario))
+  ).map((scenario) => ({ value: scenario, label: scenario }));
 
   const closeRecord = () => {
     setRecordOpen(false);
@@ -68,6 +79,7 @@ export default function StoresPage() {
   const openEdit = (row: Store) => {
     const nextForm = {
       name: row.name,
+      scenario: row.scenario || "",
       manager: row.manager || "",
       phone: row.phone || "",
       address: row.address || "",
@@ -85,10 +97,15 @@ export default function StoresPage() {
       toast.error("门店名称不能为空");
       return;
     }
+    if (!form.scenario) {
+      toast.error("请选择场景");
+      return;
+    }
     setSubmitting(true);
     try {
       const payload = {
         name: form.name,
+        scenario: form.scenario,
         manager: form.manager || null,
         phone: form.phone || null,
         address: form.address || null,
@@ -163,6 +180,16 @@ export default function StoresPage() {
           header: "名称",
           className: "w-[160px]",
           cell: (row) => <span className="font-semibold">{row.name}</span>,
+        },
+        {
+          header: "场景",
+          className: "w-[120px]",
+          cell: (row) =>
+            row.scenario ? (
+              <span className="text-primary">{row.scenario}</span>
+            ) : (
+              <EmptyValue />
+            ),
         },
         {
           header: "负责人",
@@ -259,6 +286,11 @@ export default function StoresPage() {
             {recordMode === "view" && selected ? (
               <RecordView
                 items={[
+                  {
+                    label: "场景",
+                    value: selected.scenario || "—",
+                    emphasis: true,
+                  },
                   { label: "负责人", value: selected.manager || "—" },
                   {
                     label: "电话",
@@ -283,6 +315,20 @@ export default function StoresPage() {
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="如：新金食堂"
                     className="h-11 text-base px-4"
+                  />
+                </FormField>
+                <FormField
+                  id="scenario"
+                  label="场景"
+                  required
+                  hint="与份量档案（设置-份量）的场景打通，决定门店的份量口径"
+                >
+                  <SelectField
+                    value={form.scenario}
+                    onChange={(v) => setForm({ ...form, scenario: v })}
+                    options={scenarioOptions}
+                    placeholder="请选择场景"
+                    className="w-48"
                   />
                 </FormField>
                 <FormField id="manager" label="负责人">

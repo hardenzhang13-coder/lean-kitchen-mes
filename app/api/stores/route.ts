@@ -5,6 +5,7 @@ import { logOperation } from "@/lib/server/api-auth";
 import { created, paginated, internalError, conflict, badRequest } from "@/lib/server/api-response";
 import { createStoreSchema, storeQuerySchema } from "@/lib/server/schemas/store";
 import { validateBody, validateQuery } from "@/lib/server/validate";
+import { validateStoreScenario } from "@/lib/server/portion-profile-utils";
 import { nextCode } from "@/lib/shared/code-gen";
 import { normalizeName } from "@/lib/shared/name-utils";
 import { logger } from "@/lib/server/logger";
@@ -73,9 +74,13 @@ export async function POST(req: NextRequest) {
     const validation = validateBody(createStoreSchema, body);
     if (!validation.success) return validation.response;
 
-    const { name, manager, phone, address } = validation.data;
+    const { name, manager, phone, address, scenario } = validation.data;
     const trimmedName = name.trim();
     if (!trimmedName) return badRequest("门店名称不能为空");
+
+    // 场景打通份量档案：必填，取值必须命中 portion_profiles.scenario
+    const scenarioError = await validateStoreScenario(scenario);
+    if (scenarioError) return badRequest(scenarioError);
 
     const dup = await findStoreByName(trimmedName);
     if (dup) return conflict(`门店名称已存在: ${dup.name}`);
@@ -87,13 +92,14 @@ export async function POST(req: NextRequest) {
         manager: manager?.trim() || null,
         phone: phone?.trim() || null,
         address: address?.trim() || null,
+        scenario: scenario.trim(),
       },
     });
     await logOperation(req, {
       action: "CREATE",
       entity: "Store",
       entityId: row.id,
-      description: `创建门店: ${row.name}`,
+      description: `创建门店: ${row.name}（场景 ${row.scenario}）`,
     });
     return created(row);
   } catch (err) {
