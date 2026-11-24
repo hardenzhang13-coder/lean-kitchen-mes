@@ -108,11 +108,11 @@ describe("原料库统一清单", () => {
     render(<IngredientFoodPage />);
 
     expect(
-      screen.getByRole("heading", { name: "食材清单" })
+      screen.getByRole("heading", { name: "食材库" })
     ).toBeInTheDocument();
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: "食材清单" })
+      screen.getByRole("tab", { name: "食材" })
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("批量导入")).toBeInTheDocument();
     expect(screen.getByText("新增原料")).toBeInTheDocument();

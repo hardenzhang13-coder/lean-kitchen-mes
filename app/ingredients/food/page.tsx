@@ -17,7 +17,7 @@ import { toast } from "sonner";
 type IngredientFoodTab = "raw" | "net" | "minor";
 
 const FOOD_TABS = [
-  { value: "raw", label: "食材清单" },
+  { value: "raw", label: "食材" },
   { value: "net", label: "净料清单" },
   { value: "minor", label: "小料清单" },
 ] as const;
@@ -163,7 +163,7 @@ function IngredientFoodListContent() {
           variant="topbar"
           showBack
           backHref="/ingredients"
-          title="食材清单"
+          title="食材库"
           description="集中管理采购原料及其转化生成的净料、小料"
           actions={
             <div className="flex items-center gap-2">

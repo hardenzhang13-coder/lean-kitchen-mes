@@ -362,14 +362,13 @@ export function RawIngredientListPanel({
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
-                <SkeuActionButton
-                  label="转化"
-                  tone="primary"
-                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+                <SkeuIconAction
+                  label={`查看原料 ${row.name}`}
+                  tip="查看原料"
+                  icon={<Eye className="h-4 w-4" />}
                   onClick={(event) => {
                     event.stopPropagation();
-                    setConvertSourceId(row.id);
-                    setConvertDialogOpen(true);
+                    openView(row);
                   }}
                 />
                 <SkeuIconAction
@@ -381,13 +380,14 @@ export function RawIngredientListPanel({
                     openEdit(row);
                   }}
                 />
-                <SkeuIconAction
-                  label={`查看原料 ${row.name}`}
-                  tip="查看原料"
-                  icon={<Eye className="h-4 w-4" />}
+                <SkeuActionButton
+                  label="转化"
+                  tone="primary"
+                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
                   onClick={(event) => {
                     event.stopPropagation();
-                    openView(row);
+                    setConvertSourceId(row.id);
+                    setConvertDialogOpen(true);
                   }}
                 />
               </>
