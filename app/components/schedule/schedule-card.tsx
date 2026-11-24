@@ -4,6 +4,7 @@ import { useState } from "react";
 import { getWeekDayShort } from "@/lib/shared/date-format";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { IndexCardListDialog } from "@/app/components/schedule/index-card-list-dialog";
 import type { ScheduleListItem } from "@/app/components/schedule/list-types";
 
 interface ScheduleCardProps {
@@ -33,14 +34,14 @@ export function ScheduleCard({
   onGotoPlan,
 }: ScheduleCardProps) {
   const plan = item.productionPlan;
-  const [expanded, setExpanded] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const storeName = item.store?.name ?? item.title;
   const day = item.scheduleDate.slice(8, 10);
   const month = Number(item.scheduleDate.slice(5, 7));
   const weekday = getWeekDayShort(item.scheduleDate);
   const hiddenCount = Math.max(0, item.items.length - PREVIEW_ROWS);
-  const visibleItems = expanded ? item.items : item.items.slice(0, PREVIEW_ROWS);
+  const visibleItems = item.items.slice(0, PREVIEW_ROWS);
 
   return (
     <article
@@ -57,7 +58,7 @@ export function ScheduleCard({
         </span>
       </span>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
+      <div className="skeu-index-body flex min-h-0 flex-1 flex-col">
         <div className="skeu-index-head">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div className="min-w-0">
@@ -77,7 +78,7 @@ export function ScheduleCard({
           </div>
         </div>
 
-        <div className="mt-2.5 min-h-0 flex-1">
+        <div className="skeu-index-list mt-2.5 min-h-0 flex-1">
           {visibleItems.map((row) => (
             <div
               key={row.dishId}
@@ -101,11 +102,11 @@ export function ScheduleCard({
                 type="button"
                 onClick={(event) => {
                   event.stopPropagation();
-                  setExpanded((next) => !next);
+                  setMoreOpen(true);
                 }}
                 className="h-6 rounded-md px-1.5 text-xs font-bold text-[#77695a] transition-colors hover:bg-[#f4f0ea]"
               >
-                {expanded ? "收起" : "查看更多"}
+                查看更多
               </button>
             </div>
           )}
@@ -113,7 +114,7 @@ export function ScheduleCard({
       </div>
 
       <footer
-        className="mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 px-3 py-2"
+        className="skeu-index-foot mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 py-2"
         onClick={(event) => event.stopPropagation()}
       >
         <span className="text-xs font-bold text-muted-foreground tabular-nums">
@@ -157,6 +158,17 @@ export function ScheduleCard({
         </span>
       </footer>
       <span className="skeu-index-tear" aria-hidden />
+      <IndexCardListDialog
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        title="菜单明细"
+        description={`${storeName} · 共 ${item.items.length} 道菜 / ${item.totalQuantity} 份`}
+        rows={item.items.map((row) => ({
+          key: String(row.dishId),
+          label: row.dish.name,
+          value: String(row.quantity),
+        }))}
+      />
     </article>
   );
 }

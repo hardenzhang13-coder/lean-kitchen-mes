@@ -507,6 +507,7 @@ function MaterialKit() {
             去排菜弹窗与排程看板卡片的专用件：菜品选择卡、已选卡、筛选片、索引卡。
             三态着色只落在索引卡舌片与头部，卡身保持中性纸面；
             待生效带活页本装订条（.skeu-index-binding），已完成带撕边便签底（.skeu-index-tear）。
+            卡中部明细区左右与头部框内文字对齐（.skeu-index-list）；「查看更多」唤起弹窗看全量清单。
           </p>
         </div>
         <div className="grid gap-4 lg:grid-cols-2">
@@ -601,7 +602,7 @@ function MaterialKit() {
                     ))}
                   </span>
                 </span>
-                <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
+                <div className="skeu-index-body flex min-h-0 flex-1 flex-col">
                   <div className="skeu-index-head">
                     <div className="grid grid-cols-[minmax(0,1fr)_68px] items-center gap-3">
                       <div className="min-w-0">
@@ -618,7 +619,7 @@ function MaterialKit() {
                       </div>
                     </div>
                   </div>
-                  <div className="mt-2.5">
+                  <div className="skeu-index-list mt-2.5">
                     <div className="grid h-[31px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--ic-row)]">
                       <span className="truncate text-[13px] font-semibold text-[color:var(--ic-body)]">
                         红烧肉
@@ -635,9 +636,25 @@ function MaterialKit() {
                         16<small className="ml-0.5 text-xs font-normal text-muted-foreground">份</small>
                       </span>
                     </div>
+                    <div className="grid h-[31px] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b border-[color:var(--ic-row)]">
+                      <span className="truncate text-[13px] font-semibold text-[color:var(--ic-body)]">
+                        清炒时蔬
+                      </span>
+                      <span className="text-[13px] font-bold text-[color:var(--ic-head)] tabular-nums">
+                        12<small className="ml-0.5 text-xs font-normal text-muted-foreground">份</small>
+                      </span>
+                    </div>
+                    <div className="flex h-[30px] items-center justify-between">
+                      <span className="text-xs font-semibold text-muted-foreground">
+                        还有 5 道
+                      </span>
+                      <span className="h-6 rounded-md px-1.5 text-xs font-bold text-[#77695a]">
+                        查看更多
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <footer className="mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 px-3 py-2">
+                <footer className="skeu-index-foot mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 py-2">
                   <span className="text-xs font-bold text-muted-foreground tabular-nums">
                     <b className="text-base text-[color:var(--ic-head)]">8</b> 菜 /{" "}
                     <b className="text-base text-[color:var(--ic-head)]">56</b> 份

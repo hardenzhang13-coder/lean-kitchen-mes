@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
+import { IndexCardListDialog } from "@/app/components/schedule/index-card-list-dialog";
 import { getWeekDayShort } from "@/lib/shared/date-format";
 import { formatPortionsValue } from "@/lib/shared/prepped-stock";
 import type { ProductionPlanListItem } from "@/app/components/schedule/list-types";
@@ -35,13 +36,13 @@ export function ProductionPlanCard({
   onActivate,
   onComplete,
 }: ProductionPlanCardProps) {
-  const [expanded, setExpanded] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const day = item.planDate.slice(8, 10);
   const month = Number(item.planDate.slice(5, 7));
   const weekday = getWeekDayShort(item.planDate);
   const storeRows = item.stores ?? [];
   const hiddenCount = Math.max(0, storeRows.length - PREVIEW_ROWS);
-  const visibleStores = expanded ? storeRows : storeRows.slice(0, PREVIEW_ROWS);
+  const visibleStores = storeRows.slice(0, PREVIEW_ROWS);
 
   return (
     <article
@@ -58,7 +59,7 @@ export function ProductionPlanCard({
         </span>
       </span>
 
-      <div className="flex min-h-0 flex-1 flex-col px-3.5 pt-3">
+      <div className="skeu-index-body flex min-h-0 flex-1 flex-col">
         <div className="skeu-index-head">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <div className="min-w-0">
@@ -78,7 +79,7 @@ export function ProductionPlanCard({
           </div>
         </div>
 
-        <div className="mt-2.5 flex min-h-0 flex-1 flex-col">
+        <div className="skeu-index-list mt-2.5 flex min-h-0 flex-1 flex-col">
           {storeRows.length === 0 ? (
             <p className="text-[13px] leading-relaxed font-semibold break-all text-[color:var(--ic-body)]">
               {item.remark?.trim() || "纯手工切配计划"}
@@ -108,11 +109,11 @@ export function ProductionPlanCard({
                     type="button"
                     onClick={(event) => {
                       event.stopPropagation();
-                      setExpanded((next) => !next);
+                      setMoreOpen(true);
                     }}
                     className="h-6 rounded-md px-1.5 text-xs font-bold text-[#77695a] transition-colors hover:bg-[#f4f0ea]"
                   >
-                    {expanded ? "收起" : "查看更多"}
+                    查看更多
                   </button>
                 </div>
               )}
@@ -127,7 +128,7 @@ export function ProductionPlanCard({
       </div>
 
       <footer
-        className="mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 px-3 py-2"
+        className="skeu-index-foot mt-2 flex min-h-[52px] items-center justify-between gap-2 border-t border-[color:var(--ic-row)] bg-white/55 py-2"
         onClick={(event) => event.stopPropagation()}
       >
         <span className="text-xs font-bold text-muted-foreground tabular-nums">
@@ -172,6 +173,17 @@ export function ProductionPlanCard({
         </span>
       </footer>
       <span className="skeu-index-tear" aria-hidden />
+      <IndexCardListDialog
+        open={moreOpen}
+        onOpenChange={setMoreOpen}
+        title="来源门店明细"
+        description={`${item.code ?? `#${item.id}`} · 共 ${storeRows.length} 家门店 / ${formatPortionsValue(item.totalPortions)} 份`}
+        rows={storeRows.map((row) => ({
+          key: row.name,
+          label: row.name,
+          value: formatPortionsValue(row.portions),
+        }))}
+      />
     </article>
   );
 }

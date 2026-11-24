@@ -557,6 +557,11 @@
   --ic-tab-bd: #ddc98f;
   --ic-head-bg: linear-gradient(180deg, #fffaf0 0%, #f8efd9 100%);
   --ic-head-bd: #e2d3a8;
+  /* 卡面外层留白；头部框内边距；正文文字统一缩进 = 头部描边 1px + 头部内边距 */
+  --ic-pad: 10px;
+  --ic-inset: calc(var(--ic-pad) + 1px);
+  --ic-gutter: 14px;
+  --ic-measure: calc(var(--ic-gutter) + var(--ic-inset));
   position: relative;
   flex: none;
   display: flex;
@@ -585,6 +590,9 @@
   --ic-row: #e2e0dc; --ic-body: #61605c;
   --ic-tab1: #f8faf8; --ic-tab2: #e7e9e6; --ic-tab-bd: #c9cdc7;
   --ic-head-bg: linear-gradient(180deg, #f7f8f6 0%, #eef0ed 100%); --ic-head-bd: #d3d6d1;
+  /* 撕边便签：底角交给撕边件，纸面下沿不再有圆角与描边 */
+  border-radius: var(--sk-radius-md) var(--sk-radius-md) 0 0;
+  border-bottom-width: 0;
 }
 .skeu-index-tab {
   position: absolute;
@@ -600,11 +608,23 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.86), 0 2px 5px rgba(15, 23, 42, 0.06);
 }
 .skeu-index-head {
-  padding: 10px;
+  padding: var(--ic-pad);
   border: 1px solid var(--ic-head-bd);
   border-radius: var(--sk-radius-xs);
   background: var(--ic-head-bg);
   box-shadow: var(--sk-highlight-top);
+}
+/* 卡面外层留白（.skeu-index-body 的左右内边距） */
+.skeu-index-body {
+  padding: 12px var(--ic-gutter) 0;
+}
+/* 中部明细区：左右与头部框内文字对齐（同一缩进量 --ic-inset） */
+.skeu-index-list {
+  padding-inline: var(--ic-inset);
+}
+/* 底部动作条：内容与卡内文字同一左基线（--ic-measure），色带仍通栏 */
+.skeu-index-foot {
+  padding-inline: var(--ic-measure);
 }
 .skeu-datebox {
   height: 50px;
@@ -628,7 +648,8 @@
   height: 19px;
   margin: -1px -1px 0;
   border-bottom: 1px solid var(--ic-bd);
-  border-radius: calc(var(--sk-radius-md) - 1px) calc(var(--sk-radius-md) - 1px) 0 0;
+  /* 角半径等于卡外角，装饰件完整接管卡顶边 */
+  border-radius: var(--sk-radius-md) var(--sk-radius-md) 0 0;
   background: linear-gradient(180deg, #f5f0e5 0%, #faf7f0 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
 }
@@ -648,14 +669,19 @@
   border: 1px solid #a5a094;
   box-shadow: 0 2px 3px rgba(15, 23, 42, 0.12);
 }
-/* 撕边便签底边（已完成）：与卡纸同色的锯齿收底 */
+/* 撕边便签底边（已完成）：撕边件悬挂在卡底之外，锯齿即纸张下沿 */
 .skeu-index-tear { display: none; }
 .skeu-index-card[data-status="已完成"] .skeu-index-tear {
   display: block;
-  flex: none;
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  bottom: -9px;
   height: 9px;
   background: var(--ic-p2);
-  clip-path: polygon(0 0, 100% 0, 100% 35%, 96% 100%, 91% 38%, 86% 92%, 80% 35%, 74% 100%, 68% 38%, 62% 90%, 55% 35%, 49% 100%, 43% 38%, 37% 92%, 31% 35%, 25% 100%, 19% 38%, 13% 92%, 7% 35%, 0 100%);
+  /* 撕口投影沿锯齿走，缺口里透出柔和阴影 */
+  filter: drop-shadow(0 2px 2px rgba(15, 23, 42, 0.14));
+  clip-path: polygon(0 0, 100% 0, 100% 90%, 96% 100%, 91% 38%, 86% 92%, 80% 35%, 74% 100%, 68% 38%, 62% 90%, 55% 35%, 49% 100%, 43% 38%, 37% 92%, 31% 35%, 25% 100%, 19% 38%, 13% 92%, 7% 35%, 0 100%);
 }
 
 /* ---------- 表格 ---------- */
