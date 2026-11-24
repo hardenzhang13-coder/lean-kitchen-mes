@@ -15,7 +15,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 
 // 五类食材节点（颜色 = 全站统一的食材类型色）
 const NODES = [
-  { id: "raw", name: "原料", glyph: "原", color: "#f97316", desc: "采购入库、库存管理的基本单位", href: "/ingredients/raw" },
+  { id: "raw", name: "食材", glyph: "原", color: "#f97316", desc: "采购入库、库存管理的基本单位", href: "/ingredients/raw" },
   { id: "seasoning", name: "调料", glyph: "调", color: "#3b82f6", desc: "标准化产品形态的基础调味品", href: "/ingredients/seasoning" },
   { id: "net", name: "净料", glyph: "净", color: "#10b981", desc: "原料初加工后的规格化半成品", href: "/ingredients/net" },
   { id: "minor", name: "小料", glyph: "料", color: "#f43f5e", desc: "增香提味、按标准规格封装", href: "/ingredients/minor" },
@@ -271,7 +271,7 @@ export default function IngredientsPage() {
       header={
         <PageHeader
           variant="topbar"
-          title="食材库"
+          title="原料库"
           description="原料与调料经初加工、配比组合，转化为净料、小料与酱料"
           actions={
             <SkeuButton
@@ -364,3 +364,4 @@ export default function IngredientsPage() {
     </PageShell>
   );
 }
+

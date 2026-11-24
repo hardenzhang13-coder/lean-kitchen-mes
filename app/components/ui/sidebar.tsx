@@ -29,7 +29,7 @@ const navItems = [
   },
   { href: "/inventory", label: "库存", icon: Package },
   { href: "/dishes", label: "菜品", icon: UtensilsCrossed },
-  { href: "/ingredients", label: "食材", icon: Carrot },
+  { href: "/ingredients", label: "原料", icon: Carrot },
   { href: "/settings", label: "设置", icon: Settings },
 ];
 

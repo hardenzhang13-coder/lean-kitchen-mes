@@ -206,18 +206,6 @@
     transform: translateY(0);
   }
 }
- 
-/* 登录页面板装饰色块的缓浮动画（配合 rotate 类使用 translate 属性，避免叠加冲突） */
-@keyframes login-float {
-  0%,
-  100% {
-    translate: 0 0;
-  }
-  50% {
-    translate: 0 -10px;
-  }
-}
-
 /* 登录页进入动效（避免 Tailwind 任意值中逗号截断的问题，使用显式类） */
 .rise-in {
   animation: rise-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -836,6 +824,8 @@
   border-radius: var(--sk-radius-sm);
   background: var(--sk-surface-muted);
   box-shadow: var(--sk-inset);
+  /* 窄枚举（如启用/停用）控件宽度贴合内容，不被表单网格拉伸 */
+  width: fit-content;
 }
 .skeu-segmented-btn {
   display: inline-flex;

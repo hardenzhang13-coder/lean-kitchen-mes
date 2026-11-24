@@ -466,7 +466,7 @@ export function IngredientDetailSheet({
                     !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                       <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                         <ArrowRightLeft className="h-4 w-4" />
-                        {kind === "seasoning" ? "转调料" : "转净料"}
+                        {kind === "seasoning" ? "转调料" : "转化"}
                       </SkeuButton>
                     ) : (kind === "net" || kind === "minor") &&
                       onPrintLabel ? (
@@ -535,7 +535,7 @@ export function IngredientDetailSheet({
                   !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
                     <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                       <ArrowRightLeft className="h-4 w-4" />
-                      {kind === "seasoning" ? "转调料" : "转净料"}
+                      {kind === "seasoning" ? "转调料" : "转化"}
                     </SkeuButton>
                   ) : !onEdit ? (
                     <SkeuButton size="sm"

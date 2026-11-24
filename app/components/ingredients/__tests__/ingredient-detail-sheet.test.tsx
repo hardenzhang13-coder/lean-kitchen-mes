@@ -106,7 +106,7 @@ describe("原料详情抽屉", () => {
 
     const deleteButton = screen.getByRole("button", { name: /删除/ });
     const editButton = screen.getByRole("button", { name: "编辑" });
-    const convertButton = screen.getByRole("button", { name: "转净料" });
+    const convertButton = screen.getByRole("button", { name: "转化" });
     expect(
       deleteButton.compareDocumentPosition(editButton) &
         Node.DOCUMENT_POSITION_FOLLOWING
@@ -282,7 +282,7 @@ describe("调料详情抽屉", () => {
     const editButton = screen.getByRole("button", { name: "编辑" });
     expect(editButton).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "转净料" })
+      screen.queryByRole("button", { name: "转化" })
     ).not.toBeInTheDocument();
     // 调料转标准规格功能暂时下线：底部不再提供「查看封装调料」
     expect(
@@ -324,7 +324,7 @@ describe("调料详情抽屉", () => {
       screen.queryByRole("button", { name: "转调料" })
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: "转净料" })
+      screen.queryByRole("button", { name: "转化" })
     ).not.toBeInTheDocument();
     expect(onConvert).not.toHaveBeenCalled();
   });

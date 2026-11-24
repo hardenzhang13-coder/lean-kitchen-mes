@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { startTransition, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CircleAlert } from "lucide-react";
+import { Loader2, CircleAlert, Eye, EyeOff } from "lucide-react";
 import { Input } from "@/app/components/ui/form-controls";
-import { Button } from "@/components/ui/button";
+import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { Logo } from "@/app/components/ui/logo";
 import { cn } from "@/lib/shared/utils";
 import { toast } from "sonner";
@@ -15,6 +15,9 @@ interface FormErrors {
   general?: string;
 }
 
+/** 「记住我」仅记住用户名（localStorage），不存密码 */
+const REMEMBER_KEY = "lean-kms:remembered-username";
+
 /** 进入动效类（globals.css 定义，animation-delay 逐元素递增） */
 const RISE = "rise-in";
 const delay = (ms: number) => ({ animationDelay: `${ms}ms` });
@@ -23,11 +26,25 @@ export default function LoginPage() {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const [errors, setErrors] = useState<FormErrors>({});
 
   useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(REMEMBER_KEY);
+    } catch {
+      saved = null;
+    }
+    if (saved) {
+      startTransition(() => {
+        setUsername(saved);
+        setRemember(true);
+      });
+    }
     // session 过期由 lib/client/api.ts 统一跳转 ?expired=1，此处给出人性化提示
     if (new URLSearchParams(window.location.search).get("expired") === "1") {
       toast.error("登录已过期，请重新登录");
@@ -63,6 +80,19 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
+        if (remember) {
+          try {
+            window.localStorage.setItem(REMEMBER_KEY, username.trim());
+          } catch {
+            // 隐私模式等场景写入失败不影响本次登录
+          }
+        } else {
+          try {
+            window.localStorage.removeItem(REMEMBER_KEY);
+          } catch {
+            // 同上
+          }
+        }
         toast.success(`欢迎，${data.data?.user?.name || data.data?.user?.username}`);
         router.replace("/");
         router.refresh();
@@ -90,9 +120,9 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen bg-white">
-      {/* ── 品牌区（桌面端） ── */}
+      {/* ── 品牌区（桌面端）：留白 + 同心环，唯一暖色层次 ── */}
       <aside className="relative hidden w-[55%] flex-col justify-between overflow-hidden p-12 lg:flex xl:w-[58%]">
-        {/* 暖色氛围：左上极淡洗光 + 右下橙光，统一白色画布上的唯一色彩层次 */}
+        {/* 极淡洗光：白色画布上唯一的色彩层次 */}
         <div
           aria-hidden
           className="pointer-events-none absolute -left-32 -top-32 h-[420px] w-[420px]"
@@ -109,7 +139,7 @@ export default function LoginPage() {
               "radial-gradient(closest-side, color-mix(in oklch, var(--primary) 12%, transparent), transparent)",
           }}
         />
-        {/* 同心细环，慢旋转 */}
+        {/* 同心细环，与 Logo 同源，慢旋转 */}
         <svg
           aria-hidden
           viewBox="0 0 320 320"
@@ -128,7 +158,7 @@ export default function LoginPage() {
           />
         </svg>
 
-        {/* 顶栏：品牌 + 英文标识 */}
+        {/* 顶栏：品牌 */}
         <div className={cn("relative flex items-center justify-between", RISE)} style={delay(0)}>
           <div className="flex items-center gap-2.5">
             <Logo className="h-9 w-9" />
@@ -139,19 +169,30 @@ export default function LoginPage() {
           </span>
         </div>
 
-        {/* 主视觉：大字 + 产品语 */}
+        {/* 主视觉：一句主张 + 一条橙线，不加任何装饰物 */}
         <div className="relative">
-          <h1 className={cn("text-6xl font-bold tracking-tight xl:text-7xl", RISE)} style={delay(80)}>
-            精益厨房
+          <h1
+            className={cn(
+              "text-5xl font-bold leading-[1.18] tracking-tight xl:text-6xl",
+              RISE
+            )}
+            style={delay(80)}
+          >
+            面向现代商业后厨的
+            <br />
+            <span className="text-primary">生产管理平台。</span>
           </h1>
           <span className={cn("mt-8 block h-px w-10 bg-primary", RISE)} style={delay(160)} />
           <p className={cn("mt-6 text-sm text-muted-foreground", RISE)} style={delay(220)}>
-            让数千万厨房日常的生产变得更简单
+            让数千万中餐厨房的生产管理变得更简单。
           </p>
         </div>
 
         {/* 底栏 */}
-        <div className={cn("relative font-mono text-[11px] text-muted-foreground", RISE)} style={delay(280)}>
+        <div
+          className={cn("relative font-mono text-xs text-muted-foreground", RISE)}
+          style={delay(280)}
+        >
           v3.0 · © 2026 精益厨房
         </div>
       </aside>
@@ -169,14 +210,11 @@ export default function LoginPage() {
             <h2 className={cn("text-2xl font-bold tracking-tight", RISE)} style={delay(120)}>
               精益厨房KMES管理系统
             </h2>
-            <p className={cn("mt-2 text-sm text-muted-foreground", RISE)} style={delay(180)}>
-              登录以进入系统
-            </p>
 
             <form
               onSubmit={handleSubmit}
               className={cn("mt-10 space-y-4", RISE)}
-              style={delay(240)}
+              style={delay(200)}
               aria-describedby={errors.general ? "login-general-error" : undefined}
             >
               <Input
@@ -190,25 +228,40 @@ export default function LoginPage() {
                 autoComplete="username"
                 autoFocus
                 className={cn(
-                  "h-12 rounded-xl border-foreground/15 px-4",
+                  "h-12 rounded-[var(--sk-radius-md)]",
                   errors.username && "border-destructive"
                 )}
               />
-              <Input
-                aria-label="密码"
-                type="password"
-                placeholder="密码"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
-                }}
-                autoComplete="current-password"
-                className={cn(
-                  "h-12 rounded-xl border-foreground/15 px-4",
-                  errors.password && "border-destructive"
-                )}
-              />
+
+              <div className="relative">
+                <Input
+                  aria-label="密码"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="密码"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (errors.password) setErrors((prev) => ({ ...prev, password: undefined }));
+                  }}
+                  autoComplete="current-password"
+                  className={cn(
+                    "h-12 rounded-[var(--sk-radius-md)] pr-11",
+                    errors.password && "border-destructive"
+                  )}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "隐藏密码" : "显示密码"}
+                  className="absolute right-2 top-1/2 grid size-8 -translate-y-1/2 place-items-center rounded-[var(--sk-radius-xs)] text-muted-foreground/60 transition-colors hover:bg-[var(--sk-primary-soft-solid)] hover:text-[var(--sk-primary-ink)]"
+                >
+                  {showPassword ? (
+                    <EyeOff className="size-4" aria-hidden />
+                  ) : (
+                    <Eye className="size-4" aria-hidden />
+                  )}
+                </button>
+              </div>
 
               {(errors.general || errors.username || errors.password) && (
                 <p
@@ -216,25 +269,44 @@ export default function LoginPage() {
                   role="alert"
                   className="flex items-center justify-center gap-1.5 text-sm text-destructive"
                 >
-                  <CircleAlert className="h-4 w-4" />
+                  <CircleAlert className="size-4" />
                   {errors.general || errors.username || errors.password}
                 </p>
               )}
 
-              <Button
+              <div className="flex items-center pt-0.5">
+                <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                    className="size-4 accent-[var(--primary)]"
+                  />
+                  记住我
+                </label>
+              </div>
+
+              <SkeuButton
                 type="submit"
+                variant="primary"
                 disabled={loading}
-                className="h-12 w-full rounded-xl text-[15px] font-semibold transition-all duration-200 hover:-translate-y-px hover:shadow-lg hover:shadow-primary/25"
+                className="h-12 w-full rounded-[var(--sk-radius-md)] text-[15px]"
               >
                 <span aria-live="polite" className="inline-flex items-center justify-center gap-2">
-                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {loading && <Loader2 className="size-4 animate-spin" />}
                   {loading ? "登录中..." : "登录"}
                 </span>
-              </Button>
+              </SkeuButton>
             </form>
 
             {/* 移动端底栏 */}
-            <p className={cn("mt-10 text-center font-mono text-[11px] text-muted-foreground lg:hidden", RISE)} style={delay(300)}>
+            <p
+              className={cn(
+                "mt-10 text-center font-mono text-xs text-muted-foreground lg:hidden",
+                RISE
+              )}
+              style={delay(260)}
+            >
               v3.0 · © 2026 精益厨房
             </p>
           </div>

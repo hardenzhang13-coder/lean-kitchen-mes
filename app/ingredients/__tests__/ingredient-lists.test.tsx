@@ -1,26 +1,33 @@
 /** @jest-environment jsdom */
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import RawIngredientsPage from "@/app/ingredients/raw/page";
-import NetIngredientsPage from "@/app/ingredients/net/page";
-import SeasoningIngredientsPage from "@/app/ingredients/seasoning/page";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import IngredientFoodPage from "@/app/ingredients/food/page";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({
     push: jest.fn(),
-    replace: jest.fn(),
+    replace: mockRouterReplace,
     refresh: jest.fn(),
     back: jest.fn(),
   }),
-  useSearchParams: () => new URLSearchParams(),
-  usePathname: () => "/ingredients/raw",
+  useSearchParams: () => currentSearchParams,
+  usePathname: () => "/ingredients/food",
 }));
+
+const mockRouterReplace = jest.fn();
+
+let currentSearchParams = new URLSearchParams();
 
 const categories = [
   {
     code: "VEG",
     name: "蔬菜",
     children: [{ code: "VEG-LEF", name: "叶菜", parentCode: "VEG" }],
+  },
+  {
+    code: "MIN",
+    name: "小料",
+    children: [{ code: "MIN-PREP", name: "初加工小料", parentCode: "MIN" }],
   },
 ];
 
@@ -65,6 +72,7 @@ const netRows = [
 ];
 
 beforeEach(() => {
+  currentSearchParams = new URLSearchParams();
   global.fetch = jest.fn(async (input: RequestInfo | URL) => {
     const url = String(input);
     if (url.includes("/api/ingredient-categories")) {
@@ -73,10 +81,7 @@ beforeEach(() => {
     if (url.includes("/api/units")) {
       return { ok: true, json: async () => ({ data: units }) } as Response;
     }
-    if (url.includes("/api/net-ingredients/")) {
-      return { ok: true, json: async () => ({ data: netRows[0] }) } as Response;
-    }
-    if (url.includes("/api/net-ingredients")) {
+    if (url.includes("/api/net-ingredients?")) {
       return {
         ok: true,
         json: async () => ({
@@ -85,166 +90,96 @@ beforeEach(() => {
         }),
       } as Response;
     }
-    if (url.includes("/api/ingredients/check-name")) {
-      return { ok: true, json: async () => ({ exists: false }) } as Response;
+    if (url.includes("/api/ingredients")) {
+      return {
+        ok: true,
+        json: async () => ({
+          data: rawRows,
+          pagination: { totalItems: 42, totalPages: 3, page: 1, pageSize: 20 },
+        }),
+      } as Response;
     }
-    if (url.includes("/api/ingredients/")) {
-      return { ok: true, json: async () => ({ data: rawRows[0] }) } as Response;
-    }
-    return {
-      ok: true,
-      json: async () => ({
-        data: rawRows,
-        pagination: { totalItems: 42, totalPages: 3, page: 1, pageSize: 20 },
-      }),
-    } as Response;
+    throw new Error(`Unexpected request: ${url}`);
   }) as jest.MockedFunction<typeof fetch>;
 });
 
-describe("食材清单页的底部组件与字段展示", () => {
-  it("原料清单底部只报总量，不带业务名词后缀", async () => {
-    render(<RawIngredientsPage />);
+describe("原料库统一清单", () => {
+  it("默认进入食材清单，展示原料表和批量导入入口", async () => {
+    render(<IngredientFoodPage />);
+
+    expect(
+      screen.getByRole("heading", { name: "食材清单" })
+    ).toBeInTheDocument();
+    expect(screen.getByRole("tablist")).toBeInTheDocument();
+    expect(
+      screen.getByRole("tab", { name: "食材清单" })
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("批量导入")).toBeInTheDocument();
+    expect(screen.getByText("新增原料")).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "转化" })).toBeInTheDocument();
 
     await waitFor(() =>
-      expect(
-        screen.getByText("共 42 条")
-      ).toBeInTheDocument()
+      expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
     );
-    // 每页条数为胶囊触发器，文案「N 条/页」
-    expect(screen.getByText(/\d+ 条\/页/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /下一页/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "转化" })).toBeInTheDocument();
+    expect(screen.getByText("共 42 条")).toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: /转净料/ })).not.toBeInTheDocument();
   });
 
-  it("最新参照单价不再带单位后缀，采购单位列仍存在", async () => {
-    render(<RawIngredientsPage />);
+  it("tab 参数指向净料时展示净料清单和对应主操作", async () => {
+    currentSearchParams = new URLSearchParams("tab=net");
+    render(<IngredientFoodPage />);
 
-    await waitFor(() => expect(screen.getByText("¥18.50")).toBeInTheDocument());
-    expect(screen.queryByText("¥18.50/斤")).not.toBeInTheDocument();
-    expect(screen.getByText("采购单位")).toBeInTheDocument();
-    expect(screen.getAllByText("斤").length).toBeGreaterThan(0);
-  });
+    expect(
+      screen.getByRole("tab", { name: "净料清单" })
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("新增净料")).toBeInTheDocument();
 
-  it("净料清单不展示份量列与份量标签", async () => {
-    render(<NetIngredientsPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText("青椒丝")).toBeInTheDocument()
-    );
-
+    await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
+    expect(screen.getByText("净料单价")).toBeInTheDocument();
     expect(screen.queryByText("份量")).not.toBeInTheDocument();
     expect(screen.queryByText("社区·2份")).not.toBeInTheDocument();
   });
-});
 
-describe("食材清单页的列名、核心字段与复制能力", () => {
-  it("原料清单操作列最多三个动作，复制与删除收进详情", async () => {
-    render(<RawIngredientsPage />);
+  it("tab 参数指向小料时展示小料清单和对应主操作", async () => {
+    currentSearchParams = new URLSearchParams("tab=minor");
+    render(<IngredientFoodPage />);
 
-    await waitFor(() =>
-      expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
-    );
-    expect(screen.getByText("品牌名称")).toBeInTheDocument();
-    expect(screen.queryByText("商品名称")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /编辑原料/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /转净料/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /查看/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /复制原料/ })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /删除原料/ })
-    ).not.toBeInTheDocument();
+      screen.getByRole("tab", { name: "小料清单" })
+    ).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("新增小料")).toBeInTheDocument();
+
+    await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
+    expect(screen.getByText("小料单价")).toBeInTheDocument();
   });
 
-  it("列表工具栏的放大镜图标内嵌在搜索框内，不作为前置元素", async () => {
-    render(<RawIngredientsPage />);
+  it("点击页签会更新统一清单 URL", async () => {
+    render(<IngredientFoodPage />);
+    await screen.findByText("带皮五花肉");
 
-    await waitFor(() =>
-      expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
-    );
-    const input = screen.getByPlaceholderText("搜索名称...");
-    const icon = input.parentElement?.querySelector("svg");
-    expect(icon).not.toBeNull();
-    // 内嵌图标用绝对定位覆盖在输入框左侧，不是输入框前的独立元素
-    expect(icon).toHaveClass("absolute");
+    fireEvent.click(screen.getByRole("tab", { name: "小料清单" }));
+    expect(mockRouterReplace).toHaveBeenCalledWith("/ingredients/food?tab=minor");
   });
 
-  it("点击行打开只读详情，详情内可复制", async () => {
-    render(<RawIngredientsPage />);
+  it("原料转化入口打开双目标弹窗，默认目标为净料", async () => {
+    render(<IngredientFoodPage />);
+    await screen.findByText("带皮五花肉");
 
-    await waitFor(() =>
-      expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
-    );
-    fireEvent.click(screen.getByText("带皮五花肉"));
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "原料详情" })
-      ).toBeInTheDocument()
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: /^复制$/ }));
-    await waitFor(() => expect(screen.getByText("复制原料")).toBeInTheDocument());
-    const nameInput = document.getElementById(
-      "ingredient-name"
-    ) as HTMLInputElement;
-    expect(nameInput.value).toBe("带皮五花肉-副本");
-  });
-
-  it("调料清单重点显示食材名称与每斤单价", async () => {
-    render(<SeasoningIngredientsPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText("带皮五花肉")).toBeInTheDocument()
-    );
-    expect(screen.getByText("带皮五花肉").className).toContain("text-primary");
-    expect(screen.getByText("¥12.34/斤").className).toContain("text-primary");
-  });
-
-  it("净料清单操作列只保留打印、编辑与查看", async () => {
-    render(<NetIngredientsPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText("青椒丝")).toBeInTheDocument()
-    );
+    fireEvent.click(screen.getByRole("button", { name: "转化" }));
     expect(
-      screen.getByRole("button", { name: /打印净料标签/ })
+      await screen.findByRole("heading", { name: "转化食材" })
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /编辑净料/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /查看/ })
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /复制净料/ })
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: /删除净料/ })
-    ).not.toBeInTheDocument();
-  });
-
-  it("编辑入口打开净料抽屉的编辑态", async () => {
-    render(<NetIngredientsPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText("青椒丝")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: "净料" })).toHaveAttribute(
+      "aria-pressed",
+      "true"
     );
-    fireEvent.click(
-      screen.getByRole("button", { name: "编辑净料 青椒丝" })
+    expect(screen.getByRole("button", { name: "小料" })).toHaveAttribute(
+      "aria-pressed",
+      "false"
     );
-
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: /编辑净料/ })
-      ).toBeInTheDocument()
-    );
-    expect(screen.getByText("保存")).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("ING-0001")).toBeInTheDocument();
+    expect(screen.getByText("创建净料")).toBeInTheDocument();
   });
 });

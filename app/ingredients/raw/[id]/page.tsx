@@ -218,7 +218,7 @@ export default function RawIngredientDetailPage() {
             <CardTitle className="text-base">衍生净料</CardTitle>
             <Button onClick={() => setConvertDialogOpen(true)}>
               <Plus className="mr-2 h-4 w-4" />
-              新增净料
+              转化
             </Button>
           </CardHeader>
           <CardContent>
@@ -239,7 +239,7 @@ export default function RawIngredientDetailPage() {
               emptyState={{
                 icon: PackageOpen,
                 title: "暂无衍生净料",
-                description: "点击右上角按钮创建净料规格",
+                description: "点击右上角按钮转化原料",
               }}
               rowActions={(row) => (
                 <Button
@@ -260,6 +260,7 @@ export default function RawIngredientDetailPage() {
         open={convertDialogOpen}
         onOpenChange={setConvertDialogOpen}
         mode="convert"
+        allowTargetChoice
         sourceIngredientId={ingredient.id}
         sourceIngredientName={ingredient.name}
         categories={categories}
