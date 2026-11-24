@@ -647,7 +647,7 @@ export function ProductionPlanCreateDialog({
     <Dialog open onOpenChange={(next) => !next && onClose()}>
       <AppDialogContent
         size="workbench"
-        className="flex h-[min(780px,calc(100dvh-24px))] flex-col p-0 [&>button]:cursor-pointer"
+        className="flex h-[min(780px,calc(100dvh-24px))] flex-col overflow-hidden p-0 [&>button]:cursor-pointer"
       >
         <DialogHeader className="border-b px-6 pb-4 pt-6">
           <DialogTitle className="text-lg">

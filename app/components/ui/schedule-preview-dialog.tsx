@@ -123,7 +123,7 @@ export function SchedulePreviewDialog({
     >
       <AppDialogContent
         size="workbench"
-        className="[&>button]:cursor-pointer p-0 flex h-[min(780px,calc(100dvh-24px))] flex-col"
+        className="[&>button]:cursor-pointer flex h-[min(780px,calc(100dvh-24px))] flex-col overflow-hidden p-0"
       >
         <DialogHeader className="border-b px-6 pb-4 pt-6">
           <DialogTitle className="text-lg">
