@@ -56,7 +56,7 @@ DSH-{categoryCode}-{0001}    // 未分类：DSH-GEN-0001
 - 基础信息 + 分类
 - `netDetails`（主料/辅料）及关联净料
 - `minorDetails`（小料）及关联净料
-- `seasoningDetails`（调料），通过 `getSeasoningL2Codes()` 查询 `Ingredient` 补全名称、采购规格与每斤单价（`pricePerJin`）；克需求原样返回
+- `seasoningDetails`（调料）双口径：`specId` 行 = 调料产物（补全 `packageSpec` / `outPricePerJin`（回写 `pricePerJin` 字段）/ `standardPackagePrice` / `productType` / `sourceMode`）；`sourceId` 行 = 存量旧口径直引调味品原料（补全名称、采购规格与每斤单价）。克需求原样返回
 - `sauceDetails`（酱料）及关联酱料
 - `processes` 工序，按 stage、stepNo 排序
 
@@ -83,7 +83,7 @@ DSH-{categoryCode}-{0001}    // 未分类：DSH-GEN-0001
 1. 校验已发布状态，拒绝修改
 2. 事务内先清空旧明细
 3. 净料/小料的 `amountG` 由服务端按档案 `packageSpec` 覆盖（客户端值不参与计算），并校验引用存在、分类匹配（主料/辅料不能是小料分类，小料必须是 MIN 分类）
-3.1 调料行只接受 `sourceId` + `amountG`（克需求，服务端不覆盖），并校验来源调料存在且属 SEA 调味品体系；成本 = 每斤单价 × 克需求 ÷ 500（`specId` 已从 schema 移除，旧客户端传入会被 zod 丢弃）
+3.1 调料行双口径（2026-11-25 调味品升级）：`specId` 行 = 调料产物（SeasoningProduct），校验产物存在且未删除，成本 = 产物实时派生出库价 × 克需求 ÷ 500，写库时 `sourceId` 置 0 哨兵；`sourceId` 行 = 存量旧口径直引调味品原料（仅存量客户端回传，校验 `kind="seasoning"`），成本 = 每斤单价 × 克需求 ÷ 500。两者同传时以 `specId` 为准；克需求均由客户端填写，服务端不覆盖
 4. 查询各食材最新单价，按 `unitPrice * amountG / 1000` 重新计算每条明细成本
 5. 批量创建新明细
 6. 重新汇总菜品总成本 `Dish.cost`

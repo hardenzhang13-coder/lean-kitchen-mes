@@ -59,20 +59,26 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 
 ### 领域模型（全局视角）
 
-系统核心为**三层食材体系**，驱动成本计算与采购；其下游是「排程 → 生产计划 → 净菜库存」闭环：
+系统核心为**三层食材体系**（食材侧）与**两层调味品体系**，驱动成本计算与采购；其下游是「排程 → 生产计划 → 净菜库存」闭环：
 
 ```
-原料（Ingredient） → 净料（NetIngredient） → 菜品（Dish）
-                          ↑                      ↑
-                     出成率（yieldRate）      BOM 明细
+原料（Ingredient, kind=food） → 净料（NetIngredient） → 菜品（Dish）
+                                    ↑                      ↑
+                               出成率（yieldRate）      BOM 明细
+
+调味品（Ingredient, kind=seasoning） → 调料产物（SeasoningProduct）
+                                          ↑                    ↑
+                              转化（出成率+封装规格+份量）    菜品 BOM 按克选用
+                              或外购建档（手填每斤单价）
 ```
 
-- **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）
+- **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）。`kind` 区分食材（food）与调味品（seasoning）——调味品是独立原材料层，**不挂食材一二级分类**（SEA 分类树已随 2026-11-25 升级移除），采购与 AI 识别走这层
 - **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料与净料同表同口径**（l2Code 归属 MIN 一级分类），同样由原料转化而来
 - **净料价格体系**（唯一真源 `lib/server/net-ingredient-utils.ts` 的 `deriveNetIngredientPrices()`）：净料单价 = 原料每斤单价 ÷ (出成率/100) → 成本价 = 净料单价 + 封装加工费 → 出库价 = 成本价 ÷ (1 − 毛利率/100) → 标准规格价（元/份）= 出库价 × 封装规格 ÷ 500。净料单价**强制由来源原料实时价格派生**，服务端忽略客户端传入的 `unitPrice`
 - **`package_spec`（封装规格，单位 g）** 是「按份」换算的物理基准（一个标准包装装多少克）。缺失会导致：完成生产抛错整单回滚、出库金额算成 0、标签张数为 0、标准规格价显示「—」。补齐方案见 `docs/production-data-package-spec-plan.md`
 - **净料/小料 BOM 用量 = 档案封装规格**：`DishNetDetail.amountG` / `DishMinorDetail.amountG` 只是缓存，唯一真源是 `NetIngredient.packageSpec`。修改净料/小料规格时，服务端在同一事务内同步 BOM 用量、重算菜品成本，并自动重建待生效/进行中的排程切配、采购计划与生产计划快照；已完成单据、出库单、库存流水保持历史快照。
-- **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料（SeasoningIngredients）、酱料（SauceIngredients）及 `DishProcess` 工序组成
+- **调料产物（SeasoningProduct，物理表 `standard_seasonings`）**（2026-11-25 升级）：单品调料 / 复合调料 / 成品酱料三种**同构**产物（只是叫法，无配方），由调味品转化（出成率 + 封装规格 + 份量）或外购建档（手填每斤单价）。价格链路唯一真源 `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：转化单价 = 调味品每斤单价 ÷ (出成率/100)；外购单价 = 手填每斤单价；其后与净料完全同构（成本价 → 出库价 → 标准规格价）。**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引原料的 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读
+- **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料产物（DishSeasoningDetail，specId 指向 SeasoningProduct）、酱料（SauceIngredients，存量只读）及 `DishProcess` 工序组成
 
 **排程 → 生产计划 → 净菜库存** 是当前业务主链路：
 1. 用户创建 `Schedule`，选择日期、门店、菜品及份数
@@ -83,9 +89,9 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 
 **采购流程：**
 - `PurchaseReceipt` + `PurchaseReceiptItem` 记录实际到货
-- AI 识别（`lib/server/ai.ts`）通过通义千问解析采购单图片，匹配到食材目录中的**原料**或**调料**
-- **原料和调料均精确入库**：采购后更新对应库存量，并创建 `InventoryLedger` 流水记录
-- 未匹配的食材可弹窗直接创建新的原料或调料，无需跳转页面
+- AI 识别（`lib/server/ai.ts`）通过通义千问解析采购单图片，匹配到食材目录中的**原料**（kind=food）或**调味品**（kind=seasoning）
+- **原料和调味品均精确入库**：采购后更新对应库存量，并创建 `InventoryLedger` 流水记录
+- 未匹配的食材可弹窗直接创建新的原料或调味品，无需跳转页面
 - 采购单状态：`待结算` / `已结算` / `已作废`。已结算后不可作废，作废后回滚库存
 - `PurchaseReimbursement` 将多张采购单归并为报销单进行结算
 
@@ -139,7 +145,7 @@ export async function POST(req: NextRequest) { /* ... */ }
 - **列表 API 一律分页**（`page` / `pageSize` + `paginated`）
 
 ### 菜品成本口径
-`lib/server/dish-costing.ts` 的 `getCurrentDishCostMap()` 按**当前**食材价格重算菜品成本（净料/小料按出库价、调料按每斤单价、酱料按配方成本 + 毛利率），**不信任 `Dish.cost` 历史快照**。菜品列表、菜品详情、排程详情均已接入。
+`lib/server/dish-costing.ts` 的 `getCurrentDishCostMap()` 按**当前**食材价格重算菜品成本（净料/小料按出库价、调料产物行按产物出库价、旧口径调料行按每斤单价、酱料按配方成本 + 毛利率），**不信任 `Dish.cost` 历史快照**。菜品列表、菜品详情、排程详情均已接入。
 
 ### 客户端组件
 许多页面均为 `"use client"`，通过 `fetch()` 向对应 `/api/*` 端点获取数据，而非使用服务端组件。共享组件位于 `app/components/`。

@@ -214,9 +214,9 @@ lib/server/            服务端 —— 与数据库交互
 | 空态 / 加载 | `EmptyState` / `LoadingState` / `SkeletonTable` | |
 | 份量标签 | `PortionTag` | 份量枚举唯一渲染入口 |
 | 份量标签 | `PortionTag` | 份量枚举唯一渲染入口 |
-| 标准规格价格链路 | `lib/shared/seasoning-spec.ts` 的 `deriveStandardSeasoningPrices` | 与净料同构：单价 = 来源每斤单价 ÷ 出成率；成本价 = 单价 + 加工费；出库价 = 成本价 ÷ (1−毛利率/100)；标准规格价 = 出库价 × 标准规格 ÷ 500。**不另写一套价格公式**。⚠️ 2026-11-21 起调料支线暂时下线，仅保留待恢复 |
-| 标准规格用量口径 | `lib/shared/bom-amount.ts` 的 `resolvePackageSpecAmountG` | BOM 用量唯一真源 = 档案 `packageSpec`；净料/小料共用。⚠️ 调料已回到「手填克数」口径，不再走本函数 |
-| 标准化规格默认名 | `lib/shared/seasoning-spec.ts` 的 `buildStandardSeasoningDefaultName` | 「{调料名}•{克数}g」；用户改过就不覆盖 |
+| 调料产物价格链路 | `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices` | 与净料同构：转化口径单价 = 来源调味品每斤单价 ÷ 出成率，外购口径单价 = 手填每斤单价；成本价 = 单价 + 加工费；出库价 = 成本价 ÷ (1−毛利率/100)；标准规格价 = 出库价 × 封装规格 ÷ 500。**不另写一套价格公式**（2026-11-25 调味品升级后复活为唯一真源） |
+| 标准规格用量口径 | `lib/shared/bom-amount.ts` 的 `resolvePackageSpecAmountG` | BOM 用量唯一真源 = 档案 `packageSpec`；净料/小料共用。菜品 BOM 调料选产物按克手填，不走本函数 |
+| 产物类型语义 | `lib/shared/seasoning-product.ts` 五件套（枚举值 + 选项元数据 + 取值解析 + 合法性判断）+ `SeasoningTypeTag` 渲染 | 单品调料 / 复合调料 / 成品酱料同构，只是产物叫法；`SeasoningTypeTag` 为三类型唯一渲染入口 |
 
 **新增或改版任一通用件，必须同步 `/ui-kit` 可视样张**（基线治理规则第 4 条）。
 
@@ -279,9 +279,11 @@ lib/server/schemas/<域>.ts              zod：创建、更新、查询参数
 
 B3 已因试运行反馈提前启动，B1（设置模块）已于 2026-11-15 完成（`436ec4d` 收口 7 页列表 + `086eb80` 三态弹窗，12 条 lint 告警清零），B2（库存双单位回归）仍欠账。提前启动不改变各批验收口径，B3 内部再按「契约与底座 → 列表 → 详情与表单 → 完成生产与打印 → 业务加固」拆成可独立回退的子批。
 
-**食材库支线 · 调料标准化（2026-11-20 完成，2026-11-21 暂时下线）**：调料纳入与净料/小料同构的标准化体系——调料采购档案 →「转标准规格」→ `standard_seasonings` 档案（标准规格以 g 计、份量复用 `PORTION_VALUES`、价格链复用净料纯函数）→ 菜品 BOM 调料 Tab 只列已标准化规格、用量强制等于标准规格。存量 `dish_seasoning_details` 行（`spec_id` 为空）保持旧口径不迁移。本支线沉淀的可复用点已登记在 §3.2，供后续模块直接取用。
+**食材库支线 · 调料标准化（2026-11-20 完成，2026-11-21 暂时下线，2026-11-25 以新口径复活）**：~~调料纳入与净料/小料同构的标准化体系——调料采购档案 →「转标准规格」→ `standard_seasonings` 档案（标准规格以 g 计、份量复用 `PORTION_VALUES`、价格链复用净料纯函数）→ 菜品 BOM 调料 Tab 只列已标准化规格、用量强制等于标准规格。存量 `dish_seasoning_details` 行（`spec_id` 为空）保持旧口径不迁移。本支线沉淀的可复用点已登记在 §3.2，供后续模块直接取用。~~ 该形态已被 2026-11-25 调味品模块整体升级取代（见下条），不再恢复。
 
-**调料口径回退（2026-11-21）**：上述标准化支线与实际业务不符，已暂时下线 —— 调料在菜品 BOM 里回到「直接选调料 + 手填克数」，成本 = 每斤单价 × 克需求 ÷ 500，采购毛需求 = 克需求 × 道数（出成率 100）。表、API、价格链纯函数与组件文件全部保留未删，UI 入口由 `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 统一控制（当前 `false`）；恢复时置 `true` 并回滚规格化分支即可。
+**调料口径回退（2026-11-21，已被 2026-11-25 取代）**：上述标准化支线曾暂时下线，调料一度回到「直接选原料 + 手填克数」。~~表、API、价格链纯函数与组件文件全部保留未删，UI 入口由 `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 统一控制（当前 `false`）；恢复时置 `true` 并回滚规格化分支即可。~~
+
+**调味品模块整体升级（2026-11-25 落地，取代上两条）**：调味品 = 独立原材料层（`Ingredient.kind="seasoning"`，不挂食材一二级分类，SEA 分类树移除）；调味品经转化（出成率 + 封装规格 + 份量）或外购建档，形成三种同构的标准化产物——单品调料 / 复合调料 / 成品酱料（`SeasoningProduct`，物理表仍为 `standard_seasonings`，无配方）；菜品 BOM 选产物、按克计价（行成本 = 产物出库价 × g ÷ 500），存量 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读。详见 `memory-bank/Database.md` 与 `app/api/dishes/CLAUDE.md`。
 
 ---
 

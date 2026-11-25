@@ -36,8 +36,7 @@
    - 创建 `Schedule`
    - 批量创建 `ScheduleItem`
    - 调用 `buildCuttingOrders()` 生成切配工单数据并创建 `CuttingOrder`
-   - 调用 `getSeasoningL2Codes()` 获取调料分类
-   - 调用 `buildPurchasePlans()` 生成采购计划数据并创建 `PurchasePlan`
+   - 调用 `buildPurchasePlans()` 生成采购计划数据并创建 `PurchasePlan`（调料边界由 `Ingredient.kind="seasoning"` 判定，2026-11-25 起不再依赖 SEA 分类）
 3. 记录 `OperationLog`
 
 > 所有子资源必须在同一个事务中创建，保证排程与切配/采购数据一致。
@@ -112,11 +111,11 @@
 本目录是 `lib/server/schedule-utils.ts` 的核心调用方：
 
 - `buildCuttingOrders(tx, scheduleId, items)` — 按菜品份数汇总净料/小料需求
-- `buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes)` — 汇总原料（含小料按出成率折算）/调料/酱料需求并扣除库存。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行
+- `buildPurchasePlans(tx, scheduleId, items)` — 汇总原料（含小料按出成率折算）/调料/酱料需求，建议采购量 = 毛需求（库存抵扣已随 v002 下线）。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行。调料双口径（2026-11-25）：`specId` 产物行——transform 产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`），purchase 产物生成独立行（`sourceType:"seasoning_product"`，弱引用产物）；旧 `sourceId` 行按 `Ingredient.kind="seasoning"` 校验边界
 
 ## 注意事项
 
 - 排程修改时采用"先删后建"策略，会丢失切配工单和采购计划的实际执行数据（`actualQty`、`actualPurchase` 等），目前业务上仅在"待生效"阶段修改，无此问题。
 - 创建和修改的事务较大，包含多次查询与批量写入，高并发下注意数据库性能。
-- 调料分类通过 `lib/category-helpers.ts` 的 `getSeasoningL2Codes()` 动态获取，确保采购计划只生成到调料分类下的食材。
+- 调料边界由 `Ingredient.kind="seasoning"` 判定（2026-11-25 起），不再依赖 `getSeasoningL2Codes()` / SEA 分类。
 - 前端主要调用方：`app/schedules/` 页面及详情页。

@@ -77,7 +77,7 @@
 1. 接收 `imageBase64`
 2. 计算图片哈希，检查是否已存在未作废的重复采购单
 3. 调用 `lib/ai.ts` 的 `recognizePurchaseReceipt()` 进行 OCR+结构化提取
-4. 加载全部未删除 `Ingredient`、L2 分类、单位字典、调料分类编码
+4. 加载全部未删除 `Ingredient`、L2 分类、单位字典（调料边界由 `Ingredient.kind` 判定，2026-11-25 起）
 5. 对每条识别结果：
    - 按名称/别名相似度匹配 `Ingredient`
    - 相似度 `≥ 0.9` 视为匹配成功
@@ -88,8 +88,8 @@
 ### 匹配规则
 
 - 匹配对象仅查询 `Ingredient` 表
-- 调料通过 `l2Code` 属于 `seasoningL2Codes` 判定
-- 未匹配项可在前端弹窗中直接创建新原料
+- 调料通过 `Ingredient.kind === "seasoning"` 判定（2026-11-25 起；此前为 SEA 分类树，已移除）
+- 未匹配项可在前端弹窗中直接创建新原料或调味品
 
 ## 库存联动
 

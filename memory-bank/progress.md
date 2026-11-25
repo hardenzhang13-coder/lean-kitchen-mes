@@ -3,6 +3,34 @@
 > 按日期记录核心推进过程，包括技术决策、问题解决、功能交付。
 
 
+## 2026-11-25（续）— 调味品模块整体升级
+
+浩哥定调：**调味品像食材一样属于原材料，原材料转化后形成三种系统化、标准化的调料产物**（单品调料 / 复合调料 / 成品酱料——三者同构，只是叫法，无配方）。
+
+### 1. Schema（单迁移 `20261125110000_seasoning_module_upgrade`，一次切干净）
+- `ingredients` 新增 `kind`（food=食材 / seasoning=调味品）作为**边界唯一真源**，替代 SEA 分类判定；调味品行 `l2_code` 置空、列改可空；删除 `seasoning_type`（前一天刚加的字段，仅存续一天）；SEA 分类树（SEA / SEA-SOL / SEA-LIQ）带引用保护删除。
+- `StandardSeasoning` → **`SeasoningProduct`**（物理表 `standard_seasonings` 不动，存量 `spec_id` 外键零触碰）：新增 `productType` / `sourceMode`（transform / purchase）+ 外购字段组（brand / purchaseSpec / purchaseUnit / latestRefPrice / pricePerJin / defaultSupplierId）；`sourceIngredientId` / `yieldRate` 改可空；`l2_code` 整列删除。存量回填 transform + 单品调料。
+- 酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）**业务剥离**：写 API 冻结、页面下线，模型与历史数据只读保留（先例 SelfProductionOrder）。
+
+### 2. 服务端与 API
+- 价格链唯一真源 `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：转化单价 = 来源每斤单价 ÷ 出成率；外购单价 = 手填每斤单价；成本价 → 出库价 → 标准规格价与净料同构。
+- `/api/standard-seasonings` 改名 `/api/seasoning-products` 并扩展（productType / sourceMode 过滤、双口径建档、编号 SP-xxxx）；全库 `getSeasoningL2Codes` 约 18 处替换为 kind 判定；AI 识别 matchType、采购 import 前缀、ingredient-summary 计数同步切换。
+- **菜品 BOM 双口径**：`specId` 行 = 产物（按克计价，行成本 = 产物出库价 × g ÷ 500，`sourceId` 写 0 哨兵）；存量 `sourceId` 行只读保留（每斤单价 × g ÷ 500）。`sauceDetails` 保留 zod 可选透传，保存不再清历史酱料行。
+- **采购计划**（`buildPurchasePlans`）：transform 产物按出成率折算并入来源调味品行（`sourceType:"seasoning"`）；purchase 产物生成独立行（`sourceType:"seasoning_product"`）。
+
+### 3. UI
+- 调味品页四 Tab 换源：「调味品」= 原料层（`/api/ingredients?kind=seasoning`）；单品/复合/成品 = 产物层（`/api/seasoning-products?productType=`）。
+- 产物表单弹窗支持转化 / 外购双口径；默认值：包装规格 500g、份量取档案 multiplier=10 行（份量档案异步返回后经 resetKey 重建表单生效）。
+- 菜品 BOM 调料选择器数据源改产物（三类型混合 + 类型标签列，无分类级联），按克输入保留（默认 10g）；酱料选择入口下线，存量酱料行只读渲染；`/ingredients/sauce` 页面删除。
+
+### 4. 验证
+- 全量 Jest 76 套件 / 410 用例全绿；tsc 0 错误；`npm run build` 通过；`migrate diff` 零差异。
+- 浏览器实测：四 Tab 列/筛选、转化弹窗默认值、菜品 BOM 选产物按克计价（¥0.09 = 4.61×10÷500）、SEA 从分类接口消失、/ui-kit 样张三档宽度无横向溢出、console 零报错。
+- 已知边界：存量酱料行只读经单测覆盖（dev 库无菜品引用酱料，浏览器无法实测）；存量产物编号 SEA-SP-xxxx 为历史编号保留，新建产物用 SP- 前缀。
+
+---
+---
+
 ## 2026-11-25 — 试运行修复：分类级联、转化源锁定与食材清单交互
 
 ### 1. 食材分类修改级联净料/小料
@@ -18,6 +46,7 @@
 - 首个页签改名「食材清单」；食材行操作收敛为「编辑（默认动作按钮）→ 转化（primary 最右）」，移除操作列查看；点击整行仍进详情。
 - 食材列表隐藏入库单位；模块内食材相关文案从「原料」改为「食材」（新增、复制、导入、详情、来源食材等）。
 - 同步更新交互基线 §6.2.4 与 Router 食材清单操作口径。
+- 首页卡片在现有 iOS 流向卡内融合明细数据：食材展示采购食材/净料/小料，调味品展示基础原料与三类产物；香料保留东方/西方占位格式，菜品库只显示单人份数。去除分割线与派生提示；设置分组标题移除无意义项数。
 
 ---
 ---

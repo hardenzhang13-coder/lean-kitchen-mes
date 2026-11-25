@@ -16,7 +16,7 @@
 ### 三层食材体系
 
 ```
-Ingredient（原料 / 调料）
+Ingredient（原料，kind=food）
    │
    ├── 直接采购入库，库存单位通常为斤/件
    │
@@ -29,26 +29,26 @@ Ingredient（原料 / 调料）
           │   标准规格价格(元/份) = 出库价 × 封装规格 ÷ 500（纯计算，见 lib/shared/net-price.ts）
           └── Dish（菜品）
                  ├── DishNetDetail（主料/辅料）
-                 ├── DishMinorDetail（小料）
-                 ├── DishSeasoningDetail（调料）
-                 └── DishSauceDetail（酱料）
+                 └── DishMinorDetail（小料）
 
-Ingredient（调料，SEA 体系）
+Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类，SEA 分类树已移除）
    │
-   ├── seasoningType：调味品类型（2026-11-24 独立字段，迁移 20261124170000）：
-   │   单品调料/复合调料/成品酱料，可空（空 = 基础调味品）；不占食材二级分类
-   │
-   └── StandardSeasoning（标准化调料，2026-11 新增）
+   └── SeasoningProduct（调料产物，物理表 standard_seasonings；StandardSeasoning 已改名）
           │
-          ├── packageSpec：标准规格（g），统一以 g 计，不引入瓶/袋等单位
-          ├── portion：份量，与净料/小料/菜品共用同一套份量档案（portion_profiles 标签）
-          ├── yieldRate：出成率（%），标准化分装的出成率
-          ├── 价格体系：单价(元/斤) = 调料每斤单价 ÷ 出成率；成本价 = 单价 + 加工费；
-          │   出库价 = 成本价 ÷ (1 − 毛利率/100)；
-          │   标准规格价(元/份) = 出库价 × 标准规格 ÷ 500（纯计算，见 lib/shared/seasoning-spec.ts）
+          ├── productType：单品调料 / 复合调料 / 成品酱料（三种同构产物，只是叫法，无配方）
+          ├── sourceMode：transform（转化）/ purchase（外购）
+          ├── packageSpec：封装规格（g）；portion：份量（portion_profiles 标签）
+          ├── transform 行：sourceIngredientId + yieldRate（出成率 %）
+          ├── purchase 行：brand / purchaseSpec / purchaseUnit / latestRefPrice / pricePerJin（手填每斤单价）
+          ├── 价格体系（纯计算，见 lib/shared/seasoning-spec.ts）：转化单价 = 调味品每斤单价 ÷ 出成率；
+          │   外购单价 = 手填每斤单价；成本价 = 单价 + 封装加工费；出库价 = 成本价 ÷ (1 − 毛利率/100)；
+          │   标准规格价(元/份) = 出库价 × 封装规格 ÷ 500
           └── DishSeasoningDetail（调料）
-                 ├── spec_id：指向标准化规格；空 = 存量旧口径行（直接引用采购调料）
-                 └── amount_g：服务端强制等于标准规格
+                 ├── spec_id：指向 SeasoningProduct（新口径行，source_id 置 0 哨兵）
+                 └── source_id + spec_id 空：存量旧口径行（直引调味品原料），只读保留
+
+SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业务剥离）：
+写 API 冻结、页面下线，模型与历史数据只读保留（先例同 SelfProductionOrder）。
 ```
 
 ### 食材分类字典
@@ -90,8 +90,8 @@ Ingredient（调料，SEA 体系）
 | `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「单人份」（2026-11-24 起，迁移 20261124100000） |
 | `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |
-| `DishSeasoningDetail` | 调料明细，`type` 为 seasoning，`source_id` 关联 `Ingredient`（调料），`spec_id` 关联 `StandardSeasoning`（标准化规格）；`spec_id` 为空的存量行保持旧口径 |
-| `DishSauceDetail` | 酱料明细，关联 `SauceIngredient` |
+| `DishSeasoningDetail` | 调料明细，`type` 为 seasoning；`spec_id` 关联 `SeasoningProduct`（新口径行，`source_id` 置 0 哨兵）；`source_id` 直引 `Ingredient`（kind=seasoning）为存量旧口径行，只读保留 |
+| `DishSauceDetail` | 酱料明细，关联 `SauceIngredient`；酱料机制业务剥离，存量行只读 |
 | `DishProcess` | 加工工序，按 `stage` + `stepNo` 排序 |
 
 ### 排程域
@@ -149,7 +149,7 @@ Ingredient（调料，SEA 体系）
 
 - `Ingredient`
 - `NetIngredient`
-- `StandardSeasoning`
+- `SeasoningProduct`（物理表 `standard_seasonings`）
 
 其他模型（如 `Dish`、`PurchaseReceipt`）目前使用状态字段控制生命周期，未实现软删除。
 

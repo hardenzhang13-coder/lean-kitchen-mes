@@ -44,8 +44,8 @@
 │   ├── /ingredients/net/[id]/labels    净料标签打印
 │   ├── /ingredients/minor         小料清单
 │   ├── /ingredients/food           食材清单（食材/净料/小料三 Tab，标题「食材库」）
-│   ├── /ingredients/seasoning     调味品（四 Tab：调味品/单品调料/复合调料/成品酱料）
-│   └── /ingredients/sauce         酱料清单（2026-11-24 起入口隐藏，直达仍可用）
+│   └── /ingredients/seasoning     调味品（四 Tab：调味品/单品调料/复合调料/成品酱料）
+│                                  （/ingredients/sauce 酱料清单已于 2026-11-25 随酱料机制业务剥离下线）
 │
 ├── /purchases                     采购管理（试运行期间锁定）
 │   ├── /purchases                 采购单列表
@@ -70,7 +70,7 @@
 └── /login                         登录页
 ```
 
-共计 **7 个业务模块 + 工作台，40 个页面**。
+共计 **7 个业务模块 + 工作台，39 个页面**。
 
 ---
 
@@ -246,8 +246,8 @@
 - 配方构成 4 类：
   - 主料/辅料（`dish_net_details`）：净料、用量(g)
   - 小料（`dish_minor_details`）：小料、用量(g)
-  - 调料（`dish_seasoning_details`）：直接选**采购调料**（`ingredients`，SEA 体系）+ **手填克数**，成本 = 每斤单价 × 克数 ÷ 500（无份量）
-  - 酱料（`dish_sauce_details`）：酱料、用量(g)
+  - 调料（`dish_seasoning_details`）：选**调料产物**（`SeasoningProduct`，单品/复合/成品酱料三类型混合）+ **手填克数**，成本 = 产物出库价 × 克数 ÷ 500（无份量）；存量直引调味品的旧口径行只读保留
+  - 酱料（`dish_sauce_details`）：**写入口已下线**（2026-11-25 酱料机制业务剥离），存量行只读渲染
 - 加工流程：4 阶段（初加工 → 预处理 → 上灶加工 → 出锅成品），每阶段有序步骤
 - 状态生命周期：`draft` → `pending` → `published`
 - 保存分三步提交：`POST /api/dishes` → `PUT /api/dishes/[id]/bom` → `PUT /api/dishes/[id]/processes`
@@ -257,18 +257,18 @@
 ### 3.5 食材库 `/ingredients`
 
 #### 总览 `/ingredients`
-流向看板：食材、调味品、香料三类节点统一流向菜品库（2026-11-24 改版；香料为占位节点，净料/小料撤下首页、清单页保留）；统一计价规则面板。**「酱料」节点维持隐藏**（只隐入口，模型/API/菜品 BOM 保留）。
+流向看板：食材、调味品两类节点流向菜品库（2026-11-25 起调味品节点挂三产物节点：单品调料/复合调料/成品酱料 → 菜品库；香料为占位节点，净料/小料撤下首页、清单页保留）；统一计价规则面板。**「酱料」节点与页面已随酱料机制业务剥离移除**（模型/历史数据只读保留）。
 
 #### 清单页
-`/ingredients/food`（食材清单三 Tab：食材清单/净料/小料）| `/ingredients/seasoning`（调味品四 Tab）| `/ingredients/sauce`（酱料清单，入口已隐藏，直达仍可用）
+`/ingredients/food`（食材清单三 Tab：食材清单/净料/小料）| `/ingredients/seasoning`（调味品四 Tab）
 
 | 清单 | 突出字段 | 操作顺序 |
 |---|---|---|
 | 食材 | 名称、每斤单价 | 编辑（默认动作按钮）→ 转化（转净料/小料，主操作最右）；入库单位隐藏 |
 | 净料 | 名称、标准规格价 | 编辑 → 删除 |
 | 小料 | 名称、标准规格价 | 编辑 → 删除 |
-| 调味品 | 名称、每斤单价 | 查看 → 编辑 → 转化（转调料清单，主操作最右） |
-| 酱料 | 名称、标准规格价 | 编辑 → 删除 |
+| 调味品 | 名称、每斤单价 | 查看 → 编辑 → 转化（转调料产物，主操作最右） |
+| 调料产物 | 名称、类型标签、标准规格价 | 编辑 → 删除 |
 
 通用交互（按交互视觉基线 v1）：
 - 表头统一加粗，字段单行完整显示，不使用省略号截断
@@ -276,13 +276,13 @@
 - 详情通过**点击整行**进入半屏抽屉（50vw），按「基础信息 / 采购与计量 / 包装与规格 / 价格与成本」分组
 - 操作列直接展示当前行可执行的全部业务动作图标，不折叠进「更多」菜单
 
-#### 调味品 `/ingredients/seasoning`（2026-11-24 升级）
-- 四 Tab：**调味品 / 单品调料 / 复合调料 / 成品酱料**；后三个按 `seasoning_type` 类型字段过滤（不占食材分类体系，迁移 `20261124170000`；类型字段在表单中位于商品名称下方）
-- 「转化」= 转调料清单：创建 `standard_seasonings` 档案（完整复刻食材→净料链路：来源调味品 + 包装规格 + 出成率 + 价格派生 + 份量档案校验）；编辑/删除走「查看调料清单」抽屉（`StandardSeasoningListSheet`）
+#### 调味品 `/ingredients/seasoning`（2026-11-25 调味品模块整体升级）
+- 四 Tab 换源：**调味品** = `/api/ingredients?kind=seasoning`（原料层扁平列表，无分类列/无类型标签）；**单品调料 / 复合调料 / 成品酱料** = `/api/seasoning-products?productType=`（产物层）
+- 调味品不挂食材分类体系：`ingredients.kind` 是边界唯一真源（迁移 `20261125110000`），SEA 分类树与 `seasoning_type` 字段已移除
+- 「转化」= 创建**调料产物**（`SeasoningProduct`，物理表 `standard_seasonings`）：来源调味品 + 出成率 + 封装规格（默认 500g）+ 份量（默认档案 multiplier=10 行）；产物表单支持**转化 / 外购**双口径（外购 = 品牌/采购规格/采购单位/手填每斤单价）；编辑/删除走「查看产物」抽屉（`SeasoningProductListSheet`）
 - 调味品详情抽屉底部功能区：左侧「删除」，中间「复制 / 编辑」（与基线 §6.2.4 一致）
 - 行操作：编辑、删除（被菜品引用时拒绝删除）
-- 调味品**直接**进入菜品 BOM（本期不动 BOM 口径，仍选调味品+手填克数）
-- 开关 `STANDARD_SEASONING_ENABLED` 已置 `true`（2026-11-24 复活调料清单链路）
+- 菜品 BOM **选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引调味品的旧口径行只读保留
 
 #### 原料详情 `/ingredients/raw/[id]`
 #### 净料标签 `/ingredients/net/[id]/labels`
@@ -331,17 +331,17 @@
 
 ---
 
-### 3.9 新增 API（2026-11 调料标准化）
+### 3.9 调料产物 API（2026-11-25 调味品模块整体升级）
 
-> **2026-11-21 起暂时下线**：以下接口保留可用但无 UI 入口（`STANDARD_SEASONING_ENABLED = false`），菜品 BOM 不再引用标准规格。
+> 由 `/api/standard-seasonings` 改名扩展而来（旧目录已删除）；产物层全面启用，菜品 BOM 选产物按克计价。
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/standard-seasonings` | 标准化调料列表（分页；`q` 只搜名称；支持 `sourceIngredientId` / `l1Code` / `l2Code` 过滤；每行附派生价格与关联菜品数） |
-| POST | `/api/standard-seasonings` | 新建标准化规格（来源调料须属 SEA 体系；编号 `SEA-SP-xxxx`；二级分类继承来源调料） |
-| GET | `/api/standard-seasonings/[id]` | 标准化规格详情（含派生价格与关联菜品数） |
-| PUT | `/api/standard-seasonings/[id]` | 更新；标准规格/出成率/来源/加工费/毛利率变化时联动 BOM 行、重算菜品成本并重建未完成的排程与生产计划（有执行进度返回 409） |
-| DELETE | `/api/standard-seasonings/[id]` | 软删除；被菜品 BOM 引用时拒绝 |
+| GET | `/api/seasoning-products` | 调料产物列表（分页；`q` 只搜名称；支持 `productType` / `sourceMode` / `sourceIngredientId` 过滤；每行附派生价格） |
+| POST | `/api/seasoning-products` | 新建产物（校验 productType/sourceMode、份量档案；transform 口径来源须 `kind=seasoning`、出成率 0.01-500；单价服务端派生忽略客户端传入；编号 `SP-xxxx`） |
+| GET | `/api/seasoning-products/[id]` | 产物详情（含派生价格） |
+| PUT | `/api/seasoning-products/[id]` | 更新；封装规格/出成率/来源/加工费/毛利率变化时联动 BOM 行、重算菜品成本并重建未完成的排程与生产计划（有执行进度返回 409） |
+| DELETE | `/api/seasoning-products/[id]` | 软删除；被菜品 BOM 引用时拒绝 |
 
 **权限**：已登记到 `lib/shared/access-control.ts` 的主数据前缀，读 admin/operations，写 admin/operations（与 `/api/net-ingredients` 同级）。
 
