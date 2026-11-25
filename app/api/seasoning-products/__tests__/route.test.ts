@@ -155,7 +155,7 @@ describe("POST /api/seasoning-products（纯转化口径）", () => {
     const json = await res.json();
 
     expect(res.status).toBe(400);
-    expect(json.error).toContain("未设置类型");
+    expect(json.error).toContain("未设置调料分类");
     expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
   });
 

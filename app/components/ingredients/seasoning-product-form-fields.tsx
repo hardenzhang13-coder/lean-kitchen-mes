@@ -89,11 +89,11 @@ export function SeasoningProductFormFields({
     <div className="space-y-4">
       <FormSection cols={1} className={sectionClassName}>
         <FormField
-          label="产物名称"
+          label="调料名称"
           required
           readOnly={viewMode}
           error={errors?.name}
-          hint="默认沿用来源调味品名称；同一调味品的不同规格产物以此区分"
+          hint="默认沿用来源调味品名称；同一调味品的不同规格调料以此区分"
         >
           {viewMode ? (
             <ReadOnlyValue value={form.name} emphasis />
@@ -165,7 +165,7 @@ export function SeasoningProductFormFields({
           </FormField>
 
           <FormField
-            label="产物单价（元/斤）"
+            label="调料单价（元/斤）"
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.unitPrice}
@@ -246,7 +246,7 @@ export function SeasoningProductFormFields({
             label="成本价（元/斤）"
             readOnly={viewMode}
             optionalHint={false}
-            hint="= 产物单价 + 封装加工费"
+            hint="= 调料单价 + 封装加工费"
           >
             <ReadOnlyValue
               value={

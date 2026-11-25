@@ -181,7 +181,7 @@ describe("PUT /api/dishes/[id]/bom — 调料双口径（产物 specId / 旧行 
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("调料产物不存在或已删除");
+    expect(body.error).toContain("调料不存在或已删除");
   });
 
   it("旧行引用的原料不属于调味品体系时拒绝保存", async () => {

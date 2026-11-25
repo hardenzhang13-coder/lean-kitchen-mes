@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (err) {
     logger.error({ err }, "GET /api/seasoning-products failed");
-    return internalError("获取调料产物失败");
+    return internalError("获取调料失败");
   }
 }
 
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       return badRequest("来源调味品不存在或已删除");
     }
     if (!source.seasoningType) {
-      return badRequest("来源调味品未设置类型，请先在调味品档案中选择调味品类型");
+      return badRequest("来源调味品未设置调料分类，请先在调味品档案中选择调料分类");
     }
 
     const calculated = await calculateSeasoningProductUnitPrice({
@@ -152,6 +152,6 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     logger.error({ err }, "POST /api/seasoning-products failed");
     const message = err instanceof Error ? err.message : String(err);
-    return badRequest(message || "创建调料产物失败");
+    return badRequest(message || "创建调料失败");
   }
 }

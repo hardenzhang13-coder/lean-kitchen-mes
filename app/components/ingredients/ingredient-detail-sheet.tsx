@@ -433,7 +433,7 @@ export function IngredientDetailSheet({
                           onClick={() => setPackagedOpen(true)}
                         >
                           <PackageOpen className="h-4 w-4" />
-                          查看产物
+                          查看调料
                         </SkeuButton>
                       ) : null}
                       {onCopy ? (
@@ -669,7 +669,7 @@ function RawDetailContent({
         />
         {kind === "seasoning" && (
           <InfoCell
-            label="调味品类型"
+            label="调料分类"
             value={
               SEASONING_PRODUCT_TYPE_OPTIONS.find(
                 (o) => o.value === data.seasoningType

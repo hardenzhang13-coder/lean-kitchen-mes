@@ -169,12 +169,12 @@ describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
     await waitFor(() =>
       expect(screen.getByText("蒸鱼双椒酱•1200g")).toBeInTheDocument()
     );
-    // 产物列：产物名称 / 包装规格 / 出库价 / 标准规格价 / 来源
-    expect(screen.getByText("产物名称")).toBeInTheDocument();
+    // 调料列：调料名称 / 包装规格 / 出库价 / 标准规格价 / 来源调味品
+    expect(screen.getByText("调料名称")).toBeInTheDocument();
     expect(screen.getByText("包装规格")).toBeInTheDocument();
     expect(screen.getByText("出库价")).toBeInTheDocument();
     expect(screen.getByText("标准规格价")).toBeInTheDocument();
-    expect(screen.getByText("来源")).toBeInTheDocument();
+    expect(screen.getByText("来源调味品")).toBeInTheDocument();
     // 产物层不挂分类体系：无分类级联
     expect(screen.queryByText("全部分类")).not.toBeInTheDocument();
     // 用量输入框在底部按钮旁，数字与单位加粗

@@ -13,7 +13,6 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { RecordSheet } from "@/app/components/ui/record-sheet";
-import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import {
   SeasoningProductFormDialog,
   SeasoningProductFormItem,
@@ -147,7 +146,7 @@ export function SeasoningProductListSheet({
         toast.error(message);
         return;
       }
-      toast.success("产物已删除");
+      toast.success("调料已删除");
       setDeleteTarget(null);
       await load();
       onChanged?.();
@@ -177,10 +176,10 @@ export function SeasoningProductListSheet({
       <RecordSheet
         open={open}
         onOpenChange={onOpenChange}
-        title="调料产物"
+        title="调料清单"
         meta={
           <span>
-            {sourceName ? `${sourceName} 的产物规格` : "全部产物规格"}
+            {sourceName ? `${sourceName} 的调料规格` : "全部调料规格"}
           </span>
         }
         footer={
@@ -208,10 +207,7 @@ export function SeasoningProductListSheet({
               header: "名称",
               className: "whitespace-nowrap",
               cell: (row) => (
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="font-semibold text-primary">{row.name}</span>
-                  <SeasoningTypeTag type={row.productType} />
-                </span>
+                <span className="font-semibold text-primary">{row.name}</span>
               ),
             },
             {
@@ -221,19 +217,11 @@ export function SeasoningProductListSheet({
                 row.packageSpec != null ? `${row.packageSpec}g` : "—",
             },
             {
-              header: "产物单价",
+              header: "调料单价",
               className: "whitespace-nowrap tabular-nums text-right",
               cell: (row) =>
                 row.unitPrice != null
                   ? `¥${Number(row.unitPrice).toFixed(2)}/斤`
-                  : "—",
-            },
-            {
-              header: "出库价",
-              className: "whitespace-nowrap tabular-nums text-right",
-              cell: (row) =>
-                row.outPricePerJin != null
-                  ? `¥${Number(row.outPricePerJin).toFixed(2)}/斤`
                   : "—",
             },
             {
@@ -256,7 +244,7 @@ export function SeasoningProductListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                title="编辑产物"
+                title="编辑调料"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditing({
@@ -279,7 +267,7 @@ export function SeasoningProductListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive"
-                title="删除产物"
+                title="删除调料"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteTarget(row);
@@ -290,10 +278,10 @@ export function SeasoningProductListSheet({
             </div>
           )}
           emptyState={{
-            title: loading ? "加载中…" : "暂无产物",
+            title: loading ? "加载中…" : "暂无调料",
             description: loading
               ? undefined
-              : "该调味品尚未转化出产物档案，可在调味品列表点击「转化」创建",
+              : "该调味品尚未转化出调料档案，可在调味品列表点击「转化」创建",
           }}
           pagination={
             pagination && pagination.totalItems > PAGE_SIZE
@@ -334,7 +322,7 @@ export function SeasoningProductListSheet({
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除产物「{deleteTarget?.name}」
+            确定要删除调料「{deleteTarget?.name}」
             {deleteTarget?.packageSpec != null
               ? `（${deleteTarget.packageSpec}g）`
               : ""}

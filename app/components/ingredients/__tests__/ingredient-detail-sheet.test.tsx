@@ -284,9 +284,9 @@ describe("调味品详情抽屉", () => {
     expect(
       screen.queryByRole("button", { name: "转化" })
     ).not.toBeInTheDocument();
-    // 产物链路：底部提供「查看产物」入口（原料层 → 调料产物清单抽屉）
+    // 产物链路：底部提供「查看调料」入口（原料层 → 调料产物清单抽屉）
     expect(
-      screen.getByRole("button", { name: "查看产物" })
+      screen.getByRole("button", { name: "查看调料" })
     ).toBeInTheDocument();
     // 调味品独立体系不挂食材分类：查看态无调味品类型字段
     expect(screen.queryByText("调味品类型")).not.toBeInTheDocument();

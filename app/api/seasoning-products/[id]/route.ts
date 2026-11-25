@@ -40,12 +40,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       where: { id: Number(id), deletedAt: null },
       include: SOURCE_INCLUDE,
     });
-    if (!row) return notFound("调料产物不存在或已删除");
+    if (!row) return notFound("调料不存在或已删除");
 
     return success(serializeSeasoningProduct(row));
   } catch (err) {
     logger.error({ err }, "GET /api/seasoning-products/[id] failed");
-    return internalError("获取调料产物失败");
+    return internalError("获取调料失败");
   }
 }
 
@@ -72,7 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const existing = await tx.seasoningProduct.findFirst({
           where: { id: specId, deletedAt: null },
         });
-        if (!existing) throw new Error("调料产物不存在或已删除");
+        if (!existing) throw new Error("调料不存在或已删除");
 
         const finalName = (name ?? existing.name).trim();
         if (!finalName) throw new Error("名称不能为空");
@@ -98,7 +98,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           });
           if (!source) throw new Error("来源调味品不存在或已删除");
           if (!source.seasoningType) {
-            throw new Error("来源调味品未设置类型，请先在调味品档案中选择调味品类型");
+            throw new Error("来源调味品未设置调料分类，请先在调味品档案中选择调料分类");
           }
           finalProductType = source.seasoningType;
         }
@@ -194,9 +194,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (err instanceof BomSyncConflictError) return conflict(message);
-    if (message === "调料产物不存在或已删除") return notFound(message);
+    if (message === "调料不存在或已删除") return notFound(message);
     logger.error({ err }, "PUT /api/seasoning-products/[id] failed");
-    return badRequest(message || "更新调料产物失败");
+    return badRequest(message || "更新调料失败");
   }
 }
 
@@ -208,7 +208,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const existing = await prisma.seasoningProduct.findFirst({
       where: { id: specId, deletedAt: null },
     });
-    if (!existing) return notFound("调料产物不存在或已删除");
+    if (!existing) return notFound("调料不存在或已删除");
 
     const usageCount = await prisma.dishSeasoningDetail.count({
       where: { specId },
@@ -232,6 +232,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     return success({ success: true });
   } catch (err) {
     logger.error({ err }, "DELETE /api/seasoning-products/[id] failed");
-    return internalError("删除调料产物失败");
+    return internalError("删除调料失败");
   }
 }

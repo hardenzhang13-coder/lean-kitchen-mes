@@ -182,10 +182,10 @@ export function IngredientFormFields({
 
             {isSeasoning && (
               <FormField
-                label="调味品类型"
+                label="调料分类"
                 readOnly={viewMode}
                 error={errors.seasoningType}
-                hint="单品调料 / 复合调料 / 成品酱料；转化产物按此类型归档，修改会级联已有产物"
+                hint="单品调料 / 复合调料 / 成品酱料；转化出的调料按此分类归档，修改会级联已有调料"
               >
                 {viewMode ? (
                   <ReadOnlyValue
@@ -203,7 +203,7 @@ export function IngredientFormFields({
                       value: o.value,
                       label: o.label,
                     }))}
-                    placeholder="选择调味品类型"
+                    placeholder="选择调料分类"
                   />
                 )}
               </FormField>

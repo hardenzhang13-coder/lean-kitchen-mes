@@ -59,7 +59,7 @@ const SOURCE_NODES: IngredientNode[] = [
     name: "调味品",
     glyph: "调",
     color: "#3b82f6",
-    desc: "原材料层，转化/外购为三种调料产物",
+    desc: "原材料层，转化为三种标准化调料",
     href: "/ingredients/seasoning",
     tileClass:
       "bg-[linear-gradient(180deg,#5B9FFF_0%,#2F6FE0_100%)] shadow-[0_2px_5px_rgba(47,111,224,0.40),0_5px_14px_rgba(15,23,42,0.10)] group-hover:shadow-[0_4px_10px_rgba(47,111,224,0.48),0_9px_24px_rgba(15,23,42,0.12)]",
@@ -184,21 +184,10 @@ function PricingRulesDialog({
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
               style={{ background: "#8b5cf6" }}
             >
-              调料产物 · 转化
+              调料 · 转化
             </span>
             <span className="text-muted-foreground">
               单价 = 调味品每斤单价 ÷ 出成率；成本价 = 单价 ＋ 封装加工费
-            </span>
-          </div>
-          <div className="flex items-center gap-3 text-xs">
-            <span
-              className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
-              style={{ background: "#a78bfa" }}
-            >
-              调料产物 · 外购
-            </span>
-            <span className="text-muted-foreground">
-              成本价 = 手填每斤单价（元/斤）
             </span>
           </div>
         </div>

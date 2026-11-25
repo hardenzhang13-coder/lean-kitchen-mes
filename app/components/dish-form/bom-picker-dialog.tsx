@@ -277,11 +277,11 @@ export function BomPickerDialog({
     },
   ];
 
-  // 调料产物：名称（+类型标签）/ 包装规格 / 出库价 / 标准规格价 / 来源
+  // 调料（单品/复合/成品混合列表）：名称（+类型标签）/ 包装规格 / 出库价 / 标准规格价 / 来源调味品
   const seasoningColumns: ColumnDef<IngredientOption>[] = [
     seqColumn,
     {
-      header: "产物名称",
+      header: "调料名称",
       className: "w-[160px]",
       cell: (row) => (
         <span className="inline-flex items-center gap-1.5">
@@ -325,13 +325,11 @@ export function BomPickerDialog({
         ),
     },
     {
-      header: "来源",
+      header: "来源调味品",
       className: "w-[130px]",
       cell: (row) =>
         row.productName ? (
-          <span className="text-muted-foreground">
-            转化 · {row.productName}
-          </span>
+          <span className="text-muted-foreground">{row.productName}</span>
         ) : (
           "—"
         ),

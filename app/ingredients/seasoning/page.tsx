@@ -105,7 +105,7 @@ function SeasoningListContent() {
           showBack
           backHref="/ingredients"
           title="调味品"
-          description="调味品是原材料层，可转化为单品/复合/成品酱料三种标准化产物，供菜品 BOM 按克选用"
+          description="调味品是原材料层，可转化为单品/复合/成品酱料三种标准化调料，供菜品 BOM 按克选用"
           actions={
             <SkeuButton onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />

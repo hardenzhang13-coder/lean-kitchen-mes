@@ -80,7 +80,7 @@ describe("调料产物表单弹窗（纯转化口径）", () => {
     expect(screen.queryByText("来源方式")).toBeNull();
   });
 
-  it("提供「查看已有产物」入口并显示已有数量", async () => {
+  it("提供「查看已有调料」入口并显示已有数量", async () => {
     const onViewExisting = jest.fn();
     render(
       <SeasoningProductFormDialog
@@ -92,10 +92,10 @@ describe("调料产物表单弹窗（纯转化口径）", () => {
     );
 
     const button = await screen.findByRole("button", {
-      name: /查看已有产物/,
+      name: /查看已有调料/,
     });
     await waitFor(() => {
-      expect(screen.getByText(/查看已有产物（2）/)).toBeTruthy();
+      expect(screen.getByText(/查看已有调料（2）/)).toBeTruthy();
     });
     fireEvent.click(button);
     expect(onViewExisting).toHaveBeenCalled();

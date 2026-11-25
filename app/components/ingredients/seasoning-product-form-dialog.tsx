@@ -70,7 +70,7 @@ function validateSeasoningProductForm(
   values: SeasoningProductFormData
 ): RecordFormErrors {
   const next: RecordFormErrors = {};
-  if (!values.name.trim()) next.name = "产物名称不能为空";
+  if (!values.name.trim()) next.name = "调料名称不能为空";
   const spec = Number(values.packageSpec);
   if (!Number.isFinite(spec) || spec <= 0) {
     next.packageSpec = "请填写包装规格（g）";
@@ -144,7 +144,7 @@ export function SeasoningProductFormDialog({
           ? (json as { data?: { id?: number } }).data
           : undefined;
 
-      toast.success(isEdit ? "产物已更新" : "产物已创建");
+      toast.success(isEdit ? "调料已更新" : "调料已创建");
       void loadExistingCount();
       onSuccess?.(Number(data?.id ?? 0));
       onOpenChange(false);
@@ -182,7 +182,7 @@ export function SeasoningProductFormDialog({
 
   // 产物类型继承来源调味品的 seasoningType，标题直接点明转化目标类型
   const typeLabel =
-    initialData?.productType ?? source.seasoningType ?? "调料产物";
+    initialData?.productType ?? source.seasoningType ?? "调料";
   const dialogTitle = isEdit ? `编辑${typeLabel}` : `转化为${typeLabel}`;
 
   // 来源调味品摘要（头部展示）
@@ -217,7 +217,7 @@ export function SeasoningProductFormDialog({
           onClick={onViewExisting}
         >
           <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
-          查看已有产物
+          查看已有调料
           {existingCount != null ? `（${existingCount}）` : ""}
         </Button>
       ) : null}

@@ -166,7 +166,7 @@ export function SeasoningListPanel({
     (id: number) => {
       const row = data.find((item) => item.id === id);
       if (!row?.seasoningType) {
-        toast.error("请先在调味品档案中选择调味品类型");
+        toast.error("请先在调味品档案中选择调料分类");
         return;
       }
       setConvertSourceId(id);
@@ -225,7 +225,12 @@ export function SeasoningListPanel({
                 ),
               },
               {
-                header: "类型",
+                header: "商品名称",
+                className: "w-[110px]",
+                cell: (row) => row.alias || <EmptyValue />,
+              },
+              {
+                header: "调料分类",
                 className: "w-[96px]",
                 cell: (row) =>
                   row.seasoningType ? (
@@ -233,11 +238,6 @@ export function SeasoningListPanel({
                   ) : (
                     <EmptyValue />
                   ),
-              },
-              {
-                header: "商品名称",
-                className: "w-[110px]",
-                cell: (row) => row.alias || <EmptyValue />,
               },
               {
                 header: "采购规格",

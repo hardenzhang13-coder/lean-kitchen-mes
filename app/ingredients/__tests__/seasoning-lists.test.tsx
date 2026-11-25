@@ -181,15 +181,22 @@ describe("调味品清单", () => {
     }
   );
 
-  it("产物 Tab 展示产物行（规格/出库价/来源）", async () => {
+  it("产物 Tab 展示调料行（来源调味品/出成率/单价/毛利率/标准规格价）", async () => {
     currentSearchParams = new URLSearchParams("tab=item");
     render(<SeasoningIngredientsPage />);
 
     await waitFor(() =>
       expect(screen.getByText("蒸鱼双椒酱•1200g")).toBeInTheDocument()
     );
+    // 列结构对照净料清单：来源调味品 / 包装规格 / 出成率 / 调料单价 / 毛利率 / 标准规格价
+    expect(screen.getByText("来源调味品")).toBeInTheDocument();
+    expect(screen.getByText("蒸鱼双椒酱")).toBeInTheDocument();
     expect(screen.getByText("1200g")).toBeInTheDocument();
-    expect(screen.getByText("转化 · 蒸鱼双椒酱")).toBeInTheDocument();
+    expect(screen.getByText("80%")).toBeInTheDocument();
+    expect(screen.getByText("¥12.50/斤")).toBeInTheDocument();
+    expect(screen.getByText("¥30.00/份")).toBeInTheDocument();
+    // 出库价不再是列表字段
+    expect(screen.queryByText("出库价")).toBeNull();
   });
 
   it("点击页签会更新 URL", async () => {

@@ -13,7 +13,6 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { EmptyValue } from "@/app/components/ui/empty-value";
-import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import {
   SeasoningProductFormDialog,
@@ -25,6 +24,7 @@ import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
 } from "@/lib/client/use-pagination";
+import { formatMoney, formatPercent } from "@/lib/shared/display-format";
 import type { SeasoningProductType } from "@/lib/shared/seasoning-product";
 import { toast } from "sonner";
 
@@ -115,7 +115,7 @@ export function SeasoningProductListPanel({
 
   const openEdit = (row: SeasoningProductListRow) => {
     if (!row.sourceIngredient) {
-      toast.error("该产物缺少来源调味品档案，无法编辑");
+      toast.error("该调料缺少来源调味品档案，无法编辑");
       return;
     }
     setEditing({
@@ -158,7 +158,7 @@ export function SeasoningProductListPanel({
         toast.error(message);
         return;
       }
-      toast.success("产物已删除");
+      toast.success("调料已删除");
       setDeleteTarget(null);
       fetchData();
     } catch {
@@ -211,26 +211,17 @@ export function SeasoningProductListPanel({
                 cell: (row) => <span className="font-mono text-xs">{row.code}</span>,
               },
               {
-                header: "产物名称",
+                header: "调料名称",
                 className: "w-[160px]",
                 cell: (row) => (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="font-semibold text-primary">{row.name}</span>
-                    <SeasoningTypeTag type={row.productType} />
-                  </span>
+                  <span className="font-semibold text-primary">{row.name}</span>
                 ),
               },
               {
-                header: "来源",
-                className: "w-[150px]",
+                header: "来源调味品",
+                className: "w-[130px]",
                 cell: (row) =>
-                  row.sourceIngredient ? (
-                    <span className="text-muted-foreground">
-                      转化 · {row.sourceIngredient.name}
-                    </span>
-                  ) : (
-                    <EmptyValue />
-                  ),
+                  row.sourceIngredient?.name || <EmptyValue />,
               },
               {
                 header: "包装规格",
@@ -239,24 +230,44 @@ export function SeasoningProductListPanel({
                   row.packageSpec != null ? `${row.packageSpec}g` : <EmptyValue />,
               },
               {
-                header: "出库价",
-                className: "w-[96px] tabular-nums text-right",
+                header: "出成率",
+                className: "w-[80px]",
                 cell: (row) =>
-                  row.outPricePerJin != null ? (
-                    <span className="font-semibold tabular-nums text-primary">
-                      ¥{Number(row.outPricePerJin).toFixed(2)}/斤
-                    </span>
+                  row.yieldRate != null ? (
+                    <span className="tabular-nums">{Number(row.yieldRate)}%</span>
                   ) : (
                     <EmptyValue />
                   ),
               },
               {
+                header: "调料单价",
+                className: "w-[110px]",
+                cell: (row) => (
+                  <span className="tabular-nums">
+                    {formatMoney(row.unitPrice, "斤")}
+                  </span>
+                ),
+              },
+              {
+                header: "毛利率",
+                className: "w-[80px]",
+                cell: (row) => (
+                  <span className="tabular-nums">
+                    {formatPercent(row.grossMarginRate)}
+                  </span>
+                ),
+              },
+              {
                 header: "标准规格价",
                 className: "w-[104px] tabular-nums text-right",
                 cell: (row) =>
-                  row.standardPackagePrice != null
-                    ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
-                    : <EmptyValue />,
+                  row.standardPackagePrice != null ? (
+                    <span className="font-semibold tabular-nums text-primary">
+                      ¥{Number(row.standardPackagePrice).toFixed(2)}/份
+                    </span>
+                  ) : (
+                    <EmptyValue />
+                  ),
               },
             ]}
             pagination={
@@ -277,8 +288,8 @@ export function SeasoningProductListPanel({
                 : undefined
             }
             emptyState={{
-              title: "暂无产物",
-              description: "在「调味品」页签的原料行点「转化」生成产物档案",
+              title: "暂无调料",
+              description: "在「调味品」页签的原料行点「转化」生成调料档案",
             }}
             rowActions={(row) => (
               <>
@@ -335,7 +346,7 @@ export function SeasoningProductListPanel({
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除产物「{deleteTarget?.name}」吗？删除后不可恢复。
+            确定要删除调料「{deleteTarget?.name}」吗？删除后不可恢复。
           </p>
           <DialogFooter>
             <SkeuButton

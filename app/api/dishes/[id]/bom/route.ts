@@ -279,7 +279,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               const specId = Number(d.specId);
               const product = productById.get(specId);
               if (!product) {
-                throw new Error(`调料行引用的调料产物不存在或已删除（ID ${specId}）`);
+                throw new Error(`调料行引用的调料不存在或已删除（ID ${specId}）`);
               }
               return {
                 dishId,
