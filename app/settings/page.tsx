@@ -149,12 +149,7 @@ export default async function SettingsPage() {
         <div className="mx-auto flex w-full max-w-[1520px] flex-col gap-16 pb-10">
           {groups.map((group) => (
             <section key={group.key} className="flex flex-col gap-3.5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-[15px] font-semibold">{group.title}</h2>
-                <span className="text-[13px] text-muted-foreground">
-                  {group.items.length} 项
-                </span>
-              </div>
+              <h2 className="text-[15px] font-semibold">{group.title}</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
                 {group.items.map((item) => (
                   <EntryCard
