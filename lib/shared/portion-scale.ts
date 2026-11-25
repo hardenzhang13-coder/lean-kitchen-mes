@@ -73,6 +73,19 @@ export function getPortionOption(
 }
 
 /**
+ * 判断当前份量是否是“单人份”基本单元。
+ * 客户端只按档案行精确判断；档案未就绪时返回 false，
+ * 避免把历史/未知份量误开放为转化源。
+ */
+export function isBasePortion(
+  portion: string | null | undefined,
+  profiles: PortionProfileLike[] | null | undefined
+): boolean {
+  if (!portion || !profiles) return false;
+  return profiles.some((row) => row.portion === portion && row.isBase);
+}
+
+/**
  * 由源/目标份量档案行推导转化倍率；任一方不在档案或倍率非法时返回 null。
  * profiles 为份量档案行集合（服务端查表、客户端从 hook 缓存取）。
  */

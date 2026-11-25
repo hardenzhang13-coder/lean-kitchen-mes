@@ -4,12 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Pencil,
   ArrowRightLeft,
-  Eye,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import {
   SkeuActionButton,
-  SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { CategoryFilter } from "@/app/components/ui/category-filter";
@@ -181,7 +179,7 @@ export function RawIngredientListPanel({
       pricePerJin: row.pricePerJin,
       defaultSupplierId: row.defaultSupplierId,
     }),
-    title: "复制原料",
+    title: "复制食材",
     onCopySuccess: () => {
       setDetailOpen(false);
       fetchData();
@@ -335,12 +333,6 @@ export function RawIngredientListPanel({
                     <EmptyValue title="未填写，可在编辑中按规格换算或手动填写" />
                   ),
               },
-              {
-                header: "入库单位",
-                className: "w-[80px]",
-                cell: (row) =>
-                  row.stockUnit ? row.stockUnit : <EmptyValue />,
-              },
             ]}
             pagination={
               pagination && pagination.totalItems > 0
@@ -362,19 +354,9 @@ export function RawIngredientListPanel({
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
-                <SkeuIconAction
-                  label={`查看原料 ${row.name}`}
-                  tip="查看原料"
-                  icon={<Eye className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openView(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`编辑原料 ${row.name}`}
-                  tip="编辑原料"
-                  icon={<Pencil className="h-4 w-4" />}
+                <SkeuActionButton
+                  label="编辑"
+                  icon={<Pencil className="h-3.5 w-3.5" />}
                   onClick={(event) => {
                     event.stopPropagation();
                     openEdit(row);
@@ -464,7 +446,7 @@ export function RawIngredientListPanel({
       <DeleteConfirmDialog
         open={deleteId !== null}
         onOpenChange={() => setDeleteId(null)}
-        message="确定要删除这条原料吗？此操作不可撤销。"
+        message="确定要删除这条食材吗？此操作不可撤销。"
         onConfirm={() => deleteId && handleDelete(deleteId)}
       />
     </>

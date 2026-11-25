@@ -78,7 +78,7 @@ export default function RawIngredientDetailPage() {
       ]);
 
       if (!ingRes.ok) {
-        throw new Error("原料不存在或已删除");
+        throw new Error("食材不存在或已删除");
       }
       const ingJson = await ingRes.json();
       setIngredient(ingJson.data || null);
@@ -139,7 +139,7 @@ export default function RawIngredientDetailPage() {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 p-8">
-        <PageHeader showBack title="原料详情" />
+        <PageHeader showBack title="食材详情" />
         <Card>
           <CardContent className="p-8">
             <div className="h-40 animate-pulse bg-muted rounded-lg" />
@@ -152,8 +152,8 @@ export default function RawIngredientDetailPage() {
   if (!ingredient) {
     return (
       <div className="flex flex-col gap-6 p-8">
-        <PageHeader showBack title="原料详情" />
-        <EmptyState title="原料不存在或已删除" />
+        <PageHeader showBack title="食材详情" />
+        <EmptyState title="食材不存在或已删除" />
       </div>
     );
   }
@@ -162,7 +162,7 @@ export default function RawIngredientDetailPage() {
 
   return (
     <div className="flex flex-col gap-6 p-8">
-      <PageHeader showBack title="原料详情" />
+      <PageHeader showBack title="食材详情" />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-1">
@@ -239,7 +239,7 @@ export default function RawIngredientDetailPage() {
               emptyState={{
                 icon: PackageOpen,
                 title: "暂无衍生净料",
-                description: "点击右上角按钮转化原料",
+                description: "点击右上角按钮转化食材",
               }}
               rowActions={(row) => (
                 <Button

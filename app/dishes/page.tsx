@@ -42,6 +42,7 @@ import {
   calcGrossMarginPercent,
 } from "@/app/components/dish-form/types";
 import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
+import { isBasePortion } from "@/lib/shared/portion-scale";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -437,15 +438,17 @@ export default function DishesPage() {
                     openCopy(row);
                   }}
                 />
-                <SkeuActionButton
-                  label="转化"
-                  tone="primary"
-                  icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setScaleTarget(row);
-                  }}
-                />
+                {isBasePortion(row.portion, profiles) && (
+                  <SkeuActionButton
+                    label="转化"
+                    tone="primary"
+                    icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setScaleTarget(row);
+                    }}
+                  />
+                )}
               </>
             )}
             pagination={

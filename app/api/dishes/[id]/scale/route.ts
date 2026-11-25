@@ -22,7 +22,10 @@ import {
   generateNetIngredientCode,
   resolveScaleSpecInputs,
 } from "@/lib/server/dish-scale-plan";
-import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
+import {
+  validatePortionForCreate,
+  validatePortionSourceForScale,
+} from "@/lib/server/portion-profile-utils";
 import { logger } from "@/lib/server/logger";
 
 /**
@@ -59,6 +62,11 @@ export async function POST(
   if (portion === source.portion) {
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }
+
+
+  // 转化方向锁定：仅当前基本单元（单人份）可作为源
+  const sourcePortionError = await validatePortionSourceForScale(source.portion);
+  if (sourcePortionError) return badRequest(sourcePortionError);
 
   // 目标份量须命中启用中的份量档案；倍率由档案行 multiplier 推导（新口径）
   const targetPortionError = await validatePortionForCreate(portion);

@@ -96,7 +96,7 @@ interface IngredientDetailSheetProps {
   categories?: CategoryL1[];
   units?: Unit[];
   rawIngredients?: RawIngredientOption[];
-  /** 原料详情在抽屉内原位切换只读/编辑 */
+  /** 食材详情在抽屉内原位切换只读/编辑 */
   inlineEdit?: boolean;
   /** 从列表“编辑”入口打开时直接进入编辑态 */
   startInEditMode?: boolean;
@@ -262,7 +262,7 @@ export function IngredientDetailSheet({
 
   const title =
     kind === "raw"
-      ? "原料详情"
+      ? "食材详情"
       : kind === "seasoning"
         ? "调味品详情"
         : kind === "minor"
@@ -288,14 +288,14 @@ export function IngredientDetailSheet({
   const sheetTitle = canInlineEdit
     ? editing
       ? kind === "raw"
-        ? "编辑原料"
+        ? "编辑食材"
           : kind === "seasoning"
             ? "编辑调味品"
             : kind === "minor"
               ? "编辑小料"
               : "编辑净料"
       : kind === "raw"
-        ? "原料详情"
+        ? "食材详情"
         : kind === "seasoning"
           ? "调味品详情"
           : kind === "minor"
@@ -638,7 +638,7 @@ export function IngredientDetailSheet({
         }}
         entityLabel={
           kind === "raw"
-            ? "原料"
+            ? "食材"
             : kind === "seasoning"
               ? "调味品"
               : kind === "minor"
@@ -716,7 +716,7 @@ function NetDetailContent({
         <InfoCell label="名称" value={data.name} emphasis />
         <InfoCell label="分类" value={categoryName || data.l2Code} />
         <InfoCell
-          label="来源原料"
+          label="来源食材"
           value={data.sourceIngredient?.name || "—"}
         />
       </DetailSection>

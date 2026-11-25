@@ -59,7 +59,7 @@ export interface IngredientFormFieldsProps {
   viewMode?: boolean;
   /** 新增弹窗使用三列工作台布局，详情抽屉使用纵向布局 */
   layout?: "workbench" | "sheet";
-  /** 原料查看态直接展示供应商名称，避免额外拉取供应商列表 */
+  /** 食材查看态直接展示供应商名称，避免额外拉取供应商列表 */
   supplierName?: string | null;
 }
 
@@ -80,7 +80,7 @@ export function IngredientFormFields({
   );
 
   const filteredCategories = useMemo(() => {
-    // MIN（小料）分类不用于原料/调味品建档：小料是转化品，其采购原料归在蔬菜-香辛料等业务分类
+    // MIN（小料）分类不用于食材/调味品建档：小料是转化品，其采购食材归在蔬菜-香辛料等业务分类
     if (mode === "auto") {
       return categories.filter((l1) => l1.code !== "MIN");
     }

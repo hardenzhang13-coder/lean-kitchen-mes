@@ -88,7 +88,7 @@ function validateNetIngredientForm(
 
   if (!form.name.trim()) next.name = `${label}名称不能为空`;
   if (!form.l2Code) next.l2Code = "请选择二级分类";
-  if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源原料";
+  if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源食材";
 
   const yieldRate = Number(form.yieldRate);
   if (!form.yieldRate || yieldRate <= 0 || yieldRate > 500) {
@@ -135,7 +135,7 @@ function validateNetIngredientForm(
     yieldRate,
   });
   if (unitPrice == null) {
-    next.unitPrice = "来源原料缺少每斤单价，无法计算净料单价";
+    next.unitPrice = "来源食材缺少每斤单价，无法计算净料单价";
   }
 
   return next;

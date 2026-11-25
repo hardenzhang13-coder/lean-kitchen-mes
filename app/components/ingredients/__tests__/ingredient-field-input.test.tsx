@@ -122,7 +122,7 @@ describe("食材域输入控件", () => {
     expect(screen.queryByText("储存方式")).not.toBeInTheDocument();
   });
 
-  it("新增原料保留常用默认值", () => {
+  it("新增食材保留常用默认值", () => {
     const { result } = renderHook(() =>
       useIngredientForm({
         active: true,

@@ -17,7 +17,7 @@ import { toast } from "sonner";
 type IngredientFoodTab = "raw" | "net" | "minor";
 
 const FOOD_TABS = [
-  { value: "raw", label: "食材" },
+  { value: "raw", label: "食材清单" },
   { value: "net", label: "净料清单" },
   { value: "minor", label: "小料清单" },
 ] as const;
@@ -164,7 +164,7 @@ function IngredientFoodListContent() {
           showBack
           backHref="/ingredients"
           title="食材库"
-          description="集中管理采购原料及其转化生成的净料、小料"
+          description="集中管理采购食材及其转化生成的净料、小料"
           actions={
             <div className="flex items-center gap-2">
               {activeTab === "raw" && (
@@ -175,7 +175,7 @@ function IngredientFoodListContent() {
                   </SkeuButton>
                   <SkeuButton onClick={() => setRawCreateOpen(true)}>
                     <Plus className="h-4 w-4" />
-                    新增原料
+                    新增食材
                   </SkeuButton>
                 </>
               )}
@@ -201,7 +201,7 @@ function IngredientFoodListContent() {
           tabs={[...FOOD_TABS]}
           value={activeTab}
           onChange={handleTabChange}
-          ariaLabel="原料库清单视图"
+          ariaLabel="食材库清单视图"
         />
         <div className="flex min-h-0 flex-1 flex-col">
           {mountedTabs.includes("raw") && (
@@ -276,9 +276,9 @@ function IngredientFoodListContent() {
       <ImportDialog
         open={rawImportOpen}
         onOpenChange={setRawImportOpen}
-        title="批量导入原料"
+        title="批量导入食材"
         fields={RAW_IMPORT_FIELDS}
-        templateFilename="原料导入模板.csv"
+        templateFilename="食材导入模板.csv"
         onValidate={handleValidateImport}
         onImport={handleImport}
       />

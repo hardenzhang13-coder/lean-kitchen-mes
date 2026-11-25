@@ -70,6 +70,22 @@ export async function validatePortionForUpdate(
 }
 
 /**
+ * 菜品转化源校验：仅单人份（当前基本单元）可作为源；
+ * 场景规格只能由单人份倍率推导，禁止互相转化。
+ * 返回 null 表示通过，否则返回可读错误文案。
+ */
+export async function validatePortionSourceForScale(
+  portion: string,
+  db: Db = prisma
+): Promise<string | null> {
+  const row = await db.portionProfile.findFirst({
+    where: { portion, isBase: true, isActive: true },
+    select: { id: true },
+  });
+  return row ? null : "只有单人份菜品可转化为其它份量";
+}
+
+/**
  * 门店场景写校验：scenario 必须命中份量档案出现过的场景值
  * （含停用行——历史门店场景不应因档案停用而失效）。
  * 返回 null 表示通过，否则返回可读错误文案。

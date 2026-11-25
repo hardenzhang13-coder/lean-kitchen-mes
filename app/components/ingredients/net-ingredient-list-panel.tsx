@@ -307,7 +307,7 @@ export function NetIngredientListPanel({
                 },
               },
               {
-                header: "来源原料",
+                header: "来源食材",
                 className: "w-[130px]",
                 cell: (row) =>
                   row.sourceIngredient?.name || <EmptyValue />,

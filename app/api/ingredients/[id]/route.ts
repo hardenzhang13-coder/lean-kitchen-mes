@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { success } from "@/lib/server/api-response";
+import { success, badRequest } from "@/lib/server/api-response";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
 import { updateIngredientSchema } from "@/lib/server/schemas/ingredient";
 import { validateBody } from "@/lib/server/validate";
@@ -80,39 +80,96 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!existing) {
       return NextResponse.json({ error: "食材不存在或已删除" }, { status: 404 });
     }
+    const finalL2Code = l2Code ?? existing.l2Code;
+    const categoryChanged = finalL2Code !== existing.l2Code;
+    const category = await prisma.ingredientCategoryL2.findUnique({
+      where: { code: finalL2Code },
+      select: { code: true, parentCode: true },
+    });
+    if (!category) {
+      return badRequest("二级分类不存在");
+    }
+    const existingCategory = categoryChanged
+      ? await prisma.ingredientCategoryL2.findUnique({
+          where: { code: existing.l2Code },
+          select: { parentCode: true },
+        })
+      : null;
+    if (categoryChanged && !existingCategory) {
+      return badRequest("原二级分类不存在，请先修复分类档案");
+    }
+    const minorBoundaryChanged =
+      (category.parentCode === "MIN") !== (existingCategory?.parentCode === "MIN");
+
     // 换算系数来自单位字典（见 lib/server/unit-factors.ts）
     const jinFactors = await getJinFactors();
-    const row = await prisma.ingredient.update({
-      where: { id: Number(id) },
-      data: {
-        name: name ?? existing.name,
-        alias: alias !== undefined ? alias || null : existing.alias,
-        l2Code: l2Code ?? existing.l2Code,
-        purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
-        stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
-        unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
-        purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
-        latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
-        defaultSupplierId:
-          defaultSupplierId !== undefined ? (defaultSupplierId ?? null) : existing.defaultSupplierId,
-        pricePerJin:
-          pricePerJin !== undefined
-            ? pricePerJin ?? null
-            : calcPricePerJin(
-                latestRefPrice !== undefined ? latestRefPrice : existing.latestRefPrice,
-                purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec,
-                jinFactors,
-                purchaseUnit !== undefined ? purchaseUnit : existing.purchaseUnit
-              ),
-        season: season !== undefined ? season || "四季" : existing.season,
-        storage: storage !== undefined ? storage || "常温" : existing.storage,
-        seasoningType:
-          seasoningType !== undefined
-            ? seasoningType || null
-            : existing.seasoningType,
-      },
+    const result = await prisma.$transaction(async (tx) => {
+      // 跨净料/小料边界会改变业务归属；被菜品 BOM 引用的规格必须先解除引用。
+      if (minorBoundaryChanged) {
+        const referenceCount =
+          (await tx.dishNetDetail.count({
+            where: { netIngredient: { sourceIngredientId: Number(id), deletedAt: null } },
+          })) +
+          (await tx.dishMinorDetail.count({
+            where: { netIngredient: { sourceIngredientId: Number(id), deletedAt: null } },
+          }));
+        if (referenceCount > 0) {
+          throw new Error("该食材的净料/小料已被菜品引用，不能跨净料/小料分类调整");
+        }
+      }
+
+      const row = await tx.ingredient.update({
+        where: { id: Number(id) },
+        data: {
+          name: name ?? existing.name,
+          alias: alias !== undefined ? alias || null : existing.alias,
+          l2Code: finalL2Code,
+          purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
+          stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
+          unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
+          purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
+          latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
+          defaultSupplierId:
+            defaultSupplierId !== undefined ? (defaultSupplierId ?? null) : existing.defaultSupplierId,
+          pricePerJin:
+            pricePerJin !== undefined
+              ? pricePerJin ?? null
+              : calcPricePerJin(
+                  latestRefPrice !== undefined ? latestRefPrice : existing.latestRefPrice,
+                  purchaseSpec !== undefined ? purchaseSpec : existing.purchaseSpec,
+                  jinFactors,
+                  purchaseUnit !== undefined ? purchaseUnit : existing.purchaseUnit
+                ),
+          season: season !== undefined ? season || "四季" : existing.season,
+          storage: storage !== undefined ? storage || "常温" : existing.storage,
+          seasoningType:
+            seasoningType !== undefined
+              ? seasoningType || null
+              : existing.seasoningType,
+        },
+      });
+
+      // 分类是来源食材上的弱引用副本：改分类必须同事务级联净料/小料，避免清单分组漂移。
+      let syncedNetCount = 0;
+      if (categoryChanged) {
+        const synced = await tx.netIngredient.updateMany({
+          where: { sourceIngredientId: Number(id), deletedAt: null },
+          data: { l2Code: finalL2Code },
+        });
+        syncedNetCount = synced.count;
+      }
+
+      return { row, syncedNetCount };
     });
-    await logOperation(req, { action: "UPDATE", entity: "Ingredient", entityId: row.id, description: `更新食材: ${row.name}` });
+    const { row, syncedNetCount } = result;
+    await logOperation(req, {
+      action: "UPDATE",
+      entity: "Ingredient",
+      entityId: row.id,
+      description:
+        `更新食材: ${row.name}` +
+        (syncedNetCount > 0 ? `；级联更新 ${syncedNetCount} 个净料/小料分类` : ""),
+    });
     return success(row);
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : String(e);

@@ -103,8 +103,8 @@ beforeEach(() => {
   }) as jest.MockedFunction<typeof fetch>;
 });
 
-describe("原料库统一清单", () => {
-  it("默认进入食材清单，展示原料表和批量导入入口", async () => {
+describe("食材库统一清单", () => {
+  it("默认进入食材清单，展示食材表和批量导入入口", async () => {
     render(<IngredientFoodPage />);
 
     expect(
@@ -112,10 +112,10 @@ describe("原料库统一清单", () => {
     ).toBeInTheDocument();
     expect(screen.getByRole("tablist")).toBeInTheDocument();
     expect(
-      screen.getByRole("tab", { name: "食材" })
+      screen.getByRole("tab", { name: "食材清单" })
     ).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("批量导入")).toBeInTheDocument();
-    expect(screen.getByText("新增原料")).toBeInTheDocument();
+    expect(screen.getByText("新增食材")).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "转化" })).toBeInTheDocument();
 
     await waitFor(() =>
@@ -162,7 +162,7 @@ describe("原料库统一清单", () => {
     expect(mockRouterReplace).toHaveBeenCalledWith("/ingredients/food?tab=minor");
   });
 
-  it("原料转化入口打开双目标弹窗，默认目标为净料", async () => {
+  it("食材转化入口打开双目标弹窗，默认目标为净料", async () => {
     render(<IngredientFoodPage />);
     await screen.findByText("带皮五花肉");
 

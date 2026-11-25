@@ -44,7 +44,7 @@ const netDetail = {
   standardPackagePrice: 4.5,
 };
 
-describe("原料详情抽屉", () => {
+describe("食材详情抽屉", () => {
   beforeEach(() => {
     global.fetch = jest.fn().mockResolvedValue({
       ok: true,
@@ -81,7 +81,7 @@ describe("原料详情抽屉", () => {
     );
 
     const detailHeading = await screen.findByRole("heading", {
-      name: "原料详情",
+      name: "食材详情",
     });
     expect(detailHeading).toBeInTheDocument();
     const coreName = await screen.findByText("带皮五花肉");
@@ -119,7 +119,7 @@ describe("原料详情抽屉", () => {
     fireEvent.click(editButton);
 
     expect(
-      screen.getByRole("heading", { name: "编辑原料" })
+      screen.getByRole("heading", { name: "编辑食材" })
     ).toBeInTheDocument();
     expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
     expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("原料详情抽屉", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("heading", { name: "原料详情" })
+        screen.getByRole("heading", { name: "食材详情" })
       ).toBeInTheDocument();
     });
     expect(await screen.findByText("带皮五花肉")).toHaveClass(
@@ -162,7 +162,7 @@ describe("原料详情抽屉", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "编辑原料" })
+      await screen.findByRole("heading", { name: "编辑食材" })
     ).toBeInTheDocument();
     expect(await screen.findByDisplayValue("带皮五花肉")).not.toBeDisabled();
   });
@@ -233,7 +233,7 @@ describe("原料详情抽屉", () => {
     await waitFor(() => {
       expect(onUpdated).toHaveBeenCalledTimes(1);
       expect(
-        screen.getByRole("heading", { name: "原料详情" })
+        screen.getByRole("heading", { name: "食材详情" })
       ).toBeInTheDocument();
     });
     expect(await screen.findByText("精选五花肉")).toHaveClass(

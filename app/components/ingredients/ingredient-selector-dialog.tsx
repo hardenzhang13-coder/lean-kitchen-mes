@@ -59,13 +59,13 @@ export function IngredientSelectorDialog({
   const [page, setPage] = useState(1);
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  // 来源必须为原料：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
+  // 来源必须为食材：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
   const rawCategories = useMemo(
     () => categories.filter((c) => c.code !== "MIN" && c.code !== "SEA"),
     [categories]
   );
 
-  // 兜底过滤：无论传入的原料列表是否已按体系过滤，都排除 MIN/SEA 分类下的食材（含搜索场景）
+  // 兜底过滤：无论传入的食材列表是否已按体系过滤，都排除 MIN/SEA 分类下的食材（含搜索场景）
   const rawIngredients = useMemo(() => {
     const excludedL2 = new Set(
       categories
@@ -147,7 +147,7 @@ export function IngredientSelectorDialog({
     <RecordSheet
       open={open}
       onOpenChange={onOpenChange}
-      title="选择来源原料"
+      title="选择来源食材"
       meta={
         selectedIngredient ? (
           <span>
@@ -158,7 +158,7 @@ export function IngredientSelectorDialog({
             <span className="ml-1 font-mono">{selectedIngredient.code}</span>
           </span>
         ) : (
-          <span>选择原料后会带出分类与当前每斤单价</span>
+          <span>选择食材后会带出分类与当前每斤单价</span>
         )
       }
       bodyClassName="overflow-hidden"
@@ -265,7 +265,7 @@ export function IngredientSelectorDialog({
         isRowSelected={(row) => String(row.id) === selectedIngredientId}
         emptyState={{
           icon: Search,
-          title: "暂无匹配原料",
+          title: "暂无匹配食材",
           description: "请调整搜索条件后重试",
         }}
         pagination={

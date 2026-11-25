@@ -37,7 +37,7 @@ interface IngredientFormDialogProps {
   allowContinue?: boolean;
   /** 保存成功回调：continued = true 表示走「保存并继续添加」，弹窗保持打开 */
   onSuccess: (data: CreatedIngredient, continued?: boolean) => void;
-  /** 自定义弹窗标题（复制场景：复制原料 / 复制调味品） */
+  /** 自定义弹窗标题（复制场景：复制食材 / 复制调味品） */
   title?: string;
 }
 
@@ -90,10 +90,10 @@ export function IngredientFormDialog({
           <DialogTitle className="text-lg">
             {title ??
               (view
-                ? `查看${mode === "seasoning" ? "调味品" : mode === "ingredient" ? "原料" : "食材"}`
+                ? `查看${mode === "seasoning" ? "调味品" : "食材"}`
                 : initialData?.id
-                  ? `编辑${mode === "seasoning" ? "调味品" : mode === "ingredient" ? "原料" : "食材"}`
-                  : `新增${mode === "seasoning" ? "调味品" : mode === "ingredient" ? "原料" : "食材"}`)}
+                  ? `编辑${mode === "seasoning" ? "调味品" : "食材"}`
+                  : `新增${mode === "seasoning" ? "调味品" : "食材"}`)}
           </DialogTitle>
         </DialogHeader>
 

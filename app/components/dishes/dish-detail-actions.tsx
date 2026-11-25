@@ -15,6 +15,8 @@ import { Input } from "@/app/components/ui/form-controls";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DeleteConfirmDialog, type DeleteErrorInfo } from "@/app/components/ui/delete-confirm-dialog";
 import type { DishDetail } from "@/app/components/dish-form/types";
+import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
+import { isBasePortion } from "@/lib/shared/portion-scale";
 import { DishScaleDialog } from "./dish-scale-dialog";
 import { toast } from "sonner";
 
@@ -65,6 +67,9 @@ export function DishDetailActions({
   onDeleted: () => void;
 }) {
   const router = useRouter();
+  const { profiles } = usePortionProfiles();
+  // 转化只开放给当前基本单元（单人份）；场景规格互相转化会破坏倍率口径。
+  const canScale = isBasePortion(dish.portion, profiles);
   const [pendingAction, setPendingAction] = useState<StatusAction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<DeleteErrorInfo | null>(null);
@@ -179,10 +184,12 @@ export function DishDetailActions({
           编辑
         </SkeuButton>
       )}
-      <SkeuButton variant="outline" onClick={() => setScaleOpen(true)}>
-        <ArrowRightLeft className="h-4 w-4" />
-        转化
-      </SkeuButton>
+      {canScale && (
+        <SkeuButton variant="outline" onClick={() => setScaleOpen(true)}>
+          <ArrowRightLeft className="h-4 w-4" />
+          转化
+        </SkeuButton>
+      )}
       {actionMeta && statusAction && (
         <SkeuButton variant="primary" onClick={() => setPendingAction(statusAction)}>
           {statusAction === "publish" ? (

@@ -63,7 +63,7 @@ export interface NetIngredientFormFieldsProps {
   onChange: (field: keyof NetIngredientFormData, value: string) => void;
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
-  /** 编辑详情时直接传入来源原料当前价格，不依赖分页列表是否包含来源行 */
+  /** 编辑详情时直接传入来源食材当前价格，不依赖分页列表是否包含来源行 */
   sourcePricePerJin?: number | null;
   mode?: "net" | "minor";
   readOnly?: {
@@ -146,7 +146,7 @@ export function NetIngredientFormFields({
     [currentSourcePricePerJin, form.yieldRate]
   );
 
-  // 净料编辑：分类与来源锁定（分类继承自来源原料）
+  // 净料编辑：分类与来源锁定（分类继承自来源食材）
   const sourceLocked = readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
 
   // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 包装规格 ÷ 500
@@ -183,7 +183,7 @@ export function NetIngredientFormFields({
     ingredientId: string;
   }) => {
     if (isMinor) {
-      // 小料的二级分类固定为 MIN 子树，仅取来源原料
+      // 小料的二级分类固定为 MIN 子树，仅取来源食材
       onChange("sourceIngredientId", value.ingredientId);
       return;
     }
@@ -281,7 +281,7 @@ export function NetIngredientFormFields({
             optionalHint={false}
             labelClassName="text-primary"
             error={errors?.yieldRate}
-            hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
+            hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤食材出 1.2 斤成品，单价低于食材价）"
           >
             {viewMode ? (
               <ReadOnlyValue
@@ -310,7 +310,7 @@ export function NetIngredientFormFields({
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.unitPrice}
-            hint="根据来源原料当前每斤单价和出成率自动计算"
+            hint="根据来源食材当前每斤单价和出成率自动计算"
           >
             <ReadOnlyValue
               value={
@@ -512,7 +512,7 @@ export function NetIngredientFormFields({
           onClick={() => setSelectorOpen(true)}
           className="h-11 w-full sm:w-auto px-6"
         >
-          选择来源原料
+          选择来源食材
         </SkeuButton>
       );
     }
@@ -525,26 +525,26 @@ export function NetIngredientFormFields({
               <>
                 <FormField label="一级分类" readOnly error={sourceLocked ? undefined : errors?.l1Code}>
                   <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
-                    {selectedL1?.label || "请选择来源原料"}
+                    {selectedL1?.label || "请选择来源食材"}
                   </div>
                 </FormField>
 
                 <FormField label="二级分类" readOnly error={sourceLocked ? undefined : errors?.l2Code}>
                   <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
-                    {selectedL2?.label || "请选择来源原料"}
+                    {selectedL2?.label || "请选择来源食材"}
                   </div>
                 </FormField>
               </>
             )}
 
             <FormField
-              label="来源原料"
+              label="来源食材"
               readOnly
               error={sourceLocked ? undefined : errors?.sourceIngredientId}
               className={isMinor ? "sm:col-span-3" : undefined}
             >
               <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
-                {selectedSource?.name || "请选择来源原料"}
+                {selectedSource?.name || "请选择来源食材"}
               </div>
             </FormField>
           </div>
@@ -559,7 +559,7 @@ export function NetIngredientFormFields({
                 }
               }}
               className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/30 bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30 shadow-sm"
-              aria-label="清空来源原料"
+              aria-label="清空来源食材"
             >
               <X className="h-3 w-3" />
             </button>
@@ -682,7 +682,7 @@ export function NetIngredientFormFields({
           optionalHint={false}
           labelClassName="text-primary"
           error={errors?.yieldRate}
-          hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤原料出 1.2 斤成品，单价低于原料价）"
+          hint="上浆/挂糊类食材出成率可超过 100（如 120 = 1 斤食材出 1.2 斤成品，单价低于食材价）"
         >
           <IngredientNumberInput
             min={0.01}
@@ -700,7 +700,7 @@ export function NetIngredientFormFields({
           label={isMinor ? "小料单价（元/斤）" : "净料单价（元/斤）"}
           optionalHint={false}
           error={errors?.unitPrice}
-          hint="根据来源原料当前每斤单价和出成率自动计算"
+          hint="根据来源食材当前每斤单价和出成率自动计算"
         >
           <ReadOnlyValue
             value={

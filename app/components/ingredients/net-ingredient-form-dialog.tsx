@@ -93,7 +93,7 @@ interface NetIngredientFormDialogProps {
   onOpenChange: (open: boolean) => void;
   mode?: "net" | "minor" | "convert";
   sourceIngredientId?: number;
-  /** 来源原料名称：转净料时用于生成默认净料名称（原料列表可能分页，不能只靠 rawIngredients 查） */
+  /** 来源食材名称：转净料时用于生成默认净料名称（食材列表可能分页，不能只靠 rawIngredients 查） */
   sourceIngredientName?: string | null;
   initialData?: NetIngredientFormItem;
   categories: CategoryL1[];
@@ -217,7 +217,7 @@ export function NetIngredientFormDialog({
   const selectedL2 = selectedL1?.children.find(
     (category) => category.code === form.l2Code
   );
-  // 转化时头部固定展示来源原料的原分类；下方分类随转化目标变化
+  // 转化时头部固定展示来源食材的原分类；下方分类随转化目标变化
   const sourceL1 = findParentL1(selectedSource?.l2Code);
   const sourceL2 = sourceL1?.children.find(
     (category) => category.code === selectedSource?.l2Code
@@ -273,7 +273,7 @@ export function NetIngredientFormDialog({
       setForm({
         ...emptyForm,
         portion: defaultPortionRef.current,
-        // 默认名称：原料名称•加工方式•500g
+        // 默认名称：食材名称•加工方式•500g
         name: buildNetIngredientDefaultName(
           raw?.name ?? sourceIngredientName,
           emptyForm.packageSpec
@@ -297,7 +297,7 @@ export function NetIngredientFormDialog({
       return;
     }
 
-    // 新增净料先从来源原料开始，不再预选一个无来源的分类。
+    // 新增净料先从来源食材开始，不再预选一个无来源的分类。
     setForm({ ...emptyForm, portion: defaultPortionRef.current });
   }, [
     open,
@@ -409,7 +409,7 @@ export function NetIngredientFormDialog({
       l1Code: value.l1Code,
       l2Code: value.l2Code,
       sourceIngredientId: value.ingredientId,
-      // 选定来源原料后自动生成默认名称；用户手工改过就不覆盖
+      // 选定来源食材后自动生成默认名称；用户手工改过就不覆盖
       name:
         !previous.name.trim() || isDefaultNetIngredientName(previous.name)
           ? buildNetIngredientDefaultName(sourceName, previous.packageSpec)
@@ -424,9 +424,9 @@ export function NetIngredientFormDialog({
     if (!form.name.trim()) {
       next.name = isMinor ? "小料名称不能为空" : "净料名称不能为空";
     }
-    if (!form.l2Code) next.l2Code = "请选择来源原料";
+    if (!form.l2Code) next.l2Code = "请选择来源食材";
     if (!form.sourceIngredientId) {
-      next.sourceIngredientId = "请选择来源原料";
+      next.sourceIngredientId = "请选择来源食材";
     }
 
     const yieldRate = Number(form.yieldRate);
@@ -487,7 +487,7 @@ export function NetIngredientFormDialog({
         ? Number((sourcePricePerJin / (yieldRate / 100)).toFixed(2))
         : null;
     if (calculatedUnitPrice == null) {
-      next.unitPrice = "来源原料缺少每斤单价，无法计算净料单价";
+      next.unitPrice = "来源食材缺少每斤单价，无法计算净料单价";
     }
 
     setErrors(next);
@@ -686,7 +686,7 @@ export function NetIngredientFormDialog({
             />
           </>
         ) : (
-          <span className="text-muted-foreground">未选择来源原料</span>
+          <span className="text-muted-foreground">未选择来源食材</span>
         )}
         {!isConvert && (
           <SkeuButton
@@ -700,7 +700,7 @@ export function NetIngredientFormDialog({
             }
             onClick={() => setSourceSelectorOpen(true)}
           >
-            {selectedSource ? "更换来源" : "选择来源原料"}
+            {selectedSource ? "更换来源" : "选择来源食材"}
           </SkeuButton>
         )}
       </div>
@@ -785,7 +785,7 @@ export function NetIngredientFormDialog({
                   <EmptyState
                     icon={PackageOpen}
                     title="暂无小料"
-                    description="该原料尚未创建规格"
+                    description="该食材尚未创建规格"
                   />
                 ) : (
                   <Table>
@@ -1039,7 +1039,7 @@ export function NetIngredientFormDialog({
         description={
           rightList.length > 0 ? `共 ${rightList.length} 条` : undefined
         }
-        emptyTitle="该原料尚未创建规格"
+        emptyTitle="该食材尚未创建规格"
         columns={[
           { header: "编号", accessorKey: "code" },
           { header: "名称", accessorKey: "name" },

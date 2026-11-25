@@ -225,19 +225,19 @@ describe("转化与新增净料/小料弹窗", () => {
     expect(
       await screen.findByRole("heading", { name: "新增净料" })
     ).toBeInTheDocument();
-    expect(screen.getByText("未选择来源原料")).toBeInTheDocument();
+    expect(screen.getByText("未选择来源食材")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "选择来源原料" })
+      screen.getByRole("button", { name: "选择来源食材" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "选择来源原料" })
+      screen.getByRole("button", { name: "选择来源食材" })
     ).toHaveClass("skeu-btn-primary");
 
     fireEvent.click(
-      screen.getByRole("button", { name: "选择来源原料" })
+      screen.getByRole("button", { name: "选择来源食材" })
     );
     expect(
-      await screen.findByRole("heading", { name: "选择来源原料" })
+      await screen.findByRole("heading", { name: "选择来源食材" })
     ).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("搜索食材名称...")
@@ -278,17 +278,17 @@ describe("转化与新增净料/小料弹窗", () => {
     );
     await waitFor(() => {
       expect(
-        screen.queryByRole("heading", { name: "选择来源原料" })
+        screen.queryByRole("heading", { name: "选择来源食材" })
       ).not.toBeInTheDocument();
     });
   });
 
-  it("来源原料列表默认每页 10 条并对齐已有净料抽屉行密度", async () => {
+  it("来源食材列表默认每页 10 条并对齐已有净料抽屉行密度", async () => {
     const manyIngredients = Array.from({ length: 12 }, (_, index) => ({
       ...rawIngredients[0],
       id: index + 101,
       code: `ING-${String(index + 101).padStart(4, "0")}`,
-      name: `测试原料${index + 1}`,
+      name: `测试食材${index + 1}`,
     }));
     render(
       <NetIngredientFormDialog
@@ -301,9 +301,9 @@ describe("转化与新增净料/小料弹窗", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "选择来源原料" })
+      screen.getByRole("button", { name: "选择来源食材" })
     );
-    await screen.findByRole("heading", { name: "选择来源原料" });
+    await screen.findByRole("heading", { name: "选择来源食材" });
 
     const table = screen.getByRole("table");
     expect(table.closest('[data-slot="card"]')).toBeNull();
@@ -321,7 +321,7 @@ describe("转化与新增净料/小料弹窗", () => {
     expect(
       screen.getByRole("button", { name: /下一页/ })
     ).toBeInTheDocument();
-    expect(screen.getByText("测试原料1").closest("tr")).toHaveClass(
+    expect(screen.getByText("测试食材1").closest("tr")).toHaveClass(
       "[&>td]:py-2"
     );
   });

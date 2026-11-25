@@ -32,7 +32,7 @@ beforeEach(() => {
   }) as jest.MockedFunction<typeof fetch>;
 });
 
-describe("新增原料的连续录入", () => {
+describe("新增食材的连续录入", () => {
   it("新建模式提供「保存并继续添加」，编辑模式不提供", () => {
     const { rerender } = render(
       <IngredientFormDialog
@@ -68,7 +68,7 @@ describe("新增原料的连续录入", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("新增原料的三个分组不使用浅色背景", () => {
+  it("新增食材的三个分组不使用浅色背景", () => {
     render(
       <IngredientFormDialog
         open

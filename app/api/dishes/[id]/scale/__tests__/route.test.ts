@@ -21,6 +21,7 @@ jest.mock("@/lib/server/prisma", () => ({
     },
     portionProfile: {
       findUnique: jest.fn(),
+      findFirst: jest.fn(),
     },
     $transaction: jest.fn(),
   },
@@ -51,7 +52,7 @@ jest.mock("@/lib/server/dish-scale-plan", () => {
 
 const mockedPrisma = prisma as unknown as {
   dish: { findUnique: jest.Mock; findFirst: jest.Mock };
-  portionProfile: { findUnique: jest.Mock };
+  portionProfile: { findUnique: jest.Mock; findFirst: jest.Mock };
   $transaction: jest.Mock;
 };
 const mockedLogOperation = logOperation as jest.Mock;
@@ -66,7 +67,7 @@ const source = {
   id: 1,
   code: "DSH-HOT-0001",
   name: "宫保鸡丁",
-  portion: "小碗菜",
+  portion: "单人份",
   categoryId: 1,
   category: { code: "HOT" },
   netDetails: [],
@@ -125,8 +126,10 @@ describe("POST /api/dishes/[id]/scale", () => {
     mockedPrisma.dish.findUnique.mockReset();
     mockedPrisma.dish.findFirst.mockReset();
     mockedPrisma.portionProfile.findUnique.mockReset();
-    // 目标份量命中启用中的份量档案行
+    mockedPrisma.portionProfile.findFirst.mockReset();
+    // 目标份量命中启用中的份量档案行；源份量命中基本单元
     mockedPrisma.portionProfile.findUnique.mockResolvedValue({ isActive: true });
+    mockedPrisma.portionProfile.findFirst.mockResolvedValue({ id: 1 });
     mockedPrisma.$transaction.mockReset();
     mockedPrisma.$transaction.mockImplementation(async (callback) =>
       callback({ netIngredient: { create: mockedNetCreate } })
@@ -247,5 +250,19 @@ describe("POST /api/dishes/[id]/scale", () => {
     const body = await res.json();
     expect(body.error).toContain("封装规格必须为正整数");
     expect(mockedCreateVariant).not.toHaveBeenCalled();
+  });
+
+  it("非单人份源禁止转化为其它份量", async () => {
+    mockedPrisma.dish.findUnique.mockResolvedValueOnce({ ...source, portion: "社区·3份" });
+    mockedPrisma.portionProfile.findFirst.mockResolvedValueOnce(null);
+
+    const res = await POST(
+      createRequest({ portion: "小碗菜·10份" }),
+      params()
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("只有单人份菜品可转化");
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 });
