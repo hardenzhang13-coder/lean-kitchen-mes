@@ -277,9 +277,9 @@
 - 操作列直接展示当前行可执行的全部业务动作图标，不折叠进「更多」菜单
 
 #### 调味品 `/ingredients/seasoning`（2026-11-25 调味品模块整体升级）
-- 四 Tab 换源：**调味品** = `/api/ingredients?kind=seasoning`（原料层扁平列表，无分类列/无类型标签）；**单品调料 / 复合调料 / 成品酱料** = `/api/seasoning-products?productType=`（产物层）
-- 调味品不挂食材分类体系：`ingredients.kind` 是边界唯一真源（迁移 `20261125110000`），SEA 分类树与 `seasoning_type` 字段已移除
-- 「转化」= 创建**调料产物**（`SeasoningProduct`，物理表 `standard_seasonings`）：来源调味品 + 出成率 + 封装规格（默认 500g）+ 份量（默认档案 multiplier=10 行）；产物表单支持**转化 / 外购**双口径（外购 = 品牌/采购规格/采购单位/手填每斤单价）；编辑/删除走「查看产物」抽屉（`SeasoningProductListSheet`）
+- 四 Tab 换源：**调味品** = `/api/ingredients?kind=seasoning`（原料层扁平列表，含类型列）；**单品调料 / 复合调料 / 成品酱料** = `/api/seasoning-products?productType=`（产物层，只读列表 + 编辑/删除，**无新增入口**）
+- 调味品不挂食材分类体系：`ingredients.kind` 是边界唯一真源（迁移 `20261125110000`），SEA 分类树已移除；调味品类型落 `ingredients.seasoning_type`（迁移 `20261125173000`），新增/编辑调味品时选择
+- 「转化」= 创建**调料产物**（`SeasoningProduct`，物理表 `standard_seasonings`）：来源调味品 + 出成率 + 封装规格（默认 500g）；产物类型继承来源调味品的 `seasoning_type`（未设类型的调味品先回档案补类型才能转化）；改调味品类型会同事务级联未删除产物；编辑/删除走产物 Tab 或「查看产物」抽屉（`SeasoningProductListSheet`）
 - 调味品详情抽屉底部功能区：左侧「删除」，中间「复制 / 编辑」（与基线 §6.2.4 一致）
 - 行操作：编辑、删除（被菜品引用时拒绝删除）
 - 菜品 BOM **选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引调味品的旧口径行只读保留
@@ -337,10 +337,10 @@
 
 | 方法 | 路径 | 说明 |
 |---|---|---|
-| GET | `/api/seasoning-products` | 调料产物列表（分页；`q` 只搜名称；支持 `productType` / `sourceMode` / `sourceIngredientId` 过滤；每行附派生价格） |
-| POST | `/api/seasoning-products` | 新建产物（校验 productType/sourceMode、份量档案；transform 口径来源须 `kind=seasoning`、出成率 0.01-500；单价服务端派生忽略客户端传入；编号 `SP-xxxx`） |
+| GET | `/api/seasoning-products` | 调料产物列表（分页；`q` 只搜名称；支持 `productType` / `sourceIngredientId` 过滤；每行附派生价格） |
+| POST | `/api/seasoning-products` | 新建产物（纯转化口径：来源须 `kind=seasoning` 且已设 `seasoning_type`，产物类型继承来源；出成率 0.01-500；单价服务端派生忽略客户端传入；编号 `SP-xxxx`） |
 | GET | `/api/seasoning-products/[id]` | 产物详情（含派生价格） |
-| PUT | `/api/seasoning-products/[id]` | 更新；封装规格/出成率/来源/加工费/毛利率变化时联动 BOM 行、重算菜品成本并重建未完成的排程与生产计划（有执行进度返回 409） |
+| PUT | `/api/seasoning-products/[id]` | 更新；封装规格/出成率/加工费/毛利率变化时联动 BOM 行、重算菜品成本并重建未完成的排程与生产计划（有执行进度返回 409）；换来源时类型跟随新来源 |
 | DELETE | `/api/seasoning-products/[id]` | 软删除；被菜品 BOM 引用时拒绝 |
 
 **权限**：已登记到 `lib/shared/access-control.ts` 的主数据前缀，读 admin/operations，写 admin/operations（与 `/api/net-ingredients` 同级）。

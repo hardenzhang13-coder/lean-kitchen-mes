@@ -56,7 +56,7 @@ DSH-{categoryCode}-{0001}    // 未分类：DSH-GEN-0001
 - 基础信息 + 分类
 - `netDetails`（主料/辅料）及关联净料
 - `minorDetails`（小料）及关联净料
-- `seasoningDetails`（调料）双口径：`specId` 行 = 调料产物（补全 `packageSpec` / `outPricePerJin`（回写 `pricePerJin` 字段）/ `standardPackagePrice` / `productType` / `sourceMode`）；`sourceId` 行 = 存量旧口径直引调味品原料（补全名称、采购规格与每斤单价）。克需求原样返回
+- `seasoningDetails`（调料）双口径：`specId` 行 = 调料产物（补全 `packageSpec` / `outPricePerJin`（回写 `pricePerJin` 字段）/ `standardPackagePrice` / `productType`）；`sourceId` 行 = 存量旧口径直引调味品原料（补全名称、采购规格与每斤单价）。克需求原样返回
 - `sauceDetails`（酱料）及关联酱料
 - `processes` 工序，按 stage、stepNo 排序
 

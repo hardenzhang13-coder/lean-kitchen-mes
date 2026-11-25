@@ -67,17 +67,16 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
                                出成率（yieldRate）      BOM 明细
 
 调味品（Ingredient, kind=seasoning） → 调料产物（SeasoningProduct）
-                                          ↑                    ↑
-                              转化（出成率+封装规格+份量）    菜品 BOM 按克选用
-                              或外购建档（手填每斤单价）
+       ↑                                  ↑
+  seasoningType 类型归档        转化（出成率+封装规格）    菜品 BOM 按克选用
 ```
 
-- **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）。`kind` 区分食材（food）与调味品（seasoning）——调味品是独立原材料层，**不挂食材一二级分类**（SEA 分类树已随 2026-11-25 升级移除），采购与 AI 识别走这层
+- **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）。`kind` 区分食材（food）与调味品（seasoning）——调味品是独立原材料层，**不挂食材一二级分类**（SEA 分类树已随 2026-11-25 升级移除），采购与 AI 识别走这层；调味品的 `seasoningType`（单品调料/复合调料/成品酱料）在建档时选择，是产物归档的唯一类型来源
 - **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料与净料同表同口径**（l2Code 归属 MIN 一级分类），同样由原料转化而来
 - **净料价格体系**（唯一真源 `lib/server/net-ingredient-utils.ts` 的 `deriveNetIngredientPrices()`）：净料单价 = 原料每斤单价 ÷ (出成率/100) → 成本价 = 净料单价 + 封装加工费 → 出库价 = 成本价 ÷ (1 − 毛利率/100) → 标准规格价（元/份）= 出库价 × 封装规格 ÷ 500。净料单价**强制由来源原料实时价格派生**，服务端忽略客户端传入的 `unitPrice`
 - **`package_spec`（封装规格，单位 g）** 是「按份」换算的物理基准（一个标准包装装多少克）。缺失会导致：完成生产抛错整单回滚、出库金额算成 0、标签张数为 0、标准规格价显示「—」。补齐方案见 `docs/production-data-package-spec-plan.md`
 - **净料/小料 BOM 用量 = 档案封装规格**：`DishNetDetail.amountG` / `DishMinorDetail.amountG` 只是缓存，唯一真源是 `NetIngredient.packageSpec`。修改净料/小料规格时，服务端在同一事务内同步 BOM 用量、重算菜品成本，并自动重建待生效/进行中的排程切配、采购计划与生产计划快照；已完成单据、出库单、库存流水保持历史快照。
-- **调料产物（SeasoningProduct，物理表 `standard_seasonings`）**（2026-11-25 升级）：单品调料 / 复合调料 / 成品酱料三种**同构**产物（只是叫法，无配方），由调味品转化（出成率 + 封装规格 + 份量）或外购建档（手填每斤单价）。价格链路唯一真源 `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：转化单价 = 调味品每斤单价 ÷ (出成率/100)；外购单价 = 手填每斤单价；其后与净料完全同构（成本价 → 出库价 → 标准规格价）。**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引原料的 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读
+- **调料产物（SeasoningProduct，物理表 `standard_seasonings`）**（2026-11-25 升级）：单品调料 / 复合调料 / 成品酱料三种**同构**产物（只是叫法，无配方），**只能由调味品「转化」生成**（出成率 + 封装规格），产物类型继承来源调味品的 `seasoningType`（快照，改调味品类型会级联）。价格链路唯一真源 `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：单价 = 调味品每斤单价 ÷ (出成率/100)，其后与净料完全同构（成本价 → 出库价 → 标准规格价）。**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引原料的 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读
 - **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料产物（DishSeasoningDetail，specId 指向 SeasoningProduct）、酱料（SauceIngredients，存量只读）及 `DishProcess` 工序组成
 
 **排程 → 生产计划 → 净菜库存** 是当前业务主链路：

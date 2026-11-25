@@ -283,7 +283,7 @@ B3 已因试运行反馈提前启动，B1（设置模块）已于 2026-11-15 完
 
 **调料口径回退（2026-11-21，已被 2026-11-25 取代）**：上述标准化支线曾暂时下线，调料一度回到「直接选原料 + 手填克数」。~~表、API、价格链纯函数与组件文件全部保留未删，UI 入口由 `app/components/ingredients/standard-seasoning-flag.ts` 的 `STANDARD_SEASONING_ENABLED` 统一控制（当前 `false`）；恢复时置 `true` 并回滚规格化分支即可。~~
 
-**调味品模块整体升级（2026-11-25 落地，取代上两条）**：调味品 = 独立原材料层（`Ingredient.kind="seasoning"`，不挂食材一二级分类，SEA 分类树移除）；调味品经转化（出成率 + 封装规格 + 份量）或外购建档，形成三种同构的标准化产物——单品调料 / 复合调料 / 成品酱料（`SeasoningProduct`，物理表仍为 `standard_seasonings`，无配方）；菜品 BOM 选产物、按克计价（行成本 = 产物出库价 × g ÷ 500），存量 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读。详见 `memory-bank/Database.md` 与 `app/api/dishes/CLAUDE.md`。
+**调味品模块整体升级（2026-11-25 落地，同日复核收敛，取代上两条）**：调味品 = 独立原材料层（`Ingredient.kind="seasoning"`，不挂食材一二级分类，SEA 分类树移除；类型落 `ingredients.seasoning_type`：单品调料 / 复合调料 / 成品酱料）；调味品经转化（出成率 + 封装规格）形成三种同构的标准化产物（`SeasoningProduct`，物理表仍为 `standard_seasonings`，无配方）——**纯转化口径**：产物无独立新增入口、无外购建档、无份量字段，产物类型继承来源调味品（改类型级联）；菜品 BOM 选产物、按克计价（行成本 = 产物出库价 × g ÷ 500），存量 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读。详见 `memory-bank/Database.md` 与 `app/api/dishes/CLAUDE.md`。
 
 ---
 

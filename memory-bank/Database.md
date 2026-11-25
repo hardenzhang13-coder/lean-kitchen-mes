@@ -87,7 +87,7 @@
 
 数据：40条，逐条导入现有 JSON。
 
-- **调味品独立体系（2026-11-25，迁移 `20261125110000_seasoning_module_upgrade`）**：调味品不挂食材分类体系，落 `ingredients.kind`（food=食材 / seasoning=调味品，边界唯一真源）；调味品行 `l2_code` 置空；单品调料/复合调料/成品酱料不再落在原料上，而是转化/外购建档后的**调料产物**（`standard_seasonings` 表 → Prisma 模型 `SeasoningProduct`，五件套见 `lib/shared/seasoning-product.ts`）。同迁移移除 SEA 分类树（SEA / SEA-SOL / SEA-LIQ），`seasoning_type` 字段删除。历史：`20261124170000_seasoning_type` 曾把三种类型落在 `ingredients.seasoning_type`，仅存续一天
+- **调味品独立体系（2026-11-25，迁移 `20261125110000_seasoning_module_upgrade` + `20261125173000_seasoning_type_on_ingredient`）**：调味品不挂食材分类体系，落 `ingredients.kind`（food=食材 / seasoning=调味品，边界唯一真源）；调味品行 `l2_code` 置空；单品调料/复合调料/成品酱料落在**调味品档案的 `seasoning_type`**（建档时选择），转化产物按此类型归档（产物只能由「转化」生成，无独立新增入口）。同批迁移移除 SEA 分类树（SEA / SEA-SOL / SEA-LIQ）。历史：`20261124170000_seasoning_type` 曾把三种类型落在 `ingredients.seasoning_type`，当天升级为产物字段，复核后又回归调味品档案
 
 ---
 
@@ -204,6 +204,7 @@
 | name | varchar(100) | 名称，如 带皮五花肉 |
 | alias | varchar(100) | 常用别名 |
 | kind | varchar(20) | 大类边界（2026-11-25，迁移 20261125110000）：food=食材（挂一二级分类）/ seasoning=调味品（独立体系，不挂分类）；**调味品边界唯一真源**，替代旧 SEA 分类判定 |
+| seasoning_type | varchar(20) 可空 | 调味品类型（2026-11-25，迁移 20261125173000）：单品调料 / 复合调料 / 成品酱料，仅 kind=seasoning 使用；转化产物按此类型归档，改类型同事务级联未删除产物 |
 | l2_code | varchar(20) 可空 | 所属二级分类，关联 l2.code；kind=food 必填，kind=seasoning 恒为 NULL |
 | 计量单位 | varchar(20) | 库存管理的基准单位，如 斤、瓶、个 |
 | 计价单位 | varchar(20) | 采购算钱用的单位，如 斤、件、板 |
@@ -212,7 +213,7 @@
 | 储存方式 | varchar(10) | 冷藏、常温、冷冻 |
 | created_at | datetime | 建档时间，默认当前时间（2026-11-15 新增，迁移 20261115213000）；存量原料/调料回填为初始建库日 2026-10-26 |
 
-> 原料表同时承载调味品（`kind="seasoning"` 判定，2026-11-25 起；此前按 SEA 二级分类区分，SEA 树已随本次迁移移除，`seasoning_type` 字段已删除）。建档时间只在详情页顶部展示，不进列表。
+> 原料表同时承载调味品（`kind="seasoning"` 判定，2026-11-25 起；此前按 SEA 二级分类区分，SEA 树已随本次迁移移除；`seasoning_type` 字段同日先删后随复核回归，现承载调味品类型）。建档时间只在详情页顶部展示，不进列表。
 
 ---
 
@@ -248,7 +249,7 @@
 ```
 
 毛利率逐条维护，留空 = 0（历史数据无感知）；出库价/标准规格价由 API 序列化实时计算。
-原料、调味品原料不参与本价格体系；**调料产物（SeasoningProduct）2026-11-25 起并入同构价格体系**（唯一真源 `lib/shared/seasoning-spec.ts`：转化单价 = 来源调味品每斤单价 ÷ 出成率，外购单价 = 手填每斤单价；成本价 = 单价 + 加工费 → 出库价 → 标准规格价）；酱料 2026-11-05 起已并入统一价格体系（成本价 → 毛利 → 出库价，元/斤）。
+原料、调味品原料不参与本价格体系；**调料产物（SeasoningProduct）2026-11-25 起并入同构价格体系**（唯一真源 `lib/shared/seasoning-spec.ts`：单价 = 来源调味品每斤单价 ÷ 出成率；成本价 = 单价 + 加工费 → 出库价 → 标准规格价）；酱料 2026-11-05 起已并入统一价格体系（成本价 → 毛利 → 出库价，元/斤）。
 
 ---
 
@@ -297,27 +298,24 @@
 
 ---
 
-### 2.5 `standard_seasonings` — 调料产物表（Prisma 模型 `SeasoningProduct`；2026-11-25 升级，迁移 20261125110000）
+### 2.5 `standard_seasonings` — 调料产物表（Prisma 模型 `SeasoningProduct`；2026-11-25 升级，迁移 20261125110000 + 20261125173000）
 
-> **2026-11-25 调味品模块整体升级**：`StandardSeasoning` 改名 `SeasoningProduct`（物理表名不动，存量 `dish_seasoning_details.spec_id` 外键零触碰）；新增产物类型与转化/外购双口径；**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）。
+> **2026-11-25 调味品模块整体升级**：`StandardSeasoning` 改名 `SeasoningProduct`（物理表名不动，存量 `dish_seasoning_details.spec_id` 外键零触碰）；**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）。
+> 同日复核后收敛为**纯转化口径**（迁移 `20261125173000_seasoning_type_on_ingredient`）：类型回到调味品档案（`ingredients.seasoning_type`），产物只能由「转化」生成、类型继承来源；`source_mode` 与全部外购字段、份量字段一并移除。
 > 三种产物（单品调料 / 复合调料 / 成品酱料）**同构**——只是叫法，无配方；酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离，模型与历史数据只读保留。
 
-调味品（`ingredients.kind="seasoning"`）经「转化」（出成率 + 封装规格 + 份量）或「外购建档」（手填每斤单价）形成的标准化规格产物。新编号从 SP-0001 起（存量 SEA-SP-xxxx 编号保留）。
+调味品（`ingredients.kind="seasoning"`，建档时选定 `seasoning_type`）经「转化」（出成率 + 封装规格）形成的标准化规格产物；产物类型继承来源调味品的 `seasoning_type`（快照，改调味品类型时同事务级联）。新编号从 SP-0001 起（存量 SEA-SP-xxxx 编号保留）。
 
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | id | int PK | |
 | code | varchar(191) UNIQUE | 编号 SP-0001（存量 SEA-SP-xxxx 为历史编号） |
-| name | varchar(191) | **产物名称**：转化行沿用来源调味品名；外购行手填 |
-| product_type | varchar(20) | 产物类型（2026-11-25）：单品调料 / 复合调料 / 成品酱料，存量回填「单品调料」 |
-| source_mode | varchar(20) | 来源方式（2026-11-25）：transform=转化 / purchase=外购，存量回填「transform」 |
-| source_ingredient_id | int FK→ingredients.id 可空 | **来源调味品**（kind=seasoning）：仅 transform 口径必填 |
-| yield_rate | decimal(5,2) 可空 | 出成率 %：仅 transform 口径必填；转化单价 = 来源每斤单价 ÷ (出成率/100) |
-| brand / purchase_spec / purchase_unit / latest_ref_price / price_per_jin | — | **外购字段**（purchase 口径）：品牌 / 采购规格 / 采购单位 / 零售参照价 / 手填每斤单价（price_per_jin 为 purchase 口径成本来源） |
-| default_supplier_id | int FK→suppliers.id 可空 | 默认供应商（外购行） |
+| name | varchar(191) | **产物名称**：默认沿用来源调味品名，可改 |
+| product_type | varchar(20) | 产物类型：单品调料 / 复合调料 / 成品酱料；**继承来源调味品的 `seasoning_type`**（快照） |
+| source_ingredient_id | int FK→ingredients.id 可空 | **来源调味品**（kind=seasoning，业务必填） |
+| yield_rate | decimal(5,2) 可空 | 出成率 %：转化单价 = 来源每斤单价 ÷ (出成率/100) |
 | package_spec | int | **封装规格（g）**：统一以 g 计；新建默认 500g |
-| portion | varchar(50) | 份量，落份量档案 `portion_profiles.portion` 标签；新建默认取档案 multiplier=10 的首个启用行 |
-| unit_price | decimal(10,2) | 单价（元/斤）：transform = 来源每斤单价 ÷ (出成率/100)；purchase = 手填每斤单价；**服务端派生，忽略客户端传入** |
+| unit_price | decimal(10,2) | 单价（元/斤）= 来源每斤单价 ÷ (出成率/100)；**服务端派生，忽略客户端传入** |
 | processing_fee_per_jin | decimal(10,2) | 封装加工费（元/斤），空 = 0 |
 | gross_margin_rate | decimal(5,2) | 毛利率 %，空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100) |
 | storage | varchar(191) | 默认「常温」 |
@@ -329,8 +327,8 @@
 
 - 菜品 BOM 调料行选产物（`spec_id` 指向本表），**按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量 `source_id` 直引调味品的旧口径行只读保留（新行 `source_id` 写 0 哨兵）。
 - `l2_code` 已随 2026-11-25 迁移移除（调味品独立体系，不挂食材分类）。
-- 份量 `portion` 与净料一致，只用于展示与口径标注；**不参与** BOM 用量或采购量计算。
-- 采购毛需求（`lib/server/schedule-utils.ts` 的 `buildPurchasePlans()`）：transform 产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`）；purchase 产物生成独立行（`sourceType:"seasoning_product"`，弱引用产物）。
+- 产物**无份量字段**（2026-11-25 复核移除）：产物按克进 BOM，份量只属于净料/小料/菜品口径。
+- 采购毛需求（`lib/server/schedule-utils.ts` 的 `buildPurchasePlans()`）：产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`）。
 - 产物**不进净菜库存**（无 PreppedStock 联动）。
 
 ---
@@ -450,7 +448,7 @@ UNIQUE(sauce_id, line_type, ref_id)
 | cost | decimal(10,2) | 行成本：产物行 = 产物出库价 × 克需求 ÷ 500；旧口径行 = 调味品每斤单价 × 克需求 ÷ 500 |
 
 > **调料双口径（2026-11-25）**：BOM 调料行选**调料产物**（`spec_id`，按克计价，行成本 = 产物出库价 × 克需求 ÷ 500，两者同传时以 `spec_id` 为准）；
-> 存量 `source_id` 直引调味品的旧口径行只读保留（成本 = 每斤单价 × 克需求 ÷ 500）。采购毛需求：transform 产物按出成率折算并入来源调味品行，purchase 产物生成独立采购行。调料无份量口径。
+> 存量 `source_id` 直引调味品的旧口径行只读保留（成本 = 每斤单价 × 克需求 ÷ 500）。采购毛需求：产物按出成率折算并入来源调味品行。调料无份量口径。
 
 ---
 

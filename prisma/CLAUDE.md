@@ -31,17 +31,16 @@ Ingredient（原料，kind=food）
                  ├── DishNetDetail（主料/辅料）
                  └── DishMinorDetail（小料）
 
-Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类，SEA 分类树已移除）
+Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类，SEA 分类树已移除；seasoning_type 归档单品调料/复合调料/成品酱料）
    │
    └── SeasoningProduct（调料产物，物理表 standard_seasonings；StandardSeasoning 已改名）
           │
-          ├── productType：单品调料 / 复合调料 / 成品酱料（三种同构产物，只是叫法，无配方）
-          ├── sourceMode：transform（转化）/ purchase（外购）
-          ├── packageSpec：封装规格（g）；portion：份量（portion_profiles 标签）
-          ├── transform 行：sourceIngredientId + yieldRate（出成率 %）
-          ├── purchase 行：brand / purchaseSpec / purchaseUnit / latestRefPrice / pricePerJin（手填每斤单价）
-          ├── 价格体系（纯计算，见 lib/shared/seasoning-spec.ts）：转化单价 = 调味品每斤单价 ÷ 出成率；
-          │   外购单价 = 手填每斤单价；成本价 = 单价 + 封装加工费；出库价 = 成本价 ÷ (1 − 毛利率/100)；
+          ├── productType：单品调料 / 复合调料 / 成品酱料（三种同构产物，只是叫法，无配方；继承来源调味品的 seasoning_type 快照，改类型级联）
+          ├── 纯转化口径（2026-11-25 收敛）：只能由调味品「转化」生成，无独立新增入口、无外购建档
+          ├── sourceIngredientId + yieldRate（出成率 %）：来源必为 kind=seasoning 且已设类型的调味品
+          ├── packageSpec：封装规格（g）；无份量字段
+          ├── 价格体系（纯计算，见 lib/shared/seasoning-spec.ts）：单价 = 来源调味品每斤单价 ÷ 出成率；
+          │   成本价 = 单价 + 封装加工费；出库价 = 成本价 ÷ (1 − 毛利率/100)；
           │   标准规格价(元/份) = 出库价 × 封装规格 ÷ 500
           └── DishSeasoningDetail（调料）
                  ├── spec_id：指向 SeasoningProduct（新口径行，source_id 置 0 哨兵）

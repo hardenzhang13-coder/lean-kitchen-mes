@@ -14,7 +14,7 @@ description: 涉及净料价格、调料产物价格、菜品成本、出成率�
                         ↑ 小料与净料同表，l2Code 归属 MIN 一级分类
 
 调味品 Ingredient（kind=seasoning，独立体系不挂分类，2026-11-25 起）
-   → 调料产物 SeasoningProduct（转化 / 外购双口径）→ 菜品 Dish（选产物 + 克需求）
+   → 调料产物 SeasoningProduct（纯转化口径，类型继承来源调味品）→ 菜品 Dish（选产物 + 克需求）
 ```
 
 **净料默认名称**：转净料与新增净料自动生成「原料名称•加工方式•500g」（`lib/shared/net-name.ts` 的 `buildNetIngredientDefaultName`）。「加工方式」是占位词由用户改写；用户改过就不再自动覆盖。不要在别处另拼一套命名规则。
@@ -36,13 +36,12 @@ description: 涉及净料价格、调料产物价格、菜品成本、出成率�
 
 ## 调料产物（2026-11-25 口径：选产物 + 填克数）
 
-调味品（`ingredients.kind="seasoning"`，独立原材料层，不挂食材分类）经**转化**（出成率 + 封装规格 + 份量）或**外购建档**（手填每斤单价）形成**调料产物** `SeasoningProduct`（物理表 `standard_seasonings`；单品调料 / 复合调料 / 成品酱料三种同构产物，只是叫法，无配方）。
+调味品（`ingredients.kind="seasoning"`，独立原材料层，不挂食材分类；类型落 `ingredients.seasoning_type`：单品调料 / 复合调料 / 成品酱料）经**转化**（出成率 + 封装规格，2026-11-25 起纯转化口径，无「外购建档」）形成**调料产物** `SeasoningProduct`（物理表 `standard_seasonings`；三种产物同构，只是叫法，无配方）。产物**无独立新增入口**，只能从调味品行「转化」生成，产物类型继承来源调味品的 `seasoning_type`（快照，改调味品类型会级联）。
 
 价格链唯一真源：`lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：
 
 ```
-单价（元/斤）= transform：来源调味品每斤单价 ÷ (出成率 / 100)
-             = purchase ：手填每斤单价
+单价（元/斤）= 来源调味品每斤单价 ÷ (出成率 / 100)
 成本价       = 单价 + 封装加工费(元/斤)
 出库价       = 成本价 ÷ (1 − 毛利率 / 100)
 标准规格价(元/份) = 出库价 × packageSpec(g) ÷ 500
@@ -55,9 +54,9 @@ description: 涉及净料价格、调料产物价格、菜品成本、出成率�
 
 - 产物 `unitPrice` **强制服务端派生**，忽略客户端传入（与净料同规矩）。
 - **克需求由用户在菜品 BOM 里手填**，服务端不覆盖 —— 与净料/小料「用量 = 档案封装规格」的口径不同，勿混用。
-- 采购毛需求（`buildPurchasePlans`）：transform 产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`）；purchase 产物生成独立行（`sourceType:"seasoning_product"`）。
+- 采购毛需求（`buildPurchasePlans`）：产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`）。
 - **产物不进净菜库存**：无 `PreppedStock` / 出库单联动，库存只覆盖净料/小料。
-- 调料**无份量口径**：产物 `portion` 只作展示与档案标注，不参与 BOM 用量或采购量计算。
+- 调料**无份量口径**：产物无 `portion` 字段（2026-11-25 移除），BOM 按克、采购按克折算。
 - 酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）已业务剥离：写 API 冻结、页面下线，模型与历史数据只读；存量 BOM 酱料行成本仍按 `lib/server/sauce-utils.ts` 的既有公式计算。
 
 历史：2026-11-21 ~ 2026-11-24 曾「调料直接选原料 + 填克数、标准化下线」，2026-11-25 起由产物口径取代；`STANDARD_SEASONING_ENABLED` flag 已删除。
@@ -80,7 +79,7 @@ description: 涉及净料价格、调料产物价格、菜品成本、出成率�
 
 唯一真源：份量档案表 `portion_profiles`（设置模块「份量」，迁移 20261123083624）——单人份为基本单元（`isBase` 锁定，API 拒绝编辑/停用/删除），场景份量 = 单人份 × 倍率（`multiplier` 正整数）。
 
-- 菜品 / 净料 / 小料 / 调料产物的 `portion` 字段统一落档案 `portion` 标签（短值）
+- 菜品 / 净料 / 小料的 `portion` 字段统一落档案 `portion` 标签（短值）；调料产物无 `portion`（2026-11-25 移除）
 - 服务端写校验：`lib/server/portion-profile-utils.ts` 的 `validatePortionForCreate`（启用行）/ `validatePortionForUpdate`（任意状态行 ∪ 现值）
 - 客户端选项：`lib/client/use-portion-profiles.ts` 的 `usePortionProfiles` hook（模块级 60s 缓存）→ `toPortionOption` 映射；接口失败降级 `LEGACY_PORTION_OPTIONS` 兜底展示，不写回
 - 转化倍率 = 目标行 `multiplier` ÷ 源行 `multiplier`（`portionScaleFactor(source, target, profiles)`，profiles 必填）；旧 `bowlEquivalent`（社区 2N）口径作废，历史数据不做兼容

@@ -111,7 +111,7 @@
 本目录是 `lib/server/schedule-utils.ts` 的核心调用方：
 
 - `buildCuttingOrders(tx, scheduleId, items)` — 按菜品份数汇总净料/小料需求
-- `buildPurchasePlans(tx, scheduleId, items)` — 汇总原料（含小料按出成率折算）/调料/酱料需求，建议采购量 = 毛需求（库存抵扣已随 v002 下线）。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行。调料双口径（2026-11-25）：`specId` 产物行——transform 产物按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`），purchase 产物生成独立行（`sourceType:"seasoning_product"`，弱引用产物）；旧 `sourceId` 行按 `Ingredient.kind="seasoning"` 校验边界
+- `buildPurchasePlans(tx, scheduleId, items)` — 汇总原料（含小料按出成率折算）/调料/酱料需求，建议采购量 = 毛需求（库存抵扣已随 v002 下线）。小料自 2026-11 起与净料同口径，采购计划按来源原料聚合毛需求，不再生成独立小料采购行。调料（2026-11-25 调味品升级，纯转化口径）：`specId` 产物行按出成率折算（g ÷ yieldRate × 100）并入来源调味品行（`sourceType:"seasoning"`）；旧 `sourceId` 行按 `Ingredient.kind="seasoning"` 校验边界
 
 ## 注意事项
 
