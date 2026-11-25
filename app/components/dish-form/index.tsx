@@ -29,8 +29,7 @@ import {
   validatePublish,
   validateForSave,
   normalizeNetIngredients,
-  normalizeSauces,
-  normalizeIngredients,
+  normalizeSeasoningProducts,
 } from "./types";
 import { toast } from "sonner";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
@@ -93,14 +92,11 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
     let url: string;
     let normalizeFn: (items: unknown[]) => IngredientOption[];
 
-    if (type === "sauce") {
-      url = `/api/sauce-ingredients?${query.toString()}`;
-      normalizeFn = normalizeSauces;
-    } else if (type === "seasoning") {
-      // 调料直接选采购档案（SEA 调味品体系），选中后按克需求计成本
-      query.set("kind", "seasoning");
-      url = `/api/ingredients?${query.toString()}`;
-      normalizeFn = normalizeIngredients;
+    // 酱料机制已业务剥离：存量 BOM 行只读透传，选择入口不再打开 sauce 弹窗
+    if (type === "seasoning") {
+      // 调料一律选产物（单品/复合/成品酱料同构），选中后按克需求、出库价计成本
+      url = `/api/seasoning-products?${query.toString()}`;
+      normalizeFn = normalizeSeasoningProducts;
     } else {
       if (type === "main" || type === "support") {
         if (!l1Code && !l2Code && !q) query.set("excludeMinor", "true");

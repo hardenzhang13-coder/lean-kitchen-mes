@@ -54,6 +54,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const {
       name,
       alias,
+      kind,
       l2Code,
       purchaseUnit,
       stockUnit,
@@ -64,7 +65,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       season,
       storage,
       defaultSupplierId,
-      seasoningType,
     } = validation.data;
 
     if (name !== undefined) {
@@ -80,26 +80,38 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!existing) {
       return NextResponse.json({ error: "食材不存在或已删除" }, { status: 404 });
     }
-    const finalL2Code = l2Code ?? existing.l2Code;
-    const categoryChanged = finalL2Code !== existing.l2Code;
-    const category = await prisma.ingredientCategoryL2.findUnique({
-      where: { code: finalL2Code },
-      select: { code: true, parentCode: true },
-    });
-    if (!category) {
-      return badRequest("二级分类不存在");
+
+    // 食材（food）必须挂二级分类；调味品（seasoning）独立体系，分类恒为 NULL
+    const finalKind = kind ?? existing.kind;
+    const finalL2Code = finalKind === "food" ? l2Code ?? existing.l2Code : null;
+    if (finalKind === "food" && !finalL2Code) {
+      return badRequest("食材必须选择二级分类");
     }
-    const existingCategory = categoryChanged
-      ? await prisma.ingredientCategoryL2.findUnique({
-          where: { code: existing.l2Code },
-          select: { parentCode: true },
-        })
-      : null;
-    if (categoryChanged && !existingCategory) {
-      return badRequest("原二级分类不存在，请先修复分类档案");
+    const categoryChanged = finalL2Code !== existing.l2Code;
+
+    let category: { code: string; parentCode: string | null } | null = null;
+    let existingCategory: { parentCode: string | null } | null = null;
+    if (finalKind === "food") {
+      category = await prisma.ingredientCategoryL2.findUnique({
+        where: { code: finalL2Code! },
+        select: { code: true, parentCode: true },
+      });
+      if (!category) {
+        return badRequest("二级分类不存在");
+      }
+      existingCategory =
+        categoryChanged && existing.l2Code != null
+          ? await prisma.ingredientCategoryL2.findUnique({
+              where: { code: existing.l2Code },
+              select: { parentCode: true },
+            })
+          : null;
+      if (categoryChanged && existing.l2Code != null && !existingCategory) {
+        return badRequest("原二级分类不存在，请先修复分类档案");
+      }
     }
     const minorBoundaryChanged =
-      (category.parentCode === "MIN") !== (existingCategory?.parentCode === "MIN");
+      (category?.parentCode === "MIN") !== (existingCategory?.parentCode === "MIN");
 
     // 换算系数来自单位字典（见 lib/server/unit-factors.ts）
     const jinFactors = await getJinFactors();
@@ -121,8 +133,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       const row = await tx.ingredient.update({
         where: { id: Number(id) },
         data: {
-          name: name ?? existing.name,
+            name: name ?? existing.name,
           alias: alias !== undefined ? alias || null : existing.alias,
+          kind: finalKind,
           l2Code: finalL2Code,
           purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
           stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
@@ -142,16 +155,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
                 ),
           season: season !== undefined ? season || "四季" : existing.season,
           storage: storage !== undefined ? storage || "常温" : existing.storage,
-          seasoningType:
-            seasoningType !== undefined
-              ? seasoningType || null
-              : existing.seasoningType,
         },
       });
 
       // 分类是来源食材上的弱引用副本：改分类必须同事务级联净料/小料，避免清单分组漂移。
+      // 调味品不挂分类（l2Code 恒 NULL），且净料表 l2Code 非空，不做级联。
       let syncedNetCount = 0;
-      if (categoryChanged) {
+      if (categoryChanged && finalL2Code != null) {
         const synced = await tx.netIngredient.updateMany({
           where: { sourceIngredientId: Number(id), deletedAt: null },
           data: { l2Code: finalL2Code },

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -9,16 +9,22 @@ import { PageTabs } from "@/app/components/ui/page-tabs";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
 import { SeasoningListPanel } from "@/app/components/ingredients/seasoning-list-panel";
+import { SeasoningProductListPanel } from "@/app/components/ingredients/seasoning-product-list-panel";
+import type { SeasoningProductType } from "@/lib/shared/seasoning-product";
 import { toast } from "sonner";
 
 type SeasoningTab = "all" | "item" | "compound" | "sauce";
 
-// 页签过滤走调味品类型字段（ingredients.seasoning_type），不占食材分类体系
-const TABS: Array<{ value: SeasoningTab; label: string; seasoningType: string }> = [
-  { value: "all", label: "调味品", seasoningType: "" },
-  { value: "item", label: "单品调料", seasoningType: "单品调料" },
-  { value: "compound", label: "复合调料", seasoningType: "复合调料" },
-  { value: "sauce", label: "成品酱料", seasoningType: "成品酱料" },
+// 页签一 = 调味品原料层（kind=seasoning）；页签二~四 = 调料产物层（按产物类型）
+const TABS: Array<{
+  value: SeasoningTab;
+  label: string;
+  productType: SeasoningProductType | null;
+}> = [
+  { value: "all", label: "调味品", productType: null },
+  { value: "item", label: "单品调料", productType: "单品调料" },
+  { value: "compound", label: "复合调料", productType: "复合调料" },
+  { value: "sauce", label: "成品酱料", productType: "成品酱料" },
 ];
 
 function getTab(value: string | null): SeasoningTab {
@@ -90,12 +96,6 @@ function SeasoningListContent() {
     router.replace(`/ingredients/seasoning?tab=${next}`);
   };
 
-  // 新建调味品默认分类：SEA 下第一个启用二级分类（固体类/液体类）
-  const defaultL2Code = useMemo(() => {
-    const sea = categories.find((l1) => l1.code === "SEA");
-    return sea?.children[0]?.code;
-  }, [categories]);
-
   return (
     <PageShell
       variant="panel"
@@ -105,7 +105,7 @@ function SeasoningListContent() {
           showBack
           backHref="/ingredients"
           title="调味品"
-          description="调味品可转化为调料清单档案；单品/复合/成品酱料按类型归属"
+          description="调味品是原材料层，可转化为单品/复合/成品酱料三种标准化产物，供菜品 BOM 按克选用"
           actions={
             <SkeuButton onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />
@@ -132,50 +132,33 @@ function SeasoningListContent() {
               />
             </div>
           )}
-          {mountedTabs.includes("item") && (
-            <div className={activeTab === "item" ? "contents" : "hidden"}>
-              <SeasoningListPanel
-                categories={categories}
-                units={units}
-                fixedSeasoningType="单品调料"
-                refreshToken={refreshTokens.item}
-              />
-            </div>
-          )}
-          {mountedTabs.includes("compound") && (
-            <div className={activeTab === "compound" ? "contents" : "hidden"}>
-              <SeasoningListPanel
-                categories={categories}
-                units={units}
-                fixedSeasoningType="复合调料"
-                refreshToken={refreshTokens.compound}
-              />
-            </div>
-          )}
-          {mountedTabs.includes("sauce") && (
-            <div className={activeTab === "sauce" ? "contents" : "hidden"}>
-              <SeasoningListPanel
-                categories={categories}
-                units={units}
-                fixedSeasoningType="成品酱料"
-                refreshToken={refreshTokens.sauce}
-              />
-            </div>
-          )}
+          {TABS.filter((t) => t.productType !== null).map((t) => {
+            const tab = t.value;
+            const productType = t.productType as SeasoningProductType;
+            return (
+              mountedTabs.includes(tab) && (
+                <div key={tab} className={activeTab === tab ? "contents" : "hidden"}>
+                  <SeasoningProductListPanel
+                    productType={productType}
+                    refreshToken={refreshTokens[tab]}
+                  />
+                </div>
+              )
+            );
+          })}
         </div>
       </div>
 
       <IngredientFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        initialData={{ l2Code: defaultL2Code }}
         categories={categories}
         units={units}
         mode="seasoning"
         onSuccess={() => {
           setCreateOpen(false);
           refresh(activeTab);
-          // 新建可能落在其他分类 Tab，同步刷新全部
+          // 新建产物/原料互不影响，但转化可能落在其他 Tab：全部刷新
           refresh("all");
           refresh("item");
           refresh("compound");

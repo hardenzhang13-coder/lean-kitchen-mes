@@ -5,7 +5,6 @@ import { logOperation } from "@/lib/server/api-auth";
 import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import { createIngredientSchema, ingredientQuerySchema } from "@/lib/server/schemas/ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { logger } from "@/lib/server/logger";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
@@ -18,14 +17,11 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(ingredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { l1Code, l2Code, kind, seasoningType, q, page, pageSize } = validation.data;
+    const { l1Code, l2Code, kind, q, page, pageSize } = validation.data;
     const where: Prisma.IngredientWhereInput = { deletedAt: null };
     const categoryFilters: Prisma.IngredientWhereInput[] = [];
     if (l2Code) {
       categoryFilters.push({ l2Code });
-    }
-    if (seasoningType) {
-      categoryFilters.push({ seasoningType });
     }
     if (l1Code) {
       const children = await prisma.ingredientCategoryL2.findMany({
@@ -34,13 +30,9 @@ export async function GET(req: NextRequest) {
       });
       categoryFilters.push({ l2Code: { in: children.map((c) => c.code) } });
     }
-    // 模块边界过滤：原料清单不得混入调料（SEA 体系），反之亦然
+    // 模块边界过滤：原料清单与调味品清单按 Ingredient.kind 划分（调味品独立体系，不挂分类）
     if (kind) {
-      const seasoningL2Codes = await getSeasoningL2Codes();
-      categoryFilters.push({
-        l2Code:
-          kind === "raw" ? { notIn: seasoningL2Codes } : { in: seasoningL2Codes },
-      });
+      categoryFilters.push({ kind: kind === "raw" ? "food" : "seasoning" });
     }
     if (categoryFilters.length > 0) {
       where.AND = categoryFilters;
@@ -79,6 +71,7 @@ export async function POST(req: NextRequest) {
     const {
       name,
       alias,
+      kind,
       l2Code,
       purchaseUnit,
       stockUnit,
@@ -89,7 +82,6 @@ export async function POST(req: NextRequest) {
       season,
       storage,
       defaultSupplierId,
-      seasoningType,
     } = validation.data;
 
     const dupCheck = await checkDuplicateName(name);
@@ -97,12 +89,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "食材名称已存在" }, { status: 400 });
     }
 
-    const seasoningL2Codes = await getSeasoningL2Codes();
-    // 调味品类型是 SEA 体系专属属性：非调味品分类携带类型直接拒绝
-    if (seasoningType && !seasoningL2Codes.includes(l2Code)) {
-      return badRequest("调味品类型仅适用于调味品");
+    // 食材（food）必须挂二级分类；调味品（seasoning）独立体系，不挂分类
+    if (kind === "food" && !l2Code) {
+      return badRequest("食材必须选择二级分类");
     }
-    const prefix = seasoningL2Codes.includes(l2Code) ? "SEA" : "ING";
+    const prefix = kind === "seasoning" ? "SEA" : "ING";
 
     const last = await prisma.ingredient.findFirst({
       where: { code: { startsWith: `${prefix}-` } },
@@ -121,7 +112,8 @@ export async function POST(req: NextRequest) {
         code,
         name,
         alias: alias ?? null,
-        l2Code,
+        kind,
+        l2Code: kind === "food" ? l2Code : null,
         purchaseUnit: purchaseUnit ?? null,
         stockUnit: stockUnit ?? null,
         unitsPerPurchase: unitsPerPurchase ?? 1,
@@ -131,7 +123,6 @@ export async function POST(req: NextRequest) {
         defaultSupplierId: defaultSupplierId ?? null,
         season: season ?? "四季",
         storage: storage ?? "常温",
-        seasoningType: seasoningType || null,
       },
     });
     await logOperation(req, {

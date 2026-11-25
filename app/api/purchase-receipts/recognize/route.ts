@@ -5,7 +5,6 @@ import { resolveStockInfo } from "@/lib/shared/spec-parser";
 import { buildGramFactors } from "@/lib/shared/unit-conversion";
 import { logError } from "@/lib/server/logger";
 import { computeImageHash } from "@/lib/shared/utils";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { findBestIngredientMatch } from "@/lib/shared/name-utils";
 
 export async function POST(req: NextRequest) {
@@ -31,13 +30,14 @@ export async function POST(req: NextRequest) {
       console.log(`[AI] 识别到供应商: ${recognized.supplierName}`);
     }
 
-    const [ingredients, l2Categories, units, seasoningL2Codes] = await Promise.all([
+    const [ingredients, l2Categories, units] = await Promise.all([
       prisma.ingredient.findMany({
         where: { deletedAt: null },
         select: {
           id: true,
           name: true,
           alias: true,
+          kind: true,
           l2Code: true,
           purchaseUnit: true,
           stockUnit: true,
@@ -49,10 +49,8 @@ export async function POST(req: NextRequest) {
         select: { code: true, name: true, parentCode: true },
       }),
       prisma.unit.findMany({ select: { name: true, gramsPerUnit: true } }),
-      getSeasoningL2Codes(),
     ]);
 
-    const seasoningL2Set = new Set(seasoningL2Codes);
     // 克级换算表：统一入库换算（resolveStockInfo）的系数来源
     const gramFactors = buildGramFactors(units);
     const l2NameMap = new Map(l2Categories.map((c) => [c.code, c.name]));
@@ -88,7 +86,8 @@ export async function POST(req: NextRequest) {
       // 统一查询 Ingredient 表（按名称相似度匹配）
       const { match: ingMatch, score } = findBestIngredientMatch(displayItemName, ingredients);
       if (ingMatch && score >= 0.9) {
-        const isSeasoning = seasoningL2Set.has(ingMatch.l2Code);
+        // 调味品边界由 Ingredient.kind 判定（调味品独立体系，不挂分类）
+        const isSeasoning = ingMatch.kind === "seasoning";
         // AI 直接抽取的入库信息优先；否则按食材库规格做统一宽语法换算
         const stockInfo =
           item.stockUnit && item.stockQty != null
@@ -120,7 +119,7 @@ export async function POST(req: NextRequest) {
           ingredientId: ingMatch.id,
           itemName: displayItemName || ingMatch.name,
           l2Code: ingMatch.l2Code,
-          l2Name: l2NameMap.get(ingMatch.l2Code) || item.categoryName || "",
+          l2Name: (ingMatch.l2Code ? l2NameMap.get(ingMatch.l2Code) : undefined) || item.categoryName || "",
           category: isSeasoning ? "调料" : "原料",
         };
       }

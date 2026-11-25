@@ -85,6 +85,7 @@ model Supplier {
   receipts PurchaseReceipt[]
   ingredients     Ingredient[]
   sauceIngredients SauceIngredient[]
+  seasoningProducts SeasoningProduct[]
   purchasePlans   PurchasePlan[]
 
   @@map("suppliers")
@@ -95,7 +96,10 @@ model Ingredient {
   code           String                @unique
   name           String
   alias          String?
-  l2Code         String                @map("l2_code")
+  // 大类边界：food=食材（挂一二级分类）/ seasoning=调味品（独立体系，不挂分类）
+  kind           String                @default("food") @map("kind") @db.VarChar(20)
+  // 一二级分类（食材必填；调味品独立，不挂分类置空）
+  l2Code         String?               @map("l2_code")
   purchaseSpec   String?               @map("purchase_spec")
   purchaseUnit   String?               @map("purchase_unit")
   stockUnit      String?               @map("stock_unit")
@@ -105,8 +109,6 @@ model Ingredient {
   pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
   season         String                @default("四季") @map("season")
   storage        String                @default("常温") @map("storage")
-  // 调味品类型（2026-11-24 独立字段）：单品调料/复合调料/成品酱料；不占食材二级分类
-  seasoningType  String?               @map("seasoning_type") @db.VarChar(20)
   createdAt      DateTime              @default(now()) @map("created_at")
   deletedAt      DateTime?             @map("deleted_at")
   inventory      Inventory?
@@ -115,8 +117,9 @@ model Ingredient {
   ledger         InventoryLedger[]
   netIngredients NetIngredient[]
   receiptItems   PurchaseReceiptItem[]
-  standardSeasonings StandardSeasoning[]
+  seasoningProducts SeasoningProduct[]
 
+  @@index([kind])
   @@map("ingredients")
 }
 
@@ -178,6 +181,8 @@ model NetPackaging {
   @@map("net_packagings")
 }
 
+// ⚠️ 业务剥离（2026-11-25 调味品升级）：成品酱料改走 SeasoningProduct（外购口径），
+// 本表与配方机制只读保留（先例：SelfProductionOrder），页面与写 API 已下线，不再接新数据
 model SauceIngredient {
   id        Int      @id @default(autoincrement())
   code      String   @unique
@@ -288,50 +293,63 @@ model DishNetDetail {
 model DishSeasoningDetail {
   id       Int      @id @default(autoincrement())
   dishId   Int      @map("dish_id")
-  type     String // minor(小料) / seasoning(调料)
+  type     String // minor(小料，仅存量) / seasoning(调料)
+  // 存量旧口径行直引原料（ingredients）；新行为 0 且用 specId 引产物
   sourceId Int      @map("source_id")
-  // 标准化规格（standard_seasonings.id）：空 = 存量旧口径行（直接引用采购调料）
+  // 调料产物（standard_seasonings.id）：按克用量，空 = 存量旧口径行（直接引用采购调味品）
   specId   Int?     @map("spec_id")
   amountG  Decimal  @map("amount_g") @db.Decimal(10, 2)
   brand    String?
   cost     Decimal? @db.Decimal(10, 2)
   dish     Dish     @relation(fields: [dishId], references: [id], onDelete: Cascade)
-  spec     StandardSeasoning? @relation(fields: [specId], references: [id])
+  product  SeasoningProduct? @relation(fields: [specId], references: [id])
 
   @@index([specId])
   @@map("dish_seasoning_details")
 }
 
-model StandardSeasoning {
+// 调料产物（调味品标准化转化 / 外购建档）：单品调料、复合调料、成品酱料同构
+// 物理表名沿用 standard_seasonings（存量 spec_id 外键零触碰）
+model SeasoningProduct {
   id                 Int               @id @default(autoincrement())
   code               String            @unique
   name               String
-  // 来源调料（ingredients 中 SEA 调味品体系）：标准化规格的来源档案
-  sourceIngredientId Int               @map("source_ingredient_id")
-  // 标准规格（g）：调料标准规格统一以 g 计，不引入瓶/袋等单位；是 BOM 用量的唯一真源
+  // 产物类型：单品调料 / 复合调料 / 成品酱料
+  productType        String            @map("product_type") @db.VarChar(20)
+  // 成本口径：transform=转化（来源调味品+出成率派生）/ purchase=外购（手填每斤单价）
+  sourceMode         String            @map("source_mode") @db.VarChar(20)
+  // 来源调味品（ingredients 中 kind=seasoning）：仅 transform 口径必填
+  sourceIngredientId Int?              @map("source_ingredient_id")
+  // 出成率（%）：仅 transform 口径必填；成本价 = 来源每斤单价 ÷ (出成率/100)
+  yieldRate          Decimal?          @map("yield_rate") @db.Decimal(5, 2)
+  // 外购字段（purchase 口径，同外购酱料录入逻辑）
+  brand              String?
+  purchaseSpec       String?           @map("purchase_spec")
+  purchaseUnit       String?           @map("purchase_unit")
+  latestRefPrice     Decimal?          @map("latest_ref_price") @db.Decimal(10, 2)
+  // 外购每斤单价（元/斤）：服务端按采购规格自动换算，换算不出可手填；purchase 口径成本价来源
+  pricePerJin        Decimal?          @map("price_per_jin") @db.Decimal(10, 4)
+  defaultSupplierId  Int?              @map("default_supplier_id")
+  defaultSupplier    Supplier?         @relation(fields: [defaultSupplierId], references: [id])
+  // 封装规格（g）：标准封装单位克数；标准规格价（元/份）= 出库价 × 封装规格 ÷ 500
   packageSpec        Int               @map("package_spec")
-  // 份量（小碗菜 / 社区口径）：与净料、小料、菜品共用同一套枚举
+  // 份量：与净料、小料、菜品共用同一套份量档案
   portion            String?           @map("portion") @db.VarChar(50)
-  // 出成率（%）：标准化分装的出成率，必填
-  yieldRate          Decimal           @map("yield_rate") @db.Decimal(5, 2)
-  // 单价（元/斤）：来源调料每斤单价 ÷ (出成率/100)，服务端实时派生
+  // 单价（元/斤）：transform = 来源每斤单价 ÷ (出成率/100)；purchase = 手填每斤单价；服务端派生
   unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
   // 封装加工费（元/斤），空 = 0
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)
   // 毛利率（%），空 = 0；出库价 = 成本价 ÷ (1 - 毛利率/100)
   grossMarginRate    Decimal?          @map("gross_margin_rate") @db.Decimal(5, 2)
-  // 二级分类：继承来源调料
-  l2Code             String            @map("l2_code")
   storage            String            @default("常温") @map("storage")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
   deletedAt          DateTime?         @map("deleted_at")
-  sourceIngredient   Ingredient        @relation(fields: [sourceIngredientId], references: [id])
+  sourceIngredient   Ingredient?       @relation(fields: [sourceIngredientId], references: [id])
   dishSeasoningDetails DishSeasoningDetail[]
 
   @@index([sourceIngredientId])
   @@index([deletedAt])
-  @@index([l2Code])
   @@map("standard_seasonings")
 }
 

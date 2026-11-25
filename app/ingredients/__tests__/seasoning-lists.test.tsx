@@ -20,25 +20,20 @@ let currentSearchParams = new URLSearchParams();
 
 const categories = [
   {
-    code: "SEA",
-    name: "调味品",
-    children: [
-      { code: "SEA-SOL", name: "固体类", parentCode: "SEA" },
-      { code: "SEA-LIQ", name: "液体类", parentCode: "SEA" },
-    ],
+    code: "MEA",
+    name: "肉类",
+    children: [{ code: "MEA-POR", name: "猪肉", parentCode: "MEA" }],
   },
 ];
 
 const units = [{ id: 1, name: "斤", category: "重量" }];
 
-const rows = [
+const rawRows = [
   {
     id: 1,
     code: "SEA-0001",
     name: "生抽",
-    alias: null,
-    l2Code: "SEA-LIQ",
-    seasoningType: "单品调料",
+    alias: "海天金标",
     purchaseSpec: "500ml/瓶",
     purchaseUnit: "瓶",
     stockUnit: "斤",
@@ -52,8 +47,6 @@ const rows = [
     code: "SEA-0002",
     name: "十三香",
     alias: null,
-    l2Code: "SEA-SOL",
-    seasoningType: "复合调料",
     purchaseSpec: "45g/盒",
     purchaseUnit: "盒",
     stockUnit: "斤",
@@ -61,6 +54,31 @@ const rows = [
     latestRefPrice: 6.2,
     pricePerJin: 69,
     defaultSupplierId: null,
+  },
+];
+
+const productRows = [
+  {
+    id: 50,
+    code: "SP-0001",
+    name: "蒸鱼双椒酱•1200g",
+    productType: "单品调料",
+    sourceMode: "transform",
+    packageSpec: 1200,
+    portion: "单人份",
+    yieldRate: 80,
+    unitPrice: 12.5,
+    processingFeePerJin: null,
+    grossMarginRate: 0,
+    outPricePerJin: 12.5,
+    standardPackagePrice: 30,
+    brand: null,
+    purchaseSpec: null,
+    purchaseUnit: null,
+    latestRefPrice: null,
+    pricePerJin: null,
+    sourceIngredient: { id: 7, name: "蒸鱼双椒酱", purchaseSpec: null, pricePerJin: 10 },
+    defaultSupplier: null,
   },
 ];
 
@@ -79,8 +97,17 @@ beforeEach(() => {
       return {
         ok: true,
         json: async () => ({
-          data: rows,
+          data: rawRows,
           pagination: { totalItems: 2, totalPages: 1, page: 1, pageSize: 20 },
+        }),
+      } as Response;
+    }
+    if (url.includes("/api/seasoning-products?")) {
+      return {
+        ok: true,
+        json: async () => ({
+          data: productRows,
+          pagination: { totalItems: 1, totalPages: 1, page: 1, pageSize: 20 },
         }),
       } as Response;
     }
@@ -88,14 +115,20 @@ beforeEach(() => {
   }) as jest.MockedFunction<typeof fetch>;
 });
 
-function ingredientListRequests() {
+function rawListRequests() {
   return (global.fetch as jest.MockedFunction<typeof fetch>).mock.calls
     .map(([input]) => String(input))
     .filter((url) => url.includes("/api/ingredients?"));
 }
 
+function productListRequests() {
+  return (global.fetch as jest.MockedFunction<typeof fetch>).mock.calls
+    .map(([input]) => String(input))
+    .filter((url) => url.includes("/api/seasoning-products?"));
+}
+
 describe("调味品清单", () => {
-  it("默认进入调味品 Tab，展示四个页签与全部调味品", async () => {
+  it("默认进入调味品 Tab：原料层列表，kind=seasoning 且不带分类/类型过滤", async () => {
     render(<SeasoningIngredientsPage />);
 
     expect(screen.getByRole("heading", { name: "调味品" })).toBeInTheDocument();
@@ -111,12 +144,13 @@ describe("调味品清单", () => {
     expect(screen.getByText("十三香")).toBeInTheDocument();
     expect(screen.getByText("共 2 条")).toBeInTheDocument();
 
-    await waitFor(() =>
-      expect(ingredientListRequests().length).toBeGreaterThan(0)
-    );
+    await waitFor(() => expect(rawListRequests().length).toBeGreaterThan(0));
     expect(
-      ingredientListRequests().every(
-        (u) => !u.includes("l2Code") && !u.includes("seasoningType")
+      rawListRequests().every(
+        (u) =>
+          u.includes("kind=seasoning") &&
+          !u.includes("l2Code") &&
+          !u.includes("seasoningType")
       )
     ).toBe(true);
   });
@@ -126,23 +160,38 @@ describe("调味品清单", () => {
     ["compound", "复合调料"],
     ["sauce", "成品酱料"],
   ] as const)(
-    "tab=%s 挂类型「%s」过滤",
-    async (tab, seasoningType) => {
+    "tab=%s 产物层按 productType「%s」请求",
+    async (tab, productType) => {
       currentSearchParams = new URLSearchParams(`tab=${tab}`);
       render(<SeasoningIngredientsPage />);
 
       expect(
-        screen.getByRole("tab", { name: seasoningType })
+        screen.getByRole("tab", { name: productType })
       ).toHaveAttribute("aria-selected", "true");
 
-      await waitFor(() => expect(ingredientListRequests().length).toBeGreaterThan(0));
+      await waitFor(() =>
+        expect(productListRequests().length).toBeGreaterThan(0)
+      );
       expect(
-        ingredientListRequests().some((u) =>
-          u.includes(`seasoningType=${encodeURIComponent(seasoningType)}`)
+        productListRequests().some((u) =>
+          u.includes(`productType=${encodeURIComponent(productType)}`)
         )
       ).toBe(true);
+      // 产物层不请求原料列表
+      expect(rawListRequests().length).toBe(0);
     }
   );
+
+  it("产物 Tab 展示产物行（规格/出库价/来源）", async () => {
+    currentSearchParams = new URLSearchParams("tab=item");
+    render(<SeasoningIngredientsPage />);
+
+    await waitFor(() =>
+      expect(screen.getByText("蒸鱼双椒酱•1200g")).toBeInTheDocument()
+    );
+    expect(screen.getByText("1200g")).toBeInTheDocument();
+    expect(screen.getByText("转化 · 蒸鱼双椒酱")).toBeInTheDocument();
+  });
 
   it("点击页签会更新 URL", async () => {
     render(<SeasoningIngredientsPage />);

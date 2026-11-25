@@ -1,15 +1,16 @@
 "use client";
 
-import { getSeasoningTypeOption } from "@/lib/shared/seasoning-type";
+import { getSeasoningProductTypeOption } from "@/lib/shared/seasoning-product";
 import { cn } from "@/lib/shared/utils";
 
 interface SeasoningTypeTagProps {
+  /** 产物类型：单品调料/复合调料/成品酱料（SeasoningProduct.productType） */
   type?: string | null;
   className?: string;
 }
 
 export function SeasoningTypeTag({ type, className }: SeasoningTypeTagProps) {
-  const option = getSeasoningTypeOption(type);
+  const option = getSeasoningProductTypeOption(type);
   if (!option) return null;
 
   return (

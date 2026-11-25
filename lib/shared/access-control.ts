@@ -66,6 +66,11 @@ export function canAccessApi(
     return !write;
   }
 
+  // 酱料机制已业务剥离（2026-11-25 调味品模块升级），API 仅保留只读，写入口全部关闭
+  if (pathname.startsWith("/api/sauce-ingredients")) {
+    return !write;
+  }
+
   if (pathname.startsWith("/api/outbound-orders") || pathname.startsWith("/api/prepped-stock")) {
     return !write || isAdmin(role) || isOperations(role);
   }
@@ -74,8 +79,7 @@ export function canAccessApi(
     "/api/dishes",
     "/api/ingredients",
     "/api/net-ingredients",
-    "/api/standard-seasonings",
-    "/api/sauce-ingredients",
+    "/api/seasoning-products",
     "/api/dish-categories",
     "/api/portion-profiles",
     "/api/ingredient-categories",

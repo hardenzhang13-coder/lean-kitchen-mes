@@ -23,8 +23,7 @@ import {
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
 import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
-import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
-import { STANDARD_SEASONING_ENABLED } from "@/app/components/ingredients/standard-seasoning-flag";
+import { SeasoningProductListSheet } from "@/app/components/ingredients/seasoning-product-list-sheet";
 import {
   CategoryL1,
   IngredientFormFields,
@@ -45,9 +44,8 @@ export type RawDetail = {
   code: string;
   name: string;
   alias: string | null;
-  l2Code: string;
-  /** 调味品类型：单品调料/复合调料/成品酱料；空 = 基础调味品 */
-  seasoningType?: string | null;
+  /** 食材二级分类；调味品独立体系不挂分类，恒为空 */
+  l2Code?: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -148,8 +146,7 @@ export function IngredientDetailSheet({
             id: raw.id,
             code: raw.code,
             name: raw.name,
-            l2Code: raw.l2Code,
-            seasoningType: raw.seasoningType,
+            l2Code: raw.l2Code ?? undefined,
             alias: raw.alias,
             purchaseSpec: raw.purchaseSpec,
             purchaseUnit: raw.purchaseUnit,
@@ -426,13 +423,13 @@ export function IngredientDetailSheet({
                           关联菜品
                         </SkeuButton>
                       ) : null}
-                      {kind === "seasoning" && STANDARD_SEASONING_ENABLED ? (
+                      {kind === "seasoning" ? (
                         <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setPackagedOpen(true)}
                         >
                           <PackageOpen className="h-4 w-4" />
-                          查看调料清单
+                          查看产物
                         </SkeuButton>
                       ) : null}
                       {onCopy ? (
@@ -465,8 +462,7 @@ export function IngredientDetailSheet({
                     </>
                   }
                   primary={
-                    onConvert &&
-                    !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
+                    onConvert ? (
                       <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                         <ArrowRightLeft className="h-4 w-4" />
                         转化
@@ -534,8 +530,7 @@ export function IngredientDetailSheet({
                 }
                 primary={
                   (kind === "raw" || kind === "seasoning") &&
-                  onConvert &&
-                  !(kind === "seasoning" && !STANDARD_SEASONING_ENABLED) ? (
+                  onConvert ? (
                     <SkeuButton size="sm" onClick={() => onConvert(data.id)}>
                       <ArrowRightLeft className="h-4 w-4" />
                       转化
@@ -611,14 +606,13 @@ export function IngredientDetailSheet({
         )}
       </RecordSheet>
 
-      {kind === "seasoning" && data && STANDARD_SEASONING_ENABLED && (
-        <StandardSeasoningListSheet
+      {kind === "seasoning" && data && (
+        <SeasoningProductListSheet
           open={packagedOpen}
           onOpenChange={setPackagedOpen}
           sourceIngredientId={data.id}
           sourceName={data.name}
           sourceCode={data.code}
-          sourceL2Name={categoryName}
         />
       )}
 
@@ -669,13 +663,7 @@ function RawDetailContent({
           label={kind === "seasoning" ? "商品名称" : "品牌名称"}
           value={data.alias || "—"}
         />
-        {kind === "seasoning" && (
-          <InfoCell
-            label="调味品类型"
-            value={data.seasoningType || "—"}
-          />
-        )}
-        <InfoCell label="分类" value={categoryName || data.l2Code} />
+        <InfoCell label="分类" value={categoryName || data.l2Code || "—"} />
       </DetailSection>
       <DetailSection title="采购与计量">
         <InfoCell label="采购规格" value={data.purchaseSpec || "—"} />

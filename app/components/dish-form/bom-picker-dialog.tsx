@@ -17,6 +17,7 @@ import { useDebounce } from "@/lib/client/hooks";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { BomType, IngredientOption, IngredientCategory } from "./types";
 import { PortionTag } from "@/app/components/ui/portion-tag";
+import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { cn } from "@/lib/shared/utils";
 
 import { toast } from "sonner";
@@ -72,17 +73,11 @@ export function BomPickerDialog({
   defaultAmountG = "100",
 }: BomPickerDialogProps) {
   const { l1Categories, hasCategories } = useMemo(() => {
-    if (hideCategories || type === "sauce") {
+    // 调味品产物层不挂分类体系；酱料已业务剥离（存量行只读，不再打开选择弹窗）
+    if (hideCategories || type === "sauce" || type === "seasoning") {
       return {
         l1Categories: [] as IngredientCategory[],
         hasCategories: false,
-      };
-    }
-
-    if (type === "seasoning") {
-      return {
-        l1Categories: refs.ingredientCategories.filter((c) => c.code === "SEA"),
-        hasCategories: true,
       };
     }
 
@@ -208,8 +203,6 @@ export function BomPickerDialog({
   };
 
   const isSearchMode = debouncedSearch.trim().length > 0;
-  const isSeasoning = type === "seasoning";
-  const isSauce = type === "sauce";
 
   // 客户端分页：列表一次性取回当前分类下的全部数据，分页只做展示切片
   const totalItems = items.length;
@@ -284,28 +277,31 @@ export function BomPickerDialog({
     },
   ];
 
-  // 调味品：调味品名称 / 商品名称 / 采购规格 / 每斤单价
+  // 调料产物：名称（+类型标签）/ 包装规格 / 出库价 / 标准规格价 / 来源
   const seasoningColumns: ColumnDef<IngredientOption>[] = [
     seqColumn,
     {
-      header: "调味品名称",
-      className: "w-[150px]",
+      header: "产物名称",
+      className: "w-[160px]",
       cell: (row) => (
-        <span className="font-semibold text-primary">{row.name}</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="font-semibold text-primary">{row.name}</span>
+          <SeasoningTypeTag type={row.productType} />
+        </span>
       ),
     },
     {
-      header: "商品名称",
-      className: "w-[130px]",
-      cell: (row) => row.productName || "—",
+      header: "包装规格",
+      className: "w-[100px] text-right",
+      cell: (row) =>
+        row.packageSpec != null ? (
+          <span className="tabular-nums">{row.packageSpec}g</span>
+        ) : (
+          "—"
+        ),
     },
     {
-      header: "采购规格",
-      className: "w-[120px]",
-      cell: (row) => row.spec || "—",
-    },
-    {
-      header: "每斤单价",
+      header: "出库价",
       className: "w-[110px] text-right",
       cell: (row) =>
         row.costPrice != null ? (
@@ -313,33 +309,29 @@ export function BomPickerDialog({
             ¥{Number(row.costPrice).toFixed(2)}/斤
           </span>
         ) : (
-          <span className="text-muted-foreground">缺单价</span>
+          <span className="text-muted-foreground">缺价</span>
         ),
     },
-  ];
-
-  // 酱料：沿用原有口径（出库价取值问题本轮不处理）
-  const sauceColumns: ColumnDef<IngredientOption>[] = [
-    seqColumn,
     {
-      header: "名称",
-      className: "w-[150px]",
-      cell: (row) => (
-        <span className="font-semibold text-primary">{row.name}</span>
-      ),
-    },
-    {
-      header: "商品名称",
-      className: "w-[130px]",
-      cell: (row) => row.productName || "—",
-    },
-    {
-      header: "出库价",
+      header: "标准规格价",
       className: "w-[110px] text-right",
       cell: (row) =>
-        row.unitPrice != null ? (
+        row.standardPackagePrice != null ? (
           <span className="tabular-nums">
-            ¥{Number(row.unitPrice).toFixed(2)}/斤
+            ¥{Number(row.standardPackagePrice).toFixed(2)}/份
+          </span>
+        ) : (
+          "—"
+        ),
+    },
+    {
+      header: "来源",
+      className: "w-[130px]",
+      cell: (row) =>
+        row.productName ? (
+          <span className="text-muted-foreground">
+            {row.sourceMode === "purchase" ? "外购 · " : "转化 · "}
+            {row.productName}
           </span>
         ) : (
           "—"
@@ -347,16 +339,16 @@ export function BomPickerDialog({
     },
   ];
 
-  const columns = isSeasoning
-    ? seasoningColumns
-    : isSauce
-      ? sauceColumns
-      : netColumns;
+  const columns = type === "seasoning" ? seasoningColumns : netColumns;
 
-  // 空态文案：搜索中与按分类浏览两种口径
+  // 空态文案：搜索中与按分类浏览两种口径（无分类体系类型直接提示暂无数据）
   const emptyState = {
     icon: Search,
-    title: isSearchMode ? "暂无匹配原料" : "该分类下暂无原料",
+    title: isSearchMode
+      ? "暂无匹配原料"
+      : hasCategories
+        ? "该分类下暂无原料"
+        : "暂无原料",
     description: isSearchMode ? "请尝试调整搜索条件" : "请选择分类",
   };
 

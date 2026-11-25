@@ -7,9 +7,7 @@ import {
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
-import { SelectField } from "@/app/components/ui/select-field";
 import { CategoryCascadeSelect } from "@/app/components/ui/category-cascade-select";
-import { SEASONING_TYPE_OPTIONS } from "@/lib/shared/seasoning-type";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
@@ -34,8 +32,6 @@ export interface IngredientFormData {
   name: string;
   l1Code: string;
   l2Code: string;
-  // 调味品类型（仅调味品模式）：空 = 基础调味品
-  seasoningType: string;
   alias: string;
   purchaseSpec: string;
   purchaseUnit: string;
@@ -81,36 +77,16 @@ export function IngredientFormFields({
 
   const filteredCategories = useMemo(() => {
     // MIN（小料）分类不用于食材/调味品建档：小料是转化品，其采购食材归在蔬菜-香辛料等业务分类
-    if (mode === "auto") {
+    if (mode === "ingredient" || mode === "auto") {
       return categories.filter((l1) => l1.code !== "MIN");
     }
-    if (mode === "seasoning") {
-      // 调味品体系 = SEA（调味品）一级分类（编码识别，不受分类改名影响）
-      return categories.filter((l1) => l1.code === "SEA");
-    }
-    // mode === "ingredient"：排除 SEA（调味品）与 MIN（小料）
-    return categories.filter(
-      (l1) => l1.code !== "SEA" && l1.code !== "MIN"
-    ) as CategoryL1[];
+    // mode === "seasoning"：调味品独立体系不挂食材分类，级联选择整体隐藏
+    return categories;
   }, [categories, mode]);
 
-  const selectedL2 = (() => {
-    if (!form.l2Code) return undefined;
-    for (const l1 of categories) {
-      const l2 = l1.children.find((c) => c.code === form.l2Code);
-      if (l2) return { ...l2, parentName: l1.name, parentCode: l1.code };
-    }
-    return undefined;
-  })();
-
-  const isSeasoning =
-    mode === "seasoning" || (mode === "auto" && selectedL2?.parentCode === "SEA");
+  const isSeasoning = mode === "seasoning";
   const aliasLabel = mode === "ingredient" ? "品牌名称" : "商品名称";
   const hidePlaceholderOnFocus = mode === "ingredient";
-
-  // Radix Select 不接受空字符串选项值，「不设置」用哨兵值承载
-  const SEASONING_TYPE_NONE = "__none__";
-
 
   // 规格可换算性即时反馈：换算系数来自单位字典，字典为空时回退内置兜底值
   const jinFactors = useMemo(() => {
@@ -159,23 +135,25 @@ export function IngredientFormFields({
 
         <FormLayout variant={layout}>
           <FormSection title="基础信息" cols={groupCols} className="h-full">
-            <FormField
-              label="食材分类"
-              required
-              readOnly={viewMode}
-              error={errors.l1Code || errors.l2Code}
-            >
-              <CategoryCascadeSelect
-                categories={filteredCategories}
-                l1Code={form.l1Code}
-                l2Code={form.l2Code}
-                onChange={(l1, l2) => {
-                  onChange("l1Code", l1);
-                  onChange("l2Code", l2);
-                }}
-                viewMode={viewMode}
-              />
-            </FormField>
+            {!isSeasoning && (
+              <FormField
+                label="食材分类"
+                required
+                readOnly={viewMode}
+                error={errors.l1Code || errors.l2Code}
+              >
+                <CategoryCascadeSelect
+                  categories={filteredCategories}
+                  l1Code={form.l1Code}
+                  l2Code={form.l2Code}
+                  onChange={(l1, l2) => {
+                    onChange("l1Code", l1);
+                    onChange("l2Code", l2);
+                  }}
+                  viewMode={viewMode}
+                />
+              </FormField>
+            )}
 
             <FormField
               label={aliasLabel}
@@ -197,42 +175,6 @@ export function IngredientFormFields({
                 />
               )}
             </FormField>
-
-            {mode === "seasoning" && (
-              <FormField
-                label="调味品类型"
-                readOnly={viewMode}
-                hint="不选择则为基础调味品，只出现在「调味品」页签"
-              >
-                {viewMode ? (
-                  <ReadOnlyValue
-                    value={
-                      SEASONING_TYPE_OPTIONS.find(
-                        (o) => o.value === form.seasoningType
-                      )?.label ?? "—"
-                    }
-                  />
-                ) : (
-                  <SelectField
-                    value={form.seasoningType || SEASONING_TYPE_NONE}
-                    onChange={(value) =>
-                      onChange(
-                        "seasoningType",
-                        value === SEASONING_TYPE_NONE ? "" : value
-                      )
-                    }
-                    options={[
-                      { value: SEASONING_TYPE_NONE, label: "不设置（基础调味品）" },
-                      ...SEASONING_TYPE_OPTIONS.map((o) => ({
-                        value: o.value,
-                        label: o.label,
-                      })),
-                    ]}
-                    placeholder="选择类型"
-                  />
-                )}
-              </FormField>
-            )}
           </FormSection>
 
           <FormSection title="采购与计量" cols={groupCols} className="h-full">

@@ -36,6 +36,7 @@ import { CategoryTag } from "@/app/components/ui/category-tag";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
+import type { SavedIngredientRecord } from "@/app/components/ingredients/use-ingredient-form";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { PageHeader } from "@/app/components/ui/page-header";
@@ -91,15 +92,7 @@ interface Unit {
   isActive?: boolean;
 }
 
-type CreatedIngredient = {
-  id: number;
-  name: string;
-  alias?: string | null;
-  l2Code: string;
-  stockUnit?: string | null;
-  purchaseUnit?: string | null;
-  purchaseSpec?: string | null;
-};
+type CreatedIngredient = SavedIngredientRecord;
 
 interface RecognizedItem {
   name?: string;
@@ -571,7 +564,7 @@ export default function NewPurchasePage() {
   const handleIngredientSuccess = (data: CreatedIngredient) => {
     if (!dialogItem) return;
 
-    const { l1Name, l2Name } = getCategoryNames(categories, data.l2Code);
+    const { l1Name, l2Name } = getCategoryNames(categories, data.l2Code ?? "");
 
     setItems((prev) =>
       prev.map((it) => {
@@ -594,7 +587,7 @@ export default function NewPurchasePage() {
           ingredientId: data.id,
           itemName: data.name,
           brand: data.alias || it.brand || "",
-          l2Code: data.l2Code,
+          l2Code: data.l2Code ?? "",
           l2Name,
           spec,
           purchaseUnit,

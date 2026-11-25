@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/server/prisma";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import {
   calcOutPricePerJin,
   calcStandardPackagePrice,
@@ -31,15 +30,15 @@ export interface ResolvedRecipeLine extends RecipeLineInput {
 }
 
 /**
- * 解析配方行：校验引用存在（净料未删除；调料必须属于 SEA 调味品子树），
+ * 解析配方行：校验引用存在（净料未删除；调料必须属 kind=seasoning 调味品），
  * 并按当前价格体系计算行单价与行成本。非法引用抛错（由路由捕获转 400）。
+ * 注：酱料机制已业务剥离（只读保留），本函数仅服务历史配方行的成本读取。
  */
 export async function resolveRecipeLines(
   lines: RecipeLineInput[]
 ): Promise<ResolvedRecipeLine[]> {
   const netIds = lines.filter((l) => l.lineType === "net").map((l) => l.refId);
   const seasoningIds = lines.filter((l) => l.lineType === "seasoning").map((l) => l.refId);
-  const seasoningL2Codes = await getSeasoningL2Codes();
 
   const [nets, seasonings] = await Promise.all([
     prisma.netIngredient.findMany({
@@ -55,8 +54,8 @@ export async function resolveRecipeLines(
       },
     }),
     prisma.ingredient.findMany({
-      where: { id: { in: seasoningIds } },
-      select: { id: true, name: true, l2Code: true, pricePerJin: true },
+      where: { id: { in: seasoningIds }, kind: "seasoning" },
+      select: { id: true, name: true, pricePerJin: true },
     }),
   ]);
 
@@ -67,9 +66,7 @@ export async function resolveRecipeLines(
     })
   );
   const seasoningMap = new Map(
-    seasonings
-      .filter((s) => seasoningL2Codes.includes(s.l2Code))
-      .map((s) => [s.id, { name: s.name, price: s.pricePerJin != null ? Number(s.pricePerJin) : null }] as const)
+    seasonings.map((s) => [s.id, { name: s.name, price: s.pricePerJin != null ? Number(s.pricePerJin) : null }] as const)
   );
 
   return lines.map((line) => {

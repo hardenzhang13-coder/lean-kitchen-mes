@@ -38,7 +38,7 @@ export function BomItemRow({
     if (!onChange) return;
     const amount = Number(value);
     const valid = Number.isFinite(amount) && amount > 0 ? amount : 0;
-    // 调料成本 = 每斤单价（元/斤）× 克需求 ÷ 500
+    // 调料成本 = 成本价（产物行 = 出库价；旧口径行 = 每斤单价）× 克需求 ÷ 500
     onChange({ ...item, amountG: value, cost: calcCost(type, item.costPrice ?? null, valid) });
   };
 

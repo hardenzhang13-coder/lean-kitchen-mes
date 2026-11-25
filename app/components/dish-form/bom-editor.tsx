@@ -91,16 +91,18 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
           onSelect={(items) => {
             if (!pickerType) return;
             const newItems = items.map(({ option, amountG }) => {
-              // 调料按克需求手填（弹窗默认值 10g）；其余类型沿用食材规格
+              // 调料产物按克需求手填（弹窗默认值 10g）；其余类型沿用食材规格
               const parsed = Number(amountG);
               const fallback = pickerType === "seasoning" ? 10 : 100;
               const amount =
                 Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
-              // 统一元/斤口径：净料/小料 = 出库价、调料 = 每斤单价、酱料 = 出库价
+              // 统一元/斤口径：净料/小料 = 出库价、调料产物 = 出库价（旧口径行 = 每斤单价）
               const costBase = option.costPrice ?? null;
               return {
                 id: `${pickerType}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
                 sourceId: option.id,
+                // 调料产物行：option.id 即 SeasoningProduct.id
+                specId: pickerType === "seasoning" ? option.id : null,
                 name: option.name,
                 productName: option.productName,
                 spec: option.spec,
@@ -110,6 +112,8 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 costPrice: option.costPrice ?? null,
                 cost: calcCost(pickerType, costBase, amount),
                 portion: option.portion ?? null,
+                productType: option.productType ?? null,
+                sourceMode: option.sourceMode ?? null,
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;
@@ -151,7 +155,8 @@ function BomSection({
           <span className="text-sm font-semibold">{BOM_TYPE_LABELS[type]}</span>
           <SkeuChipTag tone={BOM_TYPE_TONES[type]}>{items.length} 项</SkeuChipTag>
         </div>
-        {!readOnly && (
+        {/* 酱料机制已业务剥离：存量行只读展示，不再提供添加入口 */}
+        {!readOnly && type !== "sauce" && (
           <SkeuButton type="button" variant="outline" size="sm" onClick={onAdd}>
             <Plus className="h-3.5 w-3.5" />
             添加

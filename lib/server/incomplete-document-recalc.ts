@@ -88,13 +88,6 @@ export async function recalcIncompleteDocumentsForNetIngredient(
   const recalculatedSchedules: number[] = [];
 
   if (dishIds.length > 0) {
-    const seasoningL2Codes = (
-      await tx.ingredientCategoryL2.findMany({
-        where: { parentCode: "SEA" },
-        select: { code: true },
-      })
-    ).map((row) => row.code);
-
     const schedules = await tx.schedule.findMany({
       where: {
         status: { in: ["待生效", "进行中"] },
@@ -115,7 +108,7 @@ export async function recalcIncompleteDocumentsForNetIngredient(
         quantity: item.quantity,
       }));
       const cutting = await buildCuttingOrders(tx, schedule.id, items);
-      const purchase = await buildPurchasePlans(tx, schedule.id, items, seasoningL2Codes);
+      const purchase = await buildPurchasePlans(tx, schedule.id, items);
 
       await tx.cuttingOrder.deleteMany({ where: { scheduleId: schedule.id } });
       await tx.purchasePlan.deleteMany({ where: { scheduleId: schedule.id } });

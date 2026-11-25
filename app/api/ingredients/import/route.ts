@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { getJinFactors } from "@/lib/server/unit-factors";
 import { normalizeName } from "@/lib/shared/name-utils";
 import { buildCode, parseCodeSuffix } from "@/lib/shared/code-gen";
@@ -25,10 +24,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "导入数据为空" }, { status: 400 });
   }
 
-  const [l2Categories, seasoningL2Codes] = await Promise.all([
-    prisma.ingredientCategoryL2.findMany({ select: { code: true } }),
-    getSeasoningL2Codes(),
-  ]);
+  // 批量导入仅面向食材（kind=food）；调味品独立体系，走单品建档
+  const l2Categories = await prisma.ingredientCategoryL2.findMany({ select: { code: true } });
   const l2Set = new Set(l2Categories.map((c) => c.code));
 
   const errors: { index: number; messages: string[] }[] = [];
@@ -84,14 +81,14 @@ export async function POST(req: NextRequest) {
 
       const data = rows.map((row) => {
         lastNum++;
-        const prefix = seasoningL2Codes.includes(row.l2Code!) ? "SEA" : "ING";
         const latestRefPrice = row.latestRefPrice?.trim()
           ? Number(row.latestRefPrice.trim())
           : null;
         return {
-          code: buildCode(prefix, lastNum),
+          code: buildCode("ING", lastNum),
           name: row.name!.trim(),
           alias: row.alias?.trim() || null,
+          kind: "food",
           l2Code: row.l2Code!.trim(),
           purchaseSpec: row.purchaseSpec?.trim() || null,
           purchaseUnit: row.purchaseUnit!.trim(),

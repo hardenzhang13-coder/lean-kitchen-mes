@@ -19,7 +19,6 @@ export type IngredientFormInitialData = {
   code?: string;
   name?: string;
   l2Code?: string;
-  seasoningType?: string | null;
   alias?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
@@ -34,8 +33,7 @@ export type SavedIngredientRecord = {
   id: number;
   name: string;
   alias?: string | null;
-  l2Code: string;
-  seasoningType?: string | null;
+  l2Code?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   stockUnit?: string | null;
@@ -75,7 +73,6 @@ function buildForm(
     name: initialData?.name || "",
     l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
-    seasoningType: initialData?.seasoningType || "",
     alias: initialData?.alias || "",
     purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
     purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
@@ -120,13 +117,14 @@ function validateIngredientForm(
   mode: UseIngredientFormOptions["mode"]
 ): RecordFormErrors {
   const next: RecordFormErrors = {};
-  const parentL1 = findParentL1(categories, form.l2Code);
-  const isSeasoning =
-    mode === "seasoning" || (mode === "auto" && parentL1?.code === "SEA");
+  // 调味品独立体系不挂食材分类：跳过分类必填
+  const isSeasoning = mode === "seasoning";
 
   if (!form.name.trim()) next.name = "名称不能为空";
-  if (!form.l1Code) next.l1Code = "请选择一级分类";
-  if (!form.l2Code) next.l2Code = "请选择二级分类";
+  if (!isSeasoning) {
+    if (!form.l1Code) next.l1Code = "请选择一级分类";
+    if (!form.l2Code) next.l2Code = "请选择二级分类";
+  }
   if (isSeasoning && !form.alias.trim()) {
     next.alias = "调料必须填写商品名称";
   }
@@ -192,7 +190,6 @@ export function useIngredientForm({
     initialData?.id ?? "new",
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
-    initialData?.seasoningType ?? "",
     initialData?.alias ?? "",
     initialData?.purchaseSpec ?? "",
     initialData?.purchaseUnit ?? "",
@@ -242,13 +239,14 @@ export function useIngredientForm({
         : null;
       const purchaseSpec =
         form.purchaseSpec.trim() || getDefaultSpec(form.stockUnit);
+      const isSeasoning = mode === "seasoning";
       const payload = {
         name: form.name.trim(),
         // 更新时传空字符串才能清空已有品牌；API 会把空字符串落为 null
         alias: form.alias.trim(),
-        l2Code: form.l2Code,
-        // 空字符串 = 清空调味品类型（同 alias 口径）
-        seasoningType: form.seasoningType,
+        // 大类边界：调味品独立体系（不挂分类），食材必须带二级分类
+        kind: isSeasoning ? ("seasoning" as const) : ("food" as const),
+        ...(isSeasoning ? {} : { l2Code: form.l2Code }),
         purchaseSpec,
         purchaseUnit: form.purchaseUnit,
         stockUnit: form.stockUnit,
@@ -292,9 +290,10 @@ export function useIngredientForm({
         id: Number(record.id),
         name: readString(record.name, form.name.trim()),
         alias: typeof record.alias === "string" ? record.alias : null,
-        l2Code: readString(record.l2Code, form.l2Code),
-        seasoningType:
-          typeof record.seasoningType === "string" ? record.seasoningType : null,
+        l2Code:
+          typeof record.l2Code === "string"
+            ? record.l2Code
+            : (form.l2Code || null),
         purchaseSpec:
           typeof record.purchaseSpec === "string"
             ? record.purchaseSpec

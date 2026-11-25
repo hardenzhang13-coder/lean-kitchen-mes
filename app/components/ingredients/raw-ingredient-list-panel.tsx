@@ -170,7 +170,7 @@ export function RawIngredientListPanel({
   >({
     buildInitialData: (row) => ({
       alias: row.alias,
-      l2Code: row.l2Code,
+      l2Code: row.l2Code ?? undefined,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
       stockUnit: row.stockUnit,

@@ -179,7 +179,7 @@ describe("buildPurchasePlans", () => {
       l1Cats: L1_CATS,
     });
 
-    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 10 }], []);
+    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 10 }]);
 
     expect(rows).toHaveLength(1);
     const row = rows[0];
@@ -224,7 +224,7 @@ describe("buildPurchasePlans", () => {
       l1Cats: L1_CATS,
     });
 
-    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 10 }], []);
+    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 10 }]);
 
     expect(rows).toHaveLength(1);
     const row = rows[0];
@@ -256,7 +256,7 @@ describe("buildPurchasePlans", () => {
       ],
     });
 
-    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 1 }], ["SEA"]);
+    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 1 }]);
 
     expect(rows).toHaveLength(1);
     const row = rows[0];
@@ -288,7 +288,7 @@ describe("buildPurchasePlans", () => {
       ],
     });
 
-    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 1 }], ["SEA"]);
+    const rows = await buildPurchasePlans(prisma, 5, [{ dishId: 1, quantity: 1 }]);
 
     expect(rows).toHaveLength(1);
     const row = rows[0];

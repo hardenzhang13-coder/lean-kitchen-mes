@@ -7,7 +7,6 @@ import { buildCuttingOrders, buildPurchasePlans } from "@/lib/server/schedule-ut
 import { getScheduleDetail } from "@/lib/server/schedule-detail";
 import { updateScheduleSchema } from "@/lib/server/schemas/schedule";
 import { validateBody } from "@/lib/server/validate";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { getDishStatusOption } from "@/lib/shared/dish-status";
 import { buildScheduleTitle } from "@/lib/shared/schedule-title";
 
@@ -114,8 +113,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           await tx.cuttingOrder.create({ data: co });
         }
 
-        const seasoningL2Codes = await getSeasoningL2Codes();
-        const purchaseData = await buildPurchasePlans(tx, scheduleId, items, seasoningL2Codes);
+        const purchaseData = await buildPurchasePlans(tx, scheduleId, items);
         for (const pp of purchaseData) {
           await tx.purchasePlan.create({ data: pp });
         }

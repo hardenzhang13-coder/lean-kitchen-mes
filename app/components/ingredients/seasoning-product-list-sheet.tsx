@@ -14,16 +14,19 @@ import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import { RecordSheet } from "@/app/components/ui/record-sheet";
+import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import {
-  StandardSeasoningFormDialog,
-  StandardSeasoningFormItem,
-} from "@/app/components/ingredients/standard-seasoning-form-dialog";
+  SeasoningProductFormDialog,
+  SeasoningProductFormItem,
+} from "@/app/components/ingredients/seasoning-product-form-dialog";
 import { toast } from "sonner";
 
-export type StandardSeasoningListRow = {
+export type SeasoningProductListRow = {
   id: number;
   code: string;
   name: string;
+  productType: string | null;
+  sourceMode: string | null;
   packageSpec: number | null;
   portion: string | null;
   yieldRate: number | null;
@@ -32,71 +35,73 @@ export type StandardSeasoningListRow = {
   grossMarginRate: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
+  brand: string | null;
+  purchaseSpec: string | null;
+  purchaseUnit: string | null;
+  latestRefPrice: number | null;
+  pricePerJin: number | null;
   sourceIngredient: {
     id: number;
     name: string;
     purchaseSpec: string | null;
     pricePerJin: number | null;
   } | null;
+  defaultSupplier: { id: number; name: string } | null;
 };
 
 const PAGE_SIZE = 20;
 
-interface StandardSeasoningListSheetProps {
+interface SeasoningProductListSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 来源调料 ID */
-  sourceIngredientId: number | null;
-  /** 来源调料名称 */
+  /** 来源调味品 ID（转化场景按来源过滤；产物页全量场景不传） */
+  sourceIngredientId?: number | null;
+  /** 来源调味品名称 */
   sourceName?: string | null;
-  /** 来源调料编号 */
+  /** 来源调味品编号 */
   sourceCode?: string | null;
-  /** 来源调料二级分类名称 */
-  sourceL2Name?: string | null;
   /** 规格新增 / 更新 / 删除后回调 */
   onChanged?: () => void;
 }
 
 /**
- * 封装调料：列出某个调料转化出的标准规格。
- * 展示字段固定为：名称、包装规格、份量、调料单价、出库价、标准规格价。
- * 形态与「转净料」弹窗里的「查看已有净料」一致（RecordSheet 半屏抽屉）。
+ * 调料产物列表：某个来源调味品转化出的全部产物（RecordSheet 半屏抽屉）。
+ * 转化弹窗头部「查看已有产物」入口打开；产物页全量列表用 SeasoningProductListPanel。
  */
-export function StandardSeasoningListSheet({
+export function SeasoningProductListSheet({
   open,
   onOpenChange,
   sourceIngredientId,
   sourceName,
   sourceCode,
-  sourceL2Name,
   onChanged,
-}: StandardSeasoningListSheetProps) {
-  const [rows, setRows] = useState<StandardSeasoningListRow[]>([]);
+}: SeasoningProductListSheetProps) {
+  const [rows, setRows] = useState<SeasoningProductListRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState<{
     totalItems: number;
     totalPages: number;
   } | null>(null);
-  const [editing, setEditing] = useState<StandardSeasoningFormItem | undefined>(
+  const [editing, setEditing] = useState<SeasoningProductFormItem | undefined>(
     undefined
   );
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] =
-    useState<StandardSeasoningListRow | null>(null);
+    useState<SeasoningProductListRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const queryString = useCallback(() => {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(PAGE_SIZE) });
+    if (sourceIngredientId) params.set("sourceIngredientId", String(sourceIngredientId));
+    return params.toString();
+  }, [sourceIngredientId, page]);
+
   const load = useCallback(async () => {
-    if (!sourceIngredientId) {
-      setRows([]);
-      setPagination(null);
-      return;
-    }
+    if (!open) return;
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/standard-seasonings?sourceIngredientId=${sourceIngredientId}&page=${page}&pageSize=${PAGE_SIZE}`
-      );
+      const res = await fetch(`/api/seasoning-products?${queryString()}`);
       const json: unknown = await res.json();
       if (!res.ok) {
         setRows([]);
@@ -105,7 +110,7 @@ export function StandardSeasoningListSheet({
       }
       const data =
         typeof json === "object" && json !== null && "data" in json
-          ? (json as { data?: StandardSeasoningListRow[] }).data
+          ? (json as { data?: SeasoningProductListRow[] }).data
           : [];
       setRows(Array.isArray(data) ? data : []);
       setPagination(
@@ -125,55 +130,19 @@ export function StandardSeasoningListSheet({
     } finally {
       setLoading(false);
     }
-  }, [sourceIngredientId, page]);
+  }, [open, queryString]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- 抽屉打开即拉取列表，setState 在异步回调后触发 */
   useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    const run = async () => {
-      setLoading(true);
-      try {
-        const res = await fetch(
-          `/api/standard-seasonings?sourceIngredientId=${sourceIngredientId}&page=${page}&pageSize=${PAGE_SIZE}`
-        );
-        const json: unknown = await res.json();
-        if (cancelled) return;
-        const data =
-          typeof json === "object" && json !== null && "data" in json
-            ? (json as { data?: StandardSeasoningListRow[] }).data
-            : [];
-        setRows(Array.isArray(data) ? data : []);
-        setPagination(
-          typeof json === "object" &&
-            json !== null &&
-            "pagination" in json &&
-            typeof (json as { pagination?: unknown }).pagination === "object" &&
-            (json as { pagination?: unknown }).pagination !== null
-            ? (json as {
-                pagination: { totalItems: number; totalPages: number };
-              }).pagination
-            : null
-        );
-      } catch {
-        if (!cancelled) {
-          setRows([]);
-          setPagination(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, sourceIngredientId, page]);
+    void load();
+  }, [load]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      const res = await fetch(`/api/standard-seasonings/${deleteTarget.id}`, {
+      const res = await fetch(`/api/seasoning-products/${deleteTarget.id}`, {
         method: "DELETE",
       });
       const json: unknown = await res.json();
@@ -185,7 +154,7 @@ export function StandardSeasoningListSheet({
         toast.error(message);
         return;
       }
-      toast.success("调料清单已删除");
+      toast.success("产物已删除");
       setDeleteTarget(null);
       await load();
       onChanged?.();
@@ -196,28 +165,28 @@ export function StandardSeasoningListSheet({
     }
   }, [deleteTarget, load, onChanged]);
 
-  const source = {
-    id: sourceIngredientId ?? 0,
-    code: sourceCode ?? "",
-    name: sourceName ?? "",
-    purchaseSpec: rows[0]?.sourceIngredient?.purchaseSpec ?? null,
-    pricePerJin:
-      rows[0]?.sourceIngredient?.pricePerJin != null
-        ? Number(rows[0].sourceIngredient.pricePerJin)
-        : null,
-    l2Name: sourceL2Name ?? null,
-  };
+  const source = sourceIngredientId != null
+    ? {
+        id: sourceIngredientId,
+        code: sourceCode ?? "",
+        name: sourceName ?? "",
+        purchaseSpec: rows[0]?.sourceIngredient?.purchaseSpec ?? null,
+        pricePerJin:
+          rows[0]?.sourceIngredient?.pricePerJin != null
+            ? Number(rows[0].sourceIngredient.pricePerJin)
+            : null,
+      }
+    : null;
 
   return (
     <>
       <RecordSheet
         open={open}
         onOpenChange={onOpenChange}
-        title="调料清单"
+        title="调料产物"
         meta={
           <span>
-            {sourceName ? `${sourceName} 的标准规格` : "标准规格"}
-            {sourceL2Name ? ` · ${sourceL2Name}` : ""}
+            {sourceName ? `${sourceName} 的产物规格` : "全部产物规格"}
           </span>
         }
         footer={
@@ -225,7 +194,7 @@ export function StandardSeasoningListSheet({
         }
         bodyClassName="overflow-hidden"
       >
-        <DataTable<StandardSeasoningListRow>
+        <DataTable<SeasoningProductListRow>
           data={rows}
           loading={loading}
           fillHeight
@@ -245,7 +214,10 @@ export function StandardSeasoningListSheet({
               header: "名称",
               className: "whitespace-nowrap",
               cell: (row) => (
-                <span className="font-semibold text-primary">{row.name}</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="font-semibold text-primary">{row.name}</span>
+                  <SeasoningTypeTag type={row.productType} />
+                </span>
               ),
             },
             {
@@ -260,7 +232,7 @@ export function StandardSeasoningListSheet({
               cell: (row) => <PortionTag portion={row.portion} />,
             },
             {
-              header: "调味品单价",
+              header: "产物单价",
               className: "whitespace-nowrap tabular-nums text-right",
               cell: (row) =>
                 row.unitPrice != null
@@ -295,13 +267,15 @@ export function StandardSeasoningListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7"
-                title="编辑调料清单"
+                title="编辑产物"
                 onClick={(e) => {
                   e.stopPropagation();
                   setEditing({
                     id: row.id,
                     code: row.code,
                     name: row.name,
+                    productType: row.productType,
+                    sourceMode: row.sourceMode,
                     packageSpec: row.packageSpec,
                     portion: row.portion,
                     yieldRate: row.yieldRate,
@@ -309,6 +283,11 @@ export function StandardSeasoningListSheet({
                     grossMarginRate: row.grossMarginRate,
                     sourceIngredientId:
                       row.sourceIngredient?.id ?? sourceIngredientId ?? undefined,
+                    brand: row.brand,
+                    purchaseSpec: row.purchaseSpec,
+                    purchaseUnit: row.purchaseUnit,
+                    latestRefPrice: row.latestRefPrice,
+                    pricePerJin: row.pricePerJin,
                   });
                   setFormOpen(true);
                 }}
@@ -320,7 +299,7 @@ export function StandardSeasoningListSheet({
                 variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-destructive"
-                title="删除调料清单"
+                title="删除产物"
                 onClick={(e) => {
                   e.stopPropagation();
                   setDeleteTarget(row);
@@ -331,10 +310,10 @@ export function StandardSeasoningListSheet({
             </div>
           )}
           emptyState={{
-            title: loading ? "加载中…" : "暂无调料清单",
+            title: loading ? "加载中…" : "暂无产物",
             description: loading
               ? undefined
-              : "该调味品尚未转化出调料清单档案，可在调味品列表点击「转化」创建",
+              : "该调味品尚未转化出产物档案，可在调味品列表点击「转化」创建",
           }}
           pagination={
             pagination && pagination.totalItems > PAGE_SIZE
@@ -351,8 +330,8 @@ export function StandardSeasoningListSheet({
         />
       </RecordSheet>
 
-      {sourceIngredientId != null && (
-        <StandardSeasoningFormDialog
+      {source != null && (
+        <SeasoningProductFormDialog
           open={formOpen}
           onOpenChange={setFormOpen}
           source={source}
@@ -375,7 +354,7 @@ export function StandardSeasoningListSheet({
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除调料清单「{deleteTarget?.name}」
+            确定要删除产物「{deleteTarget?.name}」
             {deleteTarget?.packageSpec != null
               ? `（${deleteTarget.packageSpec}g）`
               : ""}

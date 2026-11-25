@@ -6,8 +6,8 @@ import { success, badRequest, notFound, conflict } from "@/lib/server/api-respon
 import { updateDishSchema } from "@/lib/server/schemas/dish";
 import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
+import { serializeSeasoningProduct } from "@/lib/server/seasoning-product-utils";
 import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 
@@ -64,16 +64,25 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       },
       seasoningDetails: {
         include: {
-          // 标准化调料：份量与价格口径随标准规格档案带出
-          spec: {
+          // 新口径行：调料产物（单品调料/复合调料/成品酱料同构），价格体系随档案实时派生
+          product: {
             select: {
               id: true,
+              code: true,
               name: true,
+              productType: true,
+              sourceMode: true,
               packageSpec: true,
               portion: true,
+              unitPrice: true,
               yieldRate: true,
               processingFeePerJin: true,
               grossMarginRate: true,
+              brand: true,
+              purchaseSpec: true,
+              purchaseUnit: true,
+              latestRefPrice: true,
+              pricePerJin: true,
               sourceIngredient: { select: { pricePerJin: true } },
             },
           },
@@ -96,12 +105,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!row) return notFound("菜品不存在");
 
-  // Enrich seasoningDetails with names
-  const seasoningIds = row.seasoningDetails.map((d) => d.sourceId);
-  const seasoningL2Codes = await getSeasoningL2Codes();
-
+  // 旧口径行（specId 空）按 sourceId 补全调味品原料信息，仅 kind=seasoning 有效
+  const legacySourceIds = row.seasoningDetails
+    .filter((d) => d.specId == null && d.sourceId > 0)
+    .map((d) => d.sourceId);
   const seasonings = await prisma.ingredient.findMany({
-    where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
+    where: { id: { in: legacySourceIds }, kind: "seasoning" },
     select: { id: true, name: true, alias: true, latestRefPrice: true, pricePerJin: true, purchaseUnit: true, purchaseSpec: true },
   });
 
@@ -180,12 +189,31 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,
     })),
-    // 调料统一按来源调料口径：名称 / 采购规格 / 每斤单价；克需求直接取存储值
+    // 调料双口径：新行 = 产物（价格链实时派生）；旧行 = 直引调味品原料（只读保留）
     seasoningDetails: row.seasoningDetails.map((d) => {
+      if (d.specId != null) {
+        const product = d.product ? serializeSeasoningProduct(d.product) : null;
+        return {
+          ...d,
+          name: product?.name ?? null,
+          productType: product?.productType ?? null,
+          sourceMode: product?.sourceMode ?? null,
+          unitPrice:
+            product?.latestRefPrice != null ? Number(product.latestRefPrice) : null,
+          pricePerJin: product?.outPricePerJin ?? null,
+          costPricePerJin: product?.costPricePerJin ?? null,
+          standardPackagePrice: product?.standardPackagePrice ?? null,
+          unit: product?.purchaseUnit ?? null,
+          spec: product?.purchaseSpec ?? null,
+          portion: product?.portion ?? null,
+        };
+      }
       const source = seasonings.find((s) => s.id === d.sourceId);
       return {
         ...d,
-        name: source?.name ?? d.spec?.name ?? null,
+        name: source?.name ?? null,
+        productType: null,
+        sourceMode: null,
         unitPrice: source?.latestRefPrice ?? null,
         pricePerJin: source?.pricePerJin ?? null,
         unit: source?.purchaseUnit ?? null,

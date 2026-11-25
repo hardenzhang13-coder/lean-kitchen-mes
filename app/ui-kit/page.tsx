@@ -83,6 +83,7 @@ import { StatusBadge } from "@/app/components/ui/status-badge";
 import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 import { CategoryTag } from "@/app/components/ui/category-tag";
 import { ScheduleStatusTag } from "@/app/components/ui/schedule-status-tag";
+import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { SelectField } from "@/app/components/ui/select-field";
 import { DatePicker } from "@/app/components/ui/date-picker";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
@@ -292,6 +293,9 @@ function MaterialKit() {
           <MeatTypeTag type="素菜" />
           <ScheduleStatusTag status="进行中" />
           <DishStatusTag status="published" />
+          <SeasoningTypeTag type="单品调料" />
+          <SeasoningTypeTag type="复合调料" />
+          <SeasoningTypeTag type="成品酱料" />
         </div>
       </section>
 

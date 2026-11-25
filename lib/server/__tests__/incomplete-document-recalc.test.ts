@@ -78,12 +78,7 @@ describe("recalcIncompleteDocumentsForNetIngredient", () => {
     const result = await recalcIncompleteDocumentsForNetIngredient(tx, 100);
 
     expect(mockedCutting).toHaveBeenCalledWith(tx, 5, [{ dishId: 1, quantity: 3 }]);
-    expect(mockedPurchase).toHaveBeenCalledWith(
-      tx,
-      5,
-      [{ dishId: 1, quantity: 3 }],
-      ["SEA-SOL"]
-    );
+    expect(mockedPurchase).toHaveBeenCalledWith(tx, 5, [{ dishId: 1, quantity: 3 }]);
     expect(tx.cuttingOrder.deleteMany).toHaveBeenCalledWith({ where: { scheduleId: 5 } });
     expect(tx.purchasePlan.deleteMany).toHaveBeenCalledWith({ where: { scheduleId: 5 } });
     expect(tx.cuttingOrder.createMany).toHaveBeenCalled();

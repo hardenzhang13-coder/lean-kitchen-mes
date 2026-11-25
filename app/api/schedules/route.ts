@@ -8,7 +8,6 @@ import { created, paginated, badRequest, internalError } from "@/lib/server/api-
 import { createScheduleSchema, scheduleQuerySchema } from "@/lib/server/schemas/schedule";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { getDishStatusOption } from "@/lib/shared/dish-status";
 import { buildScheduleTitle } from "@/lib/shared/schedule-title";
 
@@ -212,8 +211,7 @@ export async function POST(req: NextRequest) {
         await tx.cuttingOrder.create({ data: co });
       }
 
-      const seasoningL2Codes = await getSeasoningL2Codes();
-      const purchaseData = await buildPurchasePlans(tx, schedule.id, items, seasoningL2Codes);
+      const purchaseData = await buildPurchasePlans(tx, schedule.id, items);
       for (const pp of purchaseData) {
         await tx.purchasePlan.create({ data: pp });
       }

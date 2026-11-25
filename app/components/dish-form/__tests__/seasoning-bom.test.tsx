@@ -8,49 +8,66 @@ import {
   bomToPayload,
   dishToBom,
   emptyBom,
-  normalizeIngredients,
+  normalizeSeasoningProducts,
   type BomItem,
   type DishDetail,
   type IngredientOption,
 } from "../types";
 
-const seasoningOption: IngredientOption = {
-  id: 30,
-  code: "SEA-SOL-0030",
-  name: "生抽",
-  productName: "海天",
-  spec: "1.9L*6",
+const productOption: IngredientOption = {
+  id: 50,
+  code: "SP-0001",
+  name: "蒸鱼双椒酱•1200g",
+  productName: "双椒酱原料",
+  spec: "1200g",
   unitPrice: 120,
-  costPrice: 10,
+  costPrice: 12.5,
+  packageSpec: 1200,
+  portion: "单人份",
+  standardPackagePrice: 30,
   unit: "斤",
-  l2Code: "SEA-SOL",
+  productType: "单品调料",
+  sourceMode: "transform",
 };
 
-const seasoningBomItem: BomItem = {
-  id: "sea-30-1",
-  sourceId: 30,
-  name: "生抽",
-  productName: "海天",
-  spec: "1.9L*6",
+const productBomItem: BomItem = {
+  id: "sea-50-1",
+  sourceId: 50,
+  specId: 50,
+  name: "蒸鱼双椒酱•1200g",
+  productName: null,
+  spec: "1200g",
   amountG: "10",
   unitPrice: 120,
   unit: "斤",
-  costPrice: 10,
-  cost: 0.2,
-  portion: null,
-  l2Code: "SEA-SOL",
+  costPrice: 12.5,
+  cost: 0.25,
+  portion: "单人份",
+  productType: "单品调料",
+  sourceMode: "transform",
 };
 
-describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
-  it("读取菜品时按存储克数与每斤单价计算行成本", () => {
+describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
+  it("读取菜品产物行按出库价计算行成本（存量旧口径行按每斤单价）", () => {
     const dish = {
       id: 5,
       code: "DSH-0005",
       name: "红烧肉",
-      status: "draft",
       seasoningDetails: [
         {
+          sourceId: 0,
+          specId: 50,
+          amountG: 10,
+          name: "蒸鱼双椒酱•1200g",
+          pricePerJin: 12.5,
+          packageSpec: 1200,
+          portion: "单人份",
+          productType: "单品调料",
+          sourceMode: "transform",
+        },
+        {
           sourceId: 30,
+          specId: null,
           amountG: 10,
           name: "生抽",
           pricePerJin: 10,
@@ -60,40 +77,61 @@ describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
     } as unknown as DishDetail;
 
     const bom = dishToBom(dish);
-    expect(bom.seasoning).toHaveLength(1);
+    expect(bom.seasoning).toHaveLength(2);
+    // 产物行：成本 = 出库价 × g ÷ 500
+    expect(bom.seasoning[0].specId).toBe(50);
     expect(bom.seasoning[0].amountG).toBe("10");
-    expect(bom.seasoning[0].costPrice).toBe(10);
-    expect(bom.seasoning[0].cost).toBe(0.2);
-    expect(bom.seasoning[0].portion).toBeNull();
+    expect(bom.seasoning[0].costPrice).toBe(12.5);
+    expect(bom.seasoning[0].cost).toBe(0.25);
+    expect(bom.seasoning[0].productType).toBe("单品调料");
+    // 旧口径行：成本 = 每斤单价 × g ÷ 500
+    expect(bom.seasoning[1].specId).toBeNull();
+    expect(bom.seasoning[1].cost).toBe(0.2);
   });
 
-  it("提交载荷只带来源调料与克数，不再输出标准规格", () => {
+  it("提交载荷：产物行输出 specId，旧口径行输出 sourceId", () => {
+    const legacyItem: BomItem = {
+      ...productBomItem,
+      id: "sea-30-1",
+      sourceId: 30,
+      specId: null,
+      name: "生抽",
+      productType: null,
+      sourceMode: null,
+      costPrice: 10,
+      cost: 0.2,
+    };
     const payload = bomToPayload({
       ...emptyBom(),
-      seasoning: [seasoningBomItem],
+      seasoning: [productBomItem, legacyItem],
     });
 
     expect(payload.seasoningDetails).toEqual([
-      { sourceId: 30, amountG: 10, brand: "海天" },
+      { specId: 50, amountG: 10, brand: null },
+      { sourceId: 30, amountG: 10, brand: null },
     ]);
-    expect(payload.seasoningDetails[0]).not.toHaveProperty("specId");
   });
 
-  it("调料归一化取每斤单价与采购规格", () => {
-    const [option] = normalizeIngredients([
+  it("产物归一化取出库价与包装规格", () => {
+    const [option] = normalizeSeasoningProducts([
       {
-        id: 30,
-        code: "SEA-SOL-0030",
-        name: "生抽",
-        alias: "海天",
-        purchaseSpec: "1.9L*6",
+        id: 50,
+        code: "SP-0001",
+        name: "蒸鱼双椒酱•1200g",
+        productType: "单品调料",
+        sourceMode: "transform",
+        packageSpec: 1200,
+        portion: "单人份",
         latestRefPrice: 120,
-        pricePerJin: 10,
-        l2Code: "SEA-SOL",
+        outPricePerJin: 12.5,
+        standardPackagePrice: 30,
+        sourceIngredient: { name: "双椒酱原料" },
       },
     ]);
-    expect(option.costPrice).toBe(10);
-    expect(option.spec).toBe("1.9L*6");
+    expect(option.costPrice).toBe(12.5);
+    expect(option.packageSpec).toBe(1200);
+    expect(option.spec).toBe("1200g");
+    expect(option.productType).toBe("单品调料");
   });
 
   it("调料行可改克数并即时重算行成本", () => {
@@ -102,23 +140,23 @@ describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
       <BomItemRow
         type="seasoning"
         index={0}
-        item={seasoningBomItem}
+        item={productBomItem}
         onRemove={jest.fn()}
         onChange={onChange}
       />
     );
 
-    const input = screen.getByLabelText("生抽 用量") as HTMLInputElement;
+    const input = screen.getByLabelText("蒸鱼双椒酱•1200g 用量") as HTMLInputElement;
     expect(input.value).toBe("10");
 
-    fireEvent.change(input, { target: { value: "15" } });
+    fireEvent.change(input, { target: { value: "20" } });
 
     expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ amountG: "15", cost: 0.3 })
+      expect.objectContaining({ amountG: "20", cost: 0.5 })
     );
   });
 
-  it("调料选择弹窗展示用量输入并把克数回传", async () => {
+  it("调料选择弹窗展示产物列与用量输入，不展示分类筛选", async () => {
     const onSelect = jest.fn();
     render(
       <BomPickerDialog
@@ -126,31 +164,25 @@ describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
         onOpenChange={jest.fn()}
         type="seasoning"
         onSelect={onSelect}
-        refs={{
-          ingredientCategories: [
-            {
-              code: "SEA",
-              name: "调味品",
-              children: [{ code: "SEA-SOL", name: "酱油", parentCode: "SEA" }],
-            },
-          ],
-        }}
-        onLoadItems={async () => [seasoningOption]}
+        refs={{ ingredientCategories: [] }}
+        onLoadItems={async () => [productOption]}
         showAmountInput
         defaultAmountG="10"
         singleSelect
       />
     );
 
-    await waitFor(() => expect(screen.getByText("生抽")).toBeInTheDocument());
-    // 调味品字段：调味品名称 / 商品名称 / 采购规格 / 每斤单价
-    expect(screen.getByText("调味品名称")).toBeInTheDocument();
-    expect(screen.getByText("商品名称")).toBeInTheDocument();
-    expect(screen.getByText("采购规格")).toBeInTheDocument();
-    expect(screen.getByText("每斤单价")).toBeInTheDocument();
-    // 调料不展示份量与标准规格价
-    expect(screen.queryByText("包装份量")).not.toBeInTheDocument();
-    expect(screen.queryByText("标准规格价")).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByText("蒸鱼双椒酱•1200g")).toBeInTheDocument()
+    );
+    // 产物列：产物名称 / 包装规格 / 出库价 / 标准规格价 / 来源
+    expect(screen.getByText("产物名称")).toBeInTheDocument();
+    expect(screen.getByText("包装规格")).toBeInTheDocument();
+    expect(screen.getByText("出库价")).toBeInTheDocument();
+    expect(screen.getByText("标准规格价")).toBeInTheDocument();
+    expect(screen.getByText("来源")).toBeInTheDocument();
+    // 产物层不挂分类体系：无分类级联
+    expect(screen.queryByText("全部分类")).not.toBeInTheDocument();
     // 用量输入框在底部按钮旁，数字与单位加粗
     const amountInput = screen.getByLabelText("用量") as HTMLInputElement;
     expect(amountInput.value).toBe("10");
@@ -158,11 +190,11 @@ describe("菜品 BOM 调料：来源调料 + 克需求口径", () => {
     const unit = screen.getByText("g");
     expect(unit.className).toContain("font-bold");
 
-    fireEvent.click(screen.getByText("生抽").closest("tr")!);
+    fireEvent.click(screen.getByText("蒸鱼双椒酱•1200g").closest("tr")!);
     fireEvent.click(screen.getByText("确认选择"));
 
     expect(onSelect).toHaveBeenCalledWith([
-      { option: seasoningOption, amountG: "10" },
+      { option: productOption, amountG: "10" },
     ]);
   });
 });

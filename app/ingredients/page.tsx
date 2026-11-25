@@ -27,7 +27,20 @@ type IngredientNode = {
   tileClass: string;
 };
 
-type Counts = { raw: number; seasoning: number };
+type Counts = {
+  raw: number;
+  net: number;
+  minor: number;
+  seasoningBase: number;
+  seasoningItem: number;
+  seasoningCompound: number;
+  seasoningSauce: number;
+  dishSinglePortion: number;
+};
+
+type ModuleSummary = { value: number; unit: string };
+
+type ModuleMetric = { label: string; value: number | null; unit: string };
 
 // 保留现有文字图标；辅助文案按当前模块边界重写。
 const SOURCE_NODES: IngredientNode[] = [
@@ -46,7 +59,7 @@ const SOURCE_NODES: IngredientNode[] = [
     name: "调味品",
     glyph: "调",
     color: "#3b82f6",
-    desc: "基础调味品与调料清单",
+    desc: "原材料层，转化/外购为三种调料产物",
     href: "/ingredients/seasoning",
     tileClass:
       "bg-[linear-gradient(180deg,#5B9FFF_0%,#2F6FE0_100%)] shadow-[0_2px_5px_rgba(47,111,224,0.40),0_5px_14px_rgba(15,23,42,0.10)] group-hover:shadow-[0_4px_10px_rgba(47,111,224,0.48),0_9px_24px_rgba(15,23,42,0.12)]",
@@ -140,7 +153,7 @@ function PricingRulesDialog({
           </span>
         </div>
 
-        <div className="mt-4 grid gap-x-10 gap-y-3 border-t border-dashed border-border pt-4 sm:grid-cols-2">
+          <div className="mt-4 grid gap-x-10 gap-y-3 border-t border-dashed border-border pt-4 sm:grid-cols-2">
           <div className="flex items-center gap-3 text-xs">
             <span
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
@@ -171,10 +184,10 @@ function PricingRulesDialog({
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
               style={{ background: "#8b5cf6" }}
             >
-              自制酱料
+              调料产物 · 转化
             </span>
             <span className="text-muted-foreground">
-              成本价 = 配方成本小计合计 ÷ 用量合计 × 500 ＋ 加工费
+              单价 = 调味品每斤单价 ÷ 出成率；成本价 = 单价 ＋ 封装加工费
             </span>
           </div>
           <div className="flex items-center gap-3 text-xs">
@@ -182,13 +195,10 @@ function PricingRulesDialog({
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
               style={{ background: "#a78bfa" }}
             >
-              外购酱料
+              调料产物 · 外购
             </span>
             <span className="text-muted-foreground">
-              成本价 = 每斤单价（元/斤）
-              <span className="ml-1 text-muted-foreground/70">
-                （零售参考价按采购规格换算）
-              </span>
+              成本价 = 手填每斤单价（元/斤）
             </span>
           </div>
         </div>
@@ -198,12 +208,12 @@ function PricingRulesDialog({
 }
 
 /**
- * 食材库 iOS 流向卡：卡面、hover/active 手感对齐设置首页 EntryCard；
- * 这里保留 ref 与流向 hover 协作，所以不复用不支持 ref 的通用 EntryCard。
+ * 食材库 iOS 流向卡：沿用当前卡片骨架；明细数据作为轻量信息行融入，不复制 demo 独立样式。
  */
 function FlowCard({
   node,
-  count,
+  summary,
+  metrics,
   dimmed,
   cardRef,
   onMouseEnter,
@@ -211,7 +221,8 @@ function FlowCard({
   onOpen,
 }: {
   node: IngredientNode;
-  count: number | null;
+  summary?: ModuleSummary;
+  metrics?: ModuleMetric[];
   dimmed: boolean;
   cardRef: (element: HTMLDivElement | null) => void;
   onMouseEnter: () => void;
@@ -219,17 +230,25 @@ function FlowCard({
   onOpen: () => void;
 }) {
   const clickable = node.href !== null;
+  const emphasized = node.id === "dish";
   const cardClass = cn(
-    "group relative flex min-h-[108px] items-center gap-3 rounded-[14px] border border-black/[0.06] bg-[linear-gradient(180deg,#ffffff_0%,#fcfbf9_100%)] p-3.5 pr-4",
-    "shadow-[0_1px_2px_rgba(15,23,42,0.04),0_3px_12px_rgba(15,23,42,0.06)]",
+    "group relative flex flex-col justify-center bg-[linear-gradient(180deg,#ffffff_0%,#fcfbf9_100%)]",
     "transition-all duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)]",
-    clickable
+    emphasized
       ? [
-          "cursor-pointer focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
+          "min-h-[132px] gap-4 rounded-[18px] border border-black/[0.08] p-5 pr-6",
+          "shadow-[0_2px_6px_rgba(15,23,42,0.05),0_10px_30px_rgba(15,23,42,0.10)]",
+          "hover:-translate-y-0.5 hover:border-black/[0.12] hover:shadow-[0_4px_10px_rgba(15,23,42,0.07),0_18px_44px_rgba(15,23,42,0.16)]",
+          "active:translate-y-0 active:shadow-[0_2px_6px_rgba(15,23,42,0.10)]",
+        ]
+      : [
+          "min-h-[124px] gap-3 rounded-[14px] border border-black/[0.06] p-3.5 pr-4",
+          "shadow-[0_1px_2px_rgba(15,23,42,0.04),0_3px_12px_rgba(15,23,42,0.06)]",
           "hover:-translate-y-px hover:border-black/[0.09] hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_24px_rgba(15,23,42,0.12)]",
           "active:translate-y-0 active:border-black/[0.09] active:shadow-[0_1px_3px_rgba(15,23,42,0.10)]",
-        ]
-      : "cursor-default select-none opacity-70",
+        ],
+    clickable && "cursor-pointer focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
+    !clickable && "cursor-default select-none opacity-70",
     dimmed && "scale-[0.985] opacity-[0.18]"
   );
 
@@ -254,54 +273,108 @@ function FlowCard({
       aria-disabled={clickable ? undefined : true}
       className={cardClass}
     >
-      <span
+      <div
         className={cn(
-          "flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] text-[20px] font-semibold text-white",
-          "shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] [text-shadow:0_1px_1px_rgba(0,0,0,0.18)]",
-          "transition-all duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover:scale-[1.04] group-active:scale-95",
-          node.tileClass
+          "flex w-full items-center",
+          emphasized ? "gap-4" : "gap-3"
         )}
-        aria-hidden
       >
-        {node.glyph}
-      </span>
-      <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="text-[15px] font-semibold leading-snug text-foreground">
-          {node.name}
+        <span
+          className={cn(
+            "flex shrink-0 items-center justify-center text-white",
+            "shadow-[inset_0_1px_0_rgba(255,255,255,0.40)] [text-shadow:0_1px_1px_rgba(0,0,0,0.18)]",
+            "transition-all duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)] group-hover:scale-[1.04] group-active:scale-95",
+            emphasized
+              ? "h-14 w-14 rounded-[16px] text-[26px] font-bold"
+              : "h-11 w-11 rounded-[11px] text-[20px] font-semibold",
+            node.tileClass
+          )}
+          aria-hidden
+        >
+          {node.glyph}
         </span>
-        <span className="line-clamp-2 text-[13px] leading-snug text-muted-foreground">
-          {node.desc}
+        <span className="flex min-w-0 flex-col gap-0.5">
+          <span
+            className={cn(
+              "font-semibold leading-snug text-foreground",
+              emphasized ? "text-base" : "text-[15px]"
+            )}
+          >
+            {node.name}
+          </span>
+          <span
+            className={cn(
+              "line-clamp-2 leading-snug text-muted-foreground",
+              emphasized ? "text-sm" : "text-[13px]"
+            )}
+          >
+            {node.desc}
+          </span>
         </span>
-      </span>
-      <span className="ml-auto flex shrink-0 items-center pl-2">
-        {count !== null ? (
-          <span className="text-right">
-            <span
-              className="block text-xl font-bold leading-none tabular-nums"
-              style={{ color: node.color }}
-            >
-              {count}
+        <span className="ml-auto flex shrink-0 items-center pl-2">
+          {summary ? (
+            <span className="text-right">
+              <span
+                className={cn(
+                  "block font-bold leading-none tabular-nums",
+                  emphasized ? "text-2xl" : "text-xl"
+                )}
+                style={{ color: node.color }}
+              >
+                {summary.value}
+              </span>
+              <span className="mt-1 block text-xs text-muted-foreground">
+                {summary.unit}
+              </span>
             </span>
-            <span className="mt-1 block text-xs text-muted-foreground">种</span>
-          </span>
-        ) : clickable ? (
-          <ChevronRight
-            className="h-4 w-4 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5"
-            aria-hidden
-          />
-        ) : (
-          <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-            预留
-          </span>
-        )}
-      </span>
+          ) : clickable ? (
+            <ChevronRight
+              className={cn(
+                "text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5",
+                emphasized ? "h-5 w-5" : "h-4 w-4"
+              )}
+              aria-hidden
+            />
+          ) : null}
+        </span>
+      </div>
+
+      {metrics && metrics.length > 0 ? (
+        <div className="ml-14 flex flex-wrap items-baseline gap-x-5 gap-y-1.5">
+          {metrics.map((metric) => (
+            <span
+              key={metric.label}
+              className="inline-flex items-baseline gap-1 whitespace-nowrap"
+            >
+              <span className="text-xs text-muted-foreground">{metric.label}</span>
+              {metric.value === null ? (
+                <span className="text-sm font-semibold tabular-nums text-muted-foreground">
+                  —
+                </span>
+              ) : (
+                <span className="text-sm font-semibold tabular-nums text-foreground">
+                  {metric.value}
+                </span>
+              )}
+            </span>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
-
 export default function IngredientsPage() {
   const router = useRouter();
-  const [counts, setCounts] = useState<Counts>({ raw: 0, seasoning: 0 });
+  const [counts, setCounts] = useState<Counts>({
+    raw: 0,
+    net: 0,
+    minor: 0,
+    seasoningBase: 0,
+    seasoningItem: 0,
+    seasoningCompound: 0,
+    seasoningSauce: 0,
+    dishSinglePortion: 0,
+  });
   const [hoverId, setHoverId] = useState<BoardId | null>(null);
   const [pricingOpen, setPricingOpen] = useState(false);
   const [paths, setPaths] = useState<Record<string, string>>({});
@@ -319,10 +392,10 @@ export default function IngredientsPage() {
     }
   }, []);
 
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     // React 官方推荐的数据获取模式：setState 均发生在 await 之后的异步回调中，
     // 不构成同步级联渲染
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- React 官方数据获取模式，setState 在异步回调后触发
     fetchCounts();
     const refresh = () => fetchCounts();
     window.addEventListener("focus", refresh);
@@ -360,7 +433,6 @@ export default function IngredientsPage() {
     window.addEventListener("resize", compute);
     return () => window.removeEventListener("resize", compute);
   }, []);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const hoverSet = hoverId ? lineage(hoverId) : null;
   const isFlowActive = (index: number) =>
@@ -368,14 +440,37 @@ export default function IngredientsPage() {
     (FLOWS[index].from === hoverId || FLOWS[index].to === hoverId);
 
   const renderFlowCard = (node: IngredientNode) => {
-    const count =
-      node.id === "raw" || node.id === "seasoning" ? counts[node.id] : null;
+    const summary =
+      node.id === "dish"
+        ? { value: counts.dishSinglePortion, unit: "单人份" }
+        : undefined;
+    const metrics =
+      node.id === "raw"
+        ? [
+            { label: "食材", value: counts.raw, unit: "种" },
+            { label: "净料", value: counts.net, unit: "种" },
+            { label: "小料", value: counts.minor, unit: "种" },
+          ]
+        : node.id === "seasoning"
+          ? [
+              { label: "调料", value: counts.seasoningBase, unit: "种" },
+              { label: "单品调料", value: counts.seasoningItem, unit: "种" },
+              { label: "复合调料", value: counts.seasoningCompound, unit: "种" },
+              { label: "成品酱料", value: counts.seasoningSauce, unit: "种" },
+            ]
+          : node.id === "spice"
+            ? [
+                { label: "东方香料", value: null, unit: "种" },
+                { label: "西方香料", value: null, unit: "种" },
+              ]
+            : undefined;
 
     return (
       <FlowCard
         key={node.id}
         node={node}
-        count={count}
+        summary={summary}
+        metrics={metrics}
         dimmed={hoverSet !== null && !hoverSet.has(node.id)}
         cardRef={(element) => {
           nodeRefs.current[node.id] = element;
@@ -395,7 +490,7 @@ export default function IngredientsPage() {
       header={
         <PageHeader
           variant="topbar"
-          title="食材库"
+          title="原料库"
           description="从采购食材到菜品配方的统一入口"
           actions={
             <SkeuButton

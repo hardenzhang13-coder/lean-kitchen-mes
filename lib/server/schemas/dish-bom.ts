@@ -16,9 +16,11 @@ export const dishBomMinorDetailSchema = z.object({
 });
 
 export const dishBomSeasoningSchema = z.object({
-  // 来源调料（ingredients.id，SEA 调味品体系）：调料直接引用采购档案
-  sourceId: z.number().int().positive(),
-  // 克需求（g）：调料按克直接计成本，服务端不覆盖客户端取值
+  // 新口径：调料产物（SeasoningProduct.id），菜品 BOM 一律选产物按克计
+  specId: z.number().int().positive().nullish(),
+  // 旧口径兼容字段：直引调味品原料（仅存量客户端回传，新行不传）
+  sourceId: z.number().int().positive().nullish(),
+  // 克需求（g）：按克直接计成本，服务端不覆盖客户端取值
   amountG: z.number().positive(),
   brand: z.string().max(100).nullish(),
 });

@@ -284,12 +284,12 @@ describe("调味品详情抽屉", () => {
     expect(
       screen.queryByRole("button", { name: "转化" })
     ).not.toBeInTheDocument();
-    // 调料清单链路已复活：底部提供「查看调料清单」入口
+    // 产物链路：底部提供「查看产物」入口（原料层 → 调料产物清单抽屉）
     expect(
-      screen.getByRole("button", { name: "查看调料清单" })
+      screen.getByRole("button", { name: "查看产物" })
     ).toBeInTheDocument();
-    // 调味品类型独立字段：查看态基础信息展示（本条档案未设置 → —）
-    expect(screen.getByText("调味品类型")).toBeInTheDocument();
+    // 调味品独立体系不挂食材分类：查看态无调味品类型字段
+    expect(screen.queryByText("调味品类型")).not.toBeInTheDocument();
 
     fireEvent.click(editButton);
 

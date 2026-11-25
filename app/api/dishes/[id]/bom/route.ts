@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { getSeasoningL2Codes } from "@/lib/server/category-helpers";
 import { dishBomSchema } from "@/lib/server/schemas/dish-bom";
 import { validateBody } from "@/lib/server/validate";
 import { calcOutPricePerJin } from "@/lib/shared/net-price";
 import { computeCostPricePerJin, resolveRecipeLines } from "@/lib/server/sauce-utils";
 import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
+import { deriveSeasoningProductPrices } from "@/lib/shared/seasoning-spec";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,8 +30,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       );
     }
 
-    const seasoningL2Codes = await getSeasoningL2Codes();
-
     const totalCost = await prisma.$transaction(async (tx) => {
       await tx.dishNetDetail.deleteMany({ where: { dishId } });
       await tx.dishMinorDetail.deleteMany({ where: { dishId } });
@@ -41,9 +39,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       // 查询所有食材价格
       const netIngIds = (netDetails || []).map((d) => d.netIngId);
       const minorIds = (minorDetails || []).map((d) => d.netIngId);
-      const seasoningIds = (seasoningDetails || [])
+      // 调料双口径：specId 行 = 调料产物（新）；sourceId 行 = 直引调味品原料（旧口径透传，只读保留）
+      const seasoningProductIds = (seasoningDetails || [])
+        .map((d) => Number(d.specId))
+        .filter((sid) => Number.isFinite(sid) && sid > 0);
+      const legacySeasoningIds = (seasoningDetails || [])
+        .filter((d) => d.specId == null)
         .map((d) => Number(d.sourceId))
-        .filter((id) => Number.isFinite(id) && id > 0);
+        .filter((sid) => Number.isFinite(sid) && sid > 0);
 
       const sauceIds = (sauceDetails || []).map((d) => d.sauceId);
 
@@ -62,7 +65,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         })
       : [];
 
-      const [netIngs, minors, seasonings] = await Promise.all([
+      const [netIngs, minors, legacySeasonings, seasoningProducts] = await Promise.all([
         tx.netIngredient.findMany({
           where: { id: { in: netIngIds }, deletedAt: null },
           select: {
@@ -92,13 +95,30 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           },
         }),
         tx.ingredient.findMany({
+          // 旧口径行：直引调味品原料，按 kind=seasoning 校验边界
           where: {
-            id: { in: seasoningIds },
-            l2Code: { in: seasoningL2Codes },
+            id: { in: legacySeasoningIds },
+            kind: "seasoning",
             deletedAt: null,
           },
           // 调料为标准化采购（元/瓶、元/箱），BOM 成本按每斤单价（元/斤）口径折算
           select: { id: true, name: true, pricePerJin: true },
+        }),
+        tx.seasoningProduct.findMany({
+          // 新口径行：调料产物，成本按产物实时派生的出库价（元/斤）
+          where: { id: { in: seasoningProductIds }, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            sourceMode: true,
+            unitPrice: true,
+            yieldRate: true,
+            processingFeePerJin: true,
+            grossMarginRate: true,
+            packageSpec: true,
+            pricePerJin: true,
+            sourceIngredient: { select: { pricePerJin: true } },
+          },
         }),
       ]);
 
@@ -152,12 +172,16 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
       const netPackageSpecMap = new Map(netIngs.map((i) => [i.id, i.packageSpec]));
       const minorPackageSpecMap = new Map(minors.map((i) => [i.id, i.packageSpec]));
-      // 调料成本价 = 每斤单价（元/斤，由采购规格自动换算维护）；缺失时成本为 null
-      const seasoningPriceMap = new Map(
-        seasonings.map((i) => [i.id, i.pricePerJin != null ? Number(i.pricePerJin) : null])
+      // 旧口径行成本 = 调味品原料每斤单价 × 用量g ÷ 500；缺失时成本为 null
+      const legacySeasoningPriceMap = new Map(
+        legacySeasonings.map((i) => [i.id, i.pricePerJin != null ? Number(i.pricePerJin) : null])
       );
-      // 调料档案索引：来源调料必须存在且属于 SEA 调味品体系
-      const seasoningById = new Map(seasonings.map((i) => [i.id, i]));
+      const legacySeasoningById = new Map(legacySeasonings.map((i) => [i.id, i]));
+      // 新口径行成本 = 产物出库价 × 用量g ÷ 500（价格链实时派生）
+      const productOutPriceMap = new Map(
+        seasoningProducts.map((i) => [i.id, deriveSeasoningProductPrices(i).outPricePerJin])
+      );
+      const productById = new Map(seasoningProducts.map((i) => [i.id, i]));
       // 酱料出库价（元/斤）：成本价 ÷ (1 - 毛利率/100)，空毛利率 = 成本价
       const saucePriceMap = new Map(
         await Promise.all(
@@ -193,9 +217,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const price = minorPriceMap.get(netIngId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
-      // 调料成本 = 每斤单价(元/斤) × 用量g ÷ 500；每斤单价缺失返回 null
-      const calcSeasoningCost = (sourceId: number, amountG: number) => {
-        const price = seasoningPriceMap.get(sourceId);
+      // 旧口径调料成本 = 每斤单价(元/斤) × 用量g ÷ 500；每斤单价缺失返回 null
+      const calcLegacySeasoningCost = (sourceId: number, amountG: number) => {
+        const price = legacySeasoningPriceMap.get(sourceId);
+        return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
+      };
+      // 新口径产物成本 = 出库价(元/斤) × 用量g ÷ 500；出库价缺失返回 null
+      const calcProductCost = (specId: number, amountG: number) => {
+        const price = productOutPriceMap.get(specId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
 
@@ -241,18 +270,38 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (seasoningDetails && seasoningDetails.length > 0) {
         await tx.dishSeasoningDetail.createMany({
           data: seasoningDetails.map((d) => {
-            // 调料直接引用采购档案：来源调料必须存在且属于 SEA 调味品体系
-            const sourceId = Number(d.sourceId);
-            const seasoning = seasoningById.get(sourceId);
-            if (!seasoning) {
-              throw new Error(
-                `调料行引用的调料不存在或不属于调味品分类（ID ${sourceId}）`
-              );
-            }
             // 克需求由客户端填写，服务端不覆盖
             const amountG = Number(d.amountG);
             if (!Number.isFinite(amountG) || amountG <= 0) {
-              throw new Error(`调料「${seasoning.name}」缺少用量`);
+              throw new Error("调料行缺少用量");
+            }
+
+            if (d.specId != null) {
+              // 新口径：调料产物（单品调料/复合调料/成品酱料）
+              const specId = Number(d.specId);
+              const product = productById.get(specId);
+              if (!product) {
+                throw new Error(`调料行引用的调料产物不存在或已删除（ID ${specId}）`);
+              }
+              return {
+                dishId,
+                type: "seasoning",
+                // 产物行无来源原料：sourceId 置 0（schema 注释口径，非空约束保留）
+                sourceId: 0,
+                specId,
+                amountG,
+                brand: d.brand || null,
+                cost: calcProductCost(specId, amountG),
+              };
+            }
+
+            // 旧口径：直引调味品原料（存量行透传保留，不再新建入口）
+            const sourceId = Number(d.sourceId);
+            const seasoning = legacySeasoningById.get(sourceId);
+            if (!seasoning) {
+              throw new Error(
+                `调料行引用的调味品不存在或不属于调味品体系（ID ${sourceId}）`
+              );
             }
             return {
               dishId,
@@ -261,7 +310,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
               specId: null,
               amountG,
               brand: d.brand || null,
-              cost: calcSeasoningCost(sourceId, amountG),
+              cost: calcLegacySeasoningCost(sourceId, amountG),
             };
           }),
         });

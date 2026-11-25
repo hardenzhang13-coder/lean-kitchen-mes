@@ -7,13 +7,11 @@ import {
   SkeuActionButton,
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
-import { CategoryTag } from "@/app/components/ui/category-tag";
-import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import { IngredientDetailSheet } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { IngredientFormDialog } from "@/app/components/ingredients/ingredient-form-dialog";
-import { StandardSeasoningFormDialog } from "@/app/components/ingredients/standard-seasoning-form-dialog";
-import { StandardSeasoningListSheet } from "@/app/components/ingredients/standard-seasoning-list-sheet";
+import { SeasoningProductFormDialog } from "@/app/components/ingredients/seasoning-product-form-dialog";
+import { SeasoningProductListSheet } from "@/app/components/ingredients/seasoning-product-list-sheet";
 import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-sheet";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
@@ -32,9 +30,6 @@ type Ingredient = {
   code: string;
   name: string;
   alias: string | null;
-  l2Code: string;
-  /** 调味品类型：单品调料/复合调料/成品酱料；空 = 基础调味品 */
-  seasoningType: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -62,15 +57,16 @@ type Unit = {
 export interface SeasoningListPanelProps {
   categories: CategoryL1[];
   units: Unit[];
-  /** 类型过滤：空 = 全部调味品；否则只显示该调味品类型（单品调料/复合调料/成品酱料） */
-  fixedSeasoningType?: string;
   refreshToken: number;
 }
 
+/**
+ * 调味品原料层列表（「调味品」页签）：扁平清单，不挂食材分类体系。
+ * 行操作：查看 / 编辑 / 转化（生成调料产物档案）。
+ */
 export function SeasoningListPanel({
   categories,
   units,
-  fixedSeasoningType = "",
   refreshToken,
 }: SeasoningListPanelProps) {
   const [data, setData] = useState<Ingredient[]>([]);
@@ -85,10 +81,10 @@ export function SeasoningListPanel({
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailEdit, setDetailEdit] = useState(false);
-  // 「转化」：创建该调味品的调料清单档案（standard_seasonings）
+  // 「转化」：以该调味品为原料创建调料产物（SeasoningProduct）
   const [convertSourceId, setConvertSourceId] = useState<number | null>(null);
   const [convertDialogOpen, setConvertDialogOpen] = useState(false);
-  // 「查看已有调料清单」抽屉（转化弹窗头部入口）
+  // 「查看已有产物」抽屉（转化弹窗头部入口）
   const [packagedOpen, setPackagedOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -100,7 +96,6 @@ export function SeasoningListPanel({
         pageSize: String(pageSize),
       });
       if (search.trim()) params.set("q", search.trim());
-      if (fixedSeasoningType) params.set("seasoningType", fixedSeasoningType);
       const ingRes = await fetch(`/api/ingredients?${params.toString()}`);
       const json = await ingRes.json();
       setData(json.data || []);
@@ -110,7 +105,7 @@ export function SeasoningListPanel({
     } finally {
       setLoading(false);
     }
-  }, [fixedSeasoningType, page, pageSize, search]);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     const timer = setTimeout(fetchData, 300);
@@ -120,7 +115,7 @@ export function SeasoningListPanel({
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setPage(1);
-  }, [fixedSeasoningType, search]);
+  }, [search]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const openView = (row: Ingredient) => {
@@ -142,8 +137,6 @@ export function SeasoningListPanel({
   >({
     buildInitialData: (row) => ({
       alias: row.alias,
-      l2Code: row.l2Code,
-      seasoningType: row.seasoningType,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
       stockUnit: row.stockUnit,
@@ -164,16 +157,6 @@ export function SeasoningListPanel({
     () => data.find((row) => row.id === convertSourceId) ?? null,
     [data, convertSourceId]
   );
-
-  const l2Map = useMemo(() => {
-    const map: Record<string, { name: string; parentCode: string }> = {};
-    categories.forEach((l1) => {
-      l1.children.forEach((l2) => {
-        map[l2.code] = { name: l2.name, parentCode: l1.code };
-      });
-    });
-    return map;
-  }, [categories]);
 
   return (
     <>
@@ -219,42 +202,29 @@ export function SeasoningListPanel({
               },
               {
                 header: "调味品名称",
-                className: "w-[132px]",
+                className: "w-[150px]",
                 cell: (row) => (
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="font-semibold text-primary">{row.name}</span>
-                    <SeasoningTypeTag type={row.seasoningType} />
-                  </span>
+                  <span className="font-semibold text-primary">{row.name}</span>
                 ),
               },
               {
                 header: "商品名称",
-                className: "w-[88px]",
+                className: "w-[110px]",
                 cell: (row) => row.alias || <EmptyValue />,
               },
               {
-                header: "二级分类",
-                className: "w-[84px]",
-                cell: (row) => {
-                  const l2Info = l2Map[row.l2Code];
-                  return (
-                    <CategoryTag l2Code={row.l2Code} name={l2Info?.name || row.l2Code} />
-                  );
-                },
-              },
-              {
                 header: "采购规格",
-                className: "w-[100px]",
+                className: "w-[120px]",
                 cell: (row) => row.purchaseSpec || <EmptyValue />,
               },
               {
                 header: "采购单位",
-                className: "w-[72px]",
+                className: "w-[80px]",
                 cell: (row) => row.purchaseUnit || <EmptyValue />,
               },
               {
                 header: "最新参照单价",
-                className: "w-[88px]",
+                className: "w-[100px]",
                 cell: (row) =>
                   row.latestRefPrice != null ? (
                     <span className="tabular-nums">
@@ -266,17 +236,17 @@ export function SeasoningListPanel({
               },
               {
                 header: "入库单位",
-                className: "w-[72px]",
+                className: "w-[80px]",
                 cell: (row) => row.stockUnit || <EmptyValue />,
               },
               {
                 header: "入库数量",
-                className: "w-[64px]",
+                className: "w-[72px]",
                 cell: (row) => <span className="font-medium">{row.unitsPerPurchase ?? 1}</span>,
               },
               {
                 header: "每斤单价",
-                className: "w-[88px]",
+                className: "w-[96px]",
                 cell: (row) =>
                   row.pricePerJin != null ? (
                     <span className="font-semibold tabular-nums text-primary">
@@ -349,11 +319,6 @@ export function SeasoningListPanel({
         categories={categories}
         inlineEdit
         startInEditMode={detailEdit}
-        categoryName={
-          detailId
-            ? l2Map[data.find((row) => row.id === detailId)?.l2Code || ""]?.name
-            : undefined
-        }
         onUpdated={fetchData}
         onCopy={(record) => {
           openCopy(record as RawDetail);
@@ -372,7 +337,7 @@ export function SeasoningListPanel({
         mode="seasoning"
       />
 
-      <StandardSeasoningFormDialog
+      <SeasoningProductFormDialog
         open={convertDialogOpen}
         onOpenChange={setConvertDialogOpen}
         source={
@@ -386,9 +351,8 @@ export function SeasoningListPanel({
                   convertSourceRow.pricePerJin != null
                     ? Number(convertSourceRow.pricePerJin)
                     : null,
-                l2Name: l2Map[convertSourceRow.l2Code]?.name ?? null,
               }
-            : { id: 0, code: "", name: "" }
+            : undefined
         }
         onSuccess={() => {
           setConvertDialogOpen(false);
@@ -398,15 +362,12 @@ export function SeasoningListPanel({
         onViewExisting={() => setPackagedOpen(true)}
       />
 
-      <StandardSeasoningListSheet
+      <SeasoningProductListSheet
         open={packagedOpen}
         onOpenChange={setPackagedOpen}
         sourceIngredientId={convertSourceId}
         sourceName={convertSourceRow?.name ?? null}
         sourceCode={convertSourceRow?.code ?? null}
-        sourceL2Name={
-          convertSourceRow ? l2Map[convertSourceRow.l2Code]?.name ?? null : null
-        }
       />
     </>
   );

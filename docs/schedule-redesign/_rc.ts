@@ -1,7 +1,6 @@
 import "dotenv/config";
 import { prisma } from "../../lib/server/prisma";
 import { buildCuttingOrders, buildPurchasePlans } from "../../lib/server/schedule-utils";
-import { getSeasoningL2Codes } from "../../lib/server/category-helpers";
 
 async function main() {
   const id = 1;
@@ -13,8 +12,7 @@ async function main() {
     await tx.purchasePlan.deleteMany({ where: { scheduleId: id } });
     const cutting = await buildCuttingOrders(tx, id, items);
     for (const c of cutting) await tx.cuttingOrder.create({ data: c });
-    const codes = await getSeasoningL2Codes();
-    const plans = await buildPurchasePlans(tx, id, items, codes);
+    const plans = await buildPurchasePlans(tx, id, items);
     for (const p of plans) await tx.purchasePlan.create({ data: p });
   });
   const cos = await prisma.cuttingOrder.findMany({ where: { scheduleId: id } });

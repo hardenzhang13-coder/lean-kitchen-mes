@@ -7,31 +7,29 @@ function lineCost(pricePerJin: number | null, amountG: number): number | null {
 }
 
 /**
- * 标准化调料的标准规格变更后，把引用它的 BOM 行同步到新规格并重算成本。
- * amountG 仅作为缓存列，packageSpec 是唯一真源。
+ * 调料产物的出库价变更后，把引用它的 BOM 行成本按新价重算（按克用量保留不动）。
+ * BOM 行成本仅是缓存，读取时以实时价格为准（见 lib/server/dish-costing.ts）。
  */
-export async function syncBomAmountsForStandardSeasoning(
+export async function syncBomCostsForSeasoningProduct(
   tx: Prisma.TransactionClient,
   specId: number,
-  packageSpec: number,
   outPricePerJin: number | null
 ): Promise<{ dishIds: number[]; rows: number }> {
   const rows = await tx.dishSeasoningDetail.findMany({
     where: { specId },
-    select: { id: true, dishId: true },
+    select: { id: true, dishId: true, amountG: true },
   });
 
   if (rows.length === 0) {
     return { dishIds: [], rows: 0 };
   }
 
-  await tx.dishSeasoningDetail.updateMany({
-    where: { specId },
-    data: {
-      amountG: packageSpec,
-      cost: lineCost(outPricePerJin, packageSpec),
-    },
-  });
+  for (const row of rows) {
+    await tx.dishSeasoningDetail.update({
+      where: { id: row.id },
+      data: { cost: lineCost(outPricePerJin, Number(row.amountG)) },
+    });
+  }
 
   const dishIds = [...new Set(rows.map((row) => row.dishId))];
   await recalcDishCosts(tx, dishIds);

@@ -10,21 +10,21 @@ import {
   hasPlanProgress,
 } from "@/lib/server/incomplete-document-recalc";
 
-export interface SeasoningSpecRecalcResult {
+export interface SeasoningProductRecalcResult {
   scheduleIds: number[];
   planIds: number[];
 }
 
 /**
- * 标准化调料的标准规格变更后，重建引用它的「未完成单据」：
+ * 调料产物的转化要素（来源/出成率/口径/封装规格）变更后，重建引用它的「未完成单据」：
  * - 待生效 / 进行中的排程：只重建采购计划（切配工单只含净料/小料，不受调料影响）；
  * - 引用这些排程的待生效 / 进行中生产计划：三份 JSON 快照。
  * 已完成单据、出库单、库存流水一律不动；发现任何执行进度直接抛 409 并回滚。
  */
-export async function recalcIncompleteDocumentsForStandardSeasoning(
+export async function recalcIncompleteDocumentsForSeasoningProduct(
   tx: Prisma.TransactionClient,
   specId: number
-): Promise<SeasoningSpecRecalcResult> {
+): Promise<SeasoningProductRecalcResult> {
   const rows = await tx.dishSeasoningDetail.findMany({
     where: { specId },
     select: { dishId: true },
@@ -37,13 +37,6 @@ export async function recalcIncompleteDocumentsForStandardSeasoning(
   if (dishIds.length === 0) {
     return { scheduleIds: recalculatedSchedules, planIds: recalculatedPlans };
   }
-
-  const seasoningL2Codes = (
-    await tx.ingredientCategoryL2.findMany({
-      where: { parentCode: "SEA" },
-      select: { code: true },
-    })
-  ).map((row) => row.code);
 
   const schedules = await tx.schedule.findMany({
     where: {
@@ -64,7 +57,7 @@ export async function recalcIncompleteDocumentsForStandardSeasoning(
       dishId: item.dishId,
       quantity: item.quantity,
     }));
-    const purchase = await buildPurchasePlans(tx, schedule.id, items, seasoningL2Codes);
+    const purchase = await buildPurchasePlans(tx, schedule.id, items);
 
     await tx.purchasePlan.deleteMany({ where: { scheduleId: schedule.id } });
     if (purchase.length > 0) {

@@ -206,8 +206,7 @@ export async function buildCuttingOrders(
 export async function buildPurchasePlans(
   prisma: PrismaClient | Prisma.TransactionClient,
   scheduleId: number,
-  items: ScheduleItemInput[],
-  seasoningL2Codes: string[]
+  items: ScheduleItemInput[]
 ) {
   const dishIds = items.map((i) => i.dishId);
 
@@ -293,28 +292,44 @@ export async function buildPurchasePlans(
     },
   });
 
-  // 3. 获取调料 BOM
+  // 3. 获取调料 BOM：新口径行（specId）引调料产物，旧口径行直引调味品原料
+  const SEASONING_SOURCE_SELECT = {
+    id: true,
+    code: true,
+    name: true,
+    l2Code: true,
+    purchaseUnit: true,
+    stockUnit: true,
+    purchaseSpec: true,
+    latestRefPrice: true,
+    pricePerJin: true,
+    unitsPerPurchase: true,
+    defaultSupplierId: true,
+    defaultSupplier: { select: { name: true } },
+  } as const;
   const seasoningDetails = await prisma.dishSeasoningDetail.findMany({
     where: { dishId: { in: dishIds } },
-  });
-  const seasoningIds = seasoningDetails.map((d) => d.sourceId);
-  const seasonings = await prisma.ingredient.findMany({
-    where: { id: { in: seasoningIds }, l2Code: { in: seasoningL2Codes } },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      l2Code: true,
-      purchaseUnit: true,
-      stockUnit: true,
-      purchaseSpec: true,
-      latestRefPrice: true,
-      pricePerJin: true,
-      unitsPerPurchase: true,
-      defaultSupplierId: true,
-      defaultSupplier: { select: { name: true } },
+    include: {
+      product: {
+        include: {
+          sourceIngredient: { select: SEASONING_SOURCE_SELECT },
+          defaultSupplier: { select: { name: true } },
+        },
+      },
     },
   });
+  const legacySeasoningIds = [
+    ...new Set(
+      seasoningDetails.filter((d) => d.specId == null).map((d) => d.sourceId)
+    ),
+  ];
+  const legacySeasonings =
+    legacySeasoningIds.length > 0
+      ? await prisma.ingredient.findMany({
+          where: { id: { in: legacySeasoningIds }, kind: "seasoning" },
+          select: SEASONING_SOURCE_SELECT,
+        })
+      : [];
 
   // 4. 获取酱料 BOM
   const sauceDetails = await prisma.dishSauceDetail.findMany({
@@ -362,7 +377,7 @@ export async function buildPurchasePlans(
       id: number;
       code: string;
       name: string;
-      l2Code: string;
+      l2Code: string | null;
       purchaseUnit: string | null;
       stockUnit: string | null;
       purchaseSpec: string | null;
@@ -423,39 +438,88 @@ export async function buildPurchasePlans(
     addSourceGrossNeed(src, minorNeed, Number(detail.netIngredient.yieldRate));
   }
 
-  // 8. 汇总调料（出成率 100：直接用克需求）
+  // 8. 汇总调料
+  //   新口径（specId 行）：
+  //     转化产物 —— 按出成率折算进来源调味品原料毛需求（与净料折算同口径）
+  //     外购产物 —— 成品直接采购，独立成行（sourceType: seasoning_product）
+  //   旧口径行（specId 空）：直引调味品原料，克需求直接计
   const seasoningMap = new Map<number, PlanAgg>();
+  const seasoningProductMap = new Map<number, PlanAgg>();
+
+  const addSeasoningPlan = (
+    keyId: number,
+    src: (typeof legacySeasonings)[number],
+    grossNeed: number
+  ) => {
+    const existing = seasoningMap.get(keyId);
+    if (existing) {
+      existing.grossNeed += grossNeed;
+    } else {
+      seasoningMap.set(keyId, {
+        sourceType: "seasoning",
+        sourceId: src.id,
+        sourceCode: src.code,
+        itemName: src.name,
+        l2Code: src.l2Code ?? null,
+        grossNeed,
+        purchaseUnit: src.purchaseUnit,
+        purchaseSpec: src.purchaseSpec,
+        stockUnit: src.stockUnit,
+        unitsPerPurchase: src.unitsPerPurchase || 1,
+        latestRefPrice: src.latestRefPrice != null ? Number(src.latestRefPrice) : null,
+        pricePerJin: src.pricePerJin != null ? Number(src.pricePerJin) : null,
+        supplierId: src.defaultSupplierId ?? null,
+        supplierName: src.defaultSupplier?.name ?? null,
+      });
+    }
+  };
 
   for (const detail of seasoningDetails) {
     const quantity = quantityByDish.get(detail.dishId);
     if (quantity == null) continue;
-    const seasoning = seasonings.find((s) => s.id === detail.sourceId);
-    if (!seasoning) continue;
-    // 调料按克需求直接计：出成率 100，毛需求 = 克需求 × 道数
     const need = Number(detail.amountG) * quantity;
-    const grossNeed = need;
+    if (!Number.isFinite(need) || need <= 0) continue;
 
-    const existing = seasoningMap.get(seasoning.id);
-    if (existing) {
-      existing.grossNeed += need;
-    } else {
-      seasoningMap.set(seasoning.id, {
-        sourceType: "seasoning",
-        sourceId: seasoning.id,
-        sourceCode: seasoning.code,
-        itemName: seasoning.name,
-        l2Code: seasoning.l2Code,
-        grossNeed,
-        purchaseUnit: seasoning.purchaseUnit,
-        purchaseSpec: seasoning.purchaseSpec,
-        stockUnit: seasoning.stockUnit,
-        unitsPerPurchase: seasoning.unitsPerPurchase || 1,
-        latestRefPrice: seasoning.latestRefPrice != null ? Number(seasoning.latestRefPrice) : null,
-        pricePerJin: seasoning.pricePerJin != null ? Number(seasoning.pricePerJin) : null,
-        supplierId: seasoning.defaultSupplierId ?? null,
-        supplierName: seasoning.defaultSupplier?.name ?? null,
-      });
+    const product = detail.product;
+    if (detail.specId != null && product) {
+      if (product.sourceMode === "purchase") {
+        // 外购产物：独立采购行（不再折算原料）
+        const existing = seasoningProductMap.get(product.id);
+        if (existing) {
+          existing.grossNeed += need;
+        } else {
+          seasoningProductMap.set(product.id, {
+            sourceType: "seasoning_product",
+            sourceId: product.id,
+            sourceCode: product.code,
+            itemName: product.name,
+            l2Code: null,
+            grossNeed: need,
+            purchaseUnit: product.purchaseUnit,
+            purchaseSpec: product.purchaseSpec,
+            stockUnit: "斤",
+            unitsPerPurchase: 1,
+            latestRefPrice:
+              product.latestRefPrice != null ? Number(product.latestRefPrice) : null,
+            pricePerJin: product.pricePerJin != null ? Number(product.pricePerJin) : null,
+            supplierId: product.defaultSupplierId ?? null,
+            supplierName: product.defaultSupplier?.name ?? null,
+          });
+        }
+      } else {
+        // 转化产物：按出成率折算进来源调味品原料毛需求
+        const src = product.sourceIngredient;
+        if (!src) continue;
+        const grossNeed = calcGrossNeedGrams(need, Number(product.yieldRate));
+        addSeasoningPlan(src.id, src, grossNeed);
+      }
+      continue;
     }
+
+    // 旧口径行：调味品原料直引，出成率 100（克需求直接计）
+    const seasoning = legacySeasonings.find((s) => s.id === detail.sourceId);
+    if (!seasoning) continue;
+    addSeasoningPlan(seasoning.id, seasoning, need);
   }
 
   // 9. 汇总酱料（出成率 100，采购口径按斤）
@@ -497,6 +561,7 @@ export async function buildPurchasePlans(
     ...ingredientMap.values(),
     ...seasoningMap.values(),
     ...sauceMap.values(),
+    ...seasoningProductMap.values(),
   ];
 
   const purchasePlans = allPlans.map((p) => {

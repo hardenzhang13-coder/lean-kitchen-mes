@@ -55,7 +55,6 @@ async function main() {
     { code: "BEA", name: "豆制品" },
     { code: "PRC", name: "加工制品" },
     { code: "GRA", name: "米面粮油" },
-    { code: "SEA", name: "调味品" },
     { code: "MIN", name: "小料" },
     { code: "PIG", name: "猪肉类" },
   ];
@@ -87,10 +86,7 @@ async function main() {
     { code: "GRA-RIC", name: "米", parentCode: "GRA", description: "" },
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
-    // SEA-SEA「调料」已停用（保留编码兼容，服务端识别仍覆盖）；调料按物理形态分为固体/液体
-    // 单品/复合/成品酱料不占分类体系：2026-11-24 起为 Ingredient.seasoningType 独立字段
-    { code: "SEA-SOL", name: "固体类", parentCode: "SEA", description: "" },
-    { code: "SEA-LIQ", name: "液体类", parentCode: "SEA", description: "" },
+    // 调味品独立体系（2026-11-25 升级）：不占食材分类，kind=seasoning 标记，见 ingredients.kind
     { code: "MIN-GAR", name: "姜蒜类", parentCode: "MIN", description: "" },
     { code: "MIN-ONI", name: "葱香类", parentCode: "MIN", description: "" },
     { code: "MIN-PEP", name: "椒香类", parentCode: "MIN", description: "" },
@@ -99,11 +95,6 @@ async function main() {
     { code: "PIG-COL", name: "冷鲜", parentCode: "PIG", description: "" },
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
-  // SEA-SEA「调料」停用：保留编码兼容（服务端识别仍覆盖），业务端分类选择器不再显示
-  await prisma.ingredientCategoryL2.updateMany({
-    where: { code: "SEA-SEA" },
-    data: { isActive: false },
-  });
 
   // 4. 单位（重量类必须带 gramsPerUnit）
   //    只补缺失，不覆盖：运营在生产上调整过的换算系数（如「斤」改 490g）必须原样保留，

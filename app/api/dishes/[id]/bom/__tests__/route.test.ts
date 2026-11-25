@@ -24,10 +24,27 @@ const mockedPrisma = prisma as unknown as {
   ingredientCategoryL2: { findMany: jest.Mock };
 };
 
-/** SEA 调味品体系下的调料：每斤单价 10 元/斤 */
+/** 旧口径行：直引调味品原料（kind=seasoning），每斤单价 10 元/斤 */
 const seasoning = { id: 7, name: "生抽", pricePerJin: 10 };
 
-function setupTransaction(seasonings: Array<typeof seasoning> = [seasoning]) {
+/** 新口径行：调料产物（转化口径），来源 10 元/斤 ÷ 出成率 80% = 12.5 元/斤，毛利 0 → 出库价 12.5 */
+const seasoningProduct = {
+  id: 3,
+  name: "生抽•500g",
+  sourceMode: "transform",
+  unitPrice: 12.5,
+  yieldRate: 80,
+  processingFeePerJin: 0,
+  grossMarginRate: 0,
+  packageSpec: 500,
+  pricePerJin: null,
+  sourceIngredient: { pricePerJin: 10 },
+};
+
+function setupTransaction(
+  seasonings: Array<typeof seasoning> = [seasoning],
+  products: Array<typeof seasoningProduct> = [seasoningProduct]
+) {
   const createMany = jest.fn().mockResolvedValue({ count: 1 });
   mockedPrisma.$transaction.mockImplementation(
     async (callback: (tx: unknown) => Promise<unknown>) =>
@@ -57,6 +74,9 @@ function setupTransaction(seasonings: Array<typeof seasoning> = [seasoning]) {
         },
         ingredient: {
           findMany: jest.fn().mockResolvedValue(seasonings),
+        },
+        seasoningProduct: {
+          findMany: jest.fn().mockResolvedValue(products),
         },
         sauceIngredient: {
           findMany: jest.fn().mockResolvedValue([]),
@@ -88,22 +108,19 @@ function seasoningRow(createMany: jest.Mock) {
   return call?.[0]?.data?.[0];
 }
 
-describe("PUT /api/dishes/[id]/bom — 调料按来源调料 + 克需求口径", () => {
+describe("PUT /api/dishes/[id]/bom — 调料双口径（产物 specId / 旧行 sourceId）", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockedPrisma.dish.findUnique.mockResolvedValue({ status: "draft" });
-    mockedPrisma.ingredientCategoryL2.findMany.mockResolvedValue([
-      { code: "SEA-SOL" },
-    ]);
     setupTransaction();
   });
 
-  it("调料行：克数按客户端填写，成本按每斤单价折算", async () => {
+  it("产物行：按产物出库价 × 克数 ÷ 500 计价", async () => {
     const { createMany } = setupTransaction();
 
     const res = await PUT(
       createRequest({
-        seasoningDetails: [{ sourceId: 7, amountG: 10, brand: null }],
+        seasoningDetails: [{ specId: 3, amountG: 10, brand: null }],
       }),
       params()
     );
@@ -111,14 +128,33 @@ describe("PUT /api/dishes/[id]/bom — 调料按来源调料 + 克需求口径",
     expect(res.status).toBe(200);
     const row = seasoningRow(createMany);
     expect(row.amountG).toBe(10);
-    expect(row.sourceId).toBe(7);
-    expect(row.specId).toBeNull();
-    // 成本 = 每斤单价 10 元/斤 × 10g ÷ 500 = 0.2
-    expect(row.cost).toBe(0.2);
+    expect(row.specId).toBe(3);
+    // 产物行无来源原料：sourceId 置 0（非空约束保留）
+    expect(row.sourceId).toBe(0);
+    // 出库价 12.5 × 10g ÷ 500 = 0.25
+    expect(row.cost).toBe(0.25);
     expect(mockedLogOperation).toHaveBeenCalled();
   });
 
-  it("旧客户端传的 specId 被忽略，按来源调料 + 克数写入", async () => {
+  it("旧口径行：直引调味品原料，按每斤单价 × 克数 ÷ 500 计价", async () => {
+    const { createMany } = setupTransaction();
+
+    const res = await PUT(
+      createRequest({
+        seasoningDetails: [{ sourceId: 7, amountG: 10 }],
+      }),
+      params()
+    );
+
+    expect(res.status).toBe(200);
+    const row = seasoningRow(createMany);
+    expect(row.specId).toBeNull();
+    expect(row.sourceId).toBe(7);
+    // 成本 = 每斤单价 10 × 10g ÷ 500 = 0.2
+    expect(row.cost).toBe(0.2);
+  });
+
+  it("specId 与 sourceId 同传时以产物口径为准", async () => {
     const { createMany } = setupTransaction();
 
     const res = await PUT(
@@ -130,13 +166,28 @@ describe("PUT /api/dishes/[id]/bom — 调料按来源调料 + 克需求口径",
 
     expect(res.status).toBe(200);
     const row = seasoningRow(createMany);
-    expect(row.specId).toBeNull();
-    expect(row.amountG).toBe(25);
-    expect(row.cost).toBe(0.5);
+    expect(row.specId).toBe(3);
+    // 出库价 12.5 × 25g ÷ 500 = 0.625
+    expect(row.cost).toBe(0.625);
   });
 
-  it("引用的调料不属于调味品体系时拒绝保存", async () => {
-    setupTransaction([]);
+  it("引用的调料产物不存在时拒绝保存", async () => {
+    setupTransaction([seasoning], []);
+
+    const res = await PUT(
+      createRequest({
+        seasoningDetails: [{ specId: 9, amountG: 10 }],
+      }),
+      params()
+    );
+
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.error).toContain("调料产物不存在或已删除");
+  });
+
+  it("旧行引用的原料不属于调味品体系时拒绝保存", async () => {
+    setupTransaction([], [seasoningProduct]);
 
     const res = await PUT(
       createRequest({
@@ -147,7 +198,7 @@ describe("PUT /api/dishes/[id]/bom — 调料按来源调料 + 克需求口径",
 
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.error).toContain("不属于调味品分类");
+    expect(body.error).toContain("不属于调味品体系");
   });
 
   it("缺少克数时拒绝保存", async () => {
