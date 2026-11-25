@@ -1,36 +1,23 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/server/prisma";
 import { calcNetUnitPrice } from "@/lib/shared/spec-parser";
-import type { SeasoningSourceMode } from "@/lib/shared/seasoning-product";
 import { deriveSeasoningProductPrices } from "@/lib/shared/seasoning-spec";
 
 // 调料产物的服务端工具：单价派生 + 行序列化。
-// 与 net-ingredient-utils.ts 同构，来源档案是调味品原料（transform）或手填外购价（purchase）。
+// 与 net-ingredient-utils.ts 同构，来源档案是调味品原料（纯转化口径）。
 
 type UnitPriceDatabase = Pick<Prisma.TransactionClient, "ingredient">;
 
 export interface CalculateUnitPriceInput {
-  sourceMode: SeasoningSourceMode;
   sourceIngredientId?: number | null;
   yieldRate?: number | null;
-  /** purchase 口径：手填每斤单价 */
-  pricePerJin?: number | null;
 }
 
-/**
- * 计算产物单价（元/斤）。
- * - transform：来源调味品当前每斤单价 ÷ (出成率/100)
- * - purchase：手填每斤单价直接落价
- */
+/** 计算产物单价（元/斤）= 来源调味品当前每斤单价 ÷ (出成率/100) */
 export async function calculateSeasoningProductUnitPrice(
   input: CalculateUnitPriceInput,
   database: UnitPriceDatabase = prisma
 ): Promise<number | null> {
-  if (input.sourceMode === "purchase") {
-    const p = input.pricePerJin == null ? null : Number(input.pricePerJin);
-    return p != null && Number.isFinite(p) && p > 0 ? p : null;
-  }
-
   if (!input.sourceIngredientId || !input.yieldRate) return null;
 
   const ingredient = await database.ingredient.findUnique({
@@ -45,13 +32,11 @@ export async function calculateSeasoningProductUnitPrice(
 }
 
 export interface SeasoningProductSerializeInput {
-  sourceMode?: unknown;
   unitPrice: unknown;
   yieldRate?: unknown;
   processingFeePerJin?: unknown;
   grossMarginRate?: unknown;
   packageSpec?: unknown;
-  pricePerJin?: unknown;
   sourceIngredient?: {
     pricePerJin?: unknown;
     name?: unknown;

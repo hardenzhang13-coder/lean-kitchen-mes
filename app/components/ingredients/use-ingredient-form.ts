@@ -20,6 +20,7 @@ export type IngredientFormInitialData = {
   name?: string;
   l2Code?: string;
   alias?: string | null;
+  seasoningType?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   stockUnit?: string | null;
@@ -34,6 +35,7 @@ export type SavedIngredientRecord = {
   name: string;
   alias?: string | null;
   l2Code?: string | null;
+  seasoningType?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   stockUnit?: string | null;
@@ -74,6 +76,7 @@ function buildForm(
     l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
     alias: initialData?.alias || "",
+    seasoningType: initialData?.seasoningType || "",
     purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
     purchaseUnit: initialData?.purchaseUnit || (isCreate ? "斤" : ""),
     unitsPerPurchase:
@@ -191,6 +194,7 @@ export function useIngredientForm({
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
     initialData?.alias ?? "",
+    initialData?.seasoningType ?? "",
     initialData?.purchaseSpec ?? "",
     initialData?.purchaseUnit ?? "",
     initialData?.stockUnit ?? "",
@@ -247,6 +251,8 @@ export function useIngredientForm({
         // 大类边界：调味品独立体系（不挂分类），食材必须带二级分类
         kind: isSeasoning ? ("seasoning" as const) : ("food" as const),
         ...(isSeasoning ? {} : { l2Code: form.l2Code }),
+        // 调味品类型：产物按此归档；食材恒为 null
+        seasoningType: isSeasoning ? form.seasoningType || null : null,
         purchaseSpec,
         purchaseUnit: form.purchaseUnit,
         stockUnit: form.stockUnit,
@@ -294,6 +300,10 @@ export function useIngredientForm({
           typeof record.l2Code === "string"
             ? record.l2Code
             : (form.l2Code || null),
+        seasoningType:
+          typeof record.seasoningType === "string"
+            ? record.seasoningType
+            : (form.seasoningType || null),
         purchaseSpec:
           typeof record.purchaseSpec === "string"
             ? record.purchaseSpec

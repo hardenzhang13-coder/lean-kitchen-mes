@@ -16,6 +16,7 @@ import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-s
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
+import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
@@ -30,6 +31,7 @@ type Ingredient = {
   code: string;
   name: string;
   alias: string | null;
+  seasoningType: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -137,6 +139,7 @@ export function SeasoningListPanel({
   >({
     buildInitialData: (row) => ({
       alias: row.alias,
+      seasoningType: row.seasoningType,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
       stockUnit: row.stockUnit,
@@ -152,10 +155,24 @@ export function SeasoningListPanel({
     },
   });
 
-  // 「转化」来源行：取来源调味品的编号/名称/采购规格/每斤单价
+  // 「转化」来源行：取来源调味品的编号/名称/类型/采购规格/每斤单价
   const convertSourceRow = useMemo(
     () => data.find((row) => row.id === convertSourceId) ?? null,
     [data, convertSourceId]
+  );
+
+  // 转化按类型归档：未设置类型的调味品先回档案补类型
+  const openConvert = useCallback(
+    (id: number) => {
+      const row = data.find((item) => item.id === id);
+      if (!row?.seasoningType) {
+        toast.error("请先在调味品档案中选择调味品类型");
+        return;
+      }
+      setConvertSourceId(id);
+      setConvertDialogOpen(true);
+    },
+    [data]
   );
 
   return (
@@ -206,6 +223,16 @@ export function SeasoningListPanel({
                 cell: (row) => (
                   <span className="font-semibold text-primary">{row.name}</span>
                 ),
+              },
+              {
+                header: "类型",
+                className: "w-[96px]",
+                cell: (row) =>
+                  row.seasoningType ? (
+                    <SeasoningTypeTag type={row.seasoningType} />
+                  ) : (
+                    <EmptyValue />
+                  ),
               },
               {
                 header: "商品名称",
@@ -301,8 +328,7 @@ export function SeasoningListPanel({
                   icon={<ArrowRightLeft className="h-3.5 w-3.5" />}
                   onClick={(event) => {
                     event.stopPropagation();
-                    setConvertSourceId(row.id);
-                    setConvertDialogOpen(true);
+                    openConvert(row.id);
                   }}
                 />
               </>
@@ -325,8 +351,7 @@ export function SeasoningListPanel({
         }}
         onConvert={(id) => {
           setDetailOpen(false);
-          setConvertSourceId(id);
-          setConvertDialogOpen(true);
+          openConvert(id);
         }}
       />
 
@@ -337,30 +362,29 @@ export function SeasoningListPanel({
         mode="seasoning"
       />
 
-      <SeasoningProductFormDialog
-        open={convertDialogOpen}
-        onOpenChange={setConvertDialogOpen}
-        source={
-          convertSourceRow
-            ? {
-                id: convertSourceRow.id,
-                code: convertSourceRow.code,
-                name: convertSourceRow.name,
-                purchaseSpec: convertSourceRow.purchaseSpec ?? null,
-                pricePerJin:
-                  convertSourceRow.pricePerJin != null
-                    ? Number(convertSourceRow.pricePerJin)
-                    : null,
-              }
-            : undefined
-        }
-        onSuccess={() => {
-          setConvertDialogOpen(false);
-          setConvertSourceId(null);
-          fetchData();
-        }}
-        onViewExisting={() => setPackagedOpen(true)}
-      />
+      {convertSourceRow != null && (
+        <SeasoningProductFormDialog
+          open={convertDialogOpen}
+          onOpenChange={setConvertDialogOpen}
+          source={{
+            id: convertSourceRow.id,
+            code: convertSourceRow.code,
+            name: convertSourceRow.name,
+            purchaseSpec: convertSourceRow.purchaseSpec ?? null,
+            pricePerJin:
+              convertSourceRow.pricePerJin != null
+                ? Number(convertSourceRow.pricePerJin)
+                : null,
+            seasoningType: convertSourceRow.seasoningType,
+          }}
+          onSuccess={() => {
+            setConvertDialogOpen(false);
+            setConvertSourceId(null);
+            fetchData();
+          }}
+          onViewExisting={() => setPackagedOpen(true)}
+        />
+      )}
 
       <SeasoningProductListSheet
         open={packagedOpen}

@@ -82,25 +82,23 @@ describe("菜品成本汇总 · 调料按每斤单价 × 克需求", () => {
         amountG: 20,
         specId: 50,
         product: {
-          sourceMode: "transform",
           yieldRate: 80,
           processingFeePerJin: null,
           grossMarginRate: 0,
           sourceIngredient: { pricePerJin: 10 },
         },
       },
-      // 外购产物行：出库价 = 8 元/斤 × 25g ÷ 500 = 0.4
+      // 产物行含封装加工费与毛利率：出库价 = (10 + 2) ÷ (1 - 0.2) = 15 元/斤 × 25g ÷ 500 = 0.75
       {
         dishId: 1,
         sourceId: 0,
         amountG: 25,
         specId: 51,
         product: {
-          sourceMode: "purchase",
-          pricePerJin: 8,
-          processingFeePerJin: null,
-          grossMarginRate: 0,
-          sourceIngredient: null,
+          yieldRate: 100,
+          processingFeePerJin: 2,
+          grossMarginRate: 20,
+          sourceIngredient: { pricePerJin: 10 },
         },
       },
     ]);
@@ -108,8 +106,8 @@ describe("菜品成本汇总 · 调料按每斤单价 × 克需求", () => {
     const result = await getCurrentDishCostBreakdownMap([1], database as never);
 
     const breakdown = result.get(1);
-    // 0.2 + 0.5 + 0.4
-    expect(breakdown?.seasoning).toBe(1.1);
-    expect(breakdown?.total).toBe(1.1);
+    // 0.2 + 0.5 + 0.75
+    expect(breakdown?.seasoning).toBe(1.45);
+    expect(breakdown?.total).toBe(1.45);
   });
 });

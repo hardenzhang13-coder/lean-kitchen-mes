@@ -313,7 +313,6 @@ export async function buildPurchasePlans(
       product: {
         include: {
           sourceIngredient: { select: SEASONING_SOURCE_SELECT },
-          defaultSupplier: { select: { name: true } },
         },
       },
     },
@@ -439,12 +438,9 @@ export async function buildPurchasePlans(
   }
 
   // 8. 汇总调料
-  //   新口径（specId 行）：
-  //     转化产物 —— 按出成率折算进来源调味品原料毛需求（与净料折算同口径）
-  //     外购产物 —— 成品直接采购，独立成行（sourceType: seasoning_product）
+  //   新口径（specId 行）：转化产物按出成率折算进来源调味品原料毛需求（与净料折算同口径）
   //   旧口径行（specId 空）：直引调味品原料，克需求直接计
   const seasoningMap = new Map<number, PlanAgg>();
-  const seasoningProductMap = new Map<number, PlanAgg>();
 
   const addSeasoningPlan = (
     keyId: number,
@@ -482,37 +478,11 @@ export async function buildPurchasePlans(
 
     const product = detail.product;
     if (detail.specId != null && product) {
-      if (product.sourceMode === "purchase") {
-        // 外购产物：独立采购行（不再折算原料）
-        const existing = seasoningProductMap.get(product.id);
-        if (existing) {
-          existing.grossNeed += need;
-        } else {
-          seasoningProductMap.set(product.id, {
-            sourceType: "seasoning_product",
-            sourceId: product.id,
-            sourceCode: product.code,
-            itemName: product.name,
-            l2Code: null,
-            grossNeed: need,
-            purchaseUnit: product.purchaseUnit,
-            purchaseSpec: product.purchaseSpec,
-            stockUnit: "斤",
-            unitsPerPurchase: 1,
-            latestRefPrice:
-              product.latestRefPrice != null ? Number(product.latestRefPrice) : null,
-            pricePerJin: product.pricePerJin != null ? Number(product.pricePerJin) : null,
-            supplierId: product.defaultSupplierId ?? null,
-            supplierName: product.defaultSupplier?.name ?? null,
-          });
-        }
-      } else {
-        // 转化产物：按出成率折算进来源调味品原料毛需求
-        const src = product.sourceIngredient;
-        if (!src) continue;
-        const grossNeed = calcGrossNeedGrams(need, Number(product.yieldRate));
-        addSeasoningPlan(src.id, src, grossNeed);
-      }
+      // 转化产物：按出成率折算进来源调味品原料毛需求
+      const src = product.sourceIngredient;
+      if (!src) continue;
+      const grossNeed = calcGrossNeedGrams(need, Number(product.yieldRate));
+      addSeasoningPlan(src.id, src, grossNeed);
       continue;
     }
 
@@ -561,7 +531,6 @@ export async function buildPurchasePlans(
     ...ingredientMap.values(),
     ...seasoningMap.values(),
     ...sauceMap.values(),
-    ...seasoningProductMap.values(),
   ];
 
   const purchasePlans = allPlans.map((p) => {

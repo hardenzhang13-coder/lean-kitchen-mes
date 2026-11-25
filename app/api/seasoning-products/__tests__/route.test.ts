@@ -16,12 +16,6 @@ jest.mock("@/lib/server/prisma", () => ({
       findFirst: jest.fn(),
       findUnique: jest.fn(),
     },
-    supplier: {
-      findFirst: jest.fn(),
-    },
-    portionProfile: {
-      findUnique: jest.fn(),
-    },
   },
 }));
 
@@ -41,15 +35,13 @@ const mockedPrisma = prisma as unknown as {
     findFirst: jest.Mock;
   };
   ingredient: { findFirst: jest.Mock; findUnique: jest.Mock };
-  supplier: { findFirst: jest.Mock };
-  portionProfile: { findUnique: jest.Mock };
 };
 const mockedLogOperation = logOperation as jest.Mock;
 
 const transformSource = {
   id: 7,
   name: "蒸鱼双椒酱",
-  pricePerJin: 10,
+  seasoningType: "单品调料",
 };
 
 function createRequest(body: unknown, method = "POST"): NextRequest {
@@ -65,17 +57,13 @@ function listRequest(query = ""): NextRequest {
 
 const transformPayload = {
   name: "蒸鱼双椒酱•1200g",
-  productType: "单品调料",
-  sourceMode: "transform",
   sourceIngredientId: 7,
   packageSpec: 1200,
-  portion: "单人份",
   yieldRate: 80,
 };
 
 beforeEach(() => {
   jest.clearAllMocks();
-  mockedPrisma.portionProfile.findUnique.mockResolvedValue({ isActive: true });
 });
 
 describe("GET /api/seasoning-products", () => {
@@ -107,28 +95,24 @@ describe("GET /api/seasoning-products", () => {
   });
 });
 
-describe("POST /api/seasoning-products", () => {
-  it("转化口径：来源 kind=seasoning 校验 + 出成率派生单价 + 写库", async () => {
+describe("POST /api/seasoning-products（纯转化口径）", () => {
+  it("来源校验 + 类型继承来源 + 出成率派生单价 + 写库", async () => {
     mockedPrisma.ingredient.findFirst.mockResolvedValue(transformSource);
     mockedPrisma.ingredient.findUnique.mockResolvedValue({ pricePerJin: 10 });
     mockedPrisma.seasoningProduct.findFirst.mockResolvedValue({ code: "SP-0007" });
     mockedPrisma.seasoningProduct.create.mockResolvedValue({
       id: 99,
       code: "SP-0008",
-      ...transformPayload,
+      name: transformPayload.name,
+      productType: "单品调料",
+      sourceIngredientId: 7,
+      yieldRate: 80,
+      packageSpec: 1200,
       unitPrice: 12.5,
-      l2Code: null,
-      brand: null,
-      purchaseSpec: null,
-      purchaseUnit: null,
-      latestRefPrice: null,
-      pricePerJin: null,
-      defaultSupplierId: null,
       processingFeePerJin: null,
       grossMarginRate: 0,
       storage: "常温",
-      sourceIngredient: transformSource,
-      defaultSupplier: null,
+      sourceIngredient: { ...transformSource, pricePerJin: 10 },
     });
 
     const res = await POST(createRequest(transformPayload));
@@ -139,17 +123,17 @@ describe("POST /api/seasoning-products", () => {
     expect(mockedPrisma.seasoningProduct.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
+          productType: "单品调料",
           sourceIngredientId: 7,
           yieldRate: 80,
-          pricePerJin: null,
-          brand: null,
+          packageSpec: 1200,
         }),
       })
     );
     expect(mockedLogOperation).toHaveBeenCalled();
   });
 
-  it("转化口径：来源调味品缺失时 400", async () => {
+  it("来源调味品缺失时 400", async () => {
     mockedPrisma.ingredient.findFirst.mockResolvedValue(null);
 
     const res = await POST(createRequest(transformPayload));
@@ -160,7 +144,22 @@ describe("POST /api/seasoning-products", () => {
     expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
   });
 
-  it("转化口径：缺少来源或出成率时 400", async () => {
+  it("来源调味品未设置类型时 400，提示先补类型", async () => {
+    mockedPrisma.ingredient.findFirst.mockResolvedValue({
+      id: 7,
+      name: "蒸鱼双椒酱",
+      seasoningType: null,
+    });
+
+    const res = await POST(createRequest(transformPayload));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("未设置类型");
+    expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
+  });
+
+  it("缺少来源或出成率时 400", async () => {
     const res = await POST(
       createRequest({ ...transformPayload, sourceIngredientId: null })
     );
@@ -168,70 +167,15 @@ describe("POST /api/seasoning-products", () => {
     expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
   });
 
-  it("外购口径：手填每斤单价直接落价，来源与出成率置空", async () => {
-    const payload = {
-      name: "成品叉烧酱",
-      productType: "成品酱料",
-      sourceMode: "purchase",
-      packageSpec: 500,
-      portion: "单人份",
-      brand: "某牌",
-      purchaseSpec: "500g/瓶",
-      purchaseUnit: "瓶",
-      pricePerJin: 9.6,
-      defaultSupplierId: 3,
-    };
-    mockedPrisma.supplier.findFirst.mockResolvedValue({ id: 3 });
-    mockedPrisma.seasoningProduct.findFirst.mockResolvedValue(null);
-    mockedPrisma.seasoningProduct.create.mockResolvedValue({
-      id: 100,
-      code: "SP-0001",
-      ...payload,
-      unitPrice: 9.6,
-      yieldRate: null,
-      sourceIngredientId: null,
-      latestRefPrice: null,
-      processingFeePerJin: null,
-      grossMarginRate: 0,
-      storage: "常温",
-      sourceIngredient: null,
-      defaultSupplier: { id: 3, name: "某供应商" },
-    });
+  it("来源缺每斤单价时 400，无法派生单价", async () => {
+    mockedPrisma.ingredient.findFirst.mockResolvedValue(transformSource);
+    mockedPrisma.ingredient.findUnique.mockResolvedValue({ pricePerJin: null });
 
-    const res = await POST(createRequest(payload));
+    const res = await POST(createRequest(transformPayload));
     const json = await res.json();
 
-    expect(res.status).toBe(201);
-    expect(json.data.unitPrice).toBe(9.6);
-    expect(mockedPrisma.seasoningProduct.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          sourceIngredientId: null,
-          yieldRate: null,
-          pricePerJin: 9.6,
-          brand: "某牌",
-        }),
-      })
-    );
-  });
-
-  it("外购口径：缺少每斤单价时 400", async () => {
-    const res = await POST(
-      createRequest({
-        name: "成品叉烧酱",
-        productType: "成品酱料",
-        sourceMode: "purchase",
-        packageSpec: 500,
-        portion: "单人份",
-      })
-    );
     expect(res.status).toBe(400);
-    expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
-  });
-
-  it("缺少份量时 400", async () => {
-    const res = await POST(createRequest({ ...transformPayload, portion: undefined }));
-    expect(res.status).toBe(400);
+    expect(json.error).toContain("每斤单价");
     expect(mockedPrisma.seasoningProduct.create).not.toHaveBeenCalled();
   });
 });

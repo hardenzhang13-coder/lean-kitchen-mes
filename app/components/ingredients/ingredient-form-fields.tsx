@@ -7,12 +7,14 @@ import {
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { SelectField } from "@/app/components/ui/select-field";
 import { CategoryCascadeSelect } from "@/app/components/ui/category-cascade-select";
 import { calcJinPerPurchaseUnit } from "@/lib/shared/spec-parser";
 import { buildJinFactors } from "@/lib/shared/unit-conversion";
 import { SupplierSelect } from "@/app/components/ingredients/supplier-select";
 import { IngredientFieldInput } from "@/app/components/ingredients/ingredient-field-input";
 import { ReadOnlyValue } from "@/app/components/ui/form-controls";
+import { SEASONING_PRODUCT_TYPE_OPTIONS } from "@/lib/shared/seasoning-product";
 
 export type CategoryL1 = {
   code: string;
@@ -33,6 +35,8 @@ export interface IngredientFormData {
   l1Code: string;
   l2Code: string;
   alias: string;
+  /** 调味品类型（仅 mode=seasoning）：单品调料/复合调料/成品酱料；转化产物按此归档 */
+  seasoningType: string;
   purchaseSpec: string;
   purchaseUnit: string;
   stockUnit: string;
@@ -175,6 +179,35 @@ export function IngredientFormFields({
                 />
               )}
             </FormField>
+
+            {isSeasoning && (
+              <FormField
+                label="调味品类型"
+                readOnly={viewMode}
+                error={errors.seasoningType}
+                hint="单品调料 / 复合调料 / 成品酱料；转化产物按此类型归档，修改会级联已有产物"
+              >
+                {viewMode ? (
+                  <ReadOnlyValue
+                    value={
+                      SEASONING_PRODUCT_TYPE_OPTIONS.find(
+                        (o) => o.value === form.seasoningType
+                      )?.label ?? form.seasoningType
+                    }
+                  />
+                ) : (
+                  <SelectField
+                    value={form.seasoningType}
+                    onChange={(value) => onChange("seasoningType", value)}
+                    options={SEASONING_PRODUCT_TYPE_OPTIONS.map((o) => ({
+                      value: o.value,
+                      label: o.label,
+                    }))}
+                    placeholder="选择调味品类型"
+                  />
+                )}
+              </FormField>
+            )}
           </FormSection>
 
           <FormSection title="采购与计量" cols={groupCols} className="h-full">

@@ -110,13 +110,11 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           select: {
             id: true,
             name: true,
-            sourceMode: true,
             unitPrice: true,
             yieldRate: true,
             processingFeePerJin: true,
             grossMarginRate: true,
             packageSpec: true,
-            pricePerJin: true,
             sourceIngredient: { select: { pricePerJin: true } },
           },
         }),

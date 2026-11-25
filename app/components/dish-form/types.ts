@@ -23,8 +23,6 @@ export interface BomItem {
   portion?: string | null;
   /** 产物类型（调味品产物行）：单品调料/复合调料/成品酱料 */
   productType?: string | null;
-  /** 来源方式（调味品产物行）：transform=转化 / purchase=外购 */
-  sourceMode?: string | null;
   l1Code?: string;
   l2Code?: string;
 }
@@ -74,8 +72,6 @@ export interface IngredientOption {
   unit: string | null;
   /** 产物类型（调味品产物）：单品调料/复合调料/成品酱料 */
   productType?: string | null;
-  /** 来源方式（调味品产物）：transform=转化 / purchase=外购 */
-  sourceMode?: string | null;
   l1Code?: string;
   l2Code?: string;
 }
@@ -210,8 +206,6 @@ export interface DishDetail {
     portion?: string | null;
     /** 产物类型（产物行）：单品调料/复合调料/成品酱料 */
     productType?: string | null;
-    /** 来源方式（产物行）：transform=转化 / purchase=外购 */
-    sourceMode?: string | null;
     /** 包装规格（产物行，g） */
     packageSpec?: number | null;
     /** 标准规格价（产物行，元/份） */
@@ -340,7 +334,6 @@ export function dishToBom(dish: DishDetail): Record<BomType, BomItem[]> {
       cost: calcCost("seasoning", costPrice, amountG),
       portion: d.portion ?? null,
       productType: isProduct ? (d.productType ?? null) : null,
-      sourceMode: isProduct ? (d.sourceMode ?? null) : null,
     });
   });
 
@@ -587,13 +580,10 @@ export function normalizeSeasoningProducts(items: unknown[]): IngredientOption[]
         id,
         code: String(record.code || ""),
         name: String(record.name || ""),
-        // 来源展示：转化 = 来源调味品名；外购 = 品牌
-        productName:
-          record.sourceMode === "purchase"
-            ? String(record.brand || "")
-            : String(sourceIngredient?.name || ""),
+        // 来源展示：产物由调味品转化而来，回显来源调味品名
+        productName: String(sourceIngredient?.name || ""),
         spec: packageSpec != null ? `${packageSpec}g` : "",
-        unitPrice: record.latestRefPrice != null ? Number(record.latestRefPrice) : null,
+        unitPrice: record.unitPrice != null ? Number(record.unitPrice) : null,
         // 产物成本价 = 出库价（元/斤，含加工费与毛利）
         costPrice:
           record.outPricePerJin != null ? Number(record.outPricePerJin) : null,
@@ -605,7 +595,6 @@ export function normalizeSeasoningProducts(items: unknown[]): IngredientOption[]
             : null,
         unit: "斤",
         productType: record.productType != null ? String(record.productType) : null,
-        sourceMode: record.sourceMode != null ? String(record.sourceMode) : null,
       } as IngredientOption;
     })
     .filter((item): item is IngredientOption => item != null);

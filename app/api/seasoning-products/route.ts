@@ -8,7 +8,6 @@ import {
   seasoningProductQuerySchema,
 } from "@/lib/server/schemas/seasoning-product";
 import { validateBody, validateQuery } from "@/lib/server/validate";
-import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
 import { nextCode } from "@/lib/shared/code-gen";
 import { logger } from "@/lib/server/logger";
 import {
@@ -23,13 +22,14 @@ const SOURCE_INCLUDE = {
   sourceIngredient: {
     select: {
       id: true,
+      code: true,
       name: true,
       alias: true,
       purchaseSpec: true,
       pricePerJin: true,
+      seasoningType: true,
     },
   },
-  defaultSupplier: { select: { id: true, name: true } },
 } as const;
 
 export async function GET(req: NextRequest) {
@@ -38,14 +38,11 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(seasoningProductQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { productType, sourceMode, sourceIngredientId, q, page, pageSize } = validation.data;
+    const { productType, sourceIngredientId, q, page, pageSize } = validation.data;
 
     const where: Prisma.SeasoningProductWhereInput = { deletedAt: null };
     if (productType) {
       where.productType = productType;
-    }
-    if (sourceMode) {
-      where.sourceMode = sourceMode;
     }
     if (sourceIngredientId) {
       where.sourceIngredientId = sourceIngredientId;
@@ -84,35 +81,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body: unknown = await req.json();
-    // 份量：新建必填，先给出可读提示，形态由 zod 校验，档案合法性由路由层查表
-    const rawPortion =
-      typeof body === "object" && body !== null && "portion" in body
-        ? (body as { portion?: unknown }).portion
-        : undefined;
-    if (!rawPortion) {
-      return badRequest("请选择份量");
-    }
-
     const validation = validateBody(createSeasoningProductSchema, body);
     if (!validation.success) return validation.response;
 
-    const portionError = await validatePortionForCreate(validation.data.portion);
-    if (portionError) return badRequest(portionError);
-
     const {
       name,
-      productType,
-      sourceMode,
       sourceIngredientId,
       yieldRate,
-      brand,
-      purchaseSpec,
-      purchaseUnit,
-      latestRefPrice,
-      pricePerJin,
-      defaultSupplierId,
       packageSpec,
-      portion,
       processingFeePerJin,
       grossMarginRate,
       storage,
@@ -122,43 +98,24 @@ export async function POST(req: NextRequest) {
       return badRequest("名称不能为空");
     }
 
-    // 来源调味品必须是 kind=seasoning（转化口径）
-    let source: { id: number; name: string } | null = null;
-    if (sourceMode === "transform") {
-      if (!sourceIngredientId || !yieldRate) {
-        return badRequest("转化口径必须选择来源调味品并填写出成率");
-      }
-      source = await prisma.ingredient.findFirst({
-        where: { id: sourceIngredientId, deletedAt: null },
-        select: { id: true, name: true },
-      });
-      if (!source) {
-        return badRequest("来源调味品不存在或已删除");
-      }
-    } else if (pricePerJin == null) {
-      return badRequest("外购口径必须填写每斤单价");
+    // 产物只能由调味品转化而来；类型继承来源调味品的 seasoningType
+    const source = await prisma.ingredient.findFirst({
+      where: { id: sourceIngredientId, deletedAt: null, kind: "seasoning" },
+      select: { id: true, name: true, seasoningType: true },
+    });
+    if (!source) {
+      return badRequest("来源调味品不存在或已删除");
     }
-
-    if (defaultSupplierId != null) {
-      const supplier = await prisma.supplier.findFirst({
-        where: { id: defaultSupplierId },
-        select: { id: true },
-      });
-      if (!supplier) return badRequest("默认供应商不存在");
+    if (!source.seasoningType) {
+      return badRequest("来源调味品未设置类型，请先在调味品档案中选择调味品类型");
     }
 
     const calculated = await calculateSeasoningProductUnitPrice({
-      sourceMode,
-      sourceIngredientId: sourceMode === "transform" ? sourceIngredientId : null,
-      yieldRate: sourceMode === "transform" ? yieldRate : null,
-      pricePerJin: sourceMode === "purchase" ? pricePerJin : null,
+      sourceIngredientId: source.id,
+      yieldRate,
     });
     if (calculated == null) {
-      return badRequest(
-        sourceMode === "transform"
-          ? "来源调味品缺少每斤单价，无法派生单价"
-          : "每斤单价无效，无法建档"
-      );
+      return badRequest("来源调味品缺少每斤单价，无法派生单价");
     }
 
     const last = await prisma.seasoningProduct.findFirst({
@@ -172,18 +129,10 @@ export async function POST(req: NextRequest) {
       data: {
         code,
         name: name.trim(),
-        productType,
-        sourceMode,
-        sourceIngredientId: sourceMode === "transform" ? source!.id : null,
-        yieldRate: sourceMode === "transform" ? yieldRate : null,
-        brand: sourceMode === "purchase" ? brand?.trim() || null : null,
-        purchaseSpec: sourceMode === "purchase" ? purchaseSpec?.trim() || null : null,
-        purchaseUnit: sourceMode === "purchase" ? purchaseUnit?.trim() || null : null,
-        latestRefPrice: sourceMode === "purchase" ? latestRefPrice ?? null : null,
-        pricePerJin: sourceMode === "purchase" ? pricePerJin ?? null : null,
-        defaultSupplierId: defaultSupplierId ?? null,
+        productType: source.seasoningType,
+        sourceIngredientId: source.id,
+        yieldRate,
         packageSpec,
-        portion,
         unitPrice: calculated,
         processingFeePerJin: processingFeePerJin ?? null,
         grossMarginRate: grossMarginRate ?? 0,
@@ -196,7 +145,7 @@ export async function POST(req: NextRequest) {
       action: "CREATE",
       entity: "SeasoningProduct",
       entityId: row.id,
-      description: `创建调料产物: ${row.name || row.code}（${productType}，封装规格 ${row.packageSpec}g）`,
+      description: `创建调料产物: ${row.name || row.code}（${row.productType}，封装规格 ${row.packageSpec}g）`,
     });
 
     return created(serializeSeasoningProduct(row));

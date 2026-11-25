@@ -21,35 +21,23 @@ import {
   type RecordFormErrors,
 } from "@/app/components/ui/use-record-form";
 import { toast } from "sonner";
-import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
-import type { SeasoningProductType } from "@/lib/shared/seasoning-product";
 
 export type SeasoningProductFormItem = {
   id?: number;
   code?: string;
   name?: string;
   productType?: string | null;
-  sourceMode?: string | null;
   packageSpec?: number | null;
-  portion?: string | null;
   yieldRate?: number | null;
   processingFeePerJin?: number | null;
   grossMarginRate?: number | null;
-  sourceIngredientId?: number | null;
-  brand?: string | null;
-  purchaseSpec?: string | null;
-  purchaseUnit?: string | null;
-  latestRefPrice?: number | null;
-  pricePerJin?: number | null;
 };
 
 interface SeasoningProductFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** 锁定的来源调味品（原料层「转化」进入时传入，来源方式锁定为转化） */
-  source?: SeasoningProductSource | null;
-  /** 锁定产物类型（产物页某 Tab 内新建时传入） */
-  fixedProductType?: SeasoningProductType;
+  /** 来源调味品（转化入口必传；产物类型继承来源，不在表单内选择） */
+  source: SeasoningProductSource;
   /** 编辑态初始数据；缺省为新建 */
   initialData?: SeasoningProductFormItem;
   onSuccess?: (savedId: number) => void;
@@ -57,27 +45,14 @@ interface SeasoningProductFormDialogProps {
   onViewExisting?: () => void;
 }
 
-const DEFAULT_PORTION = "单人份";
-const DEFAULT_PRODUCT_TYPE: SeasoningProductType = "单品调料";
-
 function buildInitialForm(
   initialData: SeasoningProductFormItem | undefined,
-  source: SeasoningProductSource | null | undefined,
-  defaultPortion: string,
-  fixedProductType: SeasoningProductType | undefined
+  source: SeasoningProductSource
 ): SeasoningProductFormData {
-  const sourceMode = initialData?.sourceMode ?? "transform";
-  const isEdit = Boolean(initialData?.id);
   return {
-    name: initialData?.name ?? source?.name ?? "",
-    productType: initialData?.productType ?? fixedProductType ?? DEFAULT_PRODUCT_TYPE,
-    sourceMode,
-    sourceIngredientId: String(
-      initialData?.sourceIngredientId ?? source?.id ?? ""
-    ),
+    name: initialData?.name ?? source.name ?? "",
     packageSpec:
       initialData?.packageSpec != null ? String(initialData.packageSpec) : "500",
-    portion: initialData?.portion ?? defaultPortion,
     yieldRate:
       initialData?.yieldRate != null ? String(initialData.yieldRate) : "100",
     processingFeePerJin:
@@ -88,15 +63,6 @@ function buildInitialForm(
       initialData?.grossMarginRate != null
         ? String(initialData.grossMarginRate)
         : "0",
-    brand: initialData?.brand ?? "",
-    purchaseSpec: initialData?.purchaseSpec ?? "",
-    purchaseUnit: initialData?.purchaseUnit ?? "",
-    latestRefPrice:
-      initialData?.latestRefPrice != null ? String(initialData.latestRefPrice) : "",
-    pricePerJin:
-      initialData?.pricePerJin != null && isEdit
-        ? String(initialData.pricePerJin)
-        : "",
   };
 }
 
@@ -105,25 +71,13 @@ function validateSeasoningProductForm(
 ): RecordFormErrors {
   const next: RecordFormErrors = {};
   if (!values.name.trim()) next.name = "产物名称不能为空";
-  if (!values.productType) next.productType = "请选择产物类型";
   const spec = Number(values.packageSpec);
   if (!Number.isFinite(spec) || spec <= 0) {
     next.packageSpec = "请填写包装规格（g）";
   }
-  if (!values.portion) next.portion = "请选择份量";
-  if (values.sourceMode === "transform") {
-    if (!values.sourceIngredientId) {
-      next.sourceIngredientId = "转化口径必须选择来源调味品";
-    }
-    const yieldRate = Number(values.yieldRate);
-    if (!Number.isFinite(yieldRate) || yieldRate <= 0) {
-      next.yieldRate = "请填写出成率";
-    }
-  } else {
-    const pricePerJin = Number(values.pricePerJin);
-    if (!Number.isFinite(pricePerJin) || pricePerJin <= 0) {
-      next.pricePerJin = "外购口径必须填写每斤单价";
-    }
+  const yieldRate = Number(values.yieldRate);
+  if (!Number.isFinite(yieldRate) || yieldRate <= 0) {
+    next.yieldRate = "请填写出成率";
   }
   return next;
 }
@@ -132,34 +86,19 @@ export function SeasoningProductFormDialog({
   open,
   onOpenChange,
   source,
-  fixedProductType,
   initialData,
   onSuccess,
   onViewExisting,
 }: SeasoningProductFormDialogProps) {
   const isEdit = Boolean(initialData?.id);
-  const sourceLocked = Boolean(source?.id);
-  // 默认份量读份量档案：倍率=10 的首个启用行（单人份口径），档案不可达时兜底
-  const { profiles } = usePortionProfiles();
-  const defaultPortion = useMemo(() => {
-    if (profiles) {
-      const row =
-        profiles.find((p) => p.isActive && p.multiplier === 10) ??
-        profiles.find((p) => p.isActive);
-      if (row) return row.portion;
-    }
-    return DEFAULT_PORTION;
-  }, [profiles]);
 
   // 该来源调味品已有的产物数量（头部「查看已有产物」入口用）
   const [existingCount, setExistingCount] = useState<number | null>(null);
   const initialValues = useMemo(
-    () =>
-      buildInitialForm(initialData, source, defaultPortion, fixedProductType),
-    [initialData, source, defaultPortion, fixedProductType]
+    () => buildInitialForm(initialData, source),
+    [initialData, source]
   );
-  // defaultPortion 入 resetKey：份量档案异步返回后表单以档案默认值重建
-  const resetKey = `${source?.id ?? "free"}-${fixedProductType ?? ""}-${initialData?.id ?? "new"}-${defaultPortion}`;
+  const resetKey = `${source.id}-${initialData?.id ?? "new"}`;
 
   const { form, errors, submitting, setField, submit } = useRecordForm({
     active: open,
@@ -167,32 +106,17 @@ export function SeasoningProductFormDialog({
     initialValues,
     validate: validateSeasoningProductForm,
     onSubmit: async (values) => {
-      const isTransform = values.sourceMode === "transform";
       const payload = {
         name: values.name.trim(),
-        productType: values.productType,
-        sourceMode: values.sourceMode,
+        sourceIngredientId: source.id,
         packageSpec: Number(values.packageSpec),
-        portion: values.portion,
+        yieldRate: Number(values.yieldRate),
         processingFeePerJin:
           values.processingFeePerJin === ""
             ? null
             : Number(values.processingFeePerJin),
         grossMarginRate:
           values.grossMarginRate === "" ? null : Number(values.grossMarginRate),
-        ...(isTransform
-          ? {
-              sourceIngredientId: Number(values.sourceIngredientId),
-              yieldRate: Number(values.yieldRate),
-            }
-          : {
-              brand: values.brand.trim() || null,
-              purchaseSpec: values.purchaseSpec.trim() || null,
-              purchaseUnit: values.purchaseUnit.trim() || null,
-              latestRefPrice:
-                values.latestRefPrice === "" ? null : Number(values.latestRefPrice),
-              pricePerJin: Number(values.pricePerJin),
-            }),
       };
 
       const res = await fetch(
@@ -229,7 +153,7 @@ export function SeasoningProductFormDialog({
   });
 
   const loadExistingCount = useCallback(async () => {
-    if (!open || !source?.id) return;
+    if (!open || !source.id) return;
     try {
       const res = await fetch(
         `/api/seasoning-products?sourceIngredientId=${source.id}&page=1&pageSize=1`
@@ -256,15 +180,13 @@ export function SeasoningProductFormDialog({
     [setField]
   );
 
-  const typeLabel = fixedProductType ?? form.productType ?? "调料产物";
-  const dialogTitle = isEdit
-    ? `编辑${typeLabel}`
-    : sourceLocked
-      ? `转化为${typeLabel}`
-      : `新增${typeLabel}`;
+  // 产物类型继承来源调味品的 seasoningType，标题直接点明转化目标类型
+  const typeLabel =
+    initialData?.productType ?? source.seasoningType ?? "调料产物";
+  const dialogTitle = isEdit ? `编辑${typeLabel}` : `转化为${typeLabel}`;
 
-  // 来源调味品摘要（转化入口进入时展示）
-  const sourceSummary = source?.id ? (
+  // 来源调味品摘要（头部展示）
+  const sourceSummary = (
     <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
       <div className="flex min-h-8 flex-wrap items-center gap-2 text-xs">
         <span className="font-mono font-medium tabular-nums text-muted-foreground">
@@ -300,7 +222,7 @@ export function SeasoningProductFormDialog({
         </Button>
       ) : null}
     </div>
-  ) : null;
+  );
 
   return (
     <FormDialog open={open} onOpenChange={onOpenChange}>
@@ -311,11 +233,6 @@ export function SeasoningProductFormDialog({
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <DialogTitle className="text-lg">{dialogTitle}</DialogTitle>
           {sourceSummary}
-          {errors.sourceIngredientId && (
-            <p className="text-xs text-destructive" role="alert">
-              {errors.sourceIngredientId}
-            </p>
-          )}
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
@@ -323,7 +240,6 @@ export function SeasoningProductFormDialog({
             form={form}
             onChange={handleChange}
             source={source}
-            fixedProductType={fixedProductType}
             errors={errors}
           />
         </div>

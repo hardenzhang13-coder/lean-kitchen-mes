@@ -88,9 +88,7 @@ export async function getCurrentDishCostBreakdownMap(
           // 新口径：调料产物（specId 行按出库价计价）
           product: {
             select: {
-              sourceMode: true,
               yieldRate: true,
-              pricePerJin: true,
               processingFeePerJin: true,
               grossMarginRate: true,
               sourceIngredient: { select: { pricePerJin: true } },

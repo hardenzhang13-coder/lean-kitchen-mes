@@ -113,7 +113,6 @@ export function BomEditor({ bom, onChange, refs, onLoadItems, readOnly }: BomEdi
                 cost: calcCost(pickerType, costBase, amount),
                 portion: option.portion ?? null,
                 productType: option.productType ?? null,
-                sourceMode: option.sourceMode ?? null,
                 l1Code: option.l1Code,
                 l2Code: option.l2Code,
               } as BomItem;

@@ -55,6 +55,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       name,
       alias,
       kind,
+      seasoningType,
       l2Code,
       purchaseUnit,
       stockUnit,
@@ -84,10 +85,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // 食材（food）必须挂二级分类；调味品（seasoning）独立体系，分类恒为 NULL
     const finalKind = kind ?? existing.kind;
     const finalL2Code = finalKind === "food" ? l2Code ?? existing.l2Code : null;
+    // 调味品类型同理：仅 kind=seasoning 保留，切回食材时清空
+    const finalSeasoningType =
+      finalKind === "seasoning"
+        ? seasoningType !== undefined
+          ? (seasoningType ?? null)
+          : existing.seasoningType
+        : null;
     if (finalKind === "food" && !finalL2Code) {
       return badRequest("食材必须选择二级分类");
     }
     const categoryChanged = finalL2Code !== existing.l2Code;
+    const seasoningTypeChanged = finalSeasoningType !== existing.seasoningType;
 
     let category: { code: string; parentCode: string | null } | null = null;
     let existingCategory: { parentCode: string | null } | null = null;
@@ -137,6 +146,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           alias: alias !== undefined ? alias || null : existing.alias,
           kind: finalKind,
           l2Code: finalL2Code,
+          seasoningType: finalSeasoningType,
           purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
           stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
           unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
@@ -169,16 +179,27 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         syncedNetCount = synced.count;
       }
 
-      return { row, syncedNetCount };
+      // 调味品类型同理：产物类型继承来源调味品，改类型必须同事务级联未删除产物
+      let syncedProductCount = 0;
+      if (seasoningTypeChanged && finalSeasoningType != null) {
+        const synced = await tx.seasoningProduct.updateMany({
+          where: { sourceIngredientId: Number(id), deletedAt: null },
+          data: { productType: finalSeasoningType },
+        });
+        syncedProductCount = synced.count;
+      }
+
+      return { row, syncedNetCount, syncedProductCount };
     });
-    const { row, syncedNetCount } = result;
+    const { row, syncedNetCount, syncedProductCount } = result;
     await logOperation(req, {
       action: "UPDATE",
       entity: "Ingredient",
       entityId: row.id,
       description:
         `更新食材: ${row.name}` +
-        (syncedNetCount > 0 ? `；级联更新 ${syncedNetCount} 个净料/小料分类` : ""),
+        (syncedNetCount > 0 ? `；级联更新 ${syncedNetCount} 个净料/小料分类` : "") +
+        (syncedProductCount > 0 ? `；级联更新 ${syncedProductCount} 个调料产物类型` : ""),
     });
     return success(row);
   } catch (e: unknown) {

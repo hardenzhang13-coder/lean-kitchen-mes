@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { Loader2, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
@@ -13,7 +13,6 @@ import {
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { EmptyValue } from "@/app/components/ui/empty-value";
-import { PortionTag } from "@/app/components/ui/portion-tag";
 import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import {
@@ -21,6 +20,7 @@ import {
   type SeasoningProductFormItem,
 } from "@/app/components/ingredients/seasoning-product-form-dialog";
 import type { SeasoningProductListRow } from "@/app/components/ingredients/seasoning-product-list-sheet";
+import type { SeasoningProductSource } from "@/app/components/ingredients/seasoning-product-form-fields";
 import {
   DEFAULT_PAGE_SIZE,
   formatPageSummary,
@@ -36,7 +36,8 @@ export interface SeasoningProductListPanelProps {
 
 /**
  * 调料产物列表面板：按产物类型（单品/复合/成品）展示 SeasoningProduct，
- * 数据源 /api/seasoning-products?productType=。支持新建（类型锁定当前 Tab）、编辑、删除。
+ * 数据源 /api/seasoning-products?productType=。产物只能由调味品「转化」生成，
+ * 本面板不提供新增入口，仅支持编辑、删除。
  */
 export function SeasoningProductListPanel({
   productType,
@@ -53,6 +54,9 @@ export function SeasoningProductListPanel({
   } | null>(null);
   const [editing, setEditing] = useState<SeasoningProductFormItem | undefined>(
     undefined
+  );
+  const [editSource, setEditSource] = useState<SeasoningProductSource | null>(
+    null
   );
   const [formOpen, setFormOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] =
@@ -110,23 +114,30 @@ export function SeasoningProductListPanel({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const openEdit = (row: SeasoningProductListRow) => {
+    if (!row.sourceIngredient) {
+      toast.error("该产物缺少来源调味品档案，无法编辑");
+      return;
+    }
     setEditing({
       id: row.id,
       code: row.code,
       name: row.name,
       productType: row.productType,
-      sourceMode: row.sourceMode,
       packageSpec: row.packageSpec,
-      portion: row.portion,
       yieldRate: row.yieldRate,
       processingFeePerJin: row.processingFeePerJin,
       grossMarginRate: row.grossMarginRate,
-      sourceIngredientId: row.sourceIngredient?.id ?? undefined,
-      brand: row.brand,
-      purchaseSpec: row.purchaseSpec,
-      purchaseUnit: row.purchaseUnit,
-      latestRefPrice: row.latestRefPrice,
-      pricePerJin: row.pricePerJin,
+    });
+    setEditSource({
+      id: row.sourceIngredient.id,
+      code: row.sourceIngredient.code,
+      name: row.sourceIngredient.name,
+      purchaseSpec: row.sourceIngredient.purchaseSpec,
+      pricePerJin:
+        row.sourceIngredient.pricePerJin != null
+          ? Number(row.sourceIngredient.pricePerJin)
+          : null,
+      seasoningType: row.sourceIngredient.seasoningType,
     });
     setFormOpen(true);
   };
@@ -173,18 +184,7 @@ export function SeasoningProductListPanel({
               setPage(1);
             }}
             hasFilters={search.trim() !== ""}
-          >
-            <SkeuButton
-              size="sm"
-              onClick={() => {
-                setEditing(undefined);
-                setFormOpen(true);
-              }}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              新增{productType}
-            </SkeuButton>
-          </ListToolbar>
+          />
         </CardHeader>
         <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<SeasoningProductListRow>
@@ -223,35 +223,20 @@ export function SeasoningProductListPanel({
               {
                 header: "来源",
                 className: "w-[150px]",
-                cell: (row) => {
-                  if (row.sourceMode === "purchase") {
-                    return row.brand ? (
-                      <span className="text-muted-foreground">
-                        外购 · {row.brand}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">外购</span>
-                    );
-                  }
-                  return row.sourceIngredient ? (
+                cell: (row) =>
+                  row.sourceIngredient ? (
                     <span className="text-muted-foreground">
                       转化 · {row.sourceIngredient.name}
                     </span>
                   ) : (
                     <EmptyValue />
-                  );
-                },
+                  ),
               },
               {
                 header: "包装规格",
                 className: "w-[84px] tabular-nums",
                 cell: (row) =>
                   row.packageSpec != null ? `${row.packageSpec}g` : <EmptyValue />,
-              },
-              {
-                header: "份量",
-                className: "w-[96px]",
-                cell: (row) => <PortionTag portion={row.portion} />,
               },
               {
                 header: "出库价",
@@ -273,11 +258,6 @@ export function SeasoningProductListPanel({
                     ? `¥${Number(row.standardPackagePrice).toFixed(2)}/份`
                     : <EmptyValue />,
               },
-              {
-                header: "默认供应商",
-                className: "w-[110px]",
-                cell: (row) => row.defaultSupplier?.name ?? <EmptyValue />,
-              },
             ]}
             pagination={
               pagination && pagination.totalItems > 0
@@ -298,7 +278,7 @@ export function SeasoningProductListPanel({
             }
             emptyState={{
               title: "暂无产物",
-              description: `点击右上角「新增${productType}」创建，或从「调味品」页签的原料行点「转化」生成`,
+              description: "在「调味品」页签的原料行点「转化」生成产物档案",
             }}
             rowActions={(row) => (
               <>
@@ -334,13 +314,15 @@ export function SeasoningProductListPanel({
         </CardContent>
       </Card>
 
-      <SeasoningProductFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        fixedProductType={productType}
-        initialData={editing}
-        onSuccess={() => fetchData()}
-      />
+      {editSource != null && (
+        <SeasoningProductFormDialog
+          open={formOpen}
+          onOpenChange={setFormOpen}
+          source={editSource}
+          initialData={editing}
+          onSuccess={() => fetchData()}
+        />
+      )}
 
       <Dialog
         open={deleteTarget != null}

@@ -12,7 +12,6 @@ import {
 } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
-import { PortionTag } from "@/app/components/ui/portion-tag";
 import { RecordSheet } from "@/app/components/ui/record-sheet";
 import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import {
@@ -26,27 +25,21 @@ export type SeasoningProductListRow = {
   code: string;
   name: string;
   productType: string | null;
-  sourceMode: string | null;
   packageSpec: number | null;
-  portion: string | null;
   yieldRate: number | null;
   unitPrice: number | null;
   processingFeePerJin: number | null;
   grossMarginRate: number | null;
   outPricePerJin: number | null;
   standardPackagePrice: number | null;
-  brand: string | null;
-  purchaseSpec: string | null;
-  purchaseUnit: string | null;
-  latestRefPrice: number | null;
-  pricePerJin: number | null;
   sourceIngredient: {
     id: number;
+    code: string;
     name: string;
     purchaseSpec: string | null;
     pricePerJin: number | null;
+    seasoningType: string | null;
   } | null;
-  defaultSupplier: { id: number; name: string } | null;
 };
 
 const PAGE_SIZE = 20;
@@ -175,6 +168,7 @@ export function SeasoningProductListSheet({
           rows[0]?.sourceIngredient?.pricePerJin != null
             ? Number(rows[0].sourceIngredient.pricePerJin)
             : null,
+        seasoningType: rows[0]?.sourceIngredient?.seasoningType ?? null,
       }
     : null;
 
@@ -227,11 +221,6 @@ export function SeasoningProductListSheet({
                 row.packageSpec != null ? `${row.packageSpec}g` : "—",
             },
             {
-              header: "份量",
-              className: "whitespace-nowrap",
-              cell: (row) => <PortionTag portion={row.portion} />,
-            },
-            {
               header: "产物单价",
               className: "whitespace-nowrap tabular-nums text-right",
               cell: (row) =>
@@ -275,19 +264,10 @@ export function SeasoningProductListSheet({
                     code: row.code,
                     name: row.name,
                     productType: row.productType,
-                    sourceMode: row.sourceMode,
                     packageSpec: row.packageSpec,
-                    portion: row.portion,
                     yieldRate: row.yieldRate,
                     processingFeePerJin: row.processingFeePerJin,
                     grossMarginRate: row.grossMarginRate,
-                    sourceIngredientId:
-                      row.sourceIngredient?.id ?? sourceIngredientId ?? undefined,
-                    brand: row.brand,
-                    purchaseSpec: row.purchaseSpec,
-                    purchaseUnit: row.purchaseUnit,
-                    latestRefPrice: row.latestRefPrice,
-                    pricePerJin: row.pricePerJin,
                   });
                   setFormOpen(true);
                 }}

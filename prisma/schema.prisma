@@ -85,7 +85,6 @@ model Supplier {
   receipts PurchaseReceipt[]
   ingredients     Ingredient[]
   sauceIngredients SauceIngredient[]
-  seasoningProducts SeasoningProduct[]
   purchasePlans   PurchasePlan[]
 
   @@map("suppliers")
@@ -98,6 +97,8 @@ model Ingredient {
   alias          String?
   // 大类边界：food=食材（挂一二级分类）/ seasoning=调味品（独立体系，不挂分类）
   kind           String                @default("food") @map("kind") @db.VarChar(20)
+  // 调味品类型（仅 kind=seasoning）：单品调料/复合调料/成品酱料；转化产物继承此类型归档
+  seasoningType  String?               @map("seasoning_type") @db.VarChar(20)
   // 一二级分类（食材必填；调味品独立，不挂分类置空）
   l2Code         String?               @map("l2_code")
   purchaseSpec   String?               @map("purchase_spec")
@@ -308,34 +309,21 @@ model DishSeasoningDetail {
   @@map("dish_seasoning_details")
 }
 
-// 调料产物（调味品标准化转化 / 外购建档）：单品调料、复合调料、成品酱料同构
+// 调料产物（调味品标准化转化）：单品调料、复合调料、成品酱料同构，类型继承来源调味品
 // 物理表名沿用 standard_seasonings（存量 spec_id 外键零触碰）
 model SeasoningProduct {
   id                 Int               @id @default(autoincrement())
   code               String            @unique
   name               String
-  // 产物类型：单品调料 / 复合调料 / 成品酱料
+  // 产物类型：单品调料 / 复合调料 / 成品酱料（继承来源调味品的 seasoning_type，快照保留）
   productType        String            @map("product_type") @db.VarChar(20)
-  // 成本口径：transform=转化（来源调味品+出成率派生）/ purchase=外购（手填每斤单价）
-  sourceMode         String            @map("source_mode") @db.VarChar(20)
-  // 来源调味品（ingredients 中 kind=seasoning）：仅 transform 口径必填
+  // 来源调味品（ingredients 中 kind=seasoning），必填
   sourceIngredientId Int?              @map("source_ingredient_id")
-  // 出成率（%）：仅 transform 口径必填；成本价 = 来源每斤单价 ÷ (出成率/100)
+  // 出成率（%）：必填；转化单价 = 来源每斤单价 ÷ (出成率/100)
   yieldRate          Decimal?          @map("yield_rate") @db.Decimal(5, 2)
-  // 外购字段（purchase 口径，同外购酱料录入逻辑）
-  brand              String?
-  purchaseSpec       String?           @map("purchase_spec")
-  purchaseUnit       String?           @map("purchase_unit")
-  latestRefPrice     Decimal?          @map("latest_ref_price") @db.Decimal(10, 2)
-  // 外购每斤单价（元/斤）：服务端按采购规格自动换算，换算不出可手填；purchase 口径成本价来源
-  pricePerJin        Decimal?          @map("price_per_jin") @db.Decimal(10, 4)
-  defaultSupplierId  Int?              @map("default_supplier_id")
-  defaultSupplier    Supplier?         @relation(fields: [defaultSupplierId], references: [id])
   // 封装规格（g）：标准封装单位克数；标准规格价（元/份）= 出库价 × 封装规格 ÷ 500
   packageSpec        Int               @map("package_spec")
-  // 份量：与净料、小料、菜品共用同一套份量档案
-  portion            String?           @map("portion") @db.VarChar(50)
-  // 单价（元/斤）：transform = 来源每斤单价 ÷ (出成率/100)；purchase = 手填每斤单价；服务端派生
+  // 单价（元/斤）= 来源每斤单价 ÷ (出成率/100)；服务端派生
   unitPrice          Decimal           @map("unit_price") @db.Decimal(10, 2)
   // 封装加工费（元/斤），空 = 0
   processingFeePerJin Decimal?         @map("processing_fee_per_jin") @db.Decimal(10, 2)

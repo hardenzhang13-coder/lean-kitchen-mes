@@ -330,8 +330,7 @@ export function BomPickerDialog({
       cell: (row) =>
         row.productName ? (
           <span className="text-muted-foreground">
-            {row.sourceMode === "purchase" ? "外购 · " : "转化 · "}
-            {row.productName}
+            转化 · {row.productName}
           </span>
         ) : (
           "—"

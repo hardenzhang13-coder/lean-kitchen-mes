@@ -36,6 +36,7 @@ import {
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { useNetIngredientForm } from "@/app/components/ingredients/use-net-ingredient-form";
 import { formatPercent, formatDateTime } from "@/lib/shared/display-format";
+import { SEASONING_PRODUCT_TYPE_OPTIONS } from "@/lib/shared/seasoning-product";
 
 export type IngredientDetailKind = "raw" | "seasoning" | "net" | "minor";
 
@@ -46,6 +47,8 @@ export type RawDetail = {
   alias: string | null;
   /** 食材二级分类；调味品独立体系不挂分类，恒为空 */
   l2Code?: string | null;
+  /** 调味品类型（仅 kind=seasoning）：单品调料/复合调料/成品酱料 */
+  seasoningType?: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   stockUnit: string | null;
@@ -148,6 +151,7 @@ export function IngredientDetailSheet({
             name: raw.name,
             l2Code: raw.l2Code ?? undefined,
             alias: raw.alias,
+            seasoningType: raw.seasoningType,
             purchaseSpec: raw.purchaseSpec,
             purchaseUnit: raw.purchaseUnit,
             stockUnit: raw.stockUnit,
@@ -663,6 +667,16 @@ function RawDetailContent({
           label={kind === "seasoning" ? "商品名称" : "品牌名称"}
           value={data.alias || "—"}
         />
+        {kind === "seasoning" && (
+          <InfoCell
+            label="调味品类型"
+            value={
+              SEASONING_PRODUCT_TYPE_OPTIONS.find(
+                (o) => o.value === data.seasoningType
+              )?.label ?? "—"
+            }
+          />
+        )}
         <InfoCell label="分类" value={categoryName || data.l2Code || "—"} />
       </DetailSection>
       <DetailSection title="采购与计量">

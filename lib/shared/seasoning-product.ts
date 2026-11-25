@@ -1,9 +1,9 @@
 /**
- * 调料产物枚举（前后端共用，唯一真源）。
+ * 调味品类型枚举（前后端共用，唯一真源）。
  *
- * 2026-11-25 调味品升级：单品调料 / 复合调料 / 成品酱料是「标准化产物」的类型，
- * 落在 SeasoningProduct.productType（物理表 standard_seasonings）；
- * 调味品原料（Ingredient.kind = "seasoning"）是原材料层，转化/外购后形成产物。
+ * 2026-11-25 复议口径：类型是**调味品**的建档属性（Ingredient.seasoningType，
+ * 新增/编辑调味品时选择）；调料产物（SeasoningProduct）只能由「转化」生成，
+ * 自动继承来源调味品的类型归档到 productType。三个产物页签只是按类型过滤的视图。
  * 渲染入口见 `app/components/ui/seasoning-type-tag.tsx`（SeasoningTypeTag）。
  */
 
@@ -48,45 +48,5 @@ export function isSeasoningProductType(type: unknown): type is SeasoningProductT
   return (
     typeof type === "string" &&
     (SEASONING_PRODUCT_TYPES as readonly string[]).includes(type)
-  );
-}
-
-/** 成本口径：transform=转化（来源调味品 + 出成率派生）/ purchase=外购（手填每斤单价） */
-export const SEASONING_SOURCE_MODES = ["transform", "purchase"] as const;
-
-export type SeasoningSourceMode = (typeof SEASONING_SOURCE_MODES)[number];
-
-export interface SeasoningSourceModeOption {
-  value: SeasoningSourceMode;
-  label: string;
-  description: string;
-}
-
-export const SEASONING_SOURCE_MODE_OPTIONS: readonly SeasoningSourceModeOption[] = [
-  {
-    value: "transform",
-    label: "转化",
-    description: "来源调味品 × 出成率派生成本价，与净料转化同构",
-  },
-  {
-    value: "purchase",
-    label: "外购",
-    description: "成品采购建档，品牌/采购规格 + 手填每斤单价",
-  },
-] as const;
-
-export function getSeasoningSourceModeOption(
-  mode?: string | null
-): SeasoningSourceModeOption | null {
-  if (!mode) return null;
-  return (
-    SEASONING_SOURCE_MODE_OPTIONS.find((option) => option.value === mode) ?? null
-  );
-}
-
-export function isSeasoningSourceMode(mode: unknown): mode is SeasoningSourceMode {
-  return (
-    typeof mode === "string" &&
-    (SEASONING_SOURCE_MODES as readonly string[]).includes(mode)
   );
 }

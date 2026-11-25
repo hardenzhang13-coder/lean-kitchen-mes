@@ -67,26 +67,4 @@ describe("标准化调料价格链路（与净料同构）", () => {
     const prices = deriveSeasoningProductPrices({ ...base, packageSpec: 0 });
     expect(prices.standardPackagePrice).toBeNull();
   });
-
-  it("外购口径：单价直接取手填每斤单价，忽略来源与出成率", () => {
-    const prices = deriveSeasoningProductPrices({
-      sourceMode: "purchase",
-      pricePerJin: 8,
-      yieldRate: null,
-      sourceIngredient: null,
-      packageSpec: 500,
-    });
-    expect(prices.unitPrice).toBe(8);
-    expect(prices.outPricePerJin).toBe(8);
-    expect(prices.standardPackagePrice).toBe(8); // 8 × 500 ÷ 500
-  });
-
-  it("外购口径：手填每斤单价缺失或非正时单价为 null", () => {
-    expect(
-      deriveSeasoningProductPrices({ sourceMode: "purchase", pricePerJin: null }).unitPrice
-    ).toBeNull();
-    expect(
-      deriveSeasoningProductPrices({ sourceMode: "purchase", pricePerJin: 0 }).unitPrice
-    ).toBeNull();
-  });
 });

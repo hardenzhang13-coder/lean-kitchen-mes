@@ -31,13 +31,11 @@ const seasoning = { id: 7, name: "生抽", pricePerJin: 10 };
 const seasoningProduct = {
   id: 3,
   name: "生抽•500g",
-  sourceMode: "transform",
   unitPrice: 12.5,
   yieldRate: 80,
   processingFeePerJin: 0,
   grossMarginRate: 0,
   packageSpec: 500,
-  pricePerJin: null,
   sourceIngredient: { pricePerJin: 10 },
 };
 

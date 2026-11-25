@@ -9,10 +9,8 @@ import {
   conflict,
 } from "@/lib/server/api-response";
 import { updateSeasoningProductSchema } from "@/lib/server/schemas/seasoning-product";
-import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
 import { validateBody } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
-import type { SeasoningSourceMode } from "@/lib/shared/seasoning-product";
 import {
   calculateSeasoningProductUnitPrice,
   serializeSeasoningProduct,
@@ -25,13 +23,14 @@ const SOURCE_INCLUDE = {
   sourceIngredient: {
     select: {
       id: true,
+      code: true,
       name: true,
       alias: true,
       purchaseSpec: true,
       pricePerJin: true,
+      seasoningType: true,
     },
   },
-  defaultSupplier: { select: { id: true, name: true } },
 } as const;
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -60,18 +59,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const {
       name,
-      productType,
-      sourceMode,
       sourceIngredientId,
       yieldRate,
-      brand,
-      purchaseSpec,
-      purchaseUnit,
-      latestRefPrice,
-      pricePerJin,
-      defaultSupplierId,
       packageSpec,
-      portion,
       processingFeePerJin,
       grossMarginRate,
       storage,
@@ -84,61 +74,33 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         });
         if (!existing) throw new Error("调料产物不存在或已删除");
 
-        // 份量须命中份量档案（portion_profiles）；允许保持现值不变
-        if (typeof portion === "string") {
-          const portionError = await validatePortionForUpdate(portion, existing.portion, tx);
-          if (portionError) throw new Error(portionError);
-        }
-
         const finalName = (name ?? existing.name).trim();
         if (!finalName) throw new Error("名称不能为空");
 
-        const finalProductType = productType ?? existing.productType;
-        const finalSourceMode = (sourceMode ?? existing.sourceMode) as SeasoningSourceMode;
+        const finalSourceId = Number(sourceIngredientId ?? existing.sourceIngredientId);
+        if (!finalSourceId) throw new Error("必须选择来源调味品");
+        const sourceChanged = finalSourceId !== existing.sourceIngredientId;
 
-        const finalSourceId =
-          finalSourceMode === "transform"
-            ? Number(sourceIngredientId ?? existing.sourceIngredientId)
-            : null;
-        const finalYieldRate =
-          finalSourceMode === "transform"
-            ? Number(yieldRate ?? existing.yieldRate)
-            : null;
-        const finalPricePerJin =
-          finalSourceMode === "purchase"
-            ? pricePerJin != null
-              ? pricePerJin
-              : existing.pricePerJin != null
-                ? Number(existing.pricePerJin)
-                : null
-            : null;
-
-        if (finalSourceMode === "transform") {
-          if (!finalSourceId || !finalYieldRate) {
-            throw new Error("转化口径必须选择来源调味品并填写出成率");
-          }
-          const source = await tx.ingredient.findFirst({
-            where: { id: finalSourceId, deletedAt: null },
-            select: { id: true },
-          });
-          if (!source) throw new Error("来源调味品不存在或已删除");
-        } else if (finalPricePerJin == null || finalPricePerJin <= 0) {
-          throw new Error("外购口径必须填写每斤单价");
-        }
-
-        const finalSupplierId =
-          defaultSupplierId === undefined ? existing.defaultSupplierId : defaultSupplierId;
-        if (finalSupplierId != null) {
-          const supplier = await tx.supplier.findFirst({
-            where: { id: finalSupplierId },
-            select: { id: true },
-          });
-          if (!supplier) throw new Error("默认供应商不存在");
-        }
+        const finalYieldRate = Number(yieldRate ?? existing.yieldRate);
+        if (!finalYieldRate || finalYieldRate <= 0) throw new Error("必须填写出成率");
 
         const finalPackageSpec = packageSpec ?? existing.packageSpec;
         if (!finalPackageSpec || finalPackageSpec <= 0) {
           throw new Error("必须填写封装规格（g）");
+        }
+
+        // 来源调味品必须存在且已设置类型；产物类型跟随来源（快照）
+        let finalProductType = existing.productType;
+        if (sourceChanged) {
+          const source = await tx.ingredient.findFirst({
+            where: { id: finalSourceId, deletedAt: null, kind: "seasoning" },
+            select: { id: true, seasoningType: true },
+          });
+          if (!source) throw new Error("来源调味品不存在或已删除");
+          if (!source.seasoningType) {
+            throw new Error("来源调味品未设置类型，请先在调味品档案中选择调味品类型");
+          }
+          finalProductType = source.seasoningType;
         }
 
         const finalFee =
@@ -150,64 +112,29 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             ? Number(existing.grossMarginRate ?? 0)
             : grossMarginRate ?? 0;
 
-        const sourceChanged = finalSourceId !== existing.sourceIngredientId;
-        const modeChanged = finalSourceMode !== existing.sourceMode;
         const yieldChanged = finalYieldRate !== Number(existing.yieldRate);
-        const priceChanged = finalPricePerJin !== Number(existing.pricePerJin);
         const costChanged =
-          modeChanged ||
           yieldChanged ||
-          priceChanged ||
           sourceChanged ||
           Number(finalFee ?? 0) !== Number(existing.processingFeePerJin ?? 0) ||
           finalMargin !== Number(existing.grossMarginRate ?? 0);
 
         const calculated = await calculateSeasoningProductUnitPrice(
-          {
-            sourceMode: finalSourceMode,
-            sourceIngredientId: finalSourceId,
-            yieldRate: finalYieldRate,
-            pricePerJin: finalPricePerJin,
-          },
+          { sourceIngredientId: finalSourceId, yieldRate: finalYieldRate },
           tx
         );
         if (calculated == null) {
-          throw new Error(
-            finalSourceMode === "transform"
-              ? "来源调味品缺少每斤单价，无法派生单价"
-              : "每斤单价无效，无法保存"
-          );
+          throw new Error("来源调味品缺少每斤单价，无法派生单价");
         }
 
-        // 口径切换时清空另一侧分支字段，避免残留历史值误导
         const row = await tx.seasoningProduct.update({
           where: { id: specId },
           data: {
             name: finalName,
             productType: finalProductType,
-            sourceMode: finalSourceMode,
-            sourceIngredientId: finalSourceMode === "transform" ? finalSourceId : null,
-            yieldRate: finalSourceMode === "transform" ? finalYieldRate : null,
-            brand:
-              finalSourceMode === "purchase"
-                ? (brand ?? existing.brand?.trim() ?? null) || null
-                : null,
-            purchaseSpec:
-              finalSourceMode === "purchase"
-                ? (purchaseSpec ?? existing.purchaseSpec?.trim() ?? null) || null
-                : null,
-            purchaseUnit:
-              finalSourceMode === "purchase"
-                ? (purchaseUnit ?? existing.purchaseUnit?.trim() ?? null) || null
-                : null,
-            latestRefPrice:
-              finalSourceMode === "purchase"
-                ? (latestRefPrice ?? (existing.latestRefPrice != null ? Number(existing.latestRefPrice) : null))
-                : null,
-            pricePerJin: finalSourceMode === "purchase" ? finalPricePerJin : null,
-            defaultSupplierId: finalSupplierId ?? null,
+            sourceIngredientId: finalSourceId,
+            yieldRate: finalYieldRate,
             packageSpec: finalPackageSpec,
-            ...(portion !== undefined ? { portion } : {}),
             unitPrice: calculated,
             processingFeePerJin: finalFee ?? null,
             grossMarginRate: finalMargin,
@@ -225,8 +152,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           const prices = serializeSeasoningProduct(row);
           sync = await syncBomCostsForSeasoningProduct(tx, specId, prices.outPricePerJin);
         }
-        if (modeChanged || yieldChanged || sourceChanged) {
-          // 毛需求口径变化（出成率/来源/口径切换）才需重建采购计划；封装规格/份量/毛利率不影响
+        if (yieldChanged || sourceChanged) {
+          // 毛需求口径变化（出成率/来源）才需重建采购计划；封装规格/毛利率不影响
           recalc = await recalcIncompleteDocumentsForSeasoningProduct(tx, specId);
         }
 

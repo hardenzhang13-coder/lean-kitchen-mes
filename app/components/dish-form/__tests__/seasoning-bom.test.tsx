@@ -27,7 +27,6 @@ const productOption: IngredientOption = {
   standardPackagePrice: 30,
   unit: "斤",
   productType: "单品调料",
-  sourceMode: "transform",
 };
 
 const productBomItem: BomItem = {
@@ -44,7 +43,6 @@ const productBomItem: BomItem = {
   cost: 0.25,
   portion: "单人份",
   productType: "单品调料",
-  sourceMode: "transform",
 };
 
 describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
@@ -63,7 +61,6 @@ describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
           packageSpec: 1200,
           portion: "单人份",
           productType: "单品调料",
-          sourceMode: "transform",
         },
         {
           sourceId: 30,
@@ -97,7 +94,6 @@ describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
       specId: null,
       name: "生抽",
       productType: null,
-      sourceMode: null,
       costPrice: 10,
       cost: 0.2,
     };
@@ -119,10 +115,8 @@ describe("菜品 BOM 调料：选产物 + 克需求口径", () => {
         code: "SP-0001",
         name: "蒸鱼双椒酱•1200g",
         productType: "单品调料",
-        sourceMode: "transform",
         packageSpec: 1200,
-        portion: "单人份",
-        latestRefPrice: 120,
+        unitPrice: 120,
         outPricePerJin: 12.5,
         standardPackagePrice: 30,
         sourceIngredient: { name: "双椒酱原料" },

@@ -45,10 +45,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           where: { portion: existing.portion },
           data: { portion },
         });
-        await tx.seasoningProduct.updateMany({
-          where: { portion: existing.portion },
-          data: { portion },
-        });
       }
       return updated;
     });
