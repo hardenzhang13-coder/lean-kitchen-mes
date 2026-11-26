@@ -1088,6 +1088,45 @@ export default function UiKitPage() {
           </section>
 
           <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">键盘焦点</h2>
+              <p className="text-sm text-muted-foreground">
+                全系统焦点指示只有两族，颜色统一取 --sk-focus（灰）：输入族只加深边框不加光环，
+                按钮族 2px 描边 + 2px 外偏移。下方为焦点态示意（真实交互按 Tab 键触发，
+                规则写在 app/globals.css 的「焦点统一」段落）。
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-4 rounded-lg border bg-card p-4">
+              <input
+                readOnly
+                aria-label="输入族焦点示意"
+                placeholder="输入族"
+                className="skeu-input h-11 w-40 border-[var(--sk-focus)] shadow-[var(--sk-inset)] outline-none"
+              />
+              <button
+                type="button"
+                className="rounded-md border border-input px-3 py-2 text-sm outline outline-2 outline-offset-2 outline-[var(--sk-focus)]"
+              >
+                按钮族
+              </button>
+              <button
+                type="button"
+                data-focus="field"
+                className="skeu-trigger h-11 rounded-md border border-[var(--sk-focus)] px-3 text-sm outline-none"
+              >
+                字段型按钮（下拉）
+              </button>
+              <input
+                readOnly
+                aria-label="低置信度焦点示意"
+                placeholder="低置信度字段"
+                data-low-confidence=""
+                className="skeu-input h-11 w-44 outline-none"
+              />
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <h2 className="text-lg font-semibold">空状态</h2>
             <EmptyState
               icon={Inbox}
