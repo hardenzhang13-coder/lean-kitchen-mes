@@ -5,10 +5,12 @@ import { validateQuery } from "@/lib/server/validate";
 import { dashboardWeeklyQuerySchema } from "@/lib/server/schemas/dashboard";
 import { logger } from "@/lib/server/logger";
 import { round2 } from "@/lib/shared/prepped-stock";
+import { deriveNetIngredientPrices } from "@/lib/server/net-ingredient-utils";
 
 /**
  * 工作台周视图：一周内的门店排程单与生产计划单。
- * 两类单据同口径：菜品/净菜种类数、份数、计划销售额（按菜品当前售价现算）。
+ * 排程卡金额 = 计划销售额（按菜品当前售价现算）；
+ * 切配卡金额 = 净料总金额（切配行净需求 g × 净料出库价 ÷ 500，与出库单同口径）。
  */
 export async function GET(req: NextRequest) {
   try {
@@ -41,24 +43,36 @@ export async function GET(req: NextRequest) {
           planDate: { gte: start, lte: end },
         },
         orderBy: [{ planDate: "asc" }, { createdAt: "asc" }],
-        include: {
-          schedules: {
-            select: {
-              schedule: {
-                select: {
-                  items: {
-                    select: {
-                      quantity: true,
-                      dish: { select: { price: true } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
       }),
     ]);
+
+    // 净料总金额按当前出库价现算（不信任快照），与出库单口径一致
+    const planRows = plans.map((plan) =>
+      Array.isArray(plan.cuttingJson)
+        ? (plan.cuttingJson as Array<Record<string, unknown>>)
+        : []
+    );
+    const cuttingSourceIds = [
+      ...new Set(
+        planRows.flat().map((row) => Number(row.sourceId)).filter(Number.isInteger)
+      ),
+    ];
+    const nets = cuttingSourceIds.length
+      ? await prisma.netIngredient.findMany({
+          where: { id: { in: cuttingSourceIds } },
+          select: {
+            id: true,
+            yieldRate: true,
+            processingFeePerJin: true,
+            grossMarginRate: true,
+            packageSpec: true,
+            sourceIngredient: { select: { pricePerJin: true } },
+          },
+        })
+      : [];
+    const outPriceById = new Map(
+      nets.map((net) => [net.id, deriveNetIngredientPrices(net).outPricePerJin])
+    );
 
     return success({
       schedules: schedules.map((schedule) => {
@@ -91,16 +105,20 @@ export async function GET(req: NextRequest) {
           })),
         };
       }),
-      plans: plans.map((plan) => {
-        const rows = Array.isArray(plan.cuttingJson)
-          ? (plan.cuttingJson as Array<Record<string, unknown>>)
-          : [];
+      plans: plans.map((plan, index) => {
+        const rows = planRows[index];
         const withPortions = rows.filter(
           (row) => typeof row.portions === "number" && Number.isFinite(row.portions)
         );
-        // 计划销售额 = 来源排程的菜品计划额合计，与排程卡同口径
-        const sourceItems = plan.schedules.flatMap((ref) => ref.schedule.items);
-        const priced = sourceItems.filter((item) => item.dish.price != null);
+        // 净料总金额 = Σ 切配行净需求(g) × 净料出库价(元/斤) ÷ 500
+        const priced = rows.filter((row) => {
+          const price = outPriceById.get(Number(row.sourceId));
+          return (
+            price != null &&
+            typeof row.requiredQty === "number" &&
+            Number.isFinite(row.requiredQty)
+          );
+        });
         return {
           id: plan.id,
           date: plan.planDate.toISOString().slice(0, 10),
@@ -116,7 +134,11 @@ export async function GET(req: NextRequest) {
             priced.length > 0
               ? round2(
                   priced.reduce(
-                    (sum, item) => sum + item.quantity * Number(item.dish.price),
+                    (sum, row) =>
+                      sum +
+                      (Number(row.requiredQty) *
+                        (outPriceById.get(Number(row.sourceId)) ?? 0)) /
+                        500,
                     0
                   )
                 )
