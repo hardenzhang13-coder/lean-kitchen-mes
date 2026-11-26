@@ -129,6 +129,12 @@ function SeasoningListContent() {
                 categories={categories}
                 units={units}
                 refreshToken={refreshTokens.all}
+                onTransformed={() => {
+                  // 转化产物按类型落在三个产物页签；页签保持挂载缓存，必须显式刷新
+                  refresh("item");
+                  refresh("compound");
+                  refresh("sauce");
+                }}
               />
             </div>
           )}

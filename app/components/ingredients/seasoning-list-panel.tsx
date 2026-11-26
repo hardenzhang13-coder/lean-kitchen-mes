@@ -60,6 +60,8 @@ export interface SeasoningListPanelProps {
   categories: CategoryL1[];
   units: Unit[];
   refreshToken: number;
+  /** 转化出调料产物后回调（产物落在其他页签，由页面层刷新对应列表） */
+  onTransformed?: () => void;
 }
 
 /**
@@ -70,6 +72,7 @@ export function SeasoningListPanel({
   categories,
   units,
   refreshToken,
+  onTransformed,
 }: SeasoningListPanelProps) {
   const [data, setData] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -381,6 +384,7 @@ export function SeasoningListPanel({
             setConvertDialogOpen(false);
             setConvertSourceId(null);
             fetchData();
+            onTransformed?.();
           }}
           onViewExisting={() => setPackagedOpen(true)}
         />
