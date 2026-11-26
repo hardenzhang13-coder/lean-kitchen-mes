@@ -54,7 +54,11 @@ function buildInitialForm(
     packageSpec:
       initialData?.packageSpec != null ? String(initialData.packageSpec) : "500",
     yieldRate:
-      initialData?.yieldRate != null ? String(initialData.yieldRate) : "100",
+      initialData?.yieldRate != null
+        ? String(initialData.yieldRate)
+        : source.yieldRate != null
+          ? String(source.yieldRate)
+          : "100",
     processingFeePerJin:
       initialData?.processingFeePerJin != null
         ? String(initialData.processingFeePerJin)

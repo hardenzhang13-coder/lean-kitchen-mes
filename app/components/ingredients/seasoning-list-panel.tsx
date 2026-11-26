@@ -38,6 +38,7 @@ type Ingredient = {
   unitsPerPurchase: number | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
+  yieldRate: number | null;
   defaultSupplierId: number | null;
 };
 
@@ -286,6 +287,18 @@ export function SeasoningListPanel({
                     <EmptyValue />
                   ),
               },
+              {
+                header: "出成率",
+                className: "w-[80px]",
+                cell: (row) =>
+                  row.yieldRate != null ? (
+                    <span className="tabular-nums">
+                      {Number(row.yieldRate)}%
+                    </span>
+                  ) : (
+                    <EmptyValue title="未设置，转化调料时手动填写" />
+                  ),
+              },
             ]}
             pagination={
               pagination && pagination.totalItems > 0
@@ -379,6 +392,10 @@ export function SeasoningListPanel({
                 ? Number(convertSourceRow.pricePerJin)
                 : null,
             seasoningType: convertSourceRow.seasoningType,
+            yieldRate:
+              convertSourceRow.yieldRate != null
+                ? Number(convertSourceRow.yieldRate)
+                : null,
           }}
           onSuccess={() => {
             setConvertDialogOpen(false);

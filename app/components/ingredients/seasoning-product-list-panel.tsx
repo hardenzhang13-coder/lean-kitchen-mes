@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Pencil, Trash2 } from "lucide-react";
+import { Link2, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import {
@@ -19,6 +19,7 @@ import {
   type SeasoningProductFormItem,
 } from "@/app/components/ingredients/seasoning-product-form-dialog";
 import type { SeasoningProductListRow } from "@/app/components/ingredients/seasoning-product-list-sheet";
+import { MaterialUsageDialog } from "@/app/components/ingredients/material-usage-dialog";
 import type { SeasoningProductSource } from "@/app/components/ingredients/seasoning-product-form-fields";
 import {
   DEFAULT_PAGE_SIZE,
@@ -62,6 +63,8 @@ export function SeasoningProductListPanel({
   const [deleteTarget, setDeleteTarget] =
     useState<SeasoningProductListRow | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [usageTarget, setUsageTarget] =
+    useState<SeasoningProductListRow | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -192,7 +195,7 @@ export function SeasoningProductListPanel({
             loading={loading}
             fillHeight
             variant="skeu"
-            actionsWidth="w-[100px]"
+            actionsWidth="w-[210px]"
             tableClassName="min-w-max"
             onRowClick={openEdit}
             columns={[
@@ -310,6 +313,19 @@ export function SeasoningProductListPanel({
                   type="button"
                   variant="ghost"
                   size="sm"
+                  className="h-7 px-2 text-xs"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setUsageTarget(row);
+                  }}
+                >
+                  <Link2 className="mr-1 h-3.5 w-3.5" />
+                  使用概况
+                </SkeuButton>
+                <SkeuButton
+                  type="button"
+                  variant="ghost"
+                  size="sm"
                   className="h-7 px-2 text-xs text-destructive"
                   onClick={(event) => {
                     event.stopPropagation();
@@ -334,6 +350,20 @@ export function SeasoningProductListPanel({
           onSuccess={() => fetchData()}
         />
       )}
+
+      <MaterialUsageDialog
+        open={usageTarget != null}
+        onOpenChange={(open) => {
+          if (!open) setUsageTarget(null);
+        }}
+        fetchUrl={
+          usageTarget != null
+            ? `/api/seasoning-products/${usageTarget.id}/dishes`
+            : null
+        }
+        materialName={usageTarget?.name ?? null}
+        materialLabel="调料"
+      />
 
       <Dialog
         open={deleteTarget != null}

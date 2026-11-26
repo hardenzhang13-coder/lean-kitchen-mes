@@ -38,6 +38,7 @@ export type SeasoningProductListRow = {
     purchaseSpec: string | null;
     pricePerJin: number | null;
     seasoningType: string | null;
+    yieldRate: number | null;
   } | null;
 };
 
@@ -168,6 +169,10 @@ export function SeasoningProductListSheet({
             ? Number(rows[0].sourceIngredient.pricePerJin)
             : null,
         seasoningType: rows[0]?.sourceIngredient?.seasoningType ?? null,
+        yieldRate:
+          rows[0]?.sourceIngredient?.yieldRate != null
+            ? Number(rows[0].sourceIngredient.yieldRate)
+            : null,
       }
     : null;
 

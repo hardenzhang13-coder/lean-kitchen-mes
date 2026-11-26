@@ -107,7 +107,7 @@ describe("新增食材的连续录入", () => {
 
     expect(screen.getByRole("heading", { name: "基础信息" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "采购与计量" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "价格与供应商" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "价格与出成率" })).toBeInTheDocument();
     expect(screen.getByText(/调味品名称/)).toBeInTheDocument();
     expect(document.body).toHaveTextContent("商品名称");
     expect(document.body).toHaveTextContent("默认供应商");

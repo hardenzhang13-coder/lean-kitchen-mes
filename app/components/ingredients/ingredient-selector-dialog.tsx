@@ -31,6 +31,8 @@ export type IngredientForSelector = {
   purchaseUnit?: string | null;
   latestRefPrice?: number | null;
   pricePerJin?: number | null;
+  /** 出成率建档默认值（%）：转化净料时预填 */
+  yieldRate?: number | null;
 };
 
 interface IngredientSelectorDialogProps {

@@ -49,6 +49,7 @@ import {
 } from "@/app/components/ui/form-controls";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { EmptyState } from "@/app/components/ui/empty-state";
+import { DataTable } from "@/app/components/ui/data-table";
 import {
   FormField,
   FormLayout,
@@ -1094,6 +1095,28 @@ export default function UiKitPage() {
               description="上传第一张采购单后，识别结果会显示在这里。"
               action={{ label: "录入采购单" }}
               className="rounded-lg border bg-card"
+            />
+          </section>
+
+          <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">空态表格</h2>
+              <p className="text-sm text-muted-foreground">
+                表格空数据保留表头，空态收进表体单元格（DataTable 内置，与
+                loading 态同构）。
+              </p>
+            </div>
+            <DataTable
+              data={[]}
+              columns={[
+                { header: "编号", className: "w-[120px]" },
+                { header: "名称", className: "w-[200px]" },
+                { header: "规格", className: "w-[120px]" },
+              ]}
+              emptyState={{
+                title: "暂无调料",
+                description: "在「调味品」页签的原料行点「转化」生成调料档案",
+              }}
             />
           </section>
 

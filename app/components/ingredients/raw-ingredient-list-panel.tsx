@@ -40,6 +40,7 @@ type Ingredient = {
   purchaseUnit: string | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
+  yieldRate: number | null;
   stockUnit: string | null;
   unitsPerPurchase: number | null;
   defaultSupplierId: number | null;
@@ -177,6 +178,7 @@ export function RawIngredientListPanel({
       unitsPerPurchase: row.unitsPerPurchase ?? 1,
       latestRefPrice: row.latestRefPrice,
       pricePerJin: row.pricePerJin,
+      yieldRate: row.yieldRate,
       defaultSupplierId: row.defaultSupplierId,
     }),
     title: "复制食材",
@@ -333,6 +335,18 @@ export function RawIngredientListPanel({
                     <EmptyValue title="未填写，可在编辑中按规格换算或手动填写" />
                   ),
               },
+              {
+                header: "出成率",
+                className: "w-[80px]",
+                cell: (row) =>
+                  row.yieldRate != null ? (
+                    <span className="tabular-nums">
+                      {Number(row.yieldRate)}%
+                    </span>
+                  ) : (
+                    <EmptyValue title="未设置，转化净料时手动填写" />
+                  ),
+              },
             ]}
             pagination={
               pagination && pagination.totalItems > 0
@@ -435,6 +449,8 @@ export function RawIngredientListPanel({
           latestRefPrice: d.latestRefPrice,
           // 转净料单价自动换算的数据源，缺失会导致弹窗无法自动计算
           pricePerJin: d.pricePerJin,
+          // 出成率建档默认值：转化时预填
+          yieldRate: d.yieldRate,
         }))}
         onSuccess={() => {
           setConvertDialogOpen(false);

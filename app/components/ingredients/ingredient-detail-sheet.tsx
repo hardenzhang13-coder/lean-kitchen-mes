@@ -22,7 +22,7 @@ import {
 } from "@/app/components/ui/record-sheet";
 import { DiscardChangesDialog } from "@/app/components/ui/discard-changes-dialog";
 import { useRecordGuard } from "@/app/components/ui/use-record-guard";
-import { NetIngredientDishesDialog } from "@/app/components/ingredients/net-ingredient-dishes-dialog";
+import { MaterialUsageDialog } from "@/app/components/ingredients/material-usage-dialog";
 import { SeasoningProductListSheet } from "@/app/components/ingredients/seasoning-product-list-sheet";
 import {
   CategoryL1,
@@ -57,6 +57,8 @@ export type RawDetail = {
   defaultSupplier?: { id: number; name: string } | null;
   latestRefPrice: number | null;
   pricePerJin: number | null;
+  /** 出成率（%）：建档默认值，转化净料/调料时预填 */
+  yieldRate?: number | null;
   /** 建档时间 */
   createdAt?: string | null;
 };
@@ -157,6 +159,7 @@ export function IngredientDetailSheet({
             stockUnit: raw.stockUnit,
             latestRefPrice: raw.latestRefPrice,
             pricePerJin: raw.pricePerJin,
+            yieldRate: raw.yieldRate,
             defaultSupplierId: raw.defaultSupplierId,
           }
         : undefined,
@@ -424,7 +427,7 @@ export function IngredientDetailSheet({
                           onClick={() => setRelatedDishesOpen(true)}
                         >
                           <Link2 className="h-4 w-4" />
-                          关联菜品
+                          使用概况
                         </SkeuButton>
                       ) : null}
                       {kind === "seasoning" ? (
@@ -620,13 +623,13 @@ export function IngredientDetailSheet({
         />
       )}
 
-      <NetIngredientDishesDialog
+      <MaterialUsageDialog
         key={`${data?.id ?? "none"}-${relatedDishesOpen}`}
         open={relatedDishesOpen}
         onOpenChange={setRelatedDishesOpen}
-        netIngredientId={data?.id ?? null}
-        netIngredientName={data?.name ?? null}
-        kind={kind === "minor" ? "minor" : "net"}
+        fetchUrl={data?.id != null ? `/api/net-ingredients/${data.id}/dishes` : null}
+        materialName={data?.name ?? null}
+        materialLabel={kind === "minor" ? "小料" : "净料"}
       />
 
       <DiscardChangesDialog

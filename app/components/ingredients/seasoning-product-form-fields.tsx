@@ -36,6 +36,8 @@ export interface SeasoningProductSource {
   pricePerJin?: number | null;
   /** 来源调味品类型：产物类型随之归档，不在表单内选择 */
   seasoningType?: string | null;
+  /** 来源调味品建档默认出成率（%）：新建产物时预填，可修改 */
+  yieldRate?: number | null;
 }
 
 export interface SeasoningProductFormFieldsProps {

@@ -211,6 +211,22 @@ describe("转化与新增净料/小料弹窗", () => {
     });
   });
 
+  it("转化时出成率预填来源食材的建档默认值（无值则留空）", async () => {
+    render(
+      <NetIngredientFormDialog
+        open
+        onOpenChange={jest.fn()}
+        mode="convert"
+        sourceIngredientId={11}
+        categories={categories}
+        rawIngredients={[{ ...rawIngredients[0], yieldRate: 70 }]}
+      />
+    );
+
+    await screen.findByRole("heading", { name: "转化食材" });
+    expect(screen.getByDisplayValue("70")).toBeInTheDocument();
+  });
+
   it("新增净料从来源选择开始并提供更换入口", async () => {
     render(
       <NetIngredientFormDialog

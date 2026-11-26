@@ -153,6 +153,28 @@ describe("调料产物表单弹窗（纯转化口径）", () => {
     await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(3));
   });
 
+  it("出成率默认读取来源调味品的建档值（无值时兜底 100）", () => {
+    const { unmount } = render(
+      <SeasoningProductFormDialog
+        open
+        onOpenChange={() => {}}
+        source={{ ...source, yieldRate: 85 }}
+      />
+    );
+    // 第二个数字输入是出成率
+    expect(numberInputs()[1].value).toBe("85");
+    unmount();
+
+    render(
+      <SeasoningProductFormDialog
+        open
+        onOpenChange={() => {}}
+        source={source}
+      />
+    );
+    expect(numberInputs()[1].value).toBe("100");
+  });
+
   it("缺包装规格时给出可读校验提示且不提交", async () => {
     render(
       <SeasoningProductFormDialog

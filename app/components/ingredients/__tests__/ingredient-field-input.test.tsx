@@ -78,6 +78,7 @@ describe("食材域输入控件", () => {
       unitsPerPurchase: "1",
       latestRefPrice: "18.5",
       pricePerJin: "18.5",
+      yieldRate: "",
       defaultSupplierId: "7",
     };
 
@@ -111,7 +112,7 @@ describe("食材域输入控件", () => {
       screen.getByRole("heading", { name: "采购与计量" })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("heading", { name: "价格与供应商" })
+      screen.getByRole("heading", { name: "价格与出成率" })
     ).toBeInTheDocument();
     expect(screen.getByText("品牌名称")).toBeInTheDocument();
     expect(screen.getByText("供应商名称")).toBeInTheDocument();
@@ -152,6 +153,7 @@ describe("食材域输入控件", () => {
       unitsPerPurchase: "1",
       latestRefPrice: "",
       pricePerJin: "",
+      yieldRate: "",
       defaultSupplierId: "",
     };
 

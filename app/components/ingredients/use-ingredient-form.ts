@@ -27,6 +27,7 @@ export type IngredientFormInitialData = {
   unitsPerPurchase?: number | null;
   latestRefPrice?: number | null;
   pricePerJin?: number | null;
+  yieldRate?: number | null;
   defaultSupplierId?: number | null;
 };
 
@@ -42,6 +43,7 @@ export type SavedIngredientRecord = {
   unitsPerPurchase?: number | null;
   latestRefPrice?: number | null;
   pricePerJin?: number | null;
+  yieldRate?: number | null;
   defaultSupplierId?: number | null;
 };
 
@@ -89,6 +91,8 @@ function buildForm(
         : "",
     pricePerJin:
       initialData?.pricePerJin != null ? String(initialData.pricePerJin) : "",
+    yieldRate:
+      initialData?.yieldRate != null ? String(initialData.yieldRate) : "",
     stockUnit: initialData?.stockUnit || (isCreate ? "斤" : ""),
     defaultSupplierId:
       initialData?.defaultSupplierId != null
@@ -164,6 +168,14 @@ function validateIngredientForm(
   ) {
     next.pricePerJin = "每斤单价不能为负数";
   }
+  if (
+    form.yieldRate &&
+    (!Number.isFinite(Number(form.yieldRate)) ||
+      Number(form.yieldRate) < 0.01 ||
+      Number(form.yieldRate) > 500)
+  ) {
+    next.yieldRate = "出成率需在 0.01–500 之间";
+  }
 
   return next;
 }
@@ -201,6 +213,7 @@ export function useIngredientForm({
     initialData?.unitsPerPurchase ?? "",
     initialData?.latestRefPrice ?? "",
     initialData?.pricePerJin ?? "",
+    initialData?.yieldRate ?? "",
     initialData?.defaultSupplierId ?? "",
     categorySignature,
   ].join("\u0001");
@@ -259,6 +272,8 @@ export function useIngredientForm({
         unitsPerPurchase: Number(form.unitsPerPurchase) || 1,
         ...(latestRefPrice != null && { latestRefPrice }),
         ...(pricePerJin != null && { pricePerJin }),
+        // 出成率：建档默认值，转化时预填；传 null 可清空
+        yieldRate: form.yieldRate ? Number(form.yieldRate) : null,
         defaultSupplierId: form.defaultSupplierId
           ? Number(form.defaultSupplierId)
           : null,
@@ -325,6 +340,10 @@ export function useIngredientForm({
           latestRefPrice
         ),
         pricePerJin: readNullableNumber(record.pricePerJin, pricePerJin),
+        yieldRate: readNullableNumber(
+          record.yieldRate,
+          form.yieldRate ? Number(form.yieldRate) : null
+        ),
         defaultSupplierId: readNullableNumber(
           record.defaultSupplierId,
           form.defaultSupplierId ? Number(form.defaultSupplierId) : null
@@ -367,6 +386,7 @@ export function useIngredientForm({
       "alias",
       "latestRefPrice",
       "pricePerJin",
+      "yieldRate",
       "defaultSupplierId",
     ],
     onSaved: (_values, continued) => {

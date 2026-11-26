@@ -281,6 +281,8 @@ export function NetIngredientFormDialog({
         l1Code: parentL1?.code || "",
         l2Code: raw?.l2Code || "",
         sourceIngredientId: String(propSourceId),
+        // 出成率预填来源食材的建档默认值，转化时可修改
+        yieldRate: raw?.yieldRate != null ? String(raw.yieldRate) : "",
       });
       return;
     }
@@ -781,12 +783,6 @@ export function NetIngredientFormDialog({
               <div className="flex-1 overflow-auto">
                 {loadingList ? (
                   <LoadingState type="table" rows={5} cols={10} />
-                ) : rightList.length === 0 ? (
-                  <EmptyState
-                    icon={PackageOpen}
-                    title="暂无小料"
-                    description="该食材尚未创建规格"
-                  />
                 ) : (
                   <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
@@ -806,6 +802,18 @@ export function NetIngredientFormDialog({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
+                      {rightList.length === 0 && (
+                        // 空数据保留表头，空态收进表体单元格（与 DataTable 同口径）
+                        <TableRow>
+                          <TableCell colSpan={12}>
+                            <EmptyState
+                              icon={PackageOpen}
+                              title="暂无小料"
+                              description="该食材尚未创建规格"
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
                       {rightList.map((row) => (
                         <TableRow key={row.id}>
                           <TableCell className="whitespace-nowrap text-sm font-medium">

@@ -67,6 +67,7 @@ type RawIngredientOption = {
   purchaseUnit?: string | null;
   latestRefPrice?: number | null;
   pricePerJin?: number | null;
+  yieldRate?: number | null;
 };
 
 interface NetIngredientListPanelProps {

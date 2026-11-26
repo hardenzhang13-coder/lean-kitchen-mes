@@ -44,6 +44,8 @@ export interface IngredientFormData {
   unitsPerPurchase: string;
   latestRefPrice: string;
   pricePerJin: string;
+  /** 出成率（%）：建档默认值，转化净料/调料时预填可改；空 = 未设置 */
+  yieldRate: string;
   /** 默认供应商 ID，空字符串 = 未设置 */
   defaultSupplierId: string;
 }
@@ -208,6 +210,31 @@ export function IngredientFormFields({
                 )}
               </FormField>
             )}
+
+            <FormField
+              label={mode === "seasoning" ? "默认供应商" : "供应商名称"}
+              readOnly={viewMode}
+              hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+            >
+              {viewMode ? (
+                <ReadOnlyValue value={supplierName} />
+              ) : (
+                <SupplierSelect
+                  value={
+                    form.defaultSupplierId
+                      ? Number(form.defaultSupplierId)
+                      : ""
+                  }
+                  onChange={(value) =>
+                    onChange(
+                      "defaultSupplierId",
+                      value === "" ? "" : String(value)
+                    )
+                  }
+                  placeholder="选择供应商"
+                />
+              )}
+            </FormField>
           </FormSection>
 
           <FormSection title="采购与计量" cols={groupCols} className="h-full">
@@ -285,7 +312,7 @@ export function IngredientFormFields({
             </FormField>
           </FormSection>
 
-          <FormSection title="价格与供应商" cols={groupCols} className="h-full">
+          <FormSection title="价格与出成率" cols={groupCols} className="h-full">
             <FormField
               label="最新参照单价"
               readOnly={viewMode}
@@ -349,26 +376,34 @@ export function IngredientFormFields({
             </FormField>
 
             <FormField
-              label={mode === "seasoning" ? "默认供应商" : "供应商名称"}
+              label="出成率（%）"
               readOnly={viewMode}
-              hint="用于排程采购计划按供应商拆单打印；不设置则该食材不参与拆单"
+              optionalHint={false}
+              error={errors.yieldRate}
+              hint={
+                mode === "seasoning"
+                  ? "转化调料时默认读取，转化时可修改；不填则转化时手动填写"
+                  : "转化净料时默认读取，转化时可修改；不填则转化时手动填写"
+              }
             >
               {viewMode ? (
-                <ReadOnlyValue value={supplierName} />
+                <ReadOnlyValue
+                  value={form.yieldRate ? `${form.yieldRate}%` : ""}
+                  numeric
+                />
               ) : (
-                <SupplierSelect
-                  value={
-                    form.defaultSupplierId
-                      ? Number(form.defaultSupplierId)
-                      : ""
+                <IngredientFieldInput
+                  numeric
+                  min={0.01}
+                  max={500}
+                  step="0.01"
+                  value={form.yieldRate}
+                  onChange={(event) =>
+                    onChange("yieldRate", event.target.value)
                   }
-                  onChange={(value) =>
-                    onChange(
-                      "defaultSupplierId",
-                      value === "" ? "" : String(value)
-                    )
-                  }
-                  placeholder="选择供应商"
+                  placeholder="可选，如 65"
+                  className="h-11 text-base px-4"
+                  hidePlaceholderOnFocus={hidePlaceholderOnFocus}
                 />
               )}
             </FormField>

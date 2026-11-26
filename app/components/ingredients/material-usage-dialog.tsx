@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Dialog, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
+import { FormDialog } from "@/app/components/ui/form-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 
@@ -15,27 +16,28 @@ type RelatedDish = {
 
 const PAGE_SIZE = 20;
 
-interface NetIngredientDishesDialogProps {
+interface MaterialUsageDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  netIngredientId: number | null;
-  /** 当前净料/小料名称，用于弹窗副标题 */
-  netIngredientName?: string | null;
-  /** 净料 / 小料，用于文案 */
-  kind?: "net" | "minor";
+  /** 使用概况数据接口（分页参数由弹窗拼接），如 /api/seasoning-products/3/dishes */
+  fetchUrl: string | null;
+  /** 物料名称，用于副标题 */
+  materialName?: string | null;
+  /** 物料类别文案（净料 / 小料 / 调料），用于副标题与空态 */
+  materialLabel?: string;
 }
 
 /**
- * 关联菜品：展示引用了当前净料/小料的菜品。
- * 主料、辅料与小料三种引用关系都算。
+ * 使用概况：展示引用了当前物料（净料/小料/调料产物）的菜品。
+ * 数据接口按物料类型由调用方传入，返回结构统一为分页的 {id, code, name, portion}。
  */
-export function NetIngredientDishesDialog({
+export function MaterialUsageDialog({
   open,
   onOpenChange,
-  netIngredientId,
-  netIngredientName,
-  kind = "net",
-}: NetIngredientDishesDialogProps) {
+  fetchUrl,
+  materialName,
+  materialLabel = "物料",
+}: MaterialUsageDialogProps) {
   const [rows, setRows] = useState<RelatedDish[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -45,19 +47,19 @@ export function NetIngredientDishesDialog({
   } | null>(null);
 
   useEffect(() => {
-    if (!open || !netIngredientId) return;
+    if (!open || !fetchUrl) return;
     const controller = new AbortController();
     const load = async () => {
       setLoading(true);
       try {
+        const sep = fetchUrl.includes("?") ? "&" : "?";
         const res = await fetch(
-          `/api/net-ingredients/${netIngredientId}/dishes?page=${page}&pageSize=${PAGE_SIZE}`,
+          `${fetchUrl}${sep}page=${page}&pageSize=${PAGE_SIZE}`,
           { signal: controller.signal }
         );
         if (!res.ok) throw new Error("加载失败");
         const json: unknown = await res.json();
-        const payload =
-          typeof json === "object" && json !== null ? json : {};
+        const payload = typeof json === "object" && json !== null ? json : {};
         if (controller.signal.aborted) return;
         setRows(
           "data" in payload && Array.isArray(payload.data)
@@ -68,10 +70,7 @@ export function NetIngredientDishesDialog({
           "pagination" in payload &&
             typeof payload.pagination === "object" &&
             payload.pagination !== null
-            ? (payload.pagination as {
-                totalItems: number;
-                totalPages: number;
-              })
+            ? (payload.pagination as { totalItems: number; totalPages: number })
             : null
         );
       } catch {
@@ -85,19 +84,22 @@ export function NetIngredientDishesDialog({
     };
     load();
     return () => controller.abort();
-  }, [open, netIngredientId, page]);
+  }, [open, fetchUrl, page]);
 
-  const label = kind === "minor" ? "小料" : "净料";
+  const handleOpenChange = (next: boolean) => {
+    if (!next) setPage(1);
+    onOpenChange(next);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <FormDialog open={open} onOpenChange={handleOpenChange}>
       <AppDialogContent size="wide" className="[&>button]:cursor-pointer">
         <DialogHeader>
-          <DialogTitle className="text-lg">关联菜品</DialogTitle>
+          <DialogTitle className="text-lg">使用概况</DialogTitle>
           <p className="text-sm text-muted-foreground">
-            {netIngredientName
-              ? `引用了「${netIngredientName}」的菜品`
-              : `引用了该${label}的菜品`}
+            {materialName
+              ? `引用了「${materialName}」的菜品`
+              : `引用了该${materialLabel}的菜品`}
           </p>
         </DialogHeader>
 
@@ -129,8 +131,8 @@ export function NetIngredientDishesDialog({
               },
             ]}
             emptyState={{
-              title: `暂无关联菜品`,
-              description: loading ? "" : `当前${label}还没有被任何菜品引用`,
+              title: "暂未用于任何菜品",
+              description: loading ? "" : `当前${materialLabel}还没有被任何菜品引用`,
             }}
             pagination={
               pagination && pagination.totalItems > PAGE_SIZE
@@ -147,6 +149,6 @@ export function NetIngredientDishesDialog({
           />
         </div>
       </AppDialogContent>
-    </Dialog>
+    </FormDialog>
   );
 }
