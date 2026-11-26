@@ -16,6 +16,8 @@ interface ProductionPlanCardProps {
   /** 只读角色（如业务运营）不渲染写操作，只保留查看 */
   canWrite?: boolean;
   onOpen: () => void;
+  /** 「查看详情」按钮：直进详情页（卡片点击仍走 onOpen 预览弹窗） */
+  onViewDetail: () => void;
   onEdit: () => void;
   onActivate: () => void;
   onComplete: () => void;
@@ -32,6 +34,7 @@ export function ProductionPlanCard({
   busy = false,
   canWrite = false,
   onOpen,
+  onViewDetail,
   onEdit,
   onActivate,
   onComplete,
@@ -140,7 +143,7 @@ export function ProductionPlanCard({
         </span>
         <span className="flex items-center gap-1.5">
           {!canWrite && (
-            <SkeuButton variant="outline" size="sm" onClick={onOpen}>
+            <SkeuButton variant="outline" size="sm" onClick={onViewDetail}>
               查看详情
             </SkeuButton>
           )}
@@ -166,7 +169,7 @@ export function ProductionPlanCard({
             />
           )}
           {canWrite && item.status === "已完成" && (
-            <SkeuButton variant="outline" size="sm" onClick={onOpen} disabled={busy}>
+            <SkeuButton variant="outline" size="sm" onClick={onViewDetail} disabled={busy}>
               查看详情
             </SkeuButton>
           )}

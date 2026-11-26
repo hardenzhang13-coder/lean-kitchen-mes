@@ -9,6 +9,7 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
+import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
 import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
@@ -56,6 +57,7 @@ export default function ProductionPlansPage() {
   const canWrite = canAccessApi("/api/production-plans", "POST", role);
 
   const [actionId, setActionId] = useState<number | null>(null);
+  const [previewId, setPreviewId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [createState, setCreateState] = useState<{
     presetDate: string | null;
@@ -183,7 +185,8 @@ export default function ProductionPlansPage() {
                 item={row}
                 busy={actionId === row.id}
                 canWrite={canWrite}
-                onOpen={() => router.push(`/production-plans/${row.id}`)}
+                onOpen={() => setPreviewId(row.id)}
+                onViewDetail={() => router.push(`/production-plans/${row.id}`)}
                 onEdit={() => setEditId(row.id)}
                 onActivate={() => activatePlan(row.id)}
                 onComplete={() => openCompleteDialog(row.id)}
@@ -192,6 +195,8 @@ export default function ProductionPlansPage() {
           />
         )}
       </div>
+
+      <ProductionPlanPreviewDialog planId={previewId} onClose={() => setPreviewId(null)} />
 
       {(createState || editId) && (
         <ProductionPlanCreateDialog
