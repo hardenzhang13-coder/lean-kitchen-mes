@@ -271,6 +271,16 @@ export default function ProductionPlanDetailPage() {
                 </SkeuButton>
               </>
             )}
+            {data.status === "已完成" && (
+              <SkeuButton
+                variant="danger"
+                onClick={() => setDeleteOpen(true)}
+                disabled={actionLoading}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                删除
+              </SkeuButton>
+            )}
             {data.status === "进行中" && (
               <>
                 <SkeuButton onClick={() => setCompleteOpen(true)} disabled={actionLoading}>
@@ -398,7 +408,9 @@ export default function ProductionPlanDetailPage() {
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-muted-foreground text-base">
-            确定要删除这条切配计划单吗？删除后来源排程单可重新纳入其他切配计划单，此操作不可撤销。
+            {data.status === "已完成"
+              ? "确定要删除这条已完成的切配计划单吗？删除不影响已入库的净菜库存、批次与库存流水，此操作不可撤销。"
+              : "确定要删除这条切配计划单吗？删除后来源排程单可重新纳入其他切配计划单，此操作不可撤销。"}
           </p>
           <DialogFooter>
             <SkeuButton variant="outline" onClick={() => setDeleteOpen(false)}>

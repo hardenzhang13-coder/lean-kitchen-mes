@@ -246,8 +246,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         select: { status: true, title: true },
       });
       if (!row) throw new Error("切配计划单不存在");
-      if (row.status !== "待生效") {
-        throw new Error("只有待生效的切配计划单可以删除");
+      if (row.status !== "待生效" && row.status !== "已完成") {
+        throw new Error("只有待生效或已完成的切配计划单可以删除");
       }
       await tx.productionPlan.update({ where: { id: planId }, data: { deletedAt: new Date() } });
       return row;

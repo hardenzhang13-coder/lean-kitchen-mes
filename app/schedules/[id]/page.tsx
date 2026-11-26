@@ -297,6 +297,17 @@ export default function ScheduleDetailPage() {
                 </SkeuButton>
               </>
             )}
+            {canWrite && data.status === "已完成" && (
+              <SkeuButton
+                variant="ghost"
+                className="text-[#b42318] hover:bg-[#fdecea] hover:text-[#b42318]"
+                onClick={() => setDeleteOpen(true)}
+                disabled={actionLoading}
+              >
+                <Trash2 className="h-4 w-4" />
+                删除
+              </SkeuButton>
+            )}
             {canWrite && data.status === "进行中" && !plan && (
               <SkeuButton onClick={() => router.push(`/production-plans?scheduleId=${id}`)}>
                 <Plus className="h-4 w-4" />
@@ -495,7 +506,9 @@ export default function ScheduleDetailPage() {
             <DialogTitle className="text-lg">确认删除</DialogTitle>
           </DialogHeader>
           <p className="text-base text-muted-foreground">
-            确定要删除这条排程吗？切配工单与采购计划将一并删除，此操作不可撤销。
+            {data.status === "已完成"
+              ? "确定要删除这条已完成的排程吗？排程及切配工单、采购计划、销售回录将一并删除；出库单与库存流水保留历史快照不受影响。此操作不可撤销。"
+              : "确定要删除这条排程吗？切配工单与采购计划将一并删除，此操作不可撤销。"}
           </p>
           <DialogFooter>
             <SkeuButton variant="outline" onClick={() => setDeleteOpen(false)}>
