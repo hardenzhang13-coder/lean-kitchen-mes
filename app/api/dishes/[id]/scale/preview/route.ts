@@ -40,6 +40,10 @@ export async function POST(
       include: dishScaleSourceInclude,
     });
     if (!source) return notFound("菜品不存在");
+    // 与执行路由同口径：仅已发布菜品可转化
+    if (source.status !== "published") {
+      return badRequest("仅已发布菜品可转化，请先发布该菜品");
+    }
     if (portion === source.portion) {
       return badRequest("目标份量与源菜品份量相同，无需转化");
     }

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle, Copy, Pencil, RotateCcw, Trash2, ArrowRightLeft } from "lucide-react";
+import { ArrowDownToLine, CheckCircle, Copy, Pencil, PowerOff, RotateCcw, Trash2, ArrowRightLeft } from "lucide-react";
 import {
   Dialog,
   DialogHeader,
@@ -18,29 +18,51 @@ import type { DishDetail } from "@/app/components/dish-form/types";
 import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { isBasePortion } from "@/lib/shared/portion-scale";
 import { DishScaleDialog } from "./dish-scale-dialog";
+import { DishUnpublishEditDialog } from "./dish-unpublish-edit-dialog";
 import { toast } from "sonner";
 
-type StatusAction = "publish" | "deactivate" | "restore";
+type StatusAction = "publish" | "unpublish" | "deactivate" | "restore";
 
 const STATUS_ACTION_META: Record<
   StatusAction,
-  { label: string; confirmTitle: string; confirmText: string }
+  {
+    label: string;
+    confirmTitle: string;
+    confirmText: string;
+    /** 确认键配色：停用为警示动作（warn），其余为推进（primary） */
+    confirmVariant: "primary" | "warn";
+    toastText: string;
+  }
 > = {
   publish: {
     label: "发布",
     confirmTitle: "确认发布",
     confirmText:
       "确定要发布该菜品吗？发布后将锁定基础信息、菜品用料与加工工艺，不可再修改。",
+    confirmVariant: "primary",
+    toastText: "发布成功",
+  },
+  unpublish: {
+    label: "下架",
+    confirmTitle: "确认下架",
+    confirmText:
+      "确定要下架该菜品吗？下架后回到草稿可重新编辑，新建排程不再可选，历史排程与切配计划不受影响。",
+    confirmVariant: "primary",
+    toastText: "已下架",
   },
   deactivate: {
     label: "停用",
     confirmTitle: "确认停用",
     confirmText: "确定要停用该菜品吗？停用后新排程不再可选，历史排程与切配计划不受影响。",
+    confirmVariant: "warn",
+    toastText: "已停用",
   },
   restore: {
     label: "恢复发布",
     confirmTitle: "确认恢复发布",
     confirmText: "确定要恢复发布该菜品吗？恢复后可在新建排程中选择。",
+    confirmVariant: "primary",
+    toastText: "已恢复发布",
   },
 };
 
@@ -52,8 +74,11 @@ function statusActionOf(status: string): StatusAction | null {
 }
 
 /**
- * 菜品档案操作簇：删除（danger）/ 复制、编辑、转化（outline）/ 状态主操作（primary 最右），
- * 覆盖列表操作列全部操作。路由详情页与列表正面弹窗共用；状态流转一律走 POST /api/dishes/[id]/status。
+ * 菜品档案操作簇（详情弹窗与路由详情页共用），按「状态 × 操作」矩阵渲染：
+ * 删除（danger）/ 复制、编辑、下架（outline）/ 状态动作（发布·恢复发布 primary、停用 warn）/
+ * 转化（primary，仅已发布的基本单元菜品，置于最右主操作位）。
+ * 编辑全状态可达：非草稿先走「下架并编辑」确认（DishUnpublishEditDialog）。
+ * 状态流转一律走 POST /api/dishes/[id]/status。
  */
 export function DishDetailActions({
   dish,
@@ -68,8 +93,9 @@ export function DishDetailActions({
 }) {
   const router = useRouter();
   const { profiles } = usePortionProfiles();
-  // 转化只开放给当前基本单元（单人份）；场景规格互相转化会破坏倍率口径。
-  const canScale = isBasePortion(dish.portion, profiles);
+  // 转化仅开放给已发布的基本单元（单人份）菜品：场景规格互相转化会破坏倍率口径，未定版菜品不可投产
+  const canScale =
+    isBasePortion(dish.portion, profiles) && dish.status === "published";
   const [pendingAction, setPendingAction] = useState<StatusAction | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<DeleteErrorInfo | null>(null);
@@ -78,6 +104,7 @@ export function DishDetailActions({
   const [copyName, setCopyName] = useState("");
   const [copying, setCopying] = useState(false);
   const [scaleOpen, setScaleOpen] = useState(false);
+  const [unpublishEditOpen, setUnpublishEditOpen] = useState(false);
 
   const statusAction = statusActionOf(dish.status);
   const actionMeta = statusAction ? STATUS_ACTION_META[statusAction] : null;
@@ -95,13 +122,7 @@ export function DishDetailActions({
         toast.error(data.error || "状态更新失败");
         return;
       }
-      toast.success(
-        action === "publish"
-          ? "发布成功"
-          : action === "deactivate"
-            ? "已停用"
-            : "已恢复发布"
-      );
+      toast.success(STATUS_ACTION_META[action].toastText);
       setPendingAction(null);
       onChanged();
     } catch {
@@ -148,10 +169,10 @@ export function DishDetailActions({
         toast.error(data.error || "复制失败");
         return;
       }
-      const newId = data.data?.id ?? data.id;
       toast.success(`已复制为「${copyName.trim()}」`);
       setCopyOpen(false);
-      if (newId) router.push(`/dishes/${newId}`);
+      // 复制是衍生新建：原地刷新 + toast，不跳离当前页
+      onChanged();
     } catch {
       toast.error("复制失败");
     } finally {
@@ -175,29 +196,41 @@ export function DishDetailActions({
         <Copy className="h-4 w-4" />
         复制
       </SkeuButton>
-      {dish.status === "draft" && (
-        <SkeuButton
-          variant="outline"
-          onClick={() => router.push(`/dishes/${dish.id}/edit`)}
-        >
-          <Pencil className="h-4 w-4" />
-          编辑
-        </SkeuButton>
-      )}
-      {canScale && (
-        <SkeuButton variant="outline" onClick={() => setScaleOpen(true)}>
-          <ArrowRightLeft className="h-4 w-4" />
-          转化
+      <SkeuButton
+        variant="outline"
+        onClick={() => {
+          if (dish.status === "draft") router.push(`/dishes/${dish.id}/edit`);
+          else setUnpublishEditOpen(true);
+        }}
+      >
+        <Pencil className="h-4 w-4" />
+        编辑
+      </SkeuButton>
+      {dish.status !== "draft" && (
+        <SkeuButton variant="outline" onClick={() => setPendingAction("unpublish")}>
+          <ArrowDownToLine className="h-4 w-4" />
+          下架
         </SkeuButton>
       )}
       {actionMeta && statusAction && (
-        <SkeuButton variant="primary" onClick={() => setPendingAction(statusAction)}>
+        <SkeuButton
+          variant={statusAction === "deactivate" ? "warn" : "primary"}
+          onClick={() => setPendingAction(statusAction)}
+        >
           {statusAction === "publish" ? (
             <CheckCircle className="h-4 w-4" />
+          ) : statusAction === "deactivate" ? (
+            <PowerOff className="h-4 w-4" />
           ) : (
             <RotateCcw className="h-4 w-4" />
           )}
           {actionMeta.label}
+        </SkeuButton>
+      )}
+      {canScale && (
+        <SkeuButton variant="primary" onClick={() => setScaleOpen(true)}>
+          <ArrowRightLeft className="h-4 w-4" />
+          转化
         </SkeuButton>
       )}
 
@@ -216,7 +249,7 @@ export function DishDetailActions({
               取消
             </SkeuButton>
             <SkeuButton
-              variant="primary"
+              variant={pendingAction ? STATUS_ACTION_META[pendingAction].confirmVariant : "primary"}
               onClick={() => pendingAction && runStatusAction(pendingAction)}
               disabled={confirming}
             >
@@ -234,6 +267,12 @@ export function DishDetailActions({
           setScaleOpen(false);
           onChanged();
         }}
+      />
+
+      <DishUnpublishEditDialog
+        dish={dish}
+        open={unpublishEditOpen}
+        onOpenChange={setUnpublishEditOpen}
       />
 
       <DeleteConfirmDialog

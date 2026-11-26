@@ -59,6 +59,10 @@ export async function POST(
     include: dishScaleSourceInclude,
   });
   if (!source) return notFound("菜品不存在");
+  // 转化仅开放给已发布菜品：草稿尚未定版、已停用不再投产，转化产物会失真
+  if (source.status !== "published") {
+    return badRequest("仅已发布菜品可转化，请先发布该菜品");
+  }
   if (portion === source.portion) {
     return badRequest("目标份量与源菜品份量相同，无需转化");
   }

@@ -382,6 +382,14 @@
   box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
 }
 .skeu-btn-danger:hover { background: #fee2e2; }
+/* warn：状态警示动作（如菜品「停用」），琥珀色系与 danger 红拉开 */
+.skeu-btn-warn {
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  border: 1px solid #fde68a;
+  box-shadow: var(--sk-highlight-top), var(--sk-shadow-1);
+}
+.skeu-btn-warn:hover { background: #fef3c7; }
 
 /* ---------- 输入控件：内凹 ---------- */
 .skeu-input {

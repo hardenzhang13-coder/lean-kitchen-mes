@@ -10,7 +10,8 @@ export type SkeuButtonVariant =
   | "outline"
   | "secondary"
   | "ghost"
-  | "danger";
+  | "danger"
+  | "warn";
 export type SkeuButtonSize = "sm" | "md" | "lg" | "icon" | "icon-sm";
 
 const VARIANT_CLASS: Record<SkeuButtonVariant, string> = {
@@ -19,6 +20,7 @@ const VARIANT_CLASS: Record<SkeuButtonVariant, string> = {
   secondary: "skeu-btn-secondary",
   ghost: "skeu-btn-ghost",
   danger: "skeu-btn-danger",
+  warn: "skeu-btn-warn",
 };
 
 const SIZE_CLASS: Record<SkeuButtonSize, string> = {

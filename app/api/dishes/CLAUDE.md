@@ -107,7 +107,8 @@ BOM 数据包含四层：
 
 `POST /api/dishes/[id]/scale`，body `{ portion, name?, specs? }`
 
-1. 任意份量档案行都可作为源；目标份量必须命中启用中的份量档案（`portion_profiles`）且与源不同
+1. **源菜品必须为已发布（`published`）状态**；草稿 / 已停用返回 400（preview 路由同口径）
+2. 任意份量档案行都可作为源；目标份量必须命中启用中的份量档案（`portion_profiles`）且与源不同
 2. 倍率新口径 = 目标行 `multiplier` ÷ 源行 `multiplier`（`portionScaleFactor(source, target, profiles)`，档案行由 `lib/server/portion-profile-utils.ts` 查表注入）
 3. 同步转化 BOM 引用的净料/小料：
    - 食材库已有「同来源原料 + 目标份量 + 同分类」规格 → 直接复用

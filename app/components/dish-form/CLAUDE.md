@@ -120,5 +120,7 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 
 - 不要在前端直接修改菜品状态，所有状态流转走 `POST /api/dishes/[id]/status`。
 - `isReadOnly = localStatus !== "draft"`：已发布/已停用均不可编辑。
+- 状态四动作（发布 / 下架 / 停用 / 恢复发布）统一 compact 确认弹窗，确认键 = 动作名；表单顶栏提供发布 / 下架（均需二次确认），停用 / 恢复发布在档案操作簇（`DishDetailActions`，停用为 warn 警示色）。
+- 编辑入口全状态可达：非草稿点击编辑走「下架并编辑」确认（`app/components/dishes/dish-unpublish-edit-dialog.tsx`），unpublish 回草稿后直达编辑页；列表操作列 = 编辑 + 转化（转化仅已发布的基本单元菜品），复制 / 删除收进档案操作簇，复制成功原地刷新 + toast 不跳转；已发布菜品的档案操作簇中转化置于最右主操作位（primary）。
 - BOM 成本在前端即时估算，真实成本以服务端 `PUT /api/dishes/[id]/bom` 重新计算为准。
 - 服务端 `DELETE /api/dishes/[id]` 也会拒绝删除已发布菜品。

@@ -5,18 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRightLeft,
   Building2,
-  Copy,
   Pencil,
   Plus,
   User,
   Users,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageTabs } from "@/app/components/ui/page-tabs";
@@ -24,7 +17,6 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
-import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
 import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
 import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
@@ -32,11 +24,10 @@ import { SkeuListSelect, type SkeuListSelectOption } from "@/app/components/ui/s
 import { DishStatusTag } from "@/app/components/ui/dish-status-tag";
 import { PortionTag } from "@/app/components/ui/portion-tag";
 import { MeatTypeTag } from "@/app/components/ui/meat-type-tag";
-import { FormField } from "@/app/components/ui/form-field";
-import { Input } from "@/app/components/ui/form-controls";
 import { formatPageSummary } from "@/lib/client/use-pagination";
 import { DishDetailDialog } from "@/app/components/dishes/dish-detail-dialog";
 import { DishScaleDialog } from "@/app/components/dishes/dish-scale-dialog";
+import { DishUnpublishEditDialog } from "@/app/components/dishes/dish-unpublish-edit-dialog";
 import {
   DishDetail,
   calcGrossMarginPercent,
@@ -45,7 +36,6 @@ import { usePortionProfiles } from "@/lib/client/use-portion-profiles";
 import { isBasePortion } from "@/lib/shared/portion-scale";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/shared/display-format";
-import { AppDialogContent } from "@/app/components/ui/app-dialog";
 
 type StatusFilter = "" | "draft" | "published" | "inactive";
 type MeatFilter = "" | "荤菜" | "小荤菜" | "素菜";
@@ -128,9 +118,7 @@ export default function DishesPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [scaleTarget, setScaleTarget] = useState<DishDetail | null>(null);
-  const [copyTarget, setCopyTarget] = useState<DishDetail | null>(null);
-  const [copyName, setCopyName] = useState("");
-  const [copying, setCopying] = useState(false);
+  const [unpublishEditTarget, setUnpublishEditTarget] = useState<DishDetail | null>(null);
 
   const fetchDetail = useCallback(async (id: number) => {
     try {
@@ -228,35 +216,6 @@ export default function DishesPage() {
     if (selectedDish) fetchDetail(selectedDish.id);
     refresh();
   }, [selectedDish, fetchDetail]);
-
-  const openCopy = (dish: DishDetail) => {
-    setCopyTarget(dish);
-    setCopyName(`${dish.name}-副本`);
-  };
-
-  const handleCopy = async () => {
-    if (!copyTarget || !copyName.trim()) return;
-    setCopying(true);
-    try {
-      const res = await fetch(`/api/dishes/${copyTarget.id}/copy`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: copyName.trim() }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(data.error || "复制失败");
-        return;
-      }
-      toast.success(`已复制为「${copyName.trim()}」`);
-      setCopyTarget(null);
-      refresh();
-    } catch {
-      toast.error("复制失败");
-    } finally {
-      setCopying(false);
-    }
-  };
 
   return (
     <PageShell
@@ -420,25 +379,17 @@ export default function DishesPage() {
             ]}
             rowActions={(row) => (
               <>
-                <SkeuIconAction
-                  label={`编辑菜品 ${row.name}`}
-                  tip="编辑"
-                  icon={<Pencil className="h-4 w-4" />}
+                <SkeuActionButton
+                  label="编辑"
+                  icon={<Pencil className="h-3.5 w-3.5" />}
                   onClick={(e) => {
                     e.stopPropagation();
-                    router.push(`/dishes/${row.id}/edit`);
+                    // 编辑全状态可达：非草稿先「下架并编辑」（复制/删除收进详情操作簇）
+                    if (row.status === "draft") router.push(`/dishes/${row.id}/edit`);
+                    else setUnpublishEditTarget(row);
                   }}
                 />
-                <SkeuIconAction
-                  label={`复制菜品 ${row.name}`}
-                  tip="复制菜品"
-                  icon={<Copy className="h-4 w-4" />}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openCopy(row);
-                  }}
-                />
-                {isBasePortion(row.portion, profiles) && (
+                {isBasePortion(row.portion, profiles) && row.status === "published" && (
                   <SkeuActionButton
                     label="转化"
                     tone="primary"
@@ -491,44 +442,15 @@ export default function DishesPage() {
         />
       )}
 
-      <Dialog open={copyTarget !== null} onOpenChange={() => setCopyTarget(null)}>
-        <AppDialogContent size="form">
-          <DialogHeader>
-            <DialogTitle className="text-lg">复制菜品</DialogTitle>
-          </DialogHeader>
-          {copyTarget && (
-            <div className="space-y-4">
-              <p className="text-muted-foreground text-base">
-                将以「{copyTarget.name}」（{copyTarget.portion}）为模板生成新的草稿档案，用料与加工工艺完整复制。
-              </p>
-              <FormField id="copy-name" label="新菜品名称" required>
-                <Input
-                  id="copy-name"
-                  value={copyName}
-                  onChange={(e) => setCopyName(e.target.value)}
-                  placeholder="请输入新菜品名称"
-                  className="h-11 text-base px-4"
-                />
-              </FormField>
-            </div>
-          )}
-          <DialogFooter>
-            <SkeuButton
-              variant="outline"
-              onClick={() => setCopyTarget(null)}
-            >
-              取消
-            </SkeuButton>
-            <SkeuButton
-              variant="primary"
-              onClick={handleCopy}
-              disabled={copying || !copyName.trim()}
-            >
-              {copying ? "复制中..." : "确认复制"}
-            </SkeuButton>
-          </DialogFooter>
-        </AppDialogContent>
-      </Dialog>
+      {unpublishEditTarget && (
+        <DishUnpublishEditDialog
+          dish={unpublishEditTarget}
+          open={unpublishEditTarget !== null}
+          onOpenChange={(open) => {
+            if (!open) setUnpublishEditTarget(null);
+          }}
+        />
+      )}
 
       {scaleTarget && (
         <DishScaleDialog

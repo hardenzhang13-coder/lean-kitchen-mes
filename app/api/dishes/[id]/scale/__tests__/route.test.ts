@@ -68,6 +68,7 @@ const source = {
   code: "DSH-HOT-0001",
   name: "宫保鸡丁",
   portion: "单人份",
+  status: "published",
   categoryId: 1,
   category: { code: "HOT" },
   netDetails: [],
@@ -263,6 +264,18 @@ describe("POST /api/dishes/[id]/scale", () => {
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.error).toContain("只有单人份菜品可转化");
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("非已发布菜品禁止转化", async () => {
+    for (const status of ["draft", "inactive"]) {
+      mockedPrisma.dish.findUnique.mockResolvedValueOnce({ ...source, status });
+      const res = await POST(createRequest(), params());
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("仅已发布菜品可转化");
+    }
+    expect(mockedCreateVariant).not.toHaveBeenCalled();
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 });

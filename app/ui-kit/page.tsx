@@ -220,6 +220,7 @@ function MaterialKit() {
           <SkeuButton variant="secondary">次级</SkeuButton>
           <SkeuButton variant="ghost">幽灵</SkeuButton>
           <SkeuButton variant="danger">危险</SkeuButton>
+          <SkeuButton variant="warn">警示</SkeuButton>
         </div>
       </section>
 

@@ -47,6 +47,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   const [localStatus, setLocalStatus] = useState(initialDish?.status || "draft");
   const [lastDishId, setLastDishId] = useState<number | null>(initialDish?.id ?? null);
   const [confirmPublishOpen, setConfirmPublishOpen] = useState(false);
+  const [confirmUnpublishOpen, setConfirmUnpublishOpen] = useState(false);
   const isReadOnly = localStatus !== "draft";
 
   const [form, setForm] = useState<DishFormData>(() =>
@@ -265,6 +266,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
   const handleUnpublish = async () => {
     const dishId = lastDishId;
     if (!dishId) return;
+    setConfirmUnpublishOpen(false);
     setSubmitting(true);
     try {
       await changeStatus(dishId, "unpublish");
@@ -288,7 +290,7 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
         </SkeuButton>
         <div className="flex items-center gap-2">
           {isReadOnly ? (
-            <SkeuButton variant="secondary" onClick={handleUnpublish} disabled={submitting}>
+            <SkeuButton variant="outline" onClick={() => setConfirmUnpublishOpen(true)} disabled={submitting}>
               下架
             </SkeuButton>
           ) : (
@@ -348,7 +350,26 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
               取消
             </SkeuButton>
             <SkeuButton variant="primary" onClick={handlePublishConfirm}>
-              确认发布
+              发布
+            </SkeuButton>
+          </DialogFooter>
+        </AppDialogContent>
+      </Dialog>
+
+      <Dialog open={confirmUnpublishOpen} onOpenChange={setConfirmUnpublishOpen}>
+        <AppDialogContent size="compact">
+          <DialogHeader>
+            <DialogTitle className="text-lg">确认下架</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-base">
+            确定要下架菜品「{form.name || "未命名"}」吗？下架后回到草稿可重新编辑，新建排程不再可选，历史排程与切配计划不受影响。
+          </p>
+          <DialogFooter>
+            <SkeuButton variant="outline" onClick={() => setConfirmUnpublishOpen(false)}>
+              取消
+            </SkeuButton>
+            <SkeuButton variant="primary" onClick={handleUnpublish} disabled={submitting}>
+              下架
             </SkeuButton>
           </DialogFooter>
         </AppDialogContent>
