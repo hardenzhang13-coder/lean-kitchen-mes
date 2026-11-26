@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, startTransition } from "react";
 import { Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
@@ -9,7 +9,6 @@ import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { LoadingState } from "@/app/components/ui/loading-state";
 import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
-import { ProductionPlanPreviewDialog } from "@/app/components/ui/production-plan-preview-dialog";
 import { CompleteProductionDialog } from "@/app/components/production-plan/complete-production-dialog";
 import { ProductionPlanCreateDialog } from "@/app/components/production-plan/production-plan-create-dialog";
 import { ProductionPlanCard } from "@/app/components/schedule/production-plan-card";
@@ -57,7 +56,6 @@ export default function ProductionPlansPage() {
   const canWrite = canAccessApi("/api/production-plans", "POST", role);
 
   const [actionId, setActionId] = useState<number | null>(null);
-  const [previewId, setPreviewId] = useState<number | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [createState, setCreateState] = useState<{
     presetDate: string | null;
@@ -73,16 +71,19 @@ export default function ProductionPlansPage() {
     const params = new URLSearchParams(window.location.search);
     const scheduleId = Number(params.get("scheduleId"));
     const editParam = Number(params.get("editId"));
-    if (Number.isInteger(scheduleId) && scheduleId > 0) {
-      setCreateState({ presetDate: null, presetScheduleId: scheduleId });
-      router.replace("/production-plans");
-    } else if (Number.isInteger(editParam) && editParam > 0) {
-      setEditId(editParam);
-      router.replace("/production-plans");
-    } else if (params.get("create") === "1") {
-      setCreateState({ presetDate: params.get("date"), presetScheduleId: null });
-      router.replace("/production-plans");
-    }
+    // 以 transition 更新，避免该 effect 同步触发级联渲染
+    startTransition(() => {
+      if (Number.isInteger(scheduleId) && scheduleId > 0) {
+        setCreateState({ presetDate: null, presetScheduleId: scheduleId });
+        router.replace("/production-plans");
+      } else if (Number.isInteger(editParam) && editParam > 0) {
+        setEditId(editParam);
+        router.replace("/production-plans");
+      } else if (params.get("create") === "1") {
+        setCreateState({ presetDate: params.get("date"), presetScheduleId: null });
+        router.replace("/production-plans");
+      }
+    });
   }, [router]);
 
   const closeCreateDialog = () => {
@@ -182,7 +183,7 @@ export default function ProductionPlansPage() {
                 item={row}
                 busy={actionId === row.id}
                 canWrite={canWrite}
-                onOpen={() => setPreviewId(row.id)}
+                onOpen={() => router.push(`/production-plans/${row.id}`)}
                 onEdit={() => setEditId(row.id)}
                 onActivate={() => activatePlan(row.id)}
                 onComplete={() => openCompleteDialog(row.id)}
@@ -191,8 +192,6 @@ export default function ProductionPlansPage() {
           />
         )}
       </div>
-
-      <ProductionPlanPreviewDialog planId={previewId} onClose={() => setPreviewId(null)} />
 
       {(createState || editId) && (
         <ProductionPlanCreateDialog

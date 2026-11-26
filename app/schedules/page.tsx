@@ -11,7 +11,6 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { PageShell } from "@/app/components/ui/page-shell";
 import { SkeuListSelect } from "@/app/components/ui/skeu-list-select";
 import { SkeuDotSelect } from "@/app/components/ui/skeu-dot-select";
-import { SchedulePreviewDialog } from "@/app/components/ui/schedule-preview-dialog";
 import { ScheduleCard } from "@/app/components/schedule/schedule-card";
 import { KanbanBoard } from "@/app/components/schedule/kanban-board";
 import { StatusColumnMenu } from "@/app/components/schedule/status-column-menu";
@@ -34,7 +33,6 @@ export default function SchedulesPage() {
   const [stores, setStores] = useState<Array<{ id: number; name: string }>>([]);
   const [actionId, setActionId] = useState<number | null>(null);
 
-  const [previewId, setPreviewId] = useState<number | null>(null);
   const [createState, setCreateState] = useState<{
     copyFromId: number | null;
     editId: number | null;
@@ -70,10 +68,6 @@ export default function SchedulesPage() {
       alive = false;
     };
   }, []);
-
-  const closeQuickView = () => {
-    setPreviewId(null);
-  };
 
   const activateSchedule = async (id: number) => {
     setActionId(id);
@@ -175,7 +169,7 @@ export default function SchedulesPage() {
                 item={row}
                 busy={actionId === row.id}
                 canWrite={canWrite}
-                onOpen={() => setPreviewId(row.id)}
+                onOpen={() => router.push(`/schedules/${row.id}`)}
                 onEdit={() => setCreateState({ copyFromId: null, editId: row.id })}
                 onActivate={() => activateSchedule(row.id)}
                 onGotoPlan={(planId) => router.push(`/production-plans/${planId}`)}
@@ -184,11 +178,6 @@ export default function SchedulesPage() {
           />
         )}
       </div>
-
-      <SchedulePreviewDialog
-        scheduleId={previewId}
-        onClose={closeQuickView}
-      />
 
       {createState && (
         <ScheduleCreateDialog
