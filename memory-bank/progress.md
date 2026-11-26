@@ -3,6 +3,42 @@
 > 按日期记录核心推进过程，包括技术决策、问题解决、功能交付。
 
 
+## 2026-11-26 — 原料库优化：出成率前置 + 通用组件修复 + 使用概况
+
+浩哥对原料库提三项优化，本轮全部落地：
+
+### 1. 出成率前置到建档
+- **Schema**：`ingredients` 新增 `yield_rate`（可空 DECIMAL(5,2)，空 = 未设置），迁移 `20261126022318_ingredient_yield_rate` 仅一条 ADD COLUMN，无回填无重写。
+- **表单**：食材/调味品新建与编辑均加「出成率（%）」，放在「价格与出成率」组（原「价格与供应商」改名）；**默认供应商字段从该组挪到「基础信息」**（浩哥要求）。调味品与食材同一套字段，出成率 hint 按 mode 分别说明转化对象。
+- **列表**：食材清单与调味品清单在「每斤单价」后加「出成率」列，空值显示「未设置，转化净料时手动填写」提示。
+- **转化预填**：净料转化预填来源原料出成率（有则用，无则留空让用户填，不再默认 100）；调料转化预填来源调味品出成率，仍兜底 100。
+
+### 2. 通用组件修复
+- **下拉宽度**：`SelectField` 触发器基础类 `w-fit` 改为 `w-full`（tailwind-merge 覆盖 shadcn 基础类），全系统表单下拉统一满宽；筛选栏等按内容收缩的调用点本就显式传宽度，未受影响。「调料分类宽度不一致」由此根治。
+- **空态保留表头**：`DataTable` 空数据时改为「渲染表头 + 表体内 colSpan 单元格嵌 EmptyState」，与 loading 态同构；全系统列表统一受益。`net-ingredient-form-dialog` 里手搓的小料规格表同步改为表头 + 行内空态。
+- **抽屉两列宽度**：抽屉表单按列宽适配字段展示宽度（随通用件改动一并回归目视）。
+
+### 3. 使用概况（三类调料清单新增）
+- **命名统一为「使用概况」**：浩哥定名（原「关联菜品」）。
+- **范围**：仅单品调料 / 复合调料 / 成品酱料三类产物清单新增入口；**原料不做**（浩哥明确砍掉）；净料/小料存量详情抽屉入口改名换皮，沿用既有接口。
+- **API**：新增 `GET /api/seasoning-products/[id]/dishes`，按 `dishSeasoningDetails.some({ specId })` 反查菜品，分页返回 `{id, code, name, portion}`；含路由测试（3 例：分页反查 / 产物已删 404 / 非法 id 404）。
+- **弹窗**：新增通用件 `MaterialUsageDialog`，严格用 `FormDialog` + `AppDialogContent size="wide"` + `DialogHeader` + `DataTable` 组装（浩哥要求匹配通用组件样式），替代原先裸 `Dialog` 的 `net-ingredient-dishes-dialog`（该文件已删除）。空态「暂未用于任何菜品」走表头 + 行内空态。
+
+### 4. 顺带修掉的 Zod 4 隐患（根因级）
+- 现象：浏览器实测 `PUT /api/ingredients/30`（调味品「盐」）只传 `{yieldRate: 80}` 报 400「食材必须选择二级分类」。
+- 根因：**Zod 4.4.3 的 `.partial()` 会保留 `.default()`**——`updateIngredientSchema` 由 create 派生，部分更新缺省的 `kind` 被静默填成 `"food"`，调味品被当成食材。同类隐患还有 `unit.ts` 的 `isActive`（漏传会把停用单位强制激活）。
+- 修复：默认值只放 create 侧，update 侧显式 `optional()`；`ingredient.ts` 与 `unit.ts` 同批修。
+- **回归防护**：新增 `lib/server/__tests__/ingredient-schema.test.ts`（5 例）锁定「update 不得继承 create 默认值」。连带修正 `app/api/ingredients/[id]/__tests__/route.test.ts` 的 mock（补 `kind: "food"`，此前靠默认值巧合通过）。
+
+### 文档与样张
+- `docs/interaction-visual-baseline-v1.md`：空态条目补「表格空数据保留表头，空态收进表体单元格」；「关联菜品」条目改写为「使用概况」并覆盖三类调料清单与 `MaterialUsageDialog` 组装口径；新增出成率字段与预填约定。
+- `/ui-kit` 新增「空态表格」样张。
+
+### 验证
+- `npx tsc --noEmit` 0 错误；`npx eslint app lib` 0 error / 0 warning；`npx jest` 78 套件 / 414 用例全绿；`migrate diff` 输出空迁移。
+
+---
+
 ## 2026-11-26 — 生产分类对齐回填 + seed 份量重建根因修复
 
 ### 1. 净料/小料分类历史漂移回填（生产库，51 行）
