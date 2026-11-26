@@ -116,18 +116,6 @@ export function DataTable<T extends object>({
     >
       {filters && <div className="flex flex-wrap items-center gap-3">{filters}</div>}
 
-      {!loading && data.length === 0 ? (
-        <div
-          className={cn(
-            "flex min-h-0 flex-1 items-center justify-center",
-            variant === "skeu"
-              ? "skeu-table-scroll skeu-scroll overflow-auto"
-              : "rounded-md border"
-          )}
-        >
-          <EmptyState {...resolvedEmptyState} className="w-full" />
-        </div>
-      ) : (
       <div
         data-density={
           variant === "skeu" && density === "dense" ? "dense" : undefined
@@ -187,6 +175,16 @@ export function DataTable<T extends object>({
                   <LoadingState type="inline" />
                 </TableCell>
               </TableRow>
+            ) : data.length === 0 ? (
+              // 空数据保留表头，空态收进表体单元格（与 loading 态同构）
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length + (rowActions ? 1 : 0)}
+                  data-skeu-cell="plain"
+                >
+                  <EmptyState {...resolvedEmptyState} className="w-full" />
+                </TableCell>
+              </TableRow>
             ) : (
               data.map((row, rowIdx) => (
                 <TableRow
@@ -243,7 +241,6 @@ export function DataTable<T extends object>({
           </TableBody>
         </Table>
       </div>
-      )}
 
       {pagination && pagination.totalItems > 0 && (
         <div className={cn("shrink-0", variant === "skeu" && "skeu-panel-foot")}>

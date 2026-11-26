@@ -37,7 +37,7 @@ export function SelectField({
   const selectedLabel = options.find((o) => o.value === value)?.label;
   return (
     <Select value={value} onValueChange={(v) => v && onChange(v)} disabled={disabled}>
-      <SelectTrigger className={cn("skeu-trigger", className)}>
+      <SelectTrigger className={cn("skeu-trigger w-full", className)}>
         <SelectValue placeholder={placeholder}>{selectedLabel}</SelectValue>
       </SelectTrigger>
       <SelectContent className="skeu-popover">
