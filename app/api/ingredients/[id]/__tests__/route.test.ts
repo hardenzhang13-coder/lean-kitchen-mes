@@ -38,6 +38,7 @@ const existing = {
   code: "ING-0001",
   name: "带皮五花肉",
   alias: null,
+  kind: "food",
   l2Code: "MEA-POR",
   purchaseUnit: "斤",
   stockUnit: "斤",
@@ -110,4 +111,5 @@ describe("PUT /api/ingredients/[id]", () => {
     expect(res.status).toBe(400);
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
+
 });
