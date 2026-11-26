@@ -33,9 +33,7 @@ INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active)
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('BEA', '豆制品', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('PRC', '加工制品', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('GRA', '米面粮油', NULL, 1);
-INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('SEA', '调料', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('MIN', '小料', NULL, 1);
-INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('PIG', '猪肉类', '包括冷鲜猪肉和各种用猪肉加工的熟食', 1);
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('MEA', '畜肉', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l1 (code, name, description, is_active) VALUES ('MUS-JUN', '菌菇类', NULL, 1);
 
@@ -65,14 +63,10 @@ INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, descriptio
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MIN-PEP', '椒香类', 'MIN', '', 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MIN-HER', '香料类', 'MIN', '', 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MIN-OTH', '其他小料', 'MIN', '', 1);
-INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('PIG-COL', '冷冻', 'PIG', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('VEG-SUA', '香辛料', 'VEG', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MEA-POR', '猪肉', 'MEA', '', 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MEA-BEE', '牛肉', 'MEA', '', 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MEA-MUT', '羊肉', 'MEA', '', 1);
-INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('SEA-SOL', '固体类', 'SEA', '', 1);
-INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('SEA-LIQ', '液体类', 'SEA', '', 1);
-INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('PIG-FRH', '冷鲜', 'PIG', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('MUS-CLR', '干菌', 'MUS-JUN', NULL, 1);
 INSERT IGNORE INTO ingredient_categories_l2 (code, name, parent_code, description, is_active) VALUES ('DRY-MUS', '菌菇干货', 'DRY', '', 1);
 
