@@ -28,6 +28,7 @@ const SOURCE_INCLUDE = {
       purchaseSpec: true,
       pricePerJin: true,
       seasoningType: true,
+      yieldRate: true,
     },
   },
 } as const;

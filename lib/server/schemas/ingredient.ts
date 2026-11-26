@@ -17,6 +17,8 @@ const ingredientFields = {
   purchaseSpec: z.string().max(200).optional(),
   latestRefPrice: z.number().nonnegative().optional(),
   pricePerJin: z.number().nonnegative().optional(),
+  // 出成率（%）：建档默认值，转化净料/调料时预填可改；可空 = 未设置
+  yieldRate: z.number().min(0.01).max(500).nullish(),
   // 默认供应商：采购计划按供应商拆单用，可空
   defaultSupplierId: z.number().int().positive().nullish(),
 };

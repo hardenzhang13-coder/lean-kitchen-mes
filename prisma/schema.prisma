@@ -108,6 +108,8 @@ model Ingredient {
   unitsPerPurchase Int                 @default(1) @map("units_per_purchase")
   latestRefPrice Decimal?              @map("latest_ref_price") @db.Decimal(10, 2)
   pricePerJin    Decimal?              @map("price_per_jin") @db.Decimal(10, 4)
+  // 出成率（%）：建档默认值，转化净料/调料时预填可改；空 = 未设置
+  yieldRate      Decimal?              @map("yield_rate") @db.Decimal(5, 2)
   season         String                @default("四季") @map("season")
   storage        String                @default("常温") @map("storage")
   createdAt      DateTime              @default(now()) @map("created_at")

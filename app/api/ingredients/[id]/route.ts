@@ -63,6 +63,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       purchaseSpec,
       latestRefPrice,
       pricePerJin,
+      yieldRate,
       season,
       storage,
       defaultSupplierId,
@@ -152,6 +153,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           unitsPerPurchase: unitsPerPurchase ?? existing.unitsPerPurchase,
           purchaseSpec: purchaseSpec !== undefined ? purchaseSpec || null : existing.purchaseSpec,
           latestRefPrice: latestRefPrice !== undefined ? (latestRefPrice != null ? latestRefPrice : null) : existing.latestRefPrice,
+          yieldRate: yieldRate !== undefined ? (yieldRate ?? null) : existing.yieldRate,
           defaultSupplierId:
             defaultSupplierId !== undefined ? (defaultSupplierId ?? null) : existing.defaultSupplierId,
           pricePerJin:

@@ -112,4 +112,20 @@ describe("PUT /api/ingredients/[id]", () => {
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
 
+  // 回归：update schema 不得注入 kind 默认值，否则调味品会被当成食材而要求二级分类
+  it("调味品只更新出成率时不要求二级分类", async () => {
+    mockedPrisma.ingredient.findFirst.mockResolvedValue({
+      ...existing,
+      kind: "seasoning",
+      seasoningType: "single",
+      l2Code: null,
+    });
+    const res = await PUT(createRequest({ yieldRate: 80 }), params());
+    expect(res.status).toBe(200);
+    expect(mockedIngredientUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ yieldRate: 80, kind: "seasoning", l2Code: null }),
+      })
+    );
+  });
 });
