@@ -425,6 +425,48 @@
 }
 .skeu-trigger[data-disabled] { opacity: 0.5; cursor: not-allowed; }
 
+/* ---------- 焦点统一：全系统同一颜色、同一视觉语言 ---------- */
+/* 输入族：只把边框加深为 --sk-focus，不加发光环（对齐 v008 口径） */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[data-slot="input"]:focus-visible,
+[data-slot="textarea"]:focus-visible,
+[data-slot="select-trigger"]:focus-visible,
+.skeu-input:focus-visible,
+.skeu-trigger:focus-visible {
+  outline: none;
+  border-color: var(--sk-focus);
+  box-shadow: var(--sk-inset);
+}
+/* 按钮族：2px 描边 + 2px 外偏移，颜色同为 --sk-focus */
+button:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="radio"]:focus-visible,
+[data-slot="button"]:focus-visible,
+[role="button"]:focus-visible,
+[role="link"]:focus-visible,
+[role="tab"]:focus-visible,
+[role="checkbox"]:focus-visible,
+[role="radio"]:focus-visible,
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--sk-focus);
+  outline-offset: 2px;
+}
+/* shadcn Button 原语：焦点不再用主题色边框，与全局描边同色 */
+[data-slot="button"]:focus-visible { border-color: var(--sk-focus); }
+/* 字段型按钮（下拉/筛选）：走输入族口径，避免描边与边框双指示 */
+button[data-focus="field"]:focus-visible {
+  outline: none;
+  border-color: var(--sk-focus);
+}
+/* 采购录入「低置信度」字段：焦点时保留琥珀语义边框与提示环 */
+[data-low-confidence]:focus-visible {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 3px color-mix(in oklab, #fbbf24 45%, transparent);
+}
+
 /* ---------- 浮层表面：下拉 / 日历 ---------- */
 .skeu-popover {
   background: var(--sk-surface);

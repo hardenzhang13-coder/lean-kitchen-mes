@@ -1185,6 +1185,9 @@ export default function NewPurchasePage() {
                               item.stockConfidence === "low" &&
                                 "border-amber-400 focus-visible:ring-amber-300"
                             )}
+                            data-low-confidence={
+                              item.stockConfidence === "low" ? "" : undefined
+                            }
                           />
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-sm py-2 min-w-[110px]">
@@ -1322,6 +1325,9 @@ export default function NewPurchasePage() {
                       editForm.stockConfidence === "low" &&
                         "border-amber-400 focus-visible:ring-amber-300"
                     )}
+                    data-low-confidence={
+                      editForm.stockConfidence === "low" ? "" : undefined
+                    }
                   />
                   {editForm.stockConfidence === "low" && (
                     <p className="text-sm text-amber-600">

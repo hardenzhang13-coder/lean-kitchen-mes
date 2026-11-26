@@ -53,6 +53,7 @@ export function SkeuDotSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         aria-label={rest["aria-label"] ?? "状态筛选"}
+        data-focus="field"
         className={cn(
           "flex h-11 min-w-[160px] items-center gap-2.5 rounded-[var(--sk-radius-sm)] border border-skeu-border-strong skeu-surface px-3.5 text-sm font-medium shadow-sk-raised transition-transform duration-150 active:translate-y-px focus-visible:bg-[var(--sk-control-bg)] focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
           className
@@ -83,7 +84,7 @@ export function SkeuDotSelect({
                 setOpen(false);
               }}
               className={cn(
-                "flex h-10 w-full items-center gap-2.5 rounded-[var(--sk-radius-xs)] px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-[var(--sk-primary-soft-solid)] focus-visible:outline-none",
+                "flex h-10 w-full items-center gap-2.5 rounded-[var(--sk-radius-xs)] px-3 text-left text-sm transition-colors hover:bg-muted/60 focus-visible:bg-[var(--sk-primary-soft-solid)]",
                 isSelected && "font-semibold"
               )}
             >

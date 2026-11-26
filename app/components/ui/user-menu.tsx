@@ -48,7 +48,7 @@ export function UserMenu({
           <button
             type="button"
             className={cn(
-              "flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30",
+              "flex items-center gap-2 rounded-full border border-border bg-card py-1 pl-1 pr-2.5 text-left transition-colors hover:bg-muted/60",
               className
             )}
             title={user?.role ? `${displayName} · ${user.role}` : displayName}

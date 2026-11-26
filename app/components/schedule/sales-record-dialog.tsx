@@ -469,7 +469,7 @@ export function SalesRecordDialog({
                 <input ref={fileRef} type="file" accept=".csv" className="hidden" onChange={onFileChange} />
               </div>
               <textarea
-                className="w-full min-h-[88px] border rounded-md p-3 text-xs font-mono outline-none focus:border-primary resize-y"
+                className="w-full min-h-[88px] border rounded-md p-3 text-xs font-mono outline-none focus:border-[var(--sk-focus)] resize-y"
                 placeholder={"粘贴 CSV 文本，表头：编号, 菜品名称, 售出份数\n编号可留空（按菜品名称匹配）"}
                 value={csvText}
                 onChange={(e) => setCsvText(e.target.value)}

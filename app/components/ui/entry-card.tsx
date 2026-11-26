@@ -42,7 +42,6 @@ export function EntryCard({
         "transition-all duration-200 ease-[cubic-bezier(0.2,0.8,0.2,1)]",
         "hover:-translate-y-px hover:border-black/[0.09] hover:shadow-[0_2px_4px_rgba(15,23,42,0.06),0_10px_24px_rgba(15,23,42,0.12)]",
         "active:translate-y-0 active:border-black/[0.09] active:shadow-[0_1px_3px_rgba(15,23,42,0.10)]",
-        "focus-visible:border-[var(--sk-focus)] focus-visible:outline-none",
         className
       )}
     >
