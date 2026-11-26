@@ -77,7 +77,7 @@ function validateSeasoningProductForm(
   if (!values.name.trim()) next.name = "调料名称不能为空";
   const spec = Number(values.packageSpec);
   if (!Number.isFinite(spec) || spec <= 0) {
-    next.packageSpec = "请填写包装规格（g）";
+    next.packageSpec = "请填写规格（g）";
   }
   const yieldRate = Number(values.yieldRate);
   if (!Number.isFinite(yieldRate) || yieldRate <= 0) {

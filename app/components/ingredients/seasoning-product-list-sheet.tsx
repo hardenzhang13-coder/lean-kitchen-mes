@@ -216,7 +216,7 @@ export function SeasoningProductListSheet({
               ),
             },
             {
-              header: "包装规格",
+              header: "规格",
               className: "whitespace-nowrap tabular-nums",
               cell: (row) =>
                 row.packageSpec != null ? `${row.packageSpec}g` : "—",

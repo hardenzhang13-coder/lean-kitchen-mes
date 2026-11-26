@@ -324,18 +324,6 @@ export function RawIngredientListPanel({
                 ),
               },
               {
-                header: "每斤单价",
-                className: "w-[100px]",
-                cell: (row) =>
-                  row.pricePerJin != null ? (
-                    <span className="font-semibold tabular-nums text-primary">
-                      ¥{Number(row.pricePerJin).toFixed(2)}/斤
-                    </span>
-                  ) : (
-                    <EmptyValue title="未填写，可在编辑中按规格换算或手动填写" />
-                  ),
-              },
-              {
                 header: "出成率",
                 className: "w-[80px]",
                 cell: (row) =>
@@ -345,6 +333,18 @@ export function RawIngredientListPanel({
                     </span>
                   ) : (
                     <EmptyValue title="未设置，转化净料时手动填写" />
+                  ),
+              },
+              {
+                header: "每斤单价",
+                className: "w-[100px]",
+                cell: (row) =>
+                  row.pricePerJin != null ? (
+                    <span className="font-semibold tabular-nums text-primary">
+                      ¥{Number(row.pricePerJin).toFixed(2)}/斤
+                    </span>
+                  ) : (
+                    <EmptyValue title="未填写，可在编辑中按规格换算或手动填写" />
                   ),
               },
             ]}

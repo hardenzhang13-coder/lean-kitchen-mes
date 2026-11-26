@@ -16,7 +16,7 @@ import { deriveSeasoningProductPrices } from "@/lib/shared/seasoning-spec";
 export interface SeasoningProductFormData {
   /** 产物名称：转化默认沿用来源调味品名，可改 */
   name: string;
-  /** 包装规格（g）：新建默认 500 */
+  /** 规格（g）：新建默认 500 */
   packageSpec: string;
   /** 出成率（%） */
   yieldRate: string;
@@ -53,7 +53,7 @@ export interface SeasoningProductFormFieldsProps {
 /**
  * 调料产物标准规格表单（单品调料/复合调料/成品酱料同构）。
  * 产物只能由调味品「转化」生成：产物类型继承来源调味品，表单只维护
- * 名称、包装规格与加工/价格指标；版式与「转净料」弹窗一致（三列并排）。
+ * 名称、规格与加工/价格指标；版式与「转净料」弹窗一致（三列并排）。
  */
 export function SeasoningProductFormFields({
   form,
@@ -113,7 +113,7 @@ export function SeasoningProductFormFields({
       <FormLayout variant="workbench">
         <FormSection title="规格指标" cols={1} className={sectionClassName}>
           <FormField
-            label="包装规格（g）"
+            label="规格（g）"
             required
             readOnly={viewMode}
             optionalHint={false}
@@ -282,7 +282,7 @@ export function SeasoningProductFormFields({
             label="标准规格价（元/份）"
             readOnly={viewMode}
             optionalHint={false}
-            hint="= 出库价 × 包装规格 ÷ 500，即每个标准包装的出库价"
+            hint="= 出库价 × 规格 ÷ 500，即每个标准包装的出库价"
           >
             <ReadOnlyValue
               value={

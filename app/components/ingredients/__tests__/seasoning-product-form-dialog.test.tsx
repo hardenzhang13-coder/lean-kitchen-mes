@@ -189,7 +189,7 @@ describe("调料产物表单弹窗（纯转化口径）", () => {
     fireEvent.click(screen.getByText("保存"));
 
     await waitFor(() => {
-      expect(screen.getByText("请填写包装规格（g）")).toBeTruthy();
+      expect(screen.getByText("请填写规格（g）")).toBeTruthy();
     });
     expect(saveCall(fetchMock)).toBeUndefined();
   });

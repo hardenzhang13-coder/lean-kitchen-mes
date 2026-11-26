@@ -271,9 +271,16 @@ export function SeasoningListPanel({
                 cell: (row) => row.stockUnit || <EmptyValue />,
               },
               {
-                header: "入库数量",
-                className: "w-[72px]",
-                cell: (row) => <span className="font-medium">{row.unitsPerPurchase ?? 1}</span>,
+                header: "出成率",
+                className: "w-[80px]",
+                cell: (row) =>
+                  row.yieldRate != null ? (
+                    <span className="tabular-nums">
+                      {Number(row.yieldRate)}%
+                    </span>
+                  ) : (
+                    <EmptyValue title="未设置，转化调料时手动填写" />
+                  ),
               },
               {
                 header: "每斤单价",
@@ -285,18 +292,6 @@ export function SeasoningListPanel({
                     </span>
                   ) : (
                     <EmptyValue />
-                  ),
-              },
-              {
-                header: "出成率",
-                className: "w-[80px]",
-                cell: (row) =>
-                  row.yieldRate != null ? (
-                    <span className="tabular-nums">
-                      {Number(row.yieldRate)}%
-                    </span>
-                  ) : (
-                    <EmptyValue title="未设置，转化调料时手动填写" />
                   ),
               },
             ]}

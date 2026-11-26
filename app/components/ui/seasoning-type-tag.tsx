@@ -1,7 +1,7 @@
 "use client";
 
 import { getSeasoningProductTypeOption } from "@/lib/shared/seasoning-product";
-import { cn } from "@/lib/shared/utils";
+import { SkeuChipTag, type ChipTone } from "@/app/components/ui/skeu-chip";
 
 interface SeasoningTypeTagProps {
   /** 产物类型：单品调料/复合调料/成品酱料（SeasoningProduct.productType） */
@@ -9,19 +9,20 @@ interface SeasoningTypeTagProps {
   className?: string;
 }
 
+/** 三类调料各用一种色相，列表扫读时一眼可分 */
+const TYPE_TONES: Record<string, ChipTone> = {
+  单品调料: "amber",
+  复合调料: "violet",
+  成品酱料: "red",
+};
+
 export function SeasoningTypeTag({ type, className }: SeasoningTypeTagProps) {
   const option = getSeasoningProductTypeOption(type);
   if (!option) return null;
 
   return (
-    <span
-      className={cn(
-        "skeu-badge inline-flex items-center px-2 py-0.5 text-xs font-medium whitespace-nowrap",
-        className
-      )}
-      style={{ color: "var(--tag-sea)", backgroundColor: "var(--tag-sea-bg)" }}
-    >
+    <SkeuChipTag tone={TYPE_TONES[option.value] ?? "slate"} className={className}>
       {option.label}
-    </span>
+    </SkeuChipTag>
   );
 }

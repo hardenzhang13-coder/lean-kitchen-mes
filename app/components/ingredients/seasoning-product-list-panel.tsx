@@ -221,16 +221,16 @@ export function SeasoningProductListPanel({
                 ),
               },
               {
+                header: "规格",
+                className: "w-[84px] tabular-nums",
+                cell: (row) =>
+                  row.packageSpec != null ? `${row.packageSpec}g` : <EmptyValue />,
+              },
+              {
                 header: "来源调味品",
                 className: "w-[130px]",
                 cell: (row) =>
                   row.sourceIngredient?.name || <EmptyValue />,
-              },
-              {
-                header: "包装规格",
-                className: "w-[84px] tabular-nums",
-                cell: (row) =>
-                  row.packageSpec != null ? `${row.packageSpec}g` : <EmptyValue />,
               },
               {
                 header: "出成率",
