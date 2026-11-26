@@ -35,7 +35,9 @@
 - `/ui-kit` 新增「空态表格」样张。
 
 ### 验证
-- `npx tsc --noEmit` 0 错误；`npx eslint app lib` 0 error / 0 warning；`npx jest` 78 套件 / 414 用例全绿；`migrate diff` 输出空迁移。
+- `npx tsc --noEmit` 0 错误；`npx eslint app lib` 0 error / 0 warning；`npx jest` 80 套件 / 423 用例全绿（含新增：schema 默认值回归 5 例、路由调味品出成率 1 例、DataTable 空态 3 例、使用概况弹窗 3 例、净料/调料转化预填 2 例）；`npx next build` 成功；`migrate diff` 输出空迁移。
+- 端到端复核（直调 PUT 路由 + 本地真实库）：调味品「盐」只传 `{yieldRate: 80}` 返回 200，kind 仍为 seasoning、出成率落库（验证后已回写原值）。
+- 待补：浏览器目视回归（新增/编辑表单分组与出成率列、调料清单「使用概况」弹窗、空态表头、下拉宽度）——本轮浏览器通道被工具限流未能执行。
 
 ---
 
