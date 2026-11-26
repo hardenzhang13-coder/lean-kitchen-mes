@@ -120,7 +120,7 @@ const emptyForm: NetIngredientFormData = {
   unitPrice: "",
   grossMarginRate: "0",
   // 新建净料/转净料默认份量（兜底；打开弹窗时按份量档案覆盖，见 defaultPortionRef）
-  portion: "小碗菜·10份",
+  portion: "单人份",
 };
 
 function formatPackageSpec(value: number | null) {
@@ -149,16 +149,17 @@ export function NetIngredientFormDialog({
   allowTargetChoice = false,
 }: NetIngredientFormDialogProps) {
   const [form, setForm] = useState<NetIngredientFormData>(emptyForm);
-  // 默认份量读份量档案：倍率=10 的首个启用行（历史口径 小碗菜·10份），档案不可达时兜底 legacy 值
+  // 默认份量读份量档案：优先基本单元行（单人份），档案不可达时兜底「单人份」
   const { profiles } = usePortionProfiles();
   const defaultPortion = useMemo(() => {
     if (profiles) {
       const row =
-        profiles.find((p) => p.isActive && p.multiplier === 10) ??
+        profiles.find((p) => p.isActive && p.isBase) ??
+        profiles.find((p) => p.isActive && p.multiplier === 1) ??
         profiles.find((p) => p.isActive);
       if (row) return row.portion;
     }
-    return "小碗菜·10份";
+    return "单人份";
   }, [profiles]);
   // 打开重置表单时取当时的默认值；档案异步加载不触发二次重置，避免覆盖用户已选份量
   const defaultPortionRef = useRef(defaultPortion);

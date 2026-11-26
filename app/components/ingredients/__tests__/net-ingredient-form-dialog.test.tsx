@@ -377,8 +377,8 @@ describe("转化与新增净料/小料弹窗", () => {
     await waitFor(() => {
       expect(screen.getAllByText("密封袋").length).toBeGreaterThan(0);
     });
-    // 份量已默认「小碗菜·10份」，无需再选
-    expect(screen.getByText("小碗菜·10份")).toBeInTheDocument();
+    // 份量默认取基本单元「单人份」，无需再选
+    expect(screen.getByText("单人份")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "创建净料" }));
 
@@ -393,7 +393,7 @@ describe("转化与新增净料/小料弹窗", () => {
     expect(payload).not.toHaveProperty("unitPrice");
     expect(payload).not.toHaveProperty("autoCalculate");
     expect(payload.grossMarginRate).toBe(0);
-    expect(payload.portion).toBe("小碗菜·10份");
+    expect(payload.portion).toBe("单人份");
   });
 
   it("小料模式使用与净料一致的三分组布局", async () => {
