@@ -68,32 +68,41 @@ function makeSource(
   } as unknown as DishScaleSource;
 }
 
-function makeDb(existingIds: Array<number | null>) {
-  const queue = [...existingIds];
+type Candidate = {
+  id: number;
+  code: string;
+  name: string;
+  packageSpec: number;
+  portion: string;
+};
+
+function candidate(id: number, name: string, packageSpec: number): Candidate {
+  return { id, code: `PRD-0${id}`, name, packageSpec, portion: "社区·3份" };
+}
+
+/**
+ * 模拟 netIngredient.findMany：按 where.packageSpec 过滤候选池，
+ * 与真实查询的「目标份量 + 规格 = 期望值」过滤一致（切法由 JS 侧再过滤）。
+ */
+function makeDb(pool: Candidate[]) {
   return {
     portionProfile: {
       findMany: jest.fn().mockResolvedValue(portionProfiles),
     },
     netIngredient: {
-      findFirst: jest.fn().mockImplementation(async () => {
-        const id = queue.shift();
-        return id == null
-          ? null
-          : {
-              id,
-              code: `PRD-0${id}`,
-              name: "已存在规格",
-              packageSpec: 300,
-              portion: "社区·3份",
-            };
-      }),
+      findMany: jest
+        .fn()
+        .mockImplementation(async (args: { where?: { packageSpec?: number } }) => {
+          const expected = args?.where?.packageSpec;
+          return pool.filter((row) => row.packageSpec === expected);
+        }),
     },
   } as unknown as Prisma.TransactionClient;
 }
 
 describe("菜品转化计划", () => {
-  it("按目标份量匹配已存在规格并生成缺失规格提案", async () => {
-    const db = makeDb([201, null]);
+  it("同切法且规格=源×倍率的已存在规格直接复用，其余生成缺失提案", async () => {
+    const db = makeDb([candidate(201, "鸡丁•300g", 300)]);
     const plan = await buildDishScalePlan(db, makeSource(), "社区·3份");
 
     expect(plan.factor).toBe(3);
@@ -107,6 +116,25 @@ describe("菜品转化计划", () => {
     expect(plan.minor[0].proposal.packageSpec).toBe(60);
     expect(plan.minor[0].proposal.yieldRate).toBe(65);
     expect(plan.minor[0].canCreate).toBe(true);
+  });
+
+  it("同来源原料但切法不同的规格不复用（回归：静默错配切法）", async () => {
+    const db = makeDb([candidate(202, "鸡丝•300g", 300)]);
+    const plan = await buildDishScalePlan(db, makeSource(), "社区·3份");
+
+    expect(plan.net[0].status).toBe("missing");
+    expect(plan.net[0].existing).toBeUndefined();
+    expect(plan.net[0].proposal.name).toBe("鸡丁•300g");
+    expect(plan.net[0].proposal.packageSpec).toBe(300);
+  });
+
+  it("同切法但规格不等于源×倍率时不复用（回归：静默错配规格）", async () => {
+    // 候选池里只有 500g（DB 层按期望 300g 过滤后为空）
+    const db = makeDb([candidate(203, "鸡丁•500g", 500)]);
+    const plan = await buildDishScalePlan(db, makeSource(), "社区·3份");
+
+    expect(plan.net[0].status).toBe("missing");
+    expect(plan.net[0].proposal.packageSpec).toBe(300);
   });
 
   it("缺少来源原料时标记为不可自动创建", async () => {
@@ -126,9 +154,32 @@ describe("菜品转化计划", () => {
       minorDetails: [],
     } as unknown as Partial<DishScaleSource>);
 
-    const db = makeDb([null]);
+    const db = makeDb([]);
     const plan = await buildDishScalePlan(db, source, "社区·3份");
     expect(plan.net[0].canCreate).toBe(false);
+  });
+
+  it("缺少来源原料但库中已有同切法同规格时可复用", async () => {
+    const source = makeSource({
+      netDetails: [
+        {
+          netIngId: 103,
+          role: "main",
+          amountG: 100,
+          netIngredient: {
+            ...netIngredient,
+            sourceIngredientId: null,
+            sourceIngredient: null,
+          },
+        },
+      ],
+      minorDetails: [],
+    } as unknown as Partial<DishScaleSource>);
+
+    const db = makeDb([candidate(204, "鸡丁•300g", 300)]);
+    const plan = await buildDishScalePlan(db, source, "社区·3份");
+    expect(plan.net[0].status).toBe("existing");
+    expect(plan.net[0].existing?.id).toBe(204);
   });
 
   it("同一净料被重复引用时只生成一条规格计划", async () => {
@@ -150,13 +201,13 @@ describe("菜品转化计划", () => {
       minorDetails: [],
     } as unknown as Partial<DishScaleSource>);
 
-    const db = makeDb([null]);
+    const db = makeDb([]);
     const plan = await buildDishScalePlan(db, source, "社区·3份");
     expect(plan.net).toHaveLength(1);
   });
 
   it("用户编辑覆盖默认提案，并校验规格合法性", async () => {
-    const db = makeDb([null, null]);
+    const db = makeDb([]);
     const plan = await buildDishScalePlan(db, makeSource(), "社区·3份");
 
     const inputs = resolveScaleSpecInputs(plan, [

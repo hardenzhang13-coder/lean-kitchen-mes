@@ -1,7 +1,7 @@
 import type { Prisma, PrismaClient } from "@prisma/client";
 
 import { nextCode } from "@/lib/shared/code-gen";
-import { syncNamePackageSpec } from "@/lib/shared/name-utils";
+import { stripNamePackageSpec, syncNamePackageSpec } from "@/lib/shared/name-utils";
 import { portionScaleFactor } from "@/lib/shared/portion-scale";
 import { listPortionProfiles } from "@/lib/server/portion-profile-utils";
 import type {
@@ -95,25 +95,31 @@ function scaleSpecKey(kind: DishScaleSpecKind, sourceNetIngId: number): string {
   return `${kind}:${sourceNetIngId}`;
 }
 
-/** 查找食材库中「同一来源原料 + 目标份量 + 同一分类」的规格 */
+/**
+ * 查找食材库中可复用的目标规格。复用口径（2026-11-27 收紧）：
+ * 同来源原料 + 目标份量 + 同分类 + **同切法**（名称去末尾规格后一致）
+ * + **封装规格恰好 = 源规格 × 倍率**。
+ * 此前只按「来源原料 + 份量 + 分类」取 id 最小一行，同原料的不同切法、
+ * 任意规格都会被静默复用，导致转化菜品的净料/小料用量错误；
+ * 现口径下切法或规格不符的一律视为缺失，走可编辑的新建提案。
+ */
 async function findExistingTarget(
   db: Prisma.TransactionClient | PrismaClient,
   source: ScaleNetIngredient,
-  targetPortion: string
+  targetPortion: string,
+  expectedSpec: number
 ): Promise<ExistingTarget | null> {
   const where: Prisma.NetIngredientWhereInput = {
     deletedAt: null,
     portion: targetPortion,
     l2Code: source.l2Code,
+    packageSpec: expectedSpec,
   };
   if (source.sourceIngredientId) {
     where.sourceIngredientId = source.sourceIngredientId;
-  } else {
-    // 历史数据可能没有来源原料，退化为同名同分类匹配
-    where.name = source.name;
   }
-
-  const row = await db.netIngredient.findFirst({
+  // 历史数据可能没有来源原料：退化为同分类 + 同切法匹配（见下方过滤）
+  const candidates = await db.netIngredient.findMany({
     where,
     orderBy: { id: "asc" },
     select: {
@@ -124,6 +130,10 @@ async function findExistingTarget(
       portion: true,
     },
   });
+  const sourceCut = stripNamePackageSpec(source.name);
+  const row = candidates.find(
+    (candidate) => stripNamePackageSpec(candidate.name) === sourceCut
+  );
   if (!row) return null;
 
   return {
@@ -143,11 +153,17 @@ async function buildSpecPlan(
   targetPortion: string,
   factor: number
 ): Promise<DishScaleSpecPlan> {
-  const existing = await findExistingTarget(db, ingredient, targetPortion);
+  // 期望规格先算出来：复用匹配与新建提案共用同一个「源规格 × 倍率」
   const packageSpec =
     ingredient.packageSpec != null
       ? Math.max(1, Math.round(Number(ingredient.packageSpec) * factor))
       : 1;
+  const existing = await findExistingTarget(
+    db,
+    ingredient,
+    targetPortion,
+    packageSpec
+  );
 
   return {
     kind,

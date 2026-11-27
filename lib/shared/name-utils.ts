@@ -33,6 +33,20 @@ export function syncNamePackageSpec(name: string, packageSpec: number): string {
 }
 
 /**
+ * 去掉名称末尾的封装规格段（含 • 分隔符），得到「切法身份」。
+ * 用于菜品转化时判定两个净料/小料是否同一切法：
+ * 「胡萝卜•直切•1.5厘丁•10g」与「胡萝卜•直切•1.5厘丁•100g」同切法，
+ * 「蒜米•机切3毫片•10g」与「蒜米•2毫片•100g」不同切法。
+ * 名称无末尾规格时原样返回（trim 后）。
+ */
+export function stripNamePackageSpec(name: string): string {
+  const trimmed = name.trim();
+  const trailingSpec = /•?\s*\d+(?:\.\d+)?\s*(?:g|克)\s*$/i;
+  if (!trailingSpec.test(trimmed)) return trimmed;
+  return trimmed.replace(trailingSpec, "").trim();
+}
+
+/**
  * 计算两个名称的相似度（0~1）。
  * 规则：完全相同=1；一方包含另一方=0.9；否则 0。
  * （用于 AI 采购识别匹配的宽松阈值判定）
