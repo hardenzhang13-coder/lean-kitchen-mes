@@ -60,6 +60,8 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 | `IngredientCategoryL3` | 三级分类（2026-11-28，迁移 20261128140000），编号约定 `L2前缀-后缀`；`parentCode` 外键关联 L2.code（级联删除）；**可选层不做强限制** |
 
 - 三张分类表均带 `domain` 列（`food` / `seasoning`，2026-11-28）：食材分类与调味品分类共用三表、code 命名空间共享（调味品用 SEA 前缀系列）；L2/L3 创建强制继承父级 domain。
+- ⚠️ **SEA 前缀已跨域占用（2026-11-28 记录，待处理）**：生产库 food 域已存在 `SEA-CPL` 头足类 / `SEA-CRB` 蟹类 / `SEA-SWF` 海水鱼（domain=food），调味品域用 `SEA` / `SEA-SPC` / `SEA-SAU` / `SEA-OIL`（domain=seasoning）。code 全局唯一故当前无重名，但同一前缀在两域含义不同，后续新建 SEA-xxx 有撞名风险。待决：seasoning 域改前缀（SPICE-/SEASON-），或立约束「food 域不得再使用 SEA 前缀」。
+- ⚠️ **seed 的食材分类基线已与生产分叉（2026-11-28 记录，待处理）**：`prisma/seed.ts` 仍是老口径（VEG 蔬菜 / MEA 畜肉 / BEA 豆制品…），生产早已重构（VEG 蔬菜水果 / MEA 包装与包材 / BEA 饮品与零食…）。因 `createMany skipDuplicates` 不覆盖既有行，当前无害；但 seed 已失去字典基线意义，且有「分类被删后又被 seed 建回」的风险。待决：按生产真实体系更新该段，或清空 seed 的食材分类段落。
 - 业务表中的 `l2Code` / `l3Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查（L2/L1 删除会汇总其下三级子级引用），被引用时禁止并引导停用。
 - 归属校验唯一真源 `lib/server/category-validate.ts` 的 `validateCategoryAssignment(l2Code, l3Code, domain)`：三级非空必须有二级、分类存在且 domain 匹配、三级须为所选二级子级；食材按 food 域、调味品按 seasoning 域校验。
 - 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类；分类树按 `?domain=` 过滤（默认 food）。
