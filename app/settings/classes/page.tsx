@@ -27,7 +27,7 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { SectionTabs } from "@/app/components/ui/section-tabs";
+import { PageTabs } from "@/app/components/ui/page-tabs";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
 import {
@@ -162,7 +162,8 @@ export default function ClassesPage() {
     };
   }, [reloadKey, domain]);
 
-  const switchDomain = (next: CategoryDomain) => {
+  const switchDomain = (next: string) => {
+    if (next !== "food" && next !== "seasoning") return;
     setDomain(next);
     setSearch("");
     setStatusFilter("all");
@@ -286,7 +287,7 @@ export default function ClassesPage() {
   const openCreateL2 = (parentCode: string) =>
     openRecord("l2", "create", { ...emptyForm, parentCode }, null);
   const openCreateL3 = (parentCode: string) =>
-    openRecord("l3", "create", { ...emptyForm, parentCode }, null);
+    openRecord("l3", "create", { ...emptyForm, parentCode, code: `${parentCode}-` }, null);
 
   const openEditL1 = (row: L1) =>
     openRecord(
@@ -702,7 +703,7 @@ export default function ClassesPage() {
     >
       <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
         <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4 space-y-3">
-          <SectionTabs
+          <PageTabs
             tabs={domainTabs}
             value={domain}
             onChange={switchDomain}
