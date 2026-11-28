@@ -39,6 +39,7 @@ export const netIngredientQuerySchema = z.object({
   sourceIngredientId: z.coerce.number().int().positive().optional(),
   l1Code: z.string().optional(),
   l2Code: z.string().optional(),
+  l3Code: z.string().optional(),
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

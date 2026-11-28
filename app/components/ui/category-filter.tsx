@@ -12,10 +12,19 @@ import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { cn } from "@/lib/shared/utils";
 
+export interface CategoryFilterL3 {
+  code: string;
+  name: string;
+}
+export interface CategoryFilterL2 {
+  code: string;
+  name: string;
+  children?: CategoryFilterL3[];
+}
 export interface CategoryFilterNode {
   code: string;
   name: string;
-  children?: { code: string; name: string }[];
+  children?: CategoryFilterL2[];
 }
 
 interface CategoryFilterProps {
@@ -24,46 +33,66 @@ interface CategoryFilterProps {
   l1: string;
   /** 当前二级分类 */
   l2: string;
-  onChange: (l1: string, l2: string) => void;
+  /** 当前三级分类；传入该 prop（含空字符串）即启用三级筛选 */
+  l3?: string;
+  onChange: (l1: string, l2: string, l3?: string) => void;
   placeholder?: string;
   className?: string;
 }
 
 /**
- * 一二级分类筛选器（食材库标准件）。
+ * 分类筛选器（食材库标准件）。
  * 与表单级联选择同款的级联弹窗：左栏一级列表、右栏二级磁贴，点选即生效。
- * 点一级切换右侧并即时应用；点二级 /「全部」应用后关闭；底部可清空筛选。
+ * 传入 l3 时升级为三栏（一级 / 二级 / 三级磁贴）：点二级应用但不关弹窗，可继续点三级；
+ * 点三级 /「不限三级」应用后关闭。不传 l3 保持两级：点二级应用并关闭。
  */
 export function CategoryFilter({
   categories,
   l1,
   l2,
+  l3,
   onChange,
   placeholder,
   className,
 }: CategoryFilterProps) {
   const [open, setOpen] = useState(false);
+  const hasL3 = l3 !== undefined;
 
   const l1Node = categories.find((node) => node.code === l1);
   const children = l1Node?.children ?? [];
+  const l2Node = children.find((child) => child.code === l2);
+  const l3Options = l2Node?.children ?? [];
 
-  const activeL2 = children.find((child) => child.code === l2);
+  const activeL2 = l2Node;
+  const activeL3 = l3Options.find((child) => child.code === l3);
   const label = l1Node
     ? activeL2
-      ? `${l1Node.name} · ${activeL2.name}`
+      ? activeL3
+        ? `${l1Node.name} · ${activeL2.name} · ${activeL3.name}`
+        : `${l1Node.name} · ${activeL2.name}`
       : l1Node.name
     : placeholder || "全部分类";
-  const isActive = !!(l1 || l2);
+  const isActive = !!(l1 || l2 || l3);
 
   const close = () => setOpen(false);
 
   const clear = () => {
-    onChange("", "");
+    onChange("", "", "");
     close();
   };
 
   const selectL2 = (code: string) => {
-    onChange(l1, code);
+    if (hasL3) {
+      // 三级模式下点二级只应用不关闭，便于继续选三级
+      onChange(l1, code, "");
+      return;
+    }
+    onChange(l1, code, "");
+    close();
+  };
+
+  const selectL3 = (code: string) => {
+    onChange(l1, l2, code);
     close();
   };
 
@@ -104,7 +133,7 @@ export function CategoryFilter({
               <L1Row
                 active={!l1}
                 onClick={() => {
-                  onChange("", "");
+                  onChange("", "", "");
                   close();
                 }}
               >
@@ -114,7 +143,7 @@ export function CategoryFilter({
                 <L1Row
                   key={node.code}
                   active={node.code === l1}
-                  onClick={() => onChange(node.code, "")}
+                  onClick={() => onChange(node.code, "", "")}
                 >
                   <span className="truncate">{node.name}</span>
                   <span className="ml-auto text-xs tabular-nums text-muted-foreground">
@@ -125,18 +154,60 @@ export function CategoryFilter({
             </div>
             <div className="bg-white overflow-y-auto skeu-scroll p-4">
               {l1Node ? (
-                <>
-                  <div className="text-xs text-muted-foreground mb-3">
-                    {l1Node.name} · 选择二级分类
+                hasL3 ? (
+                  <div className="grid grid-cols-[150px_1fr] gap-4 items-start">
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        {l1Node.name} · 二级
+                      </div>
+                      <TileGrid
+                        options={children}
+                        value={l2}
+                        allLabel={`全部${l1Node.name}`}
+                        onSelect={selectL2}
+                        emptyText="该分类下暂无二级分类"
+                        cols="grid-cols-1"
+                      />
+                    </div>
+                    <div>
+                      <div className="text-xs text-muted-foreground mb-2">
+                        三级分类（可选）
+                      </div>
+                      {l2Node ? (
+                        l3Options.length > 0 ? (
+                          <TileGrid
+                            options={l3Options}
+                            value={l3 ?? ""}
+                            allLabel="不限三级"
+                            onSelect={selectL3}
+                            emptyText=""
+                          />
+                        ) : (
+                          <p className="py-6 text-sm text-muted-foreground">
+                            该分类暂无三级分类
+                          </p>
+                        )
+                      ) : (
+                        <p className="py-6 text-sm text-muted-foreground">
+                          请先选择二级分类
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <TileGrid
-                    options={children}
-                    value={l2}
-                    allLabel={`全部${l1Node.name}`}
-                    onSelect={selectL2}
-                    emptyText="该分类下暂无二级分类"
-                  />
-                </>
+                ) : (
+                  <>
+                    <div className="text-xs text-muted-foreground mb-3">
+                      {l1Node.name} · 选择二级分类
+                    </div>
+                    <TileGrid
+                      options={children}
+                      value={l2}
+                      allLabel={`全部${l1Node.name}`}
+                      onSelect={selectL2}
+                      emptyText="该分类下暂无二级分类"
+                    />
+                  </>
+                )
               ) : (
                 <p className="py-10 text-center text-sm text-muted-foreground">
                   请先在左侧选择一级分类
@@ -200,15 +271,17 @@ function TileGrid({
   allLabel,
   onSelect,
   emptyText,
+  cols = "grid-cols-2 sm:grid-cols-3",
 }: {
   options: { code: string; name: string }[];
   value: string;
   allLabel: string;
   onSelect: (code: string) => void;
   emptyText: string;
+  cols?: string;
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+    <div className={cn("grid gap-2", cols)}>
       <Tile active={!value} onClick={() => onSelect("")}>
         {allLabel}
       </Tile>
@@ -221,7 +294,7 @@ function TileGrid({
           {option.name}
         </Tile>
       ))}
-      {options.length === 0 && (
+      {options.length === 0 && emptyText && (
         <p className="col-span-full py-6 text-center text-sm text-muted-foreground">
           {emptyText}
         </p>

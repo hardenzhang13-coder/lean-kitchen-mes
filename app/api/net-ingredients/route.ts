@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(netIngredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { sourceIngredientId, l1Code, l2Code, q, page, pageSize } = validation.data;
+    const { sourceIngredientId, l1Code, l2Code, l3Code, q, page, pageSize } = validation.data;
 
     const where: Record<string, unknown> = { deletedAt: null };
 
@@ -34,7 +34,9 @@ export async function GET(req: NextRequest) {
       where.sourceIngredientId = sourceIngredientId;
     }
 
-    if (l2Code) {
+    if (l3Code) {
+      where.l3Code = l3Code;
+    } else if (l2Code) {
       where.l2Code = l2Code;
     } else if (l1Code) {
       const l2Codes = await getL2CodesByL1(l1Code);

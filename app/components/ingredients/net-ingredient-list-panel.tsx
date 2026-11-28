@@ -55,7 +55,11 @@ type NetIngredient = {
 type CategoryL1 = {
   code: string;
   name: string;
-  children: { code: string; name: string }[];
+  children: {
+    code: string;
+    name: string;
+    children?: { code: string; name: string }[];
+  }[];
 };
 
 type RawIngredientOption = {
@@ -88,6 +92,7 @@ export function NetIngredientListPanel({
   const [search, setSearch] = useState("");
   const [l1Filter, setL1Filter] = useState("");
   const [l2Filter, setL2Filter] = useState("");
+  const [l3Filter, setL3Filter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pagination, setPagination] = useState<{
@@ -114,6 +119,7 @@ export function NetIngredientListPanel({
       if (search.trim()) params.set("q", search.trim());
       if (l1Filter) params.set("l1Code", l1Filter);
       if (l2Filter) params.set("l2Code", l2Filter);
+      if (l3Filter) params.set("l3Code", l3Filter);
       const netRes = await fetch(`/api/net-ingredients?${params.toString()}`);
       const netJson = await netRes.json();
       setData(netJson.data || []);
@@ -123,7 +129,7 @@ export function NetIngredientListPanel({
     } finally {
       setLoading(false);
     }
-  }, [l1Filter, l2Filter, page, pageSize, refreshToken, search]);
+  }, [l1Filter, l2Filter, l3Filter, page, pageSize, refreshToken, search]);
 
   useEffect(() => {
     const timer = setTimeout(fetchIngredients, 300);
@@ -144,6 +150,18 @@ export function NetIngredientListPanel({
     const map: Record<string, string> = {};
     categories.forEach((l1) => {
       map[l1.code] = l1.name;
+    });
+    return map;
+  }, [categories]);
+
+  const l3Map = useMemo(() => {
+    const map: Record<string, string> = {};
+    categories.forEach((l1) => {
+      l1.children.forEach((l2) => {
+        (l2.children ?? []).forEach((l3) => {
+          map[l3.code] = l3.name;
+        });
+      });
     });
     return map;
   }, [categories]);
@@ -218,9 +236,10 @@ export function NetIngredientListPanel({
               setSearch("");
               setL1Filter("");
               setL2Filter("");
+              setL3Filter("");
               setPage(1);
             }}
-            hasFilters={!!(l1Filter || l2Filter)}
+            hasFilters={!!(l1Filter || l2Filter || l3Filter)}
           >
             <CategoryFilter
               categories={categories.filter(
@@ -228,12 +247,14 @@ export function NetIngredientListPanel({
               )}
               l1={l1Filter}
               l2={l2Filter}
-              onChange={(nextL1, nextL2) => {
+              l3={l3Filter}
+              onChange={(nextL1, nextL2, nextL3) => {
                 setL1Filter(nextL1);
                 setL2Filter(nextL2);
+                setL3Filter(nextL3 ?? "");
                 setPage(1);
               }}
-              className="w-[160px]"
+              className="w-[200px]"
             />
           </ListToolbar>
         </CardHeader>
@@ -294,6 +315,16 @@ export function NetIngredientListPanel({
                     />
                   );
                 },
+              },
+              {
+                header: "三级分类",
+                className: "w-[90px]",
+                cell: (row) =>
+                  row.l3Code ? (
+                    <span>{l3Map[row.l3Code] || row.l3Code}</span>
+                  ) : (
+                    <EmptyValue />
+                  ),
               },
               {
                 header: "来源食材",
