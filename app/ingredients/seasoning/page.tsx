@@ -31,19 +31,6 @@ function getTab(value: string | null): SeasoningTab {
   return TABS.some((t) => t.value === value) ? (value as SeasoningTab) : "all";
 }
 
-type CategoryL1 = {
-  id?: number;
-  code: string;
-  name: string;
-  children: {
-    id?: number;
-    code: string;
-    name: string;
-    parentCode: string;
-    children?: { code: string; name: string }[];
-  }[];
-};
-
 type Unit = {
   id: number;
   name: string;
@@ -57,7 +44,6 @@ function SeasoningListContent() {
   const searchParams = useSearchParams();
   const activeTab = getTab(searchParams.get("tab"));
 
-  const [categories, setCategories] = useState<CategoryL1[]>([]);
   const [units, setUnits] = useState<Unit[]>([]);
   const [mountedTabs, setMountedTabs] = useState<SeasoningTab[]>([activeTab]);
   const [createOpen, setCreateOpen] = useState(false);
@@ -74,14 +60,9 @@ function SeasoningListContent() {
 
   const fetchMeta = useCallback(async () => {
     try {
-      const [categoryRes, unitRes] = await Promise.all([
-        // 调味品分类树（domain=seasoning），与食材分类体系相互独立
-        fetch("/api/ingredient-categories?page=1&pageSize=100&domain=seasoning"),
-        fetch("/api/units?page=1&pageSize=100"),
-      ]);
-      const categoryJson = await categoryRes.json();
+      // 调味品不挂分类树（归类走「调料分类」体系），只需拉单位字典
+      const unitRes = await fetch("/api/units?page=1&pageSize=100");
       const unitJson = await unitRes.json();
-      setCategories(categoryJson.data || []);
       if (unitRes.ok) setUnits(unitJson.data || []);
     } catch {
       toast.error("获取筛选数据失败");
@@ -133,7 +114,6 @@ function SeasoningListContent() {
           {mountedTabs.includes("all") && (
             <div className={activeTab === "all" ? "contents" : "hidden"}>
               <SeasoningListPanel
-                categories={categories}
                 units={units}
                 refreshToken={refreshTokens.all}
                 onTransformed={() => {
@@ -165,7 +145,6 @@ function SeasoningListContent() {
       <IngredientFormDialog
         open={createOpen}
         onOpenChange={setCreateOpen}
-        categories={categories}
         units={units}
         mode="seasoning"
         onSuccess={() => {

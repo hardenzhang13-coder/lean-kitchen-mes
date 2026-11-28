@@ -681,12 +681,16 @@ function RawDetailContent({
             }
           />
         )}
-        <InfoCell
-          label="分类"
-          value={
-            (categoryName || data.l2Code || "—") + (l3Name ? ` / ${l3Name}` : "")
-          }
-        />
+        {/* 调味品不挂分类树，归类走「调料分类」；仅食材展示分类 */}
+        {kind !== "seasoning" && (
+          <InfoCell
+            label="分类"
+            value={
+              (categoryName || data.l2Code || "—") +
+              (l3Name ? ` / ${l3Name}` : "")
+            }
+          />
+        )}
       </DetailSection>
       <DetailSection title="采购与计量">
         <InfoCell label="采购规格" value={data.purchaseSpec || "—"} />

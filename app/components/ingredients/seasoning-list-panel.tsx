@@ -16,7 +16,6 @@ import type { RawDetail } from "@/app/components/ingredients/ingredient-detail-s
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { CategoryFilter } from "@/app/components/ui/category-filter";
 import { SeasoningTypeTag } from "@/app/components/ui/seasoning-type-tag";
 import {
   DEFAULT_PAGE_SIZE,
@@ -32,8 +31,6 @@ type Ingredient = {
   code: string;
   name: string;
   alias: string | null;
-  l2Code: string | null;
-  l3Code: string | null;
   seasoningType: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
@@ -45,19 +42,6 @@ type Ingredient = {
   defaultSupplierId: number | null;
 };
 
-type CategoryL1 = {
-  id?: number;
-  code: string;
-  name: string;
-  children: {
-    id?: number;
-    code: string;
-    name: string;
-    parentCode: string;
-    children?: { code: string; name: string }[];
-  }[];
-};
-
 type Unit = {
   id: number;
   name: string;
@@ -67,7 +51,6 @@ type Unit = {
 };
 
 export interface SeasoningListPanelProps {
-  categories: CategoryL1[];
   units: Unit[];
   refreshToken: number;
   /** 转化出调料产物后回调（产物落在其他页签，由页面层刷新对应列表） */
@@ -75,11 +58,11 @@ export interface SeasoningListPanelProps {
 }
 
 /**
- * 调味品原料层列表（「调味品」页签）：扁平清单，可挂调味品域分类（可选）。
+ * 调味品原料层列表（「调味品」页签）：扁平清单。
+ * 调味品不挂分类树——业务上调味品归类走「调料分类」（seasoningType）体系。
  * 行操作：查看 / 编辑 / 转化（生成调料产物档案）。
  */
 export function SeasoningListPanel({
-  categories,
   units,
   refreshToken,
   onTransformed,
@@ -87,8 +70,6 @@ export function SeasoningListPanel({
   const [data, setData] = useState<Ingredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [l1Filter, setL1Filter] = useState("");
-  const [l2Filter, setL2Filter] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [pagination, setPagination] = useState<{
@@ -113,8 +94,6 @@ export function SeasoningListPanel({
         pageSize: String(pageSize),
       });
       if (search.trim()) params.set("q", search.trim());
-      if (l1Filter) params.set("l1Code", l1Filter);
-      if (l2Filter) params.set("l2Code", l2Filter);
       const ingRes = await fetch(`/api/ingredients?${params.toString()}`);
       const json = await ingRes.json();
       setData(json.data || []);
@@ -124,7 +103,7 @@ export function SeasoningListPanel({
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, search, l1Filter, l2Filter]);
+  }, [page, pageSize, search]);
 
   useEffect(() => {
     const timer = setTimeout(fetchData, 300);
@@ -136,24 +115,6 @@ export function SeasoningListPanel({
     setPage(1);
   }, [search]);
   /* eslint-enable react-hooks/set-state-in-effect */
-
-  const l2Map = useMemo(() => {
-    const map: Record<string, { name: string; parentCode: string }> = {};
-    categories.forEach((l1) => {
-      l1.children.forEach((l2) => {
-        map[l2.code] = { name: l2.name, parentCode: l1.code };
-      });
-    });
-    return map;
-  }, [categories]);
-
-  const l1Map = useMemo(() => {
-    const map: Record<string, string> = {};
-    categories.forEach((l1) => {
-      map[l1.code] = l1.name;
-    });
-    return map;
-  }, [categories]);
 
   const openView = (row: Ingredient) => {
     setDetailId(row.id);
@@ -174,8 +135,6 @@ export function SeasoningListPanel({
   >({
     buildInitialData: (row) => ({
       alias: row.alias,
-      l2Code: row.l2Code ?? undefined,
-      l3Code: row.l3Code ?? null,
       seasoningType: row.seasoningType,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
@@ -225,24 +184,9 @@ export function SeasoningListPanel({
             searchPlaceholder="搜索名称..."
             onReset={() => {
               setSearch("");
-              setL1Filter("");
-              setL2Filter("");
               setPage(1);
             }}
-            hasFilters={!!(l1Filter || l2Filter)}
-          >
-            <CategoryFilter
-              categories={categories}
-              l1={l1Filter}
-              l2={l2Filter}
-              onChange={(nextL1, nextL2) => {
-                setL1Filter(nextL1);
-                setL2Filter(nextL2);
-                setPage(1);
-              }}
-              className="w-[160px]"
-            />
-          </ListToolbar>
+          />
         </CardHeader>
         <CardContent className="skeu-panel-body flex min-h-0 flex-1 flex-col px-0 pb-0">
           <DataTable<Ingredient>
@@ -279,21 +223,6 @@ export function SeasoningListPanel({
                 header: "商品名称",
                 className: "w-[110px]",
                 cell: (row) => row.alias || <EmptyValue />,
-              },
-              {
-                header: "分类",
-                className: "w-[110px]",
-                cell: (row) => {
-                  if (!row.l2Code) return <EmptyValue />;
-                  const l2Info = l2Map[row.l2Code];
-                  const l1Name = l2Info ? l1Map[l2Info.parentCode] : null;
-                  const l2Name = l2Info?.name || row.l2Code;
-                  return (
-                    <span className="text-muted-foreground">
-                      {l1Name ? `${l1Name} / ${l2Name}` : l2Name}
-                    </span>
-                  );
-                },
               },
               {
                 header: "调料分类",
@@ -415,7 +344,6 @@ export function SeasoningListPanel({
         onOpenChange={setDetailOpen}
         kind="seasoning"
         ingredientId={detailId}
-        categories={categories}
         inlineEdit
         startInEditMode={detailEdit}
         onUpdated={fetchData}
@@ -430,7 +358,6 @@ export function SeasoningListPanel({
 
       <IngredientFormDialog
         {...copyDialogProps}
-        categories={categories}
         units={units}
         mode="seasoning"
       />

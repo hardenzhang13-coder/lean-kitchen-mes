@@ -28,7 +28,8 @@ interface IngredientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialData?: IngredientFormInitialData;
-  categories: CategoryL1[];
+  /** 食材分类树；调味品模式不挂分类，可不传 */
+  categories?: CategoryL1[];
   units: Unit[];
   mode?: "ingredient" | "seasoning" | "auto";
   /** 查看模式：字段全部只读，仅提供关闭按钮 */
@@ -45,7 +46,7 @@ export function IngredientFormDialog({
   open,
   onOpenChange,
   initialData,
-  categories,
+  categories = [],
   units,
   mode = "auto",
   view = false,
