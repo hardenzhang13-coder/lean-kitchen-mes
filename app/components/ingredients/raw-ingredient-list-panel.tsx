@@ -36,6 +36,7 @@ type Ingredient = {
   name: string;
   alias: string | null;
   l2Code: string;
+  l3Code?: string | null;
   purchaseSpec: string | null;
   purchaseUnit: string | null;
   latestRefPrice: number | null;
@@ -172,6 +173,7 @@ export function RawIngredientListPanel({
     buildInitialData: (row) => ({
       alias: row.alias,
       l2Code: row.l2Code ?? undefined,
+      l3Code: row.l3Code ?? null,
       purchaseSpec: row.purchaseSpec,
       purchaseUnit: row.purchaseUnit,
       stockUnit: row.stockUnit,
@@ -441,6 +443,7 @@ export function RawIngredientListPanel({
           name: d.name,
           alias: d.alias,
           l2Code: d.l2Code,
+          l3Code: d.l3Code ?? null,
           purchaseSpec: d.purchaseSpec,
           purchaseUnit: d.purchaseUnit,
           latestRefPrice: d.latestRefPrice,

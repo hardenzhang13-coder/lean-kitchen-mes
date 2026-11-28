@@ -30,6 +30,7 @@ export type NetIngredientEditItem = {
   portion?: string | null;
   sourceIngredientId: number | null;
   l2Code: string;
+  l3Code?: string | null;
 };
 
 interface NetIngredientEditDialogProps {

@@ -19,6 +19,7 @@ export type IngredientFormInitialData = {
   code?: string;
   name?: string;
   l2Code?: string;
+  l3Code?: string | null;
   alias?: string | null;
   seasoningType?: string | null;
   purchaseSpec?: string | null;
@@ -36,6 +37,7 @@ export type SavedIngredientRecord = {
   name: string;
   alias?: string | null;
   l2Code?: string | null;
+  l3Code?: string | null;
   seasoningType?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
@@ -77,6 +79,7 @@ function buildForm(
     name: initialData?.name || "",
     l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
+    l3Code: initialData?.l3Code || "",
     alias: initialData?.alias || "",
     seasoningType: initialData?.seasoningType || "",
     purchaseSpec: initialData?.purchaseSpec || (isCreate ? "散称" : ""),
@@ -205,6 +208,7 @@ export function useIngredientForm({
     initialData?.id ?? "new",
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
+    initialData?.l3Code ?? "",
     initialData?.alias ?? "",
     initialData?.seasoningType ?? "",
     initialData?.purchaseSpec ?? "",
@@ -261,9 +265,9 @@ export function useIngredientForm({
         name: form.name.trim(),
         // 更新时传空字符串才能清空已有品牌；API 会把空字符串落为 null
         alias: form.alias.trim(),
-        // 大类边界：调味品独立体系（不挂分类），食材必须带二级分类
+        // 大类边界：调味品独立体系（分类接入在线三落地），食材必须带二级分类；三级可选
         kind: isSeasoning ? ("seasoning" as const) : ("food" as const),
-        ...(isSeasoning ? {} : { l2Code: form.l2Code }),
+        ...(isSeasoning ? {} : { l2Code: form.l2Code, l3Code: form.l3Code || null }),
         // 调味品类型：产物按此归档；食材恒为 null
         seasoningType: isSeasoning ? form.seasoningType || null : null,
         purchaseSpec,
@@ -315,6 +319,10 @@ export function useIngredientForm({
           typeof record.l2Code === "string"
             ? record.l2Code
             : (form.l2Code || null),
+        l3Code:
+          typeof record.l3Code === "string"
+            ? record.l3Code
+            : (form.l3Code || null),
         seasoningType:
           typeof record.seasoningType === "string"
             ? record.seasoningType

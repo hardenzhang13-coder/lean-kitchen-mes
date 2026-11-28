@@ -16,10 +16,17 @@ import { IngredientFieldInput } from "@/app/components/ingredients/ingredient-fi
 import { ReadOnlyValue } from "@/app/components/ui/form-controls";
 import { SEASONING_PRODUCT_TYPE_OPTIONS } from "@/lib/shared/seasoning-product";
 
+export type CategoryL3 = { code: string; name: string };
+export type CategoryL2 = {
+  code: string;
+  name: string;
+  /** 三级子级（可选层） */
+  children?: CategoryL3[];
+};
 export type CategoryL1 = {
   code: string;
   name: string;
-  children: { code: string; name: string }[];
+  children: CategoryL2[];
 };
 
 export type Unit = {
@@ -34,6 +41,8 @@ export interface IngredientFormData {
   name: string;
   l1Code: string;
   l2Code: string;
+  /** 三级分类（可选，不做强限制）；空字符串 = 不限三级 */
+  l3Code: string;
   alias: string;
   /** 调味品类型（仅 mode=seasoning）：单品调料/复合调料/成品酱料；转化产物按此归档 */
   seasoningType: string;
@@ -149,9 +158,11 @@ export function IngredientFormFields({
                   categories={filteredCategories}
                   l1Code={form.l1Code}
                   l2Code={form.l2Code}
-                  onChange={(l1, l2) => {
+                  l3Code={form.l3Code}
+                  onChange={(l1, l2, l3) => {
                     onChange("l1Code", l1);
                     onChange("l2Code", l2);
+                    onChange("l3Code", l3);
                   }}
                   viewMode={viewMode}
                 />
@@ -423,9 +434,11 @@ export function IngredientFormFields({
             categories={filteredCategories}
             l1Code={form.l1Code}
             l2Code={form.l2Code}
-            onChange={(l1, l2) => {
+            l3Code={form.l3Code}
+            onChange={(l1, l2, l3) => {
               onChange("l1Code", l1);
               onChange("l2Code", l2);
+              onChange("l3Code", l3);
             }}
             viewMode={viewMode}
           />

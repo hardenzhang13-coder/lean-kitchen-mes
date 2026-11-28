@@ -48,6 +48,7 @@ type NetIngredient = {
   standardPackagePrice: number | null;
   unit: string;
   l2Code: string;
+  l3Code?: string | null;
   sourceIngredient?: { id: number; name: string } | null;
 };
 
@@ -174,6 +175,7 @@ export function NetIngredientListPanel({
       grossMarginRate: row.grossMarginRate,
       portion: row.portion ?? null,
       l2Code: row.l2Code,
+      l3Code: row.l3Code ?? null,
     }),
     title: `复制${entityLabel}`,
     onCopySuccess: () => {

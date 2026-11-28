@@ -101,6 +101,10 @@ import {
   SkeuActionButton,
   SkeuIconAction,
 } from "@/app/components/ui/skeu-row-action";
+import {
+  CategoryCascadeSelect,
+  type CascadeCategory,
+} from "@/app/components/ui/category-cascade-select";
 
 type KitTab = "patterns" | "forms" | "feedback" | "materials";
 
@@ -890,6 +894,28 @@ export default function UiKitPage() {
           </section>
 
           <section className="space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold">三级分类级联</h2>
+              <p className="text-sm text-muted-foreground">
+                左栏一级、中栏二级、右栏三级磁贴；三级可选（不限三级 =
+                只选到二级），一二级必选才能确定，取消不改动已选值。
+              </p>
+            </div>
+            <div className="grid grid-cols-1 gap-5 rounded-lg border bg-card p-4 md:grid-cols-2">
+              <FormField label="空值起步">
+                <CascadeSelectSample />
+              </FormField>
+              <FormField label="带默认值">
+                <CascadeSelectSample
+                  defaultL1="VEG"
+                  defaultL2="VEG-LEF"
+                  defaultL3="VEG-LEF-SHQ"
+                />
+              </FormField>
+            </div>
+          </section>
+
+          <section className="space-y-4">
             <h2 className="text-lg font-semibold">语义化弹窗</h2>
             <div className="flex flex-wrap gap-3 rounded-lg border bg-card p-4">
               {(["compact", "form", "wide", "workbench"] as const).map(
@@ -1207,5 +1233,99 @@ export default function UiKitPage() {
 
       {tab === "materials" && <MaterialKit />}
     </PageShell>
+  );
+}
+
+// 三级分类级联样张数据：与业务无关的演示树
+const CASCADE_SAMPLE_TREE: CascadeCategory[] = [
+  {
+    code: "VEG",
+    name: "蔬菜",
+    children: [
+      {
+        code: "VEG-LEF",
+        name: "叶菜",
+        children: [
+          { code: "VEG-LEF-SHQ", name: "上海青" },
+          { code: "VEG-LEF-YMC", name: "油麦菜" },
+          { code: "VEG-LEF-SC", name: "生菜" },
+          { code: "VEG-LEF-BOC", name: "菠菜" },
+        ],
+      },
+      {
+        code: "VEG-ROT",
+        name: "根茎",
+        children: [
+          { code: "VEG-ROT-TAT", name: "土豆" },
+          { code: "VEG-ROT-RAD", name: "萝卜" },
+          { code: "VEG-ROT-LOT", name: "莲藕" },
+        ],
+      },
+      { code: "VEG-MEL", name: "瓜果", children: [] },
+    ],
+  },
+  {
+    code: "MEA",
+    name: "畜肉",
+    children: [
+      {
+        code: "MEA-POR",
+        name: "猪肉",
+        children: [
+          { code: "MEA-POR-BEL", name: "五花肉" },
+          { code: "MEA-POR-LOI", name: "里脊肉" },
+          { code: "MEA-POR-RIB", name: "排骨" },
+        ],
+      },
+      {
+        code: "MEA-BEF",
+        name: "牛肉",
+        children: [
+          { code: "MEA-BEF-BRS", name: "牛腩" },
+          { code: "MEA-BEF-FIL", name: "牛里脊" },
+        ],
+      },
+    ],
+  },
+  {
+    code: "AQU",
+    name: "水产",
+    children: [
+      {
+        code: "AQU-FIS",
+        name: "鱼类",
+        children: [
+          { code: "AQU-FIS-CRU", name: "鲫鱼" },
+          { code: "AQU-FIS-BAS", name: "鲈鱼" },
+        ],
+      },
+      { code: "AQU-SHF", name: "虾蟹", children: [] },
+    ],
+  },
+];
+
+function CascadeSelectSample({
+  defaultL1 = "",
+  defaultL2 = "",
+  defaultL3 = "",
+}: {
+  defaultL1?: string;
+  defaultL2?: string;
+  defaultL3?: string;
+}) {
+  const [value, setValue] = useState({
+    l1: defaultL1,
+    l2: defaultL2,
+    l3: defaultL3,
+  });
+  return (
+    <CategoryCascadeSelect
+      categories={CASCADE_SAMPLE_TREE}
+      l1Code={value.l1}
+      l2Code={value.l2}
+      l3Code={value.l3}
+      onChange={(l1, l2, l3) => setValue({ l1, l2, l3 })}
+      placeholder="请选择分类"
+    />
   );
 }

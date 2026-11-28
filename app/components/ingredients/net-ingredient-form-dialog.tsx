@@ -51,6 +51,7 @@ export type NetIngredientItem = {
   unit: string;
   sourceIngredientId: number | null;
   l2Code: string;
+  l3Code?: string | null;
 };
 
 /** 净料表单回填数据：复制场景下不带 id，提交时按新建处理 */
@@ -69,6 +70,7 @@ export type NetIngredientFormItem = {
   portion?: string | null;
   sourceIngredientId?: number | null;
   l2Code?: string | null;
+  l3Code?: string | null;
 };
 
 interface NetIngredientFormDialogProps {
@@ -92,6 +94,7 @@ const emptyForm: NetIngredientFormData = {
   name: "",
   l1Code: "",
   l2Code: "",
+  l3Code: "",
   sourceIngredientId: "",
   packageSpec: "500",
   packageMaterial: "",
@@ -207,6 +210,7 @@ export function NetIngredientFormDialog({
         name: initialData.name || "",
         l1Code: parentL1?.code || "",
         l2Code: initialData.l2Code || "",
+        l3Code: initialData.l3Code || "",
         sourceIngredientId: initialData.sourceIngredientId
           ? String(initialData.sourceIngredientId)
           : "",
@@ -246,6 +250,8 @@ export function NetIngredientFormDialog({
         ),
         l1Code: parentL1?.code || "",
         l2Code: raw?.l2Code || "",
+        // 三级默认继承来源食材的三级分类，转化时可修改
+        l3Code: raw?.l3Code || "",
         sourceIngredientId: String(propSourceId),
         // 出成率预填来源食材的建档默认值，转化时可修改
         yieldRate: raw?.yieldRate != null ? String(raw.yieldRate) : "",
@@ -336,7 +342,11 @@ export function NetIngredientFormDialog({
   ) => {
     setForm((previous) => {
       const next = { ...previous, [field]: value };
-      if (field === "l1Code") next.l2Code = "";
+      if (field === "l1Code") {
+        next.l2Code = "";
+        next.l3Code = "";
+      }
+      if (field === "l2Code") next.l3Code = "";
       return next;
     });
 
@@ -350,11 +360,14 @@ export function NetIngredientFormDialog({
     l2Code: string;
     ingredientId: string;
   }) => {
-    const sourceName = getRawIngredient(Number(value.ingredientId))?.name;
+    const source = getRawIngredient(Number(value.ingredientId));
+    const sourceName = source?.name;
     setForm((previous) => ({
       ...previous,
       l1Code: value.l1Code,
       l2Code: value.l2Code,
+      // 三级默认继承来源食材的三级分类，可在表单中修改
+      l3Code: source?.l3Code || "",
       sourceIngredientId: value.ingredientId,
       // 选定来源食材后自动生成默认名称；用户手工改过就不覆盖
       name:
@@ -445,6 +458,7 @@ export function NetIngredientFormDialog({
       const payload: Record<string, unknown> = {
         name: form.name.trim(),
         l2Code: form.l2Code,
+        l3Code: form.l3Code || null,
         sourceIngredientId: Number(form.sourceIngredientId),
         yieldRate: Number(form.yieldRate),
         packageSpec: Number(form.packageSpec),

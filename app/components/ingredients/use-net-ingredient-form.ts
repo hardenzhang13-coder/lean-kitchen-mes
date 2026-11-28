@@ -24,6 +24,7 @@ export type NetIngredientFormInitialData = {
   portion?: string | null;
   sourceIngredientId?: number | null;
   l2Code?: string | null;
+  l3Code?: string | null;
 };
 
 type UseNetIngredientFormOptions = {
@@ -52,6 +53,7 @@ function buildForm(
     name: initialData?.name || "",
     l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
+    l3Code: initialData?.l3Code || "",
     sourceIngredientId:
       initialData?.sourceIngredientId != null
         ? String(initialData.sourceIngredientId)
@@ -163,6 +165,7 @@ export function useNetIngredientForm({
     initialData?.id ?? "new",
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
+    initialData?.l3Code ?? "",
     initialData?.sourceIngredientId ?? "",
     initialData?.packageSpec ?? "",
     initialData?.packageMaterial ?? "",
@@ -184,6 +187,7 @@ export function useNetIngredientForm({
       const payload = {
         name: form.name.trim(),
         l2Code: form.l2Code,
+        l3Code: form.l3Code || null,
         sourceIngredientId: Number(form.sourceIngredientId),
         yieldRate: Number(form.yieldRate),
         packageSpec: Number(form.packageSpec),
@@ -249,6 +253,10 @@ export function useNetIngredientForm({
       formState.setField(field, value);
       if (field === "l1Code") {
         formState.setField("l2Code", "");
+        formState.setField("l3Code", "");
+      }
+      if (field === "l2Code") {
+        formState.setField("l3Code", "");
       }
     },
   };

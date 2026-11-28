@@ -16,6 +16,7 @@ import {
   FormSection,
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
+import { SelectField } from "@/app/components/ui/select-field";
 import {
   IngredientSelectorDialog,
   CategoryL1 as SelectorCategoryL1,
@@ -40,6 +41,8 @@ export interface NetIngredientFormData {
   name: string;
   l1Code: string;
   l2Code: string;
+  /** 三级分类（可选，不做强限制）；空字符串 = 不限三级 */
+  l3Code: string;
   sourceIngredientId: string;
   /** 包装规格（g），净料必填 */
   packageSpec: string;
@@ -115,6 +118,27 @@ export function NetIngredientFormFields({
 
   const selectedL1 = l1Options.find((o) => o.value === form.l1Code);
   const selectedL2 = l2Options.find((o) => o.value === form.l2Code);
+
+  // 三级分类（可选层）：选项取当前二级分类的子级；一二级由来源食材锁定，三级可改
+  const l3Children = useMemo(() => {
+    if (!form.l1Code || !form.l2Code) return [];
+    const l1 = categories.find((c) => c.code === form.l1Code);
+    const l2 = l1?.children.find((c) => c.code === form.l2Code);
+    return l2?.children ?? [];
+  }, [categories, form.l1Code, form.l2Code]);
+  const selectedL3Name = useMemo(
+    () => l3Children.find((c) => c.code === form.l3Code)?.name ?? "",
+    [l3Children, form.l3Code]
+  );
+  // Radix Select 不接受空字符串选项值，用哨兵值表示「不限三级」
+  const L3_NONE = "__none__";
+  const l3Options = useMemo(
+    () => [
+      { value: L3_NONE, label: "不限三级" },
+      ...l3Children.map((c) => ({ value: c.code, label: c.name })),
+    ],
+    [l3Children]
+  );
   const selectedSource = useMemo(
     () =>
       rawIngredients.find(
@@ -454,6 +478,25 @@ export function NetIngredientFormFields({
               />
             )}
           </FormField>
+
+          <FormField
+            label="三级分类"
+            readOnly={viewMode}
+            optionalHint={false}
+            hint="可选，不做强限制；默认继承来源食材，可修改"
+          >
+            {viewMode ? (
+              <ReadOnlyValue value={selectedL3Name || null} />
+            ) : (
+              <SelectField
+                value={form.l3Code || L3_NONE}
+                onChange={(v) => onChange("l3Code", v === L3_NONE ? "" : v)}
+                options={l3Options}
+                placeholder={form.l2Code ? "不限三级" : "选择来源食材后可设置"}
+                disabled={!form.l2Code || l3Children.length === 0}
+              />
+            )}
+          </FormField>
         </FormSection>
 
         {isSheet ? (
@@ -512,6 +555,7 @@ export function NetIngredientFormFields({
                 onChange("sourceIngredientId", "");
                 onChange("l1Code", "");
                 onChange("l2Code", "");
+                onChange("l3Code", "");
               }}
               className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/30 bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30 shadow-sm"
               aria-label="清空来源食材"
@@ -542,6 +586,24 @@ export function NetIngredientFormFields({
             className="h-11 text-base px-4"
             disabled={viewMode}
           />
+        </FormField>
+
+        <FormField
+          label="三级分类"
+          optionalHint={false}
+          hint="可选，不做强限制；默认继承来源食材，可修改"
+        >
+          {viewMode ? (
+            <ReadOnlyValue value={selectedL3Name || null} />
+          ) : (
+            <SelectField
+              value={form.l3Code || L3_NONE}
+              onChange={(v) => onChange("l3Code", v === L3_NONE ? "" : v)}
+              options={l3Options}
+              placeholder={form.l2Code ? "不限三级" : "选择来源食材后可设置"}
+              disabled={!form.l2Code || l3Children.length === 0}
+            />
+          )}
         </FormField>
 
         <FormField

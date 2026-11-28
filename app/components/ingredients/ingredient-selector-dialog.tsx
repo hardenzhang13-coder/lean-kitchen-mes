@@ -18,7 +18,12 @@ import {
 export type CategoryL1 = {
   code: string;
   name: string;
-  children: { code: string; name: string }[];
+  children: {
+    code: string;
+    name: string;
+    /** 三级子级（可选层） */
+    children?: { code: string; name: string }[];
+  }[];
 };
 
 export type IngredientForSelector = {
@@ -27,6 +32,8 @@ export type IngredientForSelector = {
   name: string;
   alias?: string | null;
   l2Code?: string;
+  /** 三级分类（可选）：转化净料时作为净料三级默认值 */
+  l3Code?: string | null;
   purchaseSpec?: string | null;
   purchaseUnit?: string | null;
   latestRefPrice?: number | null;

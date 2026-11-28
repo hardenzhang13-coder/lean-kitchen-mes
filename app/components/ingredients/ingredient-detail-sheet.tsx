@@ -47,6 +47,8 @@ export type RawDetail = {
   alias: string | null;
   /** 食材二级分类；调味品独立体系不挂分类，恒为空 */
   l2Code?: string | null;
+  /** 三级分类（可选，不做强限制） */
+  l3Code?: string | null;
   /** 调味品类型（仅 kind=seasoning）：单品调料/复合调料/成品酱料 */
   seasoningType?: string | null;
   purchaseSpec: string | null;
@@ -68,6 +70,7 @@ export type NetDetail = {
   code: string;
   name: string;
   l2Code: string;
+  l3Code?: string | null;
   sourceIngredientId: number | null;
   sourceIngredient?: {
     id: number;
@@ -152,6 +155,7 @@ export function IngredientDetailSheet({
             code: raw.code,
             name: raw.name,
             l2Code: raw.l2Code ?? undefined,
+            l3Code: raw.l3Code ?? null,
             alias: raw.alias,
             seasoningType: raw.seasoningType,
             purchaseSpec: raw.purchaseSpec,
@@ -279,6 +283,10 @@ export function IngredientDetailSheet({
   const childCategory = parentCategory?.children.find(
     (child) => child.code === data?.l2Code
   );
+  // 三级分类名称（可选层）：查看态拼在「分类」后展示
+  const l3Name = childCategory?.children?.find(
+    (child) => child.code === data?.l3Code
+  )?.name;
   const headerCode = data?.code || "";
   const headerL1 = parentCategory?.name || "";
   const headerL2 = childCategory?.name || categoryName || "";
@@ -591,12 +599,14 @@ export function IngredientDetailSheet({
               <RawDetailContent
                 data={raw as RawDetail}
                 categoryName={categoryName}
+                l3Name={l3Name}
                 kind={kind}
               />
             ) : (
               <NetDetailContent
                 data={net as NetDetail}
                 categoryName={categoryName}
+                l3Name={l3Name}
               />
             )}
 
@@ -644,10 +654,12 @@ export function IngredientDetailSheet({
 function RawDetailContent({
   data,
   categoryName,
+  l3Name,
   kind,
 }: {
   data: RawDetail;
   categoryName?: string;
+  l3Name?: string;
   kind: IngredientDetailKind;
 }) {
   return (
@@ -669,7 +681,12 @@ function RawDetailContent({
             }
           />
         )}
-        <InfoCell label="分类" value={categoryName || data.l2Code || "—"} />
+        <InfoCell
+          label="分类"
+          value={
+            (categoryName || data.l2Code || "—") + (l3Name ? ` / ${l3Name}` : "")
+          }
+        />
       </DetailSection>
       <DetailSection title="采购与计量">
         <InfoCell label="采购规格" value={data.purchaseSpec || "—"} />
@@ -697,16 +714,23 @@ function RawDetailContent({
 function NetDetailContent({
   data,
   categoryName,
+  l3Name,
 }: {
   data: NetDetail;
   categoryName?: string;
+  l3Name?: string;
 }) {
   return (
     <div className="space-y-4">
       <DetailSection title="基础信息">
         <InfoCell label="编号" value={data.code} />
         <InfoCell label="名称" value={data.name} emphasis />
-        <InfoCell label="分类" value={categoryName || data.l2Code} />
+        <InfoCell
+          label="分类"
+          value={
+            (categoryName || data.l2Code) + (l3Name ? ` / ${l3Name}` : "")
+          }
+        />
         <InfoCell
           label="来源食材"
           value={data.sourceIngredient?.name || "—"}
