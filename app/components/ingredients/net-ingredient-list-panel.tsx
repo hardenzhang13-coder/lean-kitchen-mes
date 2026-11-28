@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Printer, Eye } from "lucide-react";
-import { SkeuIconAction } from "@/app/components/ui/skeu-row-action";
+import { Pencil, Printer } from "lucide-react";
+import { SkeuActionButton } from "@/app/components/ui/skeu-row-action";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
@@ -392,14 +392,18 @@ export function NetIngredientListPanel({
             emptyState={{ title: "暂无数据" }}
             rowActions={(row) => (
               <>
-                <SkeuIconAction
-                  label={`打印${entityLabel}标签 ${row.name}`}
-                  tip={
-                    row.packageSpec != null && row.packageSpec > 0
-                      ? "打印标签"
-                      : "缺少包装规格，无法打印标签"
-                  }
-                  icon={<Printer className="h-4 w-4" />}
+                <SkeuActionButton
+                  label="编辑"
+                  icon={<Pencil className="h-3.5 w-3.5" />}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openEdit(row);
+                  }}
+                />
+                <SkeuActionButton
+                  label="打印"
+                  tone="primary"
+                  icon={<Printer className="h-3.5 w-3.5" />}
                   disabled={row.packageSpec == null || row.packageSpec <= 0}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -408,24 +412,6 @@ export function NetIngredientListPanel({
                       name: row.name,
                       packageSpec: row.packageSpec,
                     });
-                  }}
-                />
-                <SkeuIconAction
-                  label={`编辑${entityLabel} ${row.name}`}
-                  tip={`编辑${entityLabel}`}
-                  icon={<Pencil className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openEdit(row);
-                  }}
-                />
-                <SkeuIconAction
-                  label={`查看${entityLabel} ${row.name}`}
-                  tip="查看"
-                  icon={<Eye className="h-4 w-4" />}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    openView(row);
                   }}
                 />
               </>
