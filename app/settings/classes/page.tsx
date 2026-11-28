@@ -27,7 +27,6 @@ import { PageHeader } from "@/app/components/ui/page-header";
 import { DataTable } from "@/app/components/ui/data-table";
 import { CodeText } from "@/app/components/ui/code-text";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
-import { PageTabs } from "@/app/components/ui/page-tabs";
 import { SkeuButton } from "@/app/components/ui/skeu-button";
 import { SkeuDotSelect, type SkeuDotOption } from "@/app/components/ui/skeu-dot-select";
 import {
@@ -77,7 +76,6 @@ type L1 = {
 };
 
 type RecordType = "l1" | "l2" | "l3";
-type CategoryDomain = "food" | "seasoning";
 
 type SelectedRecord = { type: RecordType; record: L1 | L2 | L3 };
 
@@ -89,11 +87,6 @@ type DisplayRow =
 
 /** 后端引用检查返回的引用明细 */
 type CategoryReferences = Record<string, number>;
-
-const domainTabs: { value: CategoryDomain; label: string }[] = [
-  { value: "food", label: "食材分类" },
-  { value: "seasoning", label: "调味品分类" },
-];
 
 const statusFilters: SkeuDotOption[] = [
   { value: "all", label: "全部", tone: "all" },
@@ -108,7 +101,6 @@ function typeLabel(type: RecordType) {
 }
 
 export default function ClassesPage() {
-  const [domain, setDomain] = useState<CategoryDomain>("food");
   const [data, setData] = useState<L1[]>([]);
   const [reloadKey, setReloadKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -144,9 +136,10 @@ export default function ClassesPage() {
     const load = async () => {
       setLoading(true);
       try {
-        // 设置页需要管理停用分类，拉取全量；业务端默认只返回启用中的
+        // 设置页需要管理停用分类，拉取全量；业务端默认只返回启用中的。
+        // 调味品分类（domain=seasoning）入口已隐藏：业务上调味品归类走「调料分类」体系
         const res = await fetch(
-          `/api/ingredient-categories?includeInactive=1&domain=${domain}`
+          `/api/ingredient-categories?includeInactive=1`
         );
         const json = await res.json();
         if (alive) setData(json.data?.items || json.data || []);
@@ -160,17 +153,7 @@ export default function ClassesPage() {
     return () => {
       alive = false;
     };
-  }, [reloadKey, domain]);
-
-  const switchDomain = (next: string) => {
-    if (next !== "food" && next !== "seasoning") return;
-    setDomain(next);
-    setSearch("");
-    setStatusFilter("all");
-    setExpandedL1Id(null);
-    setExpandedL2Id(null);
-    setCurrentPage(1);
-  };
+  }, [reloadKey]);
 
   const filtered = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -332,8 +315,6 @@ export default function ClassesPage() {
         name: form.name,
         parentCode: dialogType !== "l1" ? form.parentCode : undefined,
         description: form.description || null,
-        // 仅新建一级分类时生效：归属当前页签的分类域
-        ...(dialogType === "l1" && !selected ? { domain } : {}),
       };
       const res = selected
         ? await fetch(`/api/ingredient-categories/${selected.record.id}?type=${dialogType}`, {
@@ -481,7 +462,6 @@ export default function ClassesPage() {
   };
 
   const selectedType = selected?.type ?? dialogType;
-  const domainLabel = domain === "seasoning" ? "调味品" : "食材";
 
   const renderRowActions = (row: DisplayRow) => {
     if (row.kind === "l1") {
@@ -690,8 +670,8 @@ export default function ClassesPage() {
         <PageHeader
           variant="topbar"
           showBack
-          title="原料分类"
-          description={`管理${domainLabel}一级、二级、三级分类体系；三级为可选层不做强限制。被引用的分类不可删除/改编号，可停用使新单据不再可选`}
+          title="食材分类"
+          description="管理食材一级、二级、三级分类体系；三级为可选层不做强限制。被引用的分类不可删除/改编号，可停用使新单据不再可选"
           actions={
             <SkeuButton onClick={openCreateL1}>
               <Plus className="h-4 w-4" strokeWidth={2.4} />
@@ -703,12 +683,6 @@ export default function ClassesPage() {
     >
       <Card className="skeu-panel flex min-h-0 flex-1 flex-col gap-0 overflow-hidden py-0 ring-0">
         <CardHeader className="skeu-panel-toolbar shrink-0 px-5 py-4 space-y-3">
-          <PageTabs
-            tabs={domainTabs}
-            value={domain}
-            onChange={switchDomain}
-            ariaLabel="分类域"
-          />
           <ListToolbar
             searchValue={search}
             onSearchChange={(v) => {
@@ -956,13 +930,9 @@ export default function ClassesPage() {
                 onChange={(e) => setForm({ ...form, code: e.target.value })}
                 placeholder={
                   dialogType === "l1"
-                    ? domain === "seasoning"
-                      ? "如 SEA"
-                      : "如 VEG"
+                    ? "如 VEG"
                     : dialogType === "l2"
-                      ? domain === "seasoning"
-                        ? "如 SEA-SPC"
-                        : "如 VEG-LEF"
+                      ? "如 VEG-LEF"
                       : "如 VEG-LEF-SHQ"
                 }
                 className="h-11 text-base px-4"

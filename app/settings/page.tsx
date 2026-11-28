@@ -44,8 +44,8 @@ const SETTING_GROUPS: SettingsGroup[] = [
     items: [
       {
         href: "/settings/classes",
-        label: "原料分类",
-        desc: "食材与调味品分类体系",
+        label: "食材分类",
+        desc: "食材一、二、三级分类体系",
         icon: FolderTree,
         tileClass:
           "bg-[linear-gradient(180deg,#5BBE6E_0%,#2E9E52_100%)] shadow-[0_2px_5px_rgba(46,158,82,0.40),0_5px_14px_rgba(15,23,42,0.10)] group-hover:shadow-[0_4px_10px_rgba(46,158,82,0.48),0_9px_24px_rgba(15,23,42,0.12)]",
