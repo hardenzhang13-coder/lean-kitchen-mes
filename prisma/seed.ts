@@ -83,10 +83,21 @@ async function main() {
     { code: "GRA-RIC", name: "米", parentCode: "GRA", description: "" },
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
-    // 调味品独立体系（2026-11-25 升级）：不占食材分类，kind=seasoning 标记，见 ingredients.kind
+    // 调味品挂独立的调味品分类树（见下方 3.1，domain=seasoning），不挂本食材树
     // 小料一级分类 MIN 已随小料并入净料移除（2026-11-28）
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
+
+  // 3.1 调味品分类树（domain=seasoning，2026-11-28 原料分类双域升级）：
+  //     与食材分类共用三表、code 命名空间共享（SEA 前缀系列）；示例类目可在设置页增改
+  const seaL1Categories = [{ code: "SEA", name: "调味品", domain: "seasoning" }];
+  await prisma.ingredientCategoryL1.createMany({ data: seaL1Categories, skipDuplicates: true });
+  const seaL2Categories = [
+    { code: "SEA-SPC", name: "香辛料", parentCode: "SEA", domain: "seasoning", description: "" },
+    { code: "SEA-SAU", name: "酱料", parentCode: "SEA", domain: "seasoning", description: "" },
+    { code: "SEA-OIL", name: "油脂", parentCode: "SEA", domain: "seasoning", description: "" },
+  ];
+  await prisma.ingredientCategoryL2.createMany({ data: seaL2Categories, skipDuplicates: true });
 
   // 4. 单位（重量类必须带 gramsPerUnit）
   //    只补缺失，不覆盖：运营在生产上调整过的换算系数（如「斤」改 490g）必须原样保留，
