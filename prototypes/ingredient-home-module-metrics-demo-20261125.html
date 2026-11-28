@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>食材库首页 · 模块明细汇总 Demo</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #64748b;
+      --line: rgba(15, 23, 42, 0.08);
+      --paper: #f5f2ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(255,255,255,.92), transparent 34%),
+        radial-gradient(circle at 88% 92%, rgba(255,255,255,.72), transparent 30%),
+        var(--paper);
+      color: var(--ink);
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 22px 48px 0;
+    }
+    .title { font-size: 24px; font-weight: 800; letter-spacing: -.02em; }
+    .subtitle { margin-top: 5px; font-size: 13px; color: var(--muted); }
+    .rule-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      height: 38px; padding: 0 15px; border: 1px solid rgba(15,23,42,.09);
+      border-radius: 11px; background: linear-gradient(180deg,#fff,#fbfaf8);
+      box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.06);
+      font-size: 13px; font-weight: 600; color: #334155;
+    }
+    .demo-note {
+      margin: 20px 48px 0; padding: 12px 16px; border: 1px dashed rgba(15,23,42,.15);
+      border-radius: 12px; background: rgba(255,255,255,.64); color: #52606d; font-size: 12px;
+    }
+    .board-wrap { display: flex; justify-content: center; padding: 28px 40px 52px; overflow: auto; }
+    .board {
+      position: relative;
+      flex: 0 0 1440px;
+      height: 880px;
+      display: grid;
+      grid-template-columns: 1fr 190px 1fr;
+      column-gap: 24px;
+    }
+    svg.flows { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; overflow: visible; }
+    .left, .right { position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; }
+    .left { gap: 30px; }
+    .right { width: 100%; align-items: center; }
+    .card {
+      position: relative;
+      min-height: 178px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18px;
+      padding: 22px 24px;
+      border: 1px solid rgba(15,23,42,.06);
+      border-radius: 18px;
+      background: linear-gradient(180deg,#fff 0%,#fcfbf9 100%);
+      box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 26px rgba(15,23,42,.07);
+      transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s cubic-bezier(.2,.8,.2,1), border-color .2s;
+    }
+    .card.click:hover {
+      transform: translateY(-1px);
+      border-color: rgba(15,23,42,.10);
+      box-shadow: 0 2px 5px rgba(15,23,42,.05), 0 16px 38px rgba(15,23,42,.12);
+    }
+    .card-head { display: flex; align-items: center; gap: 16px; min-width: 0; }
+    .glyph {
+      flex: 0 0 auto;
+      width: 54px; height: 54px;
+      display: grid; place-items: center;
+      border-radius: 17px; color: #fff; font-size: 26px; font-weight: 700;
+      text-shadow: 0 1px 1px rgba(0,0,0,.18);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.38);
+    }
+    .raw .glyph { background: linear-gradient(180deg,#ffa24d,#f07018); box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 6px 16px rgba(240,112,24,.32); }
+    .seasoning .glyph { background: linear-gradient(180deg,#5b9fff,#2f6fe0); box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 6px 16px rgba(47,111,224,.30); }
+    .spice .glyph { background: linear-gradient(180deg,#ffbe4d,#e8992b); box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 6px 16px rgba(232,153,43,.30); }
+    .dish .glyph { background: linear-gradient(180deg,#9f8cff,#6e54e8); box-shadow: inset 0 1px 0 rgba(255,255,255,.38), 0 8px 22px rgba(110,84,232,.36); }
+    .card-copy { min-width: 0; }
+    .card-title { font-size: 19px; font-weight: 750; letter-spacing: -.01em; }
+    .card-desc { margin-top: 4px; font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 8px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+    }
+    .metric {
+      min-width: 0;
+      padding: 10px 12px 9px;
+      border: 1px solid rgba(15,23,42,.05);
+      border-radius: 12px;
+      background: linear-gradient(180deg,#fffdfb,#f8f6f3);
+      box-shadow: 0 1px 2px rgba(15,23,42,.03);
+    }
+    .metric-label {
+      display: block;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      font-size: 11px; color: var(--muted);
+    }
+    .metric-value {
+      display: flex; align-items: baseline; gap: 3px;
+      margin-top: 5px; font-size: 20px; font-weight: 800; line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .metric-unit { font-size: 11px; font-weight: 600; color: var(--muted); }
+    .raw-metric .metric-value { color: #ea6a0c; }
+    .net-metric .metric-value { color: #0f9960; }
+    .minor-metric .metric-value { color: #7c8aa2; }
+    .base-metric .metric-value { color: #33619f; }
+    .single-metric .metric-value { color: #b77df0; }
+    .compound-metric .metric-value { color: #2f6fe0; }
+    .sauce-metric .metric-value { color: #d9527b; }
+    .seasoning-metric .metric-value { color: #946200; }
+    .metrics.cols-4 { grid-template-columns: repeat(4, minmax(0,1fr)); gap: 6px; }
+    .metrics.cols-4 .metric { padding: 10px 9px; }
+    .metrics.cols-4 .metric-label { font-size: 10.5px; }
+    .reserved-card {
+      min-height: 124px; flex-direction: row; align-items: center; opacity: .68;
+    }
+    .reserved-pill {
+      margin-left: auto; padding: 6px 10px; border-radius: 999px;
+      background: #eceae6; color: #708090; font-size: 11px; font-weight: 650;
+    }
+    .dish-card {
+      width: min(480px, 100%);
+      min-height: 190px;
+      border-color: rgba(15,23,42,.10);
+      box-shadow: 0 3px 9px rgba(15,23,42,.05), 0 20px 52px rgba(15,23,42,.13);
+    }
+    .dish-body {
+      display: flex; align-items: center; gap: 20px;
+    }
+    .dish-main { min-width: 0; flex: 1; }
+    .dish-title { font-size: 23px; font-weight: 800; letter-spacing: -.02em; }
+    .dish-desc { margin-top: 5px; font-size: 13px; color: var(--muted); }
+    .dish-count {
+      margin-left: auto; padding-left: 22px;
+      display: flex; align-items: baseline; gap: 6px;
+      color: #6e54e8; font-variant-numeric: tabular-nums;
+    }
+    .dish-count .num { font-size: 52px; font-weight: 850; line-height: 1; letter-spacing: -.03em; }
+    .dish-count .unit { display: flex; flex-direction: column; gap: 3px; }
+    .dish-count .unit-label { font-size: 13px; font-weight: 750; color: #6e54e8; }
+    .dish-count .unit-sub { font-size: 11px; color: var(--muted); white-space: nowrap; }
+    .legend {
+      position: absolute; z-index: 3; left: 50%; top: 50%;
+      transform: translate(-50%,-50%);
+      width: 118px; padding: 12px 10px; text-align: center;
+      border: 1px solid rgba(15,23,42,.06); border-radius: 14px;
+      background: rgba(255,255,255,.72); backdrop-filter: blur(10px);
+      box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 22px rgba(15,23,42,.05);
+    }
+    .legend-title { font-size: 12px; font-weight: 750; }
+    .legend-sub { margin-top: 3px; font-size: 10.5px; color: var(--muted); line-height: 1.3; }
+    .chevron { position: absolute; right: 18px; top: 20px; color: #a394f5; font-size: 18px; font-weight: 700; }
+    .placeholder-tag { position: absolute; right: 16px; top: 18px; color: #8d9aa9; font-size: 11px; }
+    @media (max-width: 1380px) {
+      .demo-note, .topbar { padding-left: 28px; padding-right: 28px; }
+      .board-wrap { padding: 24px 28px 44px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1 class="title">食材库</h1>
+      <p class="subtitle">从采购食材到菜品配方的统一入口</p>
+    </div>
+    <button class="rule-btn">📊 计价规则</button>
+  </header>
+
+  <div class="demo-note">
+    <b>Demo 口径：</b>不把食材、净料、小料合并成一个模糊总数；每张入口卡直接展示该模块下的关键档案数。菜品库仍只统计单人份基准菜品。
+  </div>
+
+  <main class="board-wrap">
+    <section class="board">
+      <svg class="flows" viewBox="0 0 1440 880" fill="none" aria-hidden="true">
+        <defs>
+          <marker id="arrow-orange" markerWidth="7" markerHeight="7" refX="5.6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#f97316"/></marker>
+          <marker id="arrow-blue" markerWidth="7" markerHeight="7" refX="5.6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#3b82f6"/></marker>
+          <marker id="arrow-amber" markerWidth="7" markerHeight="7" refX="5.6" refY="3.5" orient="auto"><path d="M0 0L7 3.5L0 7Z" fill="#f59e0b"/></marker>
+        </defs>
+        <path d="M588 270 C 640 270, 840 436, 899 438" stroke="#f97316" stroke-width="2.2" opacity=".58" marker-end="url(#arrow-orange)" stroke-linecap="round"/>
+        <path d="M588 490 C 640 490, 840 440, 899 438" stroke="#3b82f6" stroke-width="2.2" opacity=".58" marker-end="url(#arrow-blue)" stroke-linecap="round"/>
+        <path d="M588 668 C 640 668, 840 442, 899 438" stroke="#f59e0b" stroke-width="2.2" opacity=".58" marker-end="url(#arrow-amber)" stroke-linecap="round"/>
+      </svg>
+
+      <div class="left">
+        <article class="card raw click">
+          <div class="card-head">
+            <div class="glyph">原</div>
+            <div class="card-copy">
+              <div class="card-title">食材</div>
+              <div class="card-desc">采购档案与净料、小料转化</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+          <div class="metrics">
+            <div class="metric raw-metric"><span class="metric-label">采购食材</span><span class="metric-value">128<span class="metric-unit">种</span></span></div>
+            <div class="metric net-metric"><span class="metric-label">净料</span><span class="metric-value">86<span class="metric-unit">种</span></span></div>
+            <div class="metric minor-metric"><span class="metric-label">小料</span><span class="metric-value">42<span class="metric-unit">种</span></span></div>
+          </div>
+        </article>
+
+        <article class="card seasoning click">
+          <div class="card-head">
+            <div class="glyph">调</div>
+            <div class="card-copy">
+              <div class="card-title">调味品</div>
+              <div class="card-desc">基础调味品与调料清单</div>
+            </div>
+            <span class="chevron">›</span>
+          </div>
+          <div class="metrics cols-4">
+            <div class="metric seasoning-metric"><span class="metric-label">基础调味品</span><span class="metric-value">12<span class="metric-unit">种</span></span></div>
+            <div class="metric single-metric"><span class="metric-label">单品调料</span><span class="metric-value">18<span class="metric-unit">种</span></span></div>
+            <div class="metric compound-metric"><span class="metric-label">复合调料</span><span class="metric-value">6<span class="metric-unit">种</span></span></div>
+            <div class="metric sauce-metric"><span class="metric-label">成品酱料</span><span class="metric-value">9<span class="metric-unit">种</span></span></div>
+          </div>
+        </article>
+
+        <article class="card spice reserved-card">
+          <div class="card-head">
+            <div class="glyph">香</div>
+            <div class="card-copy">
+              <div class="card-title">香料</div>
+              <div class="card-desc">预留模块，暂未启用</div>
+            </div>
+            <span class="reserved-pill">预留</span>
+          </div>
+        </article>
+      </div>
+
+      <div class="spacer" aria-hidden="true"></div>
+
+      <aside class="legend">
+        <div class="legend-title">统一流向</div>
+        <div class="legend-sub">三类入口汇入菜品库</div>
+      </aside>
+
+      <div class="right">
+        <article class="card dish click">
+          <div class="dish-body">
+            <div class="glyph">菜</div>
+            <div class="dish-main">
+              <div class="dish-title">菜品库</div>
+              <div class="dish-desc">调用食材与调味品组菜</div>
+            </div>
+            <div class="dish-count">
+              <span class="num">24</span>
+              <span class="unit">
+                <span class="unit-label">单人份</span>
+                <span class="unit-sub">派生规格不计入</span>
+              </span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
+
+
+
