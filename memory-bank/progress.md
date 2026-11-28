@@ -72,6 +72,24 @@
 
 **关键发现（与文档记载不一致，以库为准）**：生产库的「小料」只清理了一半——`dish_minor_details`、菜品 BOM 明细（`dish_net_details` 无行）、MIN 分类字典都已清空，但**33 条小料净料档案仍在**（32 条 `MIN-GAR` 蒜姜类、1 条 `MIN-OTH`），其 `l2_code` 指向**已不存在的分类**（悬空引用），且这些档案无任何 BOM 引用、库存数为 0。迁移的守卫 DELETE 因此无需执行（小料分类本就不存在），部署本身安全；但这 33 条在净料清单里会显示悬空的分类编码，需单独决定改挂（按 `source_ingredient_id → ingredients.l2_code` 自动改挂来源食材分类）或软删除归档。
 
+### 部署执行与验证（2026-11-28）
+
+- **浩哥拍板方案 B**：33 条悬空小料净料**软删除归档**（`deleted_at`），不物理删除。执行脚本 `scripts/tmp/archive-min-nets.sql`（事务 + 存证 + 复查）：BOM 引用 0 → 软删除 33 条 → 未归档 MIN 引用 0 → 相关归零库存行清理至 0。
+- **push**：30 个提交推到 `origin/main`（`32f1abf..fff6279`），pre-push verify 通过（83 套件 / 446 用例）。
+- **部署**：workflow_dispatch 触发成功（HTTP 204），CI 走 ACR 预构建路径（含服务器侧 `/login` 健康检查）→ 浩哥在 Actions 页确认成功。
+- **部署后生产库复查**（`scripts/tmp/prod-verify-2.sql`）：
+  | 项 | 值 | 判定 |
+  |---|---|---|
+  | `dish_minor_details` | 表已不存在 | ✓ 迁移执行完成 |
+  | `ingredient_categories_l3` | 表存在，0 行 | ✓ 新表就位（尚未建三级分类） |
+  | 一级 domain 分布 | food 10 / seasoning 1(SEA) | ✓ |
+  | 二级 domain 分布 | food 49 / seasoning 3(SEA-SPC/SAU/OIL) | ✓ seed 创建 |
+  | 库存/批次/切配 minor 行 | 0 / 0 / 0 | ✓ 已归一为 net |
+  | `ingredients`/`net_ingredients` 的 l3_code | 列已加，存量全 NULL | ✓ |
+  | 调味品挂分类 | 0 | ✓ 与「调味品不挂分类树」口径一致 |
+
+- 部署后遗留：净料清单不再出现小料分类列（33 条已归档不显示）；SEA 调味品分类树数据保留但入口隐藏。
+
 ---
 
 ## 2026-11-27 — 菜品转化用料错配根治（代码 + 生产数据）
