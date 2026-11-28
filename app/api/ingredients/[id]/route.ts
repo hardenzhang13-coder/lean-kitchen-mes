@@ -3,6 +3,7 @@ import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest } from "@/lib/server/api-response";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
+import { validateCategoryAssignment } from "@/lib/server/category-validate";
 import { updateIngredientSchema } from "@/lib/server/schemas/ingredient";
 import { validateBody } from "@/lib/server/validate";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
@@ -57,6 +58,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       kind,
       seasoningType,
       l2Code,
+      l3Code,
       purchaseUnit,
       stockUnit,
       unitsPerPurchase,
@@ -83,9 +85,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "食材不存在或已删除" }, { status: 404 });
     }
 
-    // 食材（food）必须挂二级分类；调味品（seasoning）独立体系，分类恒为 NULL
+    // 食材（food）必须挂二级分类；调味品（seasoning）可挂 domain=seasoning 分类，可空。
+    // 显式传 null 清空；kind 切换（域不同）时旧分类自动失效；二级变更时旧三级自动失效
     const finalKind = kind ?? existing.kind;
-    const finalL2Code = finalKind === "food" ? l2Code ?? existing.l2Code : null;
+    const kindChanged = finalKind !== existing.kind;
+    const finalL2Code =
+      l2Code !== undefined ? l2Code?.trim() || null : kindChanged ? null : existing.l2Code;
+    const finalL3Code =
+      l3Code !== undefined
+        ? l3Code?.trim() || null
+        : kindChanged || finalL2Code !== existing.l2Code
+          ? null
+          : existing.l3Code;
     // 调味品类型同理：仅 kind=seasoning 保留，切回食材时清空
     const finalSeasoningType =
       finalKind === "seasoning"
@@ -96,19 +107,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (finalKind === "food" && !finalL2Code) {
       return badRequest("食材必须选择二级分类");
     }
+    // 分类归属校验：domain 须与 kind 一致，三级须为二级子级
+    const categoryCheck = await validateCategoryAssignment(
+      finalL2Code,
+      finalL3Code,
+      finalKind === "seasoning" ? "seasoning" : "food"
+    );
+    if (!categoryCheck.ok) {
+      return badRequest(categoryCheck.error ?? "分类不合法");
+    }
     const categoryChanged = finalL2Code !== existing.l2Code;
     const seasoningTypeChanged = finalSeasoningType !== existing.seasoningType;
-
-    let category: { code: string; parentCode: string | null } | null = null;
-    if (finalKind === "food") {
-      category = await prisma.ingredientCategoryL2.findUnique({
-        where: { code: finalL2Code! },
-        select: { code: true, parentCode: true },
-      });
-      if (!category) {
-        return badRequest("二级分类不存在");
-      }
-    }
     // 换算系数来自单位字典（见 lib/server/unit-factors.ts）
     const jinFactors = await getJinFactors();
     const result = await prisma.$transaction(async (tx) => {
@@ -119,6 +128,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           alias: alias !== undefined ? alias || null : existing.alias,
           kind: finalKind,
           l2Code: finalL2Code,
+          l3Code: finalL3Code,
           seasoningType: finalSeasoningType,
           purchaseUnit: purchaseUnit !== undefined ? purchaseUnit ?? null : existing.purchaseUnit,
           stockUnit: stockUnit !== undefined ? stockUnit ?? null : existing.stockUnit,
@@ -143,12 +153,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       });
 
       // 分类是来源食材上的弱引用副本：改分类必须同事务级联净料，避免清单分组漂移。
-      // 调味品不挂分类（l2Code 恒 NULL），且净料表 l2Code 非空，不做级联。
+      // 级联同时清空净料三级（旧三级是原二级子级，二级变更后不再成立，由用户在净料档案重选）。
+      // 仅食材域级联（净料表 l2Code 非空且属食材域）；调味品分类变更不影响净料。
       let syncedNetCount = 0;
-      if (categoryChanged && finalL2Code != null) {
+      if (categoryChanged && finalKind === "food" && finalL2Code != null) {
         const synced = await tx.netIngredient.updateMany({
           where: { sourceIngredientId: Number(id), deletedAt: null },
-          data: { l2Code: finalL2Code },
+          data: { l2Code: finalL2Code, l3Code: null },
         });
         syncedNetCount = synced.count;
       }

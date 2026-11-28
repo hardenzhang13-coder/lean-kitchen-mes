@@ -7,6 +7,7 @@ import { createIngredientSchema, ingredientQuerySchema } from "@/lib/server/sche
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 import { checkDuplicateName } from "@/lib/server/duplicate-check";
+import { validateCategoryAssignment } from "@/lib/server/category-validate";
 import { calcPricePerJin } from "@/lib/shared/spec-parser";
 import { getJinFactors } from "@/lib/server/unit-factors";
 import { nextCode } from "@/lib/shared/code-gen";
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
       });
       categoryFilters.push({ l2Code: { in: children.map((c) => c.code) } });
     }
-    // 模块边界过滤：原料清单与调味品清单按 Ingredient.kind 划分（调味品独立体系，不挂分类）
+    // 模块边界过滤：原料清单与调味品清单按 Ingredient.kind 划分
     if (kind) {
       categoryFilters.push({ kind: kind === "raw" ? "food" : "seasoning" });
     }
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
       kind,
       seasoningType,
       l2Code,
+      l3Code,
       purchaseUnit,
       stockUnit,
       unitsPerPurchase,
@@ -91,9 +93,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "食材名称已存在" }, { status: 400 });
     }
 
-    // 食材（food）必须挂二级分类；调味品（seasoning）独立体系，不挂分类
-    if (kind === "food" && !l2Code) {
+    // 食材（food）必须挂二级分类；调味品（seasoning）可挂 domain=seasoning 分类，可空
+    const finalL2Code = l2Code?.trim() || null;
+    const finalL3Code = l3Code?.trim() || null;
+    if (kind === "food" && !finalL2Code) {
       return badRequest("食材必须选择二级分类");
+    }
+    // 分类归属校验：domain 须与 kind 一致（食材分类与调味品分类相互独立），三级须为二级子级
+    const categoryCheck = await validateCategoryAssignment(
+      finalL2Code,
+      finalL3Code,
+      kind === "seasoning" ? "seasoning" : "food"
+    );
+    if (!categoryCheck.ok) {
+      return badRequest(categoryCheck.error ?? "分类不合法");
     }
     const prefix = kind === "seasoning" ? "SEA" : "ING";
 
@@ -115,7 +128,8 @@ export async function POST(req: NextRequest) {
         name,
         alias: alias ?? null,
         kind,
-        l2Code: kind === "food" ? l2Code : null,
+        l2Code: finalL2Code,
+        l3Code: finalL3Code,
         seasoningType: kind === "seasoning" ? seasoningType ?? null : null,
         purchaseUnit: purchaseUnit ?? null,
         stockUnit: stockUnit ?? null,

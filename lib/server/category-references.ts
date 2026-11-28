@@ -16,7 +16,7 @@ export async function countDishCategoryReferences(categoryId: number): Promise<C
   return { total: count, byEntity: count > 0 ? { 菜品: count } : {} };
 }
 
-/** 统计某食材二级分类编号被多少业务数据引用（仅未软删除的食材） */
+/** 统计某食材二级分类编号被多少业务数据引用（仅未软删除的食材；不含其三级子级的引用） */
 export async function countIngredientCategoryL2References(l2Code: string): Promise<CategoryReferenceResult> {
   const [ingredientCount, netIngredientCount] = await Promise.all([
     prisma.ingredient.count({ where: { l2Code, deletedAt: null } }),
@@ -30,13 +30,46 @@ export async function countIngredientCategoryL2References(l2Code: string): Promi
   return { total, byEntity };
 }
 
-/** 统计某食材一级分类（含其下所有二级分类）被多少业务数据引用 */
+/** 统计某三级分类编号被多少业务数据引用（食材/净料的 l3Code） */
+export async function countIngredientCategoryL3References(l3Code: string): Promise<CategoryReferenceResult> {
+  const [ingredientCount, netIngredientCount] = await Promise.all([
+    prisma.ingredient.count({ where: { l3Code, deletedAt: null } }),
+    prisma.netIngredient.count({ where: { l3Code, deletedAt: null } }),
+  ]);
+  const byEntity: Record<string, number> = {};
+  if (ingredientCount > 0) byEntity["原料"] = ingredientCount;
+  if (netIngredientCount > 0) byEntity["净料"] = netIngredientCount;
+  return { total: ingredientCount + netIngredientCount, byEntity };
+}
+
+/** 统计某二级分类及其全部三级子级被引用的合计（删除二级会级联删除三级，须一并保护） */
+export async function countIngredientCategoryL2TreeReferences(l2Code: string): Promise<CategoryReferenceResult> {
+  const children = await prisma.ingredientCategoryL3.findMany({
+    where: { parentCode: l2Code },
+    select: { code: true },
+  });
+  const results = await Promise.all([
+    countIngredientCategoryL2References(l2Code),
+    ...children.map((c) => countIngredientCategoryL3References(c.code)),
+  ]);
+  const byEntity: Record<string, number> = {};
+  let total = 0;
+  for (const r of results) {
+    for (const [entity, count] of Object.entries(r.byEntity)) {
+      byEntity[entity] = (byEntity[entity] ?? 0) + count;
+    }
+    total += r.total;
+  }
+  return { total, byEntity };
+}
+
+/** 统计某食材一级分类（含其下所有二级、三级分类）被多少业务数据引用 */
 export async function countIngredientCategoryL1References(l1Code: string): Promise<CategoryReferenceResult> {
   const children = await prisma.ingredientCategoryL2.findMany({
     where: { parentCode: l1Code },
     select: { code: true },
   });
-  const results = await Promise.all(children.map((c) => countIngredientCategoryL2References(c.code)));
+  const results = await Promise.all(children.map((c) => countIngredientCategoryL2TreeReferences(c.code)));
   const byEntity: Record<string, number> = {};
   let total = 0;
   for (const r of results) {

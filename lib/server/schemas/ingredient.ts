@@ -9,7 +9,10 @@ const ingredientFields = {
   alias: z.string().max(100).optional(),
   // 调味品类型（仅 kind=seasoning）：单品调料/复合调料/成品酱料；转化产物按此类型归档
   seasoningType: z.enum(SEASONING_PRODUCT_TYPES).nullish(),
-  l2Code: z.string().min(1).max(20).optional(),
+  // 二级分类：food 必填（路由层校验）；seasoning 可挂 domain=seasoning 分类，显式 null = 清空
+  l2Code: z.string().min(1).max(20).nullish(),
+  // 三级分类（可选，不做强限制；须为 l2Code 的子级；food 指食材域、seasoning 指调味品域）
+  l3Code: z.string().min(1).max(20).nullish(),
   purchaseUnit: z.string().min(1).max(20).optional(),
   stockUnit: z.string().min(1).max(20).optional(),
   // 入库数量：每 1 个采购单位对应的入库单位数（散称 = 1）
@@ -29,7 +32,7 @@ const storageField = z.string().max(50);
 
 export const createIngredientSchema = z.object({
   ...ingredientFields,
-  // 大类边界：food=食材（l2Code 必填，路由层校验）/ seasoning=调味品（独立体系，不挂分类）
+  // 大类边界：food=食材（l2Code 必填，路由层校验）/ seasoning=调味品（可挂 domain=seasoning 分类，可空）
   kind: kindField.default("food"),
   season: seasonField.default("四季"),
   storage: storageField.default("常温"),

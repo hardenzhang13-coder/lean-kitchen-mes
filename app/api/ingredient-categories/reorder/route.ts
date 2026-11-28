@@ -6,7 +6,7 @@ import { reorderIngredientCategoriesSchema } from "@/lib/server/schemas/ingredie
 import { validateBody } from "@/lib/server/validate";
 import { logger } from "@/lib/server/logger";
 
-// 批量调整展示顺序：l1 为全局顺序；l2 为同一父级内的顺序（事务保证一致性）
+// 批量调整展示顺序：l1 为全局顺序；l2/l3 为同一父级内的顺序（事务保证一致性）
 export async function PUT(req: NextRequest) {
   try {
     const body = await req.json();
@@ -32,13 +32,37 @@ export async function PUT(req: NextRequest) {
       return success({ ok: true });
     }
 
+    if (type === "l3") {
+      // l3 必须在同一父级（L2）内排序
+      const rows = await prisma.ingredientCategoryL3.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, parentCode: true },
+      });
+      if (rows.length !== ids.length) return badRequest("存在无效的分类 ID");
+      if (new Set(rows.map((r) => r.parentCode)).size !== 1) {
+        return badRequest("三级分类排序必须在同一父级内进行");
+      }
+
+      await prisma.$transaction(async (tx) => {
+        for (let i = 0; i < ids.length; i++) {
+          await tx.ingredientCategoryL3.update({ where: { id: ids[i] }, data: { sortOrder: i + 1 } });
+        }
+      });
+      await logOperation(req, {
+        action: "UPDATE",
+        entity: "IngredientCategoryL3",
+        description: `调整三级分类顺序（${ids.length} 项）`,
+      });
+      return success({ ok: true });
+    }
+
     // l2 必须在同一父级内排序
-    const rows = await prisma.ingredientCategoryL2.findMany({
+    const l2Rows = await prisma.ingredientCategoryL2.findMany({
       where: { id: { in: ids } },
       select: { id: true, parentCode: true },
     });
-    if (rows.length !== ids.length) return badRequest("存在无效的分类 ID");
-    if (new Set(rows.map((r) => r.parentCode)).size !== 1) {
+    if (l2Rows.length !== ids.length) return badRequest("存在无效的分类 ID");
+    if (new Set(l2Rows.map((r) => r.parentCode)).size !== 1) {
       return badRequest("二级分类排序必须在同一父级内进行");
     }
 

@@ -7,6 +7,8 @@ import { validateBody } from "@/lib/server/validate";
 import {
   countIngredientCategoryL1References,
   countIngredientCategoryL2References,
+  countIngredientCategoryL2TreeReferences,
+  countIngredientCategoryL3References,
 } from "@/lib/server/category-references";
 import { getErrorMessage } from "@/lib/shared/error-utils";
 
@@ -27,13 +29,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (type === "l2") {
     const row = await prisma.ingredientCategoryL2.findUnique({
       where: { id: Number(id) },
+      include: { parent: true, children: true },
+    });
+    if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
+    return success(row);
+  }
+
+  if (type === "l3") {
+    const row = await prisma.ingredientCategoryL3.findUnique({
+      where: { id: Number(id) },
       include: { parent: true },
     });
     if (!row) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return success(row);
   }
 
-  // 默认先查 L1，再查 L2
+  // 默认先查 L1，再查 L2，再查 L3
   const l1 = await prisma.ingredientCategoryL1.findUnique({
     where: { id: Number(id) },
     include: { children: true },
@@ -45,6 +56,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     include: { parent: true },
   });
   if (l2) return success({ ...l2, _type: "l2" });
+
+  const l3 = await prisma.ingredientCategoryL3.findUnique({
+    where: { id: Number(id) },
+    include: { parent: true },
+  });
+  if (l3) return success({ ...l3, _type: "l3" });
 
   return NextResponse.json({ error: "Not found" }, { status: 404 });
 }
@@ -126,8 +143,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (!parent) {
         return NextResponse.json({ error: "所属一级分类不存在" }, { status: 400 });
       }
+      if (parent.domain !== existing.domain) {
+        return NextResponse.json({ error: "不可跨分类域移动（食材分类与调味品分类相互独立）" }, { status: 400 });
+      }
 
       // 改编号会使食材/净料的 l2Code 引用悬空：被引用时禁止改编号，引导停用
+      // （三级子级经 FK ON UPDATE CASCADE 自动改挂，业务表的 l3Code 不受影响）
       if (code !== existing.code) {
         const refs = await countIngredientCategoryL2References(existing.code);
         if (refs.total > 0) {
@@ -152,6 +173,52 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         },
       });
       await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL2", entityId: row.id, description: `更新: ${row.name || row.code}` });
+      return success(row);
+    }
+    if (type === "l3") {
+      const existing = await prisma.ingredientCategoryL3.findUnique({ where: { id: Number(id) } });
+      if (!existing) return NextResponse.json({ error: "分类不存在" }, { status: 404 });
+
+      const dup = await prisma.ingredientCategoryL3.findFirst({
+        where: { code, NOT: { id: Number(id) } },
+      });
+      if (dup) {
+        return NextResponse.json({ error: "编号已存在" }, { status: 400 });
+      }
+
+      const parent = await prisma.ingredientCategoryL2.findUnique({ where: { code: parentCode } });
+      if (!parent) {
+        return NextResponse.json({ error: "所属二级分类不存在" }, { status: 400 });
+      }
+      if (parent.domain !== existing.domain) {
+        return NextResponse.json({ error: "不可跨分类域移动（食材分类与调味品分类相互独立）" }, { status: 400 });
+      }
+
+      // 改编号会使食材/净料的 l3Code 引用悬空：被引用时禁止改编号，引导停用
+      if (code !== existing.code) {
+        const refs = await countIngredientCategoryL3References(existing.code);
+        if (refs.total > 0) {
+          return NextResponse.json(
+            {
+              error: `该分类已被 ${refs.total} 条业务数据引用，不可修改编号；如不再使用请停用`,
+              references: refs.byEntity,
+            },
+            { status: 400 }
+          );
+        }
+      }
+
+      const row = await prisma.ingredientCategoryL3.update({
+        where: { id: Number(id) },
+        data: {
+          code,
+          name,
+          parentCode,
+          ...(description !== undefined ? { description: description || null } : {}),
+          ...(isActive !== undefined ? { isActive } : {}),
+        },
+      });
+      await logOperation(req, { action: "UPDATE", entity: "IngredientCategoryL3", entityId: row.id, description: `更新: ${row.name || row.code}` });
       return success(row);
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });
@@ -194,7 +261,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       if (!row) {
         return NextResponse.json({ error: "分类不存在" }, { status: 404 });
       }
-      const refs = await countIngredientCategoryL2References(row.code);
+      // 删除二级会级联删除其下三级（FK onDelete: Cascade），引用保护须覆盖三级子级
+      const refs = await countIngredientCategoryL2TreeReferences(row.code);
       if (refs.total > 0) {
         return NextResponse.json(
           {
@@ -206,6 +274,25 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       }
       await prisma.ingredientCategoryL2.delete({ where: { id: Number(id) } });
       await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL2", entityId: Number(id), description: `删除: ${row.name || row.code}` });
+      return NextResponse.json({ success: true });
+    }
+    if (type === "l3") {
+      const row = await prisma.ingredientCategoryL3.findUnique({ where: { id: Number(id) } });
+      if (!row) {
+        return NextResponse.json({ error: "分类不存在" }, { status: 404 });
+      }
+      const refs = await countIngredientCategoryL3References(row.code);
+      if (refs.total > 0) {
+        return NextResponse.json(
+          {
+            error: `该分类已被 ${refs.total} 条业务数据引用，无法删除；如不再使用请停用`,
+            references: refs.byEntity,
+          },
+          { status: 400 }
+        );
+      }
+      await prisma.ingredientCategoryL3.delete({ where: { id: Number(id) } });
+      await logOperation(req, { action: "DELETE", entity: "IngredientCategoryL3", entityId: Number(id), description: `删除: ${row.name || row.code}` });
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: "Invalid type" }, { status: 400 });

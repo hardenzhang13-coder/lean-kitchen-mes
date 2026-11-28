@@ -4,6 +4,7 @@ import { logOperation } from "@/lib/server/api-auth";
 import { success, badRequest, notFound, internalError, conflict } from "@/lib/server/api-response";
 import { updateNetIngredientSchema } from "@/lib/server/schemas/net-ingredient";
 import { validatePortionForUpdate } from "@/lib/server/portion-profile-utils";
+import { validateCategoryAssignment } from "@/lib/server/category-validate";
 import { validateBody } from "@/lib/server/validate";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 import { syncBomAmountsForNetIngredient } from "@/lib/server/bom-package-sync";
@@ -48,6 +49,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       yieldRate,
       grossMarginRate,
       l2Code,
+      l3Code,
       portion,
     } = validation.data;
 
@@ -68,11 +70,19 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           throw new Error("名称和二级分类不能为空");
         }
 
-        const l2Row = await tx.ingredientCategoryL2.findUnique({
-          where: { code: l2Code.trim() },
-          select: { parentCode: true },
-        });
-        if (!l2Row) throw new Error("二级分类不存在");
+        // 三级分类：显式传 null 清空；不传且二级未变时保持原值；二级变更时旧三级自动失效清空
+        const finalL3Code =
+          l3Code !== undefined
+            ? l3Code?.trim() || null
+            : l2Code.trim() !== existing.l2Code
+              ? null
+              : existing.l3Code;
+        const categoryCheck = await validateCategoryAssignment(
+          l2Code.trim(),
+          finalL3Code,
+          "food"
+        );
+        if (!categoryCheck.ok) throw new Error(categoryCheck.error ?? "分类不合法");
 
         if (!sourceIngredientId) throw new Error("必须选择来源原料");
 
@@ -133,6 +143,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             grossMarginRate: finalMargin,
             unit: "g",
             l2Code: l2Code.trim(),
+            l3Code: finalL3Code,
             storage: "冷藏",
           },
           include: {

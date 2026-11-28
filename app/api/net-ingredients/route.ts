@@ -8,6 +8,7 @@ import {
 } from "@/lib/server/schemas/net-ingredient";
 import { validateBody, validateQuery } from "@/lib/server/validate";
 import { validatePortionForCreate } from "@/lib/server/portion-profile-utils";
+import { validateCategoryAssignment } from "@/lib/server/category-validate";
 import { nextCode } from "@/lib/shared/code-gen";
 import { calculateUnitPrice, serializeNetIngredient } from "@/lib/server/net-ingredient-utils";
 
@@ -96,6 +97,7 @@ export async function POST(req: NextRequest) {
       yieldRate,
       grossMarginRate,
       l2Code,
+      l3Code,
       portion,
     } = validation.data;
 
@@ -103,12 +105,14 @@ export async function POST(req: NextRequest) {
       return badRequest("名称和二级分类不能为空");
     }
 
-    const l2Row = await prisma.ingredientCategoryL2.findUnique({
-      where: { code: l2Code.trim() },
-      select: { parentCode: true },
-    });
-    if (!l2Row) {
-      return badRequest("二级分类不存在");
+    // 分类归属校验：净料属食材域；三级可空但须为所选二级的子级
+    const categoryCheck = await validateCategoryAssignment(
+      l2Code.trim(),
+      l3Code?.trim() || null,
+      "food"
+    );
+    if (!categoryCheck.ok) {
+      return badRequest(categoryCheck.error ?? "分类不合法");
     }
 
     // 净料统一口径：均由原料转化（来源原料 + 出成率 + 包装规格），成本价元/斤
@@ -155,6 +159,7 @@ export async function POST(req: NextRequest) {
         portion,
         unit: "g",
         l2Code: l2Code.trim(),
+        l3Code: l3Code?.trim() || null,
         storage: "冷藏",
       },
       include: {

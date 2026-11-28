@@ -22,6 +22,8 @@ export const createNetIngredientSchema = z.object({
   // 兼容旧客户端，服务端会忽略并始终按来源原料实时价格派生
   unitPrice: z.number().nonnegative().nullish(),
   l2Code: z.string().min(1).max(20),
+  // 三级分类（可选，不做强限制；须为 l2Code 的子级）
+  l3Code: z.string().min(1).max(20).nullish(),
   /** 兼容旧客户端；净料单价现已强制自动计算 */
   autoCalculate: z.boolean().default(true),
 });
