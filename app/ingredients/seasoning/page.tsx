@@ -35,7 +35,13 @@ type CategoryL1 = {
   id?: number;
   code: string;
   name: string;
-  children: { id?: number; code: string; name: string; parentCode: string }[];
+  children: {
+    id?: number;
+    code: string;
+    name: string;
+    parentCode: string;
+    children?: { code: string; name: string }[];
+  }[];
 };
 
 type Unit = {
@@ -69,7 +75,8 @@ function SeasoningListContent() {
   const fetchMeta = useCallback(async () => {
     try {
       const [categoryRes, unitRes] = await Promise.all([
-        fetch("/api/ingredient-categories?page=1&pageSize=100"),
+        // 调味品分类树（domain=seasoning），与食材分类体系相互独立
+        fetch("/api/ingredient-categories?page=1&pageSize=100&domain=seasoning"),
         fetch("/api/units?page=1&pageSize=100"),
       ]);
       const categoryJson = await categoryRes.json();

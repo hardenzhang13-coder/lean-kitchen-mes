@@ -265,9 +265,10 @@ export function useIngredientForm({
         name: form.name.trim(),
         // 更新时传空字符串才能清空已有品牌；API 会把空字符串落为 null
         alias: form.alias.trim(),
-        // 大类边界：调味品独立体系（分类接入在线三落地），食材必须带二级分类；三级可选
+        // 大类边界：食材必须带二级分类（food 域）；调味品可挂调味品域分类，可空；三级可选
         kind: isSeasoning ? ("seasoning" as const) : ("food" as const),
-        ...(isSeasoning ? {} : { l2Code: form.l2Code, l3Code: form.l3Code || null }),
+        l2Code: form.l2Code || null,
+        l3Code: form.l3Code || null,
         // 调味品类型：产物按此归档；食材恒为 null
         seasoningType: isSeasoning ? form.seasoningType || null : null,
         purchaseSpec,

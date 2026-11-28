@@ -147,27 +147,26 @@ export function IngredientFormFields({
 
         <FormLayout variant={layout}>
           <FormSection title="基础信息" cols={groupCols} className="h-full">
-            {!isSeasoning && (
-              <FormField
-                label="食材分类"
-                required
-                readOnly={viewMode}
-                error={errors.l1Code || errors.l2Code}
-              >
-                <CategoryCascadeSelect
-                  categories={filteredCategories}
-                  l1Code={form.l1Code}
-                  l2Code={form.l2Code}
-                  l3Code={form.l3Code}
-                  onChange={(l1, l2, l3) => {
-                    onChange("l1Code", l1);
-                    onChange("l2Code", l2);
-                    onChange("l3Code", l3);
-                  }}
-                  viewMode={viewMode}
-                />
-              </FormField>
-            )}
+            <FormField
+              label={isSeasoning ? "调味品分类" : "食材分类"}
+              required={!isSeasoning}
+              readOnly={viewMode}
+              error={errors.l1Code || errors.l2Code}
+              hint={isSeasoning ? "可选，不做强限制" : undefined}
+            >
+              <CategoryCascadeSelect
+                categories={filteredCategories}
+                l1Code={form.l1Code}
+                l2Code={form.l2Code}
+                l3Code={form.l3Code}
+                onChange={(l1, l2, l3) => {
+                  onChange("l1Code", l1);
+                  onChange("l2Code", l2);
+                  onChange("l3Code", l3);
+                }}
+                viewMode={viewMode}
+              />
+            </FormField>
 
             <FormField
               label={aliasLabel}
