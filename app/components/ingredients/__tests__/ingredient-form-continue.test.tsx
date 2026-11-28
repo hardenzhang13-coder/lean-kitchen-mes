@@ -170,7 +170,7 @@ describe("新增食材的连续录入", () => {
     expect(result.current.form.name).toBe("带皮五花肉");
   });
 
-  it("调味品保存时提交调味品域分类，未选分类则提交 null", async () => {
+  it("调味品不挂分类树：即使表单带分类值，保存也恒提交 null", async () => {
     const seaCategories = [
       {
         code: "SEA",
@@ -210,37 +210,9 @@ describe("新增食材的连续录入", () => {
     );
     const body = JSON.parse(String((postCall?.[1] as RequestInit).body));
     expect(body.kind).toBe("seasoning");
-    expect(body.l2Code).toBe("SEA-SPC");
+    // 归类走「调料分类」（seasoningType）；l2Code/l3Code 恒为 null
+    expect(body.l2Code).toBeNull();
     expect(body.l3Code).toBeNull();
-
-    // 不选分类：l2Code/l3Code 均为 null（可空、不做强限制）
-    const onSaved2 = jest.fn();
-    const { result: result2 } = renderHook(() =>
-      useIngredientForm({
-        active: true,
-        categories: seaCategories,
-        units,
-        mode: "seasoning",
-        onSaved: onSaved2,
-      })
-    );
-    act(() => {
-      result2.current.handleChange("name", "香叶");
-      result2.current.handleChange("alias", "香叶");
-      result2.current.handleChange("seasoningType", "single");
-      result2.current.handleChange("purchaseSpec", "散称");
-      result2.current.handleChange("purchaseUnit", "斤");
-      result2.current.handleChange("stockUnit", "斤");
-    });
-    await act(async () => {
-      await result2.current.submit();
-    });
-    await waitFor(() => expect(onSaved2).toHaveBeenCalledTimes(1));
-    const postCalls = (global.fetch as jest.Mock).mock.calls.filter(
-      ([, init]) => (init as RequestInit | undefined)?.method === "POST"
-    );
-    const body2 = JSON.parse(String((postCalls[1]?.[1] as RequestInit).body));
-    expect(body2.l2Code).toBeNull();
-    expect(body2.l3Code).toBeNull();
+    expect(body.seasoningType).toBe("single");
   });
 });
