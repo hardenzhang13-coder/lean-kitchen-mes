@@ -169,4 +169,78 @@ describe("新增食材的连续录入", () => {
     expect(onSaved.mock.calls[0][1]).toBe(false);
     expect(result.current.form.name).toBe("带皮五花肉");
   });
+
+  it("调味品保存时提交调味品域分类，未选分类则提交 null", async () => {
+    const seaCategories = [
+      {
+        code: "SEA",
+        name: "调味品",
+        children: [{ code: "SEA-SPC", name: "香辛料" }],
+      },
+    ];
+    const onSaved = jest.fn();
+    const { result } = renderHook(() =>
+      useIngredientForm({
+        active: true,
+        categories: seaCategories,
+        units,
+        mode: "seasoning",
+        onSaved,
+      })
+    );
+
+    act(() => {
+      result.current.handleChange("name", "八角");
+      result.current.handleChange("alias", "八角");
+      result.current.handleChange("seasoningType", "single");
+      result.current.handleChange("purchaseSpec", "散称");
+      result.current.handleChange("purchaseUnit", "斤");
+      result.current.handleChange("stockUnit", "斤");
+      result.current.handleChange("l1Code", "SEA");
+      result.current.handleChange("l2Code", "SEA-SPC");
+    });
+
+    await act(async () => {
+      await result.current.submit();
+    });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    const postCall = (global.fetch as jest.Mock).mock.calls.find(
+      ([, init]) => (init as RequestInit | undefined)?.method === "POST"
+    );
+    const body = JSON.parse(String((postCall?.[1] as RequestInit).body));
+    expect(body.kind).toBe("seasoning");
+    expect(body.l2Code).toBe("SEA-SPC");
+    expect(body.l3Code).toBeNull();
+
+    // 不选分类：l2Code/l3Code 均为 null（可空、不做强限制）
+    const onSaved2 = jest.fn();
+    const { result: result2 } = renderHook(() =>
+      useIngredientForm({
+        active: true,
+        categories: seaCategories,
+        units,
+        mode: "seasoning",
+        onSaved: onSaved2,
+      })
+    );
+    act(() => {
+      result2.current.handleChange("name", "香叶");
+      result2.current.handleChange("alias", "香叶");
+      result2.current.handleChange("seasoningType", "single");
+      result2.current.handleChange("purchaseSpec", "散称");
+      result2.current.handleChange("purchaseUnit", "斤");
+      result2.current.handleChange("stockUnit", "斤");
+    });
+    await act(async () => {
+      await result2.current.submit();
+    });
+    await waitFor(() => expect(onSaved2).toHaveBeenCalledTimes(1));
+    const postCalls = (global.fetch as jest.Mock).mock.calls.filter(
+      ([, init]) => (init as RequestInit | undefined)?.method === "POST"
+    );
+    const body2 = JSON.parse(String((postCalls[1]?.[1] as RequestInit).body));
+    expect(body2.l2Code).toBeNull();
+    expect(body2.l3Code).toBeNull();
+  });
 });
