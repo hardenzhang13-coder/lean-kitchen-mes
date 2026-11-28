@@ -19,10 +19,11 @@ const units = [{ id: 1, name: "斤", category: "重量" }];
 
 beforeEach(() => {
   // 供应商选择器会在挂载时拉列表
-  global.fetch = jest.fn(async () => ({
-    ok: true,
-    json: async () => ({ data: [] }),
-  })) as jest.MockedFunction<typeof fetch>;
+  global.fetch = jest.fn<Promise<Response>, Parameters<typeof fetch>>(
+    async () => {
+      return { ok: true, json: async () => ({ data: [] }) } as Response;
+    }
+  ) as jest.MockedFunction<typeof fetch>;
 });
 
 const baseForm: IngredientFormData = {
