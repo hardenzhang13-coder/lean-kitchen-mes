@@ -39,7 +39,6 @@ export async function POST(
     include: {
       category: { select: { code: true } },
       netDetails: true,
-      minorDetails: true,
       seasoningDetails: true,
       sauceDetails: true,
       processes: true,

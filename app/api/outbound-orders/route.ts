@@ -21,7 +21,7 @@ import { z } from "zod";
 import { logger } from "@/lib/server/logger";
 
 type CreateOutboundItem = {
-  sourceType: "net" | "minor";
+  sourceType: "net";
   sourceId: number;
   shippedPortions: number;
 };

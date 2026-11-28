@@ -29,6 +29,7 @@ export interface ProductionPlanSourceSnapshotV1 {
 }
 
 export interface ProductionPlanSourceSnapshotSelfOrderItem {
+  // minor 为历史值（小料已并入净料）；内部生产单已下线，仅历史快照可能出现
   sourceType: "net" | "minor";
   sourceId: number;
   itemCode: string;

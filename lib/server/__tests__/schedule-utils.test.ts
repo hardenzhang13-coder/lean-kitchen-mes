@@ -14,7 +14,6 @@ jest.mock("../unit-factors", () => ({
  */
 function makePrismaMock(overrides: {
   netDetails?: unknown[];
-  minorDetails?: unknown[];
   seasoningDetails?: unknown[];
   seasonings?: unknown[];
   sauces?: unknown[];
@@ -23,7 +22,6 @@ function makePrismaMock(overrides: {
 }) {
   const db = {
     dishNetDetail: { findMany: jest.fn(async () => overrides.netDetails ?? []) },
-    dishMinorDetail: { findMany: jest.fn(async () => overrides.minorDetails ?? []) },
     ingredientCategoryL2: { findMany: jest.fn(async () => overrides.l2Cats ?? []) },
     ingredientCategoryL1: { findMany: jest.fn(async () => overrides.l1Cats ?? []) },
     dishSeasoningDetail: { findMany: jest.fn(async () => overrides.seasoningDetails ?? []) },
@@ -117,15 +115,16 @@ describe("buildCuttingOrders", () => {
     expect(rows[0].requiredQty).toBe(1000); // 封装规格 200 × 合并份数 5；不再按旧 amountG=100 计算
   });
 
-  it("小料用量以档案封装规格为准，忽略历史 amountG", async () => {
+  it("小料行（role=minor，已并入 dish_net_details）用量以档案封装规格为准，忽略历史 amountG", async () => {
     const prisma = makePrismaMock({
-      minorDetails: [
+      netDetails: [
         {
           dishId: 1,
+          role: "minor",
           amountG: 5,
           netIngredient: {
             id: 40,
-            code: "MIN-0040",
+            code: "PRD-0040",
             name: "葱花",
             unit: "g",
             l2Code: "POR",
@@ -141,7 +140,8 @@ describe("buildCuttingOrders", () => {
     const rows = await buildCuttingOrders(prisma, 1, [{ dishId: 1, quantity: 46 }]);
 
     expect(rows).toHaveLength(1);
-    expect(rows[0].sourceCode).toBe("MIN-0040");
+    expect(rows[0].sourceType).toBe("net");
+    expect(rows[0].sourceCode).toBe("PRD-0040");
     expect(rows[0].packageSpec).toBe(50);
     expect(rows[0].requiredQty).toBe(2300); // 封装规格 50 × 46 份
   });

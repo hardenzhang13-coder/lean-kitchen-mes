@@ -99,9 +99,6 @@ export function DishForm({ mode, initialDish, refs, onSaved }: DishFormProps) {
       url = `/api/seasoning-products?${query.toString()}`;
       normalizeFn = normalizeSeasoningProducts;
     } else {
-      if (type === "main" || type === "support") {
-        if (!l1Code && !l2Code && !q) query.set("excludeMinor", "true");
-      }
       url = `/api/net-ingredients?${query.toString()}`;
       normalizeFn = normalizeNetIngredients;
     }

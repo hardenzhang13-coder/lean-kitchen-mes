@@ -61,17 +61,17 @@ export function IngredientSelectorDialog({
   const [page, setPage] = useState(1);
   const [pageSize] = useState(DEFAULT_PAGE_SIZE);
 
-  // 来源必须为食材：排除 MIN（小料转化品分类）与 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
+  // 来源必须为食材：排除 SEA（调料体系，调料是标准化直接采购品，不转化为净料）
   const rawCategories = useMemo(
-    () => categories.filter((c) => c.code !== "MIN" && c.code !== "SEA"),
+    () => categories.filter((c) => c.code !== "SEA"),
     [categories]
   );
 
-  // 兜底过滤：无论传入的食材列表是否已按体系过滤，都排除 MIN/SEA 分类下的食材（含搜索场景）
+  // 兜底过滤：无论传入的食材列表是否已按体系过滤，都排除 SEA 分类下的食材（含搜索场景）
   const rawIngredients = useMemo(() => {
     const excludedL2 = new Set(
       categories
-        .filter((c) => c.code === "MIN" || c.code === "SEA")
+        .filter((c) => c.code === "SEA")
         .flatMap((c) => (c.children || []).map((l2) => l2.code))
     );
     return ingredients.filter((i) => !i.l2Code || !excludedL2.has(i.l2Code));

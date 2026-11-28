@@ -71,20 +71,17 @@ type RawIngredientOption = {
 };
 
 interface NetIngredientListPanelProps {
-  variant: "net" | "minor";
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
   refreshToken: number;
 }
 
 export function NetIngredientListPanel({
-  variant,
   categories,
   rawIngredients,
   refreshToken,
 }: NetIngredientListPanelProps) {
-  const isMinor = variant === "minor";
-  const entityLabel = isMinor ? "小料" : "净料";
+  const entityLabel = "净料";
   const [data, setData] = useState<NetIngredient[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -113,11 +110,6 @@ export function NetIngredientListPanel({
         page: String(page),
         pageSize: String(pageSize),
       });
-      if (isMinor) {
-        params.set("l1Code", "MIN");
-      } else {
-        params.set("excludeMinor", "true");
-      }
       if (search.trim()) params.set("q", search.trim());
       if (l1Filter) params.set("l1Code", l1Filter);
       if (l2Filter) params.set("l2Code", l2Filter);
@@ -130,7 +122,7 @@ export function NetIngredientListPanel({
     } finally {
       setLoading(false);
     }
-  }, [isMinor, l1Filter, l2Filter, page, pageSize, refreshToken, search]);
+  }, [l1Filter, l2Filter, page, pageSize, refreshToken, search]);
 
   useEffect(() => {
     const timer = setTimeout(fetchIngredients, 300);
@@ -229,19 +221,13 @@ export function NetIngredientListPanel({
             hasFilters={!!(l1Filter || l2Filter)}
           >
             <CategoryFilter
-              categories={
-                isMinor
-                  ? categories
-                  : categories.filter(
-                      (category) =>
-                        category.code !== "MIN" && category.code !== "SEA"
-                    )
-              }
-              fixedL1={isMinor ? "MIN" : undefined}
-              l1={isMinor ? "" : l1Filter}
+              categories={categories.filter(
+                (category) => category.code !== "SEA"
+              )}
+              l1={l1Filter}
               l2={l2Filter}
               onChange={(nextL1, nextL2) => {
-                setL1Filter(isMinor ? "" : nextL1);
+                setL1Filter(nextL1);
                 setL2Filter(nextL2);
                 setPage(1);
               }}
@@ -282,10 +268,10 @@ export function NetIngredientListPanel({
                   </span>
                 ),
               },
-              ...(isMinor ? [] : [{
+              {
                 header: "一级分类",
                 className: "w-[90px]",
-                cell: (row: NetIngredient) => {
+                cell: (row) => {
                   const l2Info = l2Map[row.l2Code];
                   return l2Info ? (
                     l1Map[l2Info.parentCode] || <EmptyValue />
@@ -293,7 +279,7 @@ export function NetIngredientListPanel({
                     <EmptyValue />
                   );
                 },
-              }]),
+              },
               {
                 header: "二级分类",
                 className: "w-[90px]",
@@ -417,7 +403,6 @@ export function NetIngredientListPanel({
 
       <NetIngredientFormDialog
         {...copyDialogProps}
-        mode={isMinor ? "minor" : "net"}
         categories={categories}
         rawIngredients={rawIngredients}
       />
@@ -425,7 +410,7 @@ export function NetIngredientListPanel({
       <IngredientDetailSheet
         open={detailOpen}
         onOpenChange={setDetailOpen}
-        kind={isMinor ? "minor" : "net"}
+        kind="net"
         ingredientId={detailId}
         categories={categories}
         rawIngredients={rawIngredients}

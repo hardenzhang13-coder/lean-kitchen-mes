@@ -5,12 +5,12 @@ import { validateQuery } from "@/lib/server/validate";
 import { preppedStockQuerySchema } from "@/lib/server/schemas/prepped-stock";
 import { round2 } from "@/lib/shared/prepped-stock";
 
-/** 当前库存列表：份 + g 双字段；join 净料/小料档案与分类名 */
+/** 当前库存列表：份 + g 双字段；join 净料档案与分类名 */
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const validation = validateQuery(preppedStockQuerySchema, searchParams);
   if (!validation.success) return validation.response;
-  const { q, l1, type, page, pageSize } = validation.data;
+  const { q, l1, page, pageSize } = validation.data;
 
   try {
     const rows = await prisma.preppedStock.findMany({
@@ -63,7 +63,6 @@ export async function GET(req: NextRequest) {
       const kw = q.toLowerCase();
       unified = unified.filter((r) => r.name.toLowerCase().includes(kw) || r.code.toLowerCase().includes(kw));
     }
-    if (type) unified = unified.filter((r) => r.sourceType === type);
     if (l1) unified = unified.filter((r) => r.l1Name === l1);
     unified.sort((a, b) =>
       a.l1Name === b.l1Name

@@ -6,8 +6,6 @@ import { DataTable } from "@/app/components/ui/data-table";
 import { EmptyState } from "@/app/components/ui/empty-state";
 import { ListToolbar } from "@/app/components/ui/list-toolbar";
 import { SelectField } from "@/app/components/ui/select-field";
-import { SkeuSegmented } from "@/app/components/ui/skeu-segmented";
-import { StatusBadge } from "@/app/components/ui/status-badge";
 import { DEFAULT_PAGE_SIZE } from "@/lib/client/use-pagination";
 import { useDebounce } from "@/lib/client/hooks";
 import { formatPortionsCount } from "@/lib/shared/prepped-stock";
@@ -32,14 +30,6 @@ interface PageData {
   filters?: { availableL1: string[] };
 }
 
-const TYPE_OPTIONS = [
-  { value: "全部", label: "全部" },
-  { value: "net", label: "净料" },
-  { value: "minor", label: "小料" },
-] as const;
-
-type TypeFilter = (typeof TYPE_OPTIONS)[number]["value"];
-
 /** 当前库存 Tab：库存份数 + 库存量(g) 双字段，无汇总 KPI */
 export function StockTab() {
   const [rows, setRows] = useState<StockRow[]>([]);
@@ -49,7 +39,6 @@ export function StockTab() {
   const debouncedSearch = useDebounce(search, 300);
   const [l1, setL1] = useState("全部");
   const [availableL1, setAvailableL1] = useState<string[]>([]);
-  const [type, setType] = useState<TypeFilter>("全部");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [total, setTotal] = useState({ totalItems: 0, totalPages: 1 });
@@ -64,7 +53,6 @@ export function StockTab() {
       });
       if (debouncedSearch) params.set("q", debouncedSearch);
       if (l1 !== "全部") params.set("l1", l1);
-      if (type !== "全部") params.set("type", type);
       const res = await fetch("/api/prepped-stock?" + params.toString());
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
@@ -83,7 +71,7 @@ export function StockTab() {
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, l1, type]);
+  }, [page, pageSize, debouncedSearch, l1]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- 数据获取 effect：React 官方推荐模式（无框架数据层时的标准写法）；setState 均发生在 await 之后的异步回调中，不构成同步级联渲染。 */
   useEffect(() => { fetchRows(); }, [fetchRows]);
@@ -107,10 +95,9 @@ export function StockTab() {
           onReset={() => {
             setSearch("");
             setL1("全部");
-            setType("全部");
             setPage(1);
           }}
-          hasFilters={l1 !== "全部" || type !== "全部"}
+          hasFilters={l1 !== "全部"}
         >
           <SelectField
             value={l1}
@@ -120,15 +107,6 @@ export function StockTab() {
             }}
             options={l1Options}
             className="w-[150px]"
-          />
-          <SkeuSegmented
-            value={type}
-            onChange={(value) => {
-              setType(value);
-              setPage(1);
-            }}
-            options={[...TYPE_OPTIONS]}
-            ariaLabel="净菜类型"
           />
         </ListToolbar>
       </div>
@@ -174,16 +152,6 @@ export function StockTab() {
                 header: "名称",
                 className: "w-[160px]",
                 cell: (row) => <span className="font-medium">{row.name}</span>,
-              },
-              {
-                header: "类型",
-                className: "w-[90px]",
-                cell: (row) => (
-                  <StatusBadge
-                    status={row.sourceType === "net" ? "净料" : "小料"}
-                    variant={row.sourceType === "net" ? "info" : "neutral"}
-                  />
-                ),
               },
               {
                 header: "库存份数",

@@ -23,12 +23,12 @@ interface MaterialUsageDialogProps {
   fetchUrl: string | null;
   /** 物料名称，用于副标题 */
   materialName?: string | null;
-  /** 物料类别文案（净料 / 小料 / 调料），用于副标题与空态 */
+  /** 物料类别文案（净料 / 调料），用于副标题与空态 */
   materialLabel?: string;
 }
 
 /**
- * 使用概况：展示引用了当前物料（净料/小料/调料产物）的菜品。
+ * 使用概况：展示引用了当前物料（净料/调料产物）的菜品。
  * 数据接口按物料类型由调用方传入，返回结构统一为分页的 {id, code, name, portion}。
  */
 export function MaterialUsageDialog({

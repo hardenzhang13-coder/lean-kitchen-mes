@@ -24,7 +24,6 @@ const mockedPlanData = buildProductionPlanData as jest.Mock;
 function createTx() {
   return {
     dishNetDetail: { findMany: jest.fn().mockResolvedValue([{ dishId: 1 }]) },
-    dishMinorDetail: { findMany: jest.fn().mockResolvedValue([]) },
     ingredientCategoryL2: {
       findMany: jest.fn().mockResolvedValue([{ code: "SEA-SOL" }]),
     },

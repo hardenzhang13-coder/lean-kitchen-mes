@@ -10,7 +10,6 @@ import { round2 } from "@/lib/shared/prepped-stock";
 type DishCostDatabase = Pick<
   Prisma.TransactionClient,
   | "dishNetDetail"
-  | "dishMinorDetail"
   | "dishSeasoningDetail"
   | "dishSauceDetail"
   | "ingredient"
@@ -44,28 +43,13 @@ export async function getCurrentDishCostBreakdownMap(
   const result = new Map<number, DishCostBreakdown>();
   if (uniqueIds.length === 0) return result;
 
-  const [netDetails, minorDetails, seasoningDetails, sauceDetails] = await Promise.all([
+  const [netDetails, seasoningDetails, sauceDetails] = await Promise.all([
+      // 小料行已并入 dish_net_details（role='minor'），按 role 分桶计价
       database.dishNetDetail.findMany({
         where: { dishId: { in: uniqueIds } },
         select: {
           dishId: true,
           role: true,
-          amountG: true,
-          netIngredient: {
-            select: {
-              yieldRate: true,
-              processingFeePerJin: true,
-              grossMarginRate: true,
-              packageSpec: true,
-              sourceIngredient: { select: { pricePerJin: true } },
-            },
-          },
-        },
-      }),
-      database.dishMinorDetail.findMany({
-        where: { dishId: { in: uniqueIds } },
-        select: {
-          dishId: true,
           amountG: true,
           netIngredient: {
             select: {
@@ -179,13 +163,11 @@ export async function getCurrentDishCostBreakdownMap(
     const prices = deriveNetIngredientPrices(row.netIngredient);
     const amountG = resolveNetBomAmountG(row.amountG, row.netIngredient.packageSpec);
     const cost = lineCost(prices.outPricePerJin, amountG);
-    addCost(row.dishId, row.role === "support" ? "support" : "main", cost);
-  }
-  for (const row of minorDetails) {
-    const prices = deriveNetIngredientPrices(row.netIngredient);
-    const amountG = resolveNetBomAmountG(row.amountG, row.netIngredient.packageSpec);
-    const cost = lineCost(prices.outPricePerJin, amountG);
-    addCost(row.dishId, "minor", cost);
+    addCost(
+      row.dishId,
+      row.role === "minor" ? "minor" : row.role === "support" ? "support" : "main",
+      cost
+    );
   }
   for (const row of seasoningDetails) {
     // 新口径（specId 行）：产物按克计价，行成本 = 产物出库价 × 用量g ÷ 500

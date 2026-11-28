@@ -50,14 +50,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (plan.status !== "进行中") throw new Error("只有进行中的切配计划单可以完成生产");
 
       const rows = (Array.isArray(plan.cuttingJson) ? plan.cuttingJson : []) as unknown as PlanCuttingRow[];
+      // 历史计划行可能带 minor（小料已并入净料）：归一为 net，保证入库、批次与回写切配工单同口径
+      for (const r of rows) {
+        if (r.sourceType === "minor") r.sourceType = "net";
+      }
       const rowMap = new Map(rows.map((r) => [`${r.sourceType}:${r.sourceId}`, r]));
+      // 客户端按快照原始 sourceKey 提交，历史 minor:ID 键归一后再匹配
+      const normalizeKey = (key: string) =>
+        key.startsWith("minor:") ? `net:${key.slice("minor:".length)}` : key;
 
       // 1) 行级确认（hold 保持 pending；已终态行幂等跳过）
       const stockInItems: { row: PlanCuttingRow; portions: number }[] = [];
       const unfinishedKeys: string[] = [];
       let confirmedCount = 0;
       for (const item of items) {
-        const row = rowMap.get(item.sourceKey);
+        const row = rowMap.get(normalizeKey(item.sourceKey));
         if (!row) throw new Error(`切配行不存在：${item.sourceKey}`);
         if (rowConfirmStatus(row) !== "pending") continue; // 幂等：已确认行忽略
         if (item.status === "hold") continue;

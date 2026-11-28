@@ -126,7 +126,8 @@ async function buildOutboundLines(
 }
 
 export interface ProductionBatchOutboundSource {
-  sourceType: "net" | "minor";
+  // 小料已并入净料（2026-11-28），批次行仅 net；历史 minor 批次在迁移中已合并
+  sourceType: "net";
   sourceId: number;
 }
 

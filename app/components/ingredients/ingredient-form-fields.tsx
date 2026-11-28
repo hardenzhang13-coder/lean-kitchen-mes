@@ -82,11 +82,8 @@ export function IngredientFormFields({
   );
 
   const filteredCategories = useMemo(() => {
-    // MIN（小料）分类不用于食材/调味品建档：小料是转化品，其采购食材归在蔬菜-香辛料等业务分类
-    if (mode === "ingredient" || mode === "auto") {
-      return categories.filter((l1) => l1.code !== "MIN");
-    }
     // mode === "seasoning"：调味品独立体系不挂食材分类，级联选择整体隐藏
+    if (mode === "seasoning") return categories;
     return categories;
   }, [categories, mode]);
 

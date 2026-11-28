@@ -1039,7 +1039,7 @@ export function ProductionPlanCreateDialog({
             <Input
               value={pickerSearch}
               onChange={(event) => setPickerSearch(event.target.value)}
-              placeholder="搜索净料 / 小料名称或编码..."
+              placeholder="搜索净料名称或编码..."
               aria-label="搜索净料"
               className="h-11 pl-9"
             />

@@ -32,7 +32,6 @@ type UseNetIngredientFormOptions = {
   categories: CategoryL1[];
   rawIngredients?: RawIngredientOption[];
   sourcePricePerJin?: number | null;
-  mode?: "net" | "minor";
   onSaved: () => void;
 };
 
@@ -45,14 +44,13 @@ function findParentL1(categories: CategoryL1[], l2Code?: string | null) {
 
 function buildForm(
   initialData: NetIngredientFormInitialData | null | undefined,
-  categories: CategoryL1[],
-  mode: "net" | "minor"
+  categories: CategoryL1[]
 ): NetIngredientFormData {
   const parentL1 = findParentL1(categories, initialData?.l2Code);
 
   return {
     name: initialData?.name || "",
-    l1Code: mode === "minor" ? "MIN" : parentL1?.code || "",
+    l1Code: parentL1?.code || "",
     l2Code: initialData?.l2Code || "",
     sourceIngredientId:
       initialData?.sourceIngredientId != null
@@ -80,13 +78,11 @@ function buildForm(
 
 function validateNetIngredientForm(
   form: NetIngredientFormData,
-  mode: "net" | "minor",
   sourcePricePerJin: number | null
 ) {
   const next: Record<string, string> = {};
-  const label = mode === "minor" ? "小料" : "净料";
 
-  if (!form.name.trim()) next.name = `${label}名称不能为空`;
+  if (!form.name.trim()) next.name = "净料名称不能为空";
   if (!form.l2Code) next.l2Code = "请选择二级分类";
   if (!form.sourceIngredientId) next.sourceIngredientId = "请选择来源食材";
 
@@ -106,12 +102,10 @@ function validateNetIngredientForm(
   }
 
   if (!form.packageMaterial.trim()) {
-    next.packageMaterial =
-      mode === "minor" ? "请选择包装" : "请选择包装名称";
+    next.packageMaterial = "请选择包装名称";
   }
   if (!form.packageSize.trim()) {
-    next.packageSize =
-      mode === "minor" ? "请选择包装" : "请选择包装尺寸";
+    next.packageSize = "请选择包装尺寸";
   }
 
   if (
@@ -142,7 +136,7 @@ function validateNetIngredientForm(
 }
 
 /**
- * 净料/小料编辑共用的表单状态与提交口径。
+ * 净料编辑共用的表单状态与提交口径。
  * 新增和转净料仍由 NetIngredientFormDialog 负责来源选择与自动换算。
  */
 export function useNetIngredientForm({
@@ -151,12 +145,11 @@ export function useNetIngredientForm({
   categories,
   rawIngredients = [],
   sourcePricePerJin,
-  mode = "net",
   onSaved,
 }: UseNetIngredientFormOptions) {
   const initialValues = useMemo(
-    () => buildForm(initialData, categories, mode),
-    [categories, initialData, mode]
+    () => buildForm(initialData, categories),
+    [categories, initialData]
   );
   const resolvedSourcePrice = useMemo(() => {
     if (sourcePricePerJin != null) return sourcePricePerJin;
@@ -167,7 +160,6 @@ export function useNetIngredientForm({
   }, [initialData?.sourceIngredientId, rawIngredients, sourcePricePerJin]);
 
   const resetKey = [
-    mode,
     initialData?.id ?? "new",
     initialData?.name ?? "",
     initialData?.l2Code ?? "",
@@ -244,7 +236,7 @@ export function useNetIngredientForm({
     resetKey,
     initialValues,
     validate: (values) =>
-      validateNetIngredientForm(values, mode, resolvedSourcePrice),
+      validateNetIngredientForm(values, resolvedSourcePrice),
     onSubmit: submit,
   });
 
@@ -255,7 +247,7 @@ export function useNetIngredientForm({
       value: string
     ) => {
       formState.setField(field, value);
-      if (field === "l1Code" && mode !== "minor") {
+      if (field === "l1Code") {
         formState.setField("l2Code", "");
       }
     },

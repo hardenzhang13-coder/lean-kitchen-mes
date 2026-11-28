@@ -74,7 +74,7 @@ export async function PUT(
 
       const refs = await countReferences(existing.name, existing.size);
       if (refs > 0) {
-        return conflict(`该包装已被 ${refs} 条净料/小料引用，不可修改名称或尺寸；如不再使用请停用`);
+        return conflict(`该包装已被 ${refs} 条净料引用，不可修改名称或尺寸；如不再使用请停用`);
       }
     }
 
@@ -115,7 +115,7 @@ export async function DELETE(
 
     const refs = await countReferences(existing.name, existing.size);
     if (refs > 0) {
-      return conflict(`该包装已被 ${refs} 条净料/小料引用，不可删除；如不再使用请停用`);
+      return conflict(`该包装已被 ${refs} 条净料引用，不可删除；如不再使用请停用`);
     }
 
     await prisma.netPackaging.update({

@@ -84,7 +84,7 @@ describe("PUT /api/ingredients/[id]", () => {
     });
   });
 
-  it("分类变化时同事务级联更新净料/小料分类", async () => {
+  it("分类变化时同事务级联更新净料分类", async () => {
     const res = await PUT(createRequest({ l2Code: "VEG-ROOT" }), params());
     expect(res.status).toBe(200);
     expect(mockedIngredientUpdate).toHaveBeenCalledWith(
@@ -100,7 +100,7 @@ describe("PUT /api/ingredients/[id]", () => {
     expect(mockedLogOperation).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
-        description: expect.stringContaining("级联更新 3 个净料/小料分类"),
+        description: expect.stringContaining("级联更新 3 个净料分类"),
       })
     );
   });

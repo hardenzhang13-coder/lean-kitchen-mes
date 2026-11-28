@@ -59,7 +59,7 @@ export default function InventoryPage() {
         <PageHeader
           variant="topbar"
           title="库存管理"
-          description="只管理切配中心加工完成的净菜（净料 + 小料），按份出入库"
+          description="只管理切配中心加工完成的净菜（净料），按份出入库"
           actions={
             <SkeuButton onClick={() => setCreateOpen(true)}>
               <Plus className="h-4 w-4" />

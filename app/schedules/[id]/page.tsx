@@ -439,7 +439,7 @@ export default function ScheduleDetailPage() {
                 {missingPackageSpec.length > 0 && (
                   <div className="rounded-[var(--sk-radius-md)] border border-[var(--status-warning)]/40 bg-[var(--status-warning-bg)] px-4 py-3 text-sm shadow-sk-raised">
                     <b className="text-foreground">
-                      {missingPackageSpec.length} 个净料/小料缺少封装规格
+                      {missingPackageSpec.length} 个净料缺少封装规格
                     </b>
                     <span className="text-[var(--status-warning)]">
                       {" "}· 这些行在完成生产时无法按份入库，请先到食材库补齐封装规格（
@@ -454,7 +454,7 @@ export default function ScheduleDetailPage() {
               <EmptyState
                 icon={ChefHat}
                 title="暂无切配工单"
-                description="菜单中没有净料或小料需求。"
+                description="菜单中没有净料需求。"
               />
             ))}
           {activeTab === "purchase" &&

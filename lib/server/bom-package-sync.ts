@@ -23,8 +23,9 @@ export async function recalcDishCosts(
 }
 
 /**
- * 净料/小料封装规格变更后，把引用它的 BOM 行同步到新规格并重算成本。
+ * 净料封装规格变更后，把引用它的 BOM 行同步到新规格并重算成本。
  * amountG 仅作为缓存列，packageSpec 是唯一真源。
+ * 小料行（role='minor'）同表同步，但不写 spec 文本（小料行 spec 恒为 NULL）。
  */
 export async function syncBomAmountsForNetIngredient(
   tx: Prisma.TransactionClient,
@@ -44,37 +45,33 @@ export async function syncBomAmountsForNetIngredient(
   });
   if (!net) throw new Error("净料不存在或已删除");
 
-  const [netRows, minorRows] = await Promise.all([
-    tx.dishNetDetail.findMany({
-      where: { netIngId: netIngredientId },
-      select: { id: true, dishId: true },
-    }),
-    tx.dishMinorDetail.findMany({
-      where: { netIngId: netIngredientId },
-      select: { id: true, dishId: true },
-    }),
-  ]);
+  const bomRows = await tx.dishNetDetail.findMany({
+    where: { netIngId: netIngredientId },
+    select: { id: true, dishId: true, role: true },
+  });
 
   const prices = deriveNetIngredientPrices(net);
   const cost = lineCost(prices.outPricePerJin, packageSpec);
 
-  if (netRows.length > 0) {
+  const minorRowIds = bomRows.filter((row) => row.role === "minor").map((row) => row.id);
+  const netRowIds = bomRows.filter((row) => row.role !== "minor").map((row) => row.id);
+  if (netRowIds.length > 0) {
     await tx.dishNetDetail.updateMany({
-      where: { netIngId: netIngredientId },
+      where: { id: { in: netRowIds } },
       data: { amountG: packageSpec, cost, spec: `${packageSpec}g` },
     });
   }
-  if (minorRows.length > 0) {
-    await tx.dishMinorDetail.updateMany({
-      where: { netIngId: netIngredientId },
+  if (minorRowIds.length > 0) {
+    await tx.dishNetDetail.updateMany({
+      where: { id: { in: minorRowIds } },
       data: { amountG: packageSpec, cost },
     });
   }
 
-  const dishIds = [...new Set([...netRows, ...minorRows].map((row) => row.dishId))];
+  const dishIds = [...new Set(bomRows.map((row) => row.dishId))];
   if (dishIds.length > 0) {
     await recalcDishCosts(tx, dishIds);
   }
 
-  return { dishIds, netRows: netRows.length, minorRows: minorRows.length };
+  return { dishIds, netRows: netRowIds.length, minorRows: minorRowIds.length };
 }

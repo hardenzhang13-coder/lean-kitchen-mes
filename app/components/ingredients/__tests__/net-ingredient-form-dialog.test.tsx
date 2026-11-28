@@ -17,11 +17,6 @@ const categories = [
     name: "蔬菜",
     children: [{ code: "VEG-LEF", name: "叶菜" }],
   },
-  {
-    code: "MIN",
-    name: "小料",
-    children: [{ code: "MIN-PREP", name: "初加工小料" }],
-  },
 ];
 
 const rawIngredients = [
@@ -59,7 +54,7 @@ const netRows = [
   },
 ];
 
-describe("转化与新增净料/小料弹窗", () => {
+describe("转化与新增净料弹窗", () => {
   beforeEach(() => {
     global.fetch = jest.fn(async (input, init) => {
       const url = String(input);
@@ -394,121 +389,5 @@ describe("转化与新增净料/小料弹窗", () => {
     expect(payload).not.toHaveProperty("autoCalculate");
     expect(payload.grossMarginRate).toBe(0);
     expect(payload.portion).toBe("单人份");
-  });
-
-  it("小料模式使用与净料一致的三分组布局", async () => {
-    render(
-      <NetIngredientFormDialog
-        open
-        onOpenChange={jest.fn()}
-        mode="minor"
-        categories={categories}
-        rawIngredients={rawIngredients}
-      />
-    );
-
-    expect(
-      await screen.findByRole("heading", { name: "新增小料" })
-    ).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "规格指标" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "加工指标" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "价格指标" })).toBeInTheDocument();
-    expect(screen.getByText("查看已有小料")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("如 平包菜•称重•500g")
-    ).toBeInTheDocument();
-  });
-});
-
-
-describe("转化食材的双目标切换", () => {
-  beforeEach(() => {
-    global.fetch = jest.fn(async (input, init) => {
-      const url = String(input);
-      if (init?.method === "POST") {
-        return {
-          ok: true,
-          json: async () => ({
-            data: { ...netRows[0], id: 22 },
-          }),
-        } as Response;
-      }
-      if (url.includes("/api/net-packagings")) {
-        return {
-          ok: true,
-          json: async () => ({
-            success: true,
-            data: [
-              {
-                id: 1,
-                name: "密封袋",
-                size: "50cm×40cm",
-                isActive: true,
-              },
-            ],
-          }),
-        } as Response;
-      }
-      if (url.includes("/api/net-ingredients?")) {
-        return {
-          ok: true,
-          json: async () => ({
-            data: [],
-            pagination: { totalItems: 0, totalPages: 0 },
-          }),
-        } as Response;
-      }
-      throw new Error(`Unexpected request: ${url}`);
-    }) as jest.MockedFunction<typeof fetch>;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("切换到小料时保留业务字段，并将分类重置到 MIN 子树", async () => {
-    const fetchMock = global.fetch as jest.MockedFunction<typeof fetch>;
-    render(
-      <NetIngredientFormDialog
-        open
-        onOpenChange={jest.fn()}
-        mode="convert"
-        allowTargetChoice
-        sourceIngredientId={11}
-        categories={categories}
-        rawIngredients={rawIngredients}
-      />
-    );
-
-    await screen.findByRole("heading", { name: "转化食材" });
-    fireEvent.change(screen.getByPlaceholderText("如 平包菜•称重•500g"), {
-      target: { value: "平包菜•称重•500g" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("如 85"), {
-      target: { value: "85" },
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "小料" }));
-    expect(screen.getByText("小料名称")).toBeInTheDocument();
-    expect(await screen.findByText("初加工小料")).toBeInTheDocument();
-
-    expect(await screen.findByText("请选择包装名称")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("请选择包装名称"));
-    fireEvent.click(await screen.findByRole("button", { name: /^密封袋/ }));
-
-    fireEvent.click(screen.getByRole("button", { name: "创建小料" }));
-    await waitFor(() => {
-      expect(
-        fetchMock.mock.calls.some(([, init]) => init?.method === "POST")
-      ).toBe(true);
-    });
-    const postCall = fetchMock.mock.calls.find(
-      ([, init]) => init?.method === "POST"
-    );
-    const payload = JSON.parse(String(postCall?.[1]?.body));
-    expect(payload.l2Code).toBe("MIN-PREP");
-    expect(payload.name).toBe("平包菜•称重•500g");
-    expect(payload.yieldRate).toBe(85);
-    expect(payload.packageSpec).toBe(500);
   });
 });

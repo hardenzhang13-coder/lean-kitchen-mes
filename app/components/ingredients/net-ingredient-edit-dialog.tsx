@@ -35,7 +35,6 @@ export type NetIngredientEditItem = {
 interface NetIngredientEditDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode?: "net" | "minor";
   /** 查看模式：字段全部只读，仅提供关闭按钮 */
   view?: boolean;
   initialData: NetIngredientEditItem | null;
@@ -47,14 +46,12 @@ interface NetIngredientEditDialogProps {
 export function NetIngredientEditDialog({
   open,
   onOpenChange,
-  mode = "net",
   view = false,
   initialData,
   categories,
   rawIngredients,
   onSuccess,
 }: NetIngredientEditDialogProps) {
-  const isMinor = mode === "minor";
   const {
     form,
     errors,
@@ -66,7 +63,6 @@ export function NetIngredientEditDialog({
     initialData,
     categories,
     rawIngredients,
-    mode,
     onSaved: () => {
       onOpenChange(false);
       onSuccess?.();
@@ -81,7 +77,7 @@ export function NetIngredientEditDialog({
       >
         <DialogHeader className="px-6 pt-6 pb-0">
           <DialogTitle className="text-lg">
-            {view ? `查看${isMinor ? "小料" : "净料"}` : isMinor ? "编辑小料" : "编辑净料"}
+            {view ? "查看净料" : "编辑净料"}
           </DialogTitle>
         </DialogHeader>
 
@@ -91,14 +87,7 @@ export function NetIngredientEditDialog({
             onChange={handleChange}
             categories={categories}
             rawIngredients={rawIngredients}
-            mode={isMinor ? "minor" : "net"}
-            readOnly={
-              view
-                ? { l1Code: true, l2Code: true, sourceIngredientId: true }
-                : isMinor
-                  ? undefined
-                  : { l1Code: true, l2Code: true, sourceIngredientId: true }
-            }
+            readOnly={{ l1Code: true, l2Code: true, sourceIngredientId: true }}
             viewMode={view}
             errors={errors}
           />

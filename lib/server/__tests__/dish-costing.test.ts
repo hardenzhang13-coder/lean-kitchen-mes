@@ -24,7 +24,6 @@ function buildDatabase(
 ) {
   return {
     dishNetDetail: { findMany: jest.fn().mockResolvedValue([]) },
-    dishMinorDetail: { findMany: jest.fn().mockResolvedValue([]) },
     dishSeasoningDetail: { findMany: jest.fn().mockResolvedValue(seasoningDetails) },
     dishSauceDetail: { findMany: jest.fn().mockResolvedValue([]) },
     ingredient: {

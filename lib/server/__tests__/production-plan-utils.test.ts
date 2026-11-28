@@ -33,11 +33,9 @@ function createPrisma(options: MockOptions) {
 
 const l2 = [
   { code: "VEG-LEF", name: "叶菜类", parentCode: "VEG" },
-  { code: "MIN-GAR", name: "姜蒜类", parentCode: "MIN" },
 ];
 const l1 = [
   { code: "VEG", name: "蔬菜" },
-  { code: "MIN", name: "小料" },
 ];
 const potato = {
   id: 200,

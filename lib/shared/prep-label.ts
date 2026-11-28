@@ -46,7 +46,7 @@ export function calculatePrepLabelCopies(requiredQty: number, packageSpec: numbe
   return copies > 0 ? copies : 0;
 }
 
-/** 标签名称和包装规格直接取净料/小料档案；计划行只提供本次生产用量。 */
+/** 标签名称和包装规格直接取净料档案（历史行可能带 minor 标签）；计划行只提供本次生产用量。 */
 export function buildPrepLabels(
   rows: LabelSourceRow[],
   ingredients: PrepLabelIngredient[]
@@ -62,7 +62,7 @@ export function buildPrepLabels(
         sourceType: row.sourceType,
         sourceId: row.sourceId,
         itemName: row.itemName,
-        reason: "净料/小料档案不存在或已停用",
+        reason: "净料档案不存在或已停用",
       });
       continue;
     }

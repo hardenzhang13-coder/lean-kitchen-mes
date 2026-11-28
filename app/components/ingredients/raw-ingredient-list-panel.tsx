@@ -224,9 +224,7 @@ export function RawIngredientListPanel({
             hasFilters={!!(l1Filter || l2Filter)}
           >
             <CategoryFilter
-              categories={categories.filter(
-                (c) => c.code !== "MIN" && c.code !== "SEA"
-              )}
+              categories={categories.filter((c) => c.code !== "SEA")}
               l1={l1Filter}
               l2={l2Filter}
               onChange={(nextL1, nextL2) => {
@@ -432,7 +430,6 @@ export function RawIngredientListPanel({
         open={convertDialogOpen}
         onOpenChange={setConvertDialogOpen}
         mode="convert"
-        allowTargetChoice
         sourceIngredientId={convertSourceId ?? undefined}
         sourceIngredientName={
           data.find((d) => d.id === convertSourceId)?.name ?? null

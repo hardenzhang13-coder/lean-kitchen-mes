@@ -73,17 +73,11 @@ export async function recalcIncompleteDocumentsForNetIngredient(
   tx: Prisma.TransactionClient,
   netIngredientId: number
 ): Promise<IncompleteRecalcResult> {
-  const [netRows, minorRows] = await Promise.all([
-    tx.dishNetDetail.findMany({
-      where: { netIngId: netIngredientId },
-      select: { dishId: true },
-    }),
-    tx.dishMinorDetail.findMany({
-      where: { netIngId: netIngredientId },
-      select: { dishId: true },
-    }),
-  ]);
-  const dishIds = [...new Set([...netRows, ...minorRows].map((row) => row.dishId))];
+  const bomRows = await tx.dishNetDetail.findMany({
+    where: { netIngId: netIngredientId },
+    select: { dishId: true },
+  });
+  const dishIds = [...new Set(bomRows.map((row) => row.dishId))];
 
   const recalculatedSchedules: number[] = [];
 

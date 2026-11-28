@@ -1,14 +1,17 @@
 import { z } from "zod";
+import { DISH_NET_ROLE_VALUES } from "@/lib/shared/dish-enums";
 
 // 净料/小料的 amountG 由服务端按档案 packageSpec 覆盖，客户端传值不参与计算
 export const dishBomNetDetailSchema = z.object({
-  role: z.string().max(50).optional(),
+  // 主料/辅料；小料行走 minorDetails（服务端落 role='minor'）
+  role: z.enum([DISH_NET_ROLE_VALUES[0], DISH_NET_ROLE_VALUES[1]]).optional(),
   netIngId: z.number().int().positive(),
   amountG: z.number().positive().optional(),
   spec: z.string().max(200).nullish(),
   brand: z.string().max(100).nullish(),
 });
 
+// 小料行：物理落 dish_net_details（role='minor'），契约保留独立字段名
 export const dishBomMinorDetailSchema = z.object({
   netIngId: z.number().int().positive(),
   amountG: z.number().positive().optional(),

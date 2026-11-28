@@ -4,59 +4,6 @@ import { GRAMS_PER_JIN } from "@/lib/shared/unit-conversion";
 
 export type SelfProductionClient = PrismaClient | Prisma.TransactionClient;
 
-export interface SelfProductionResolvedItem {
-  sourceType: "net" | "minor";
-  sourceId: number;
-  portions: number;
-}
-
-/**
- * 校验并规范化内部生产单明细。
- * - sourceType 由净料二级分类（MIN）服务端派生，不信任客户端；
- * - 封装规格缺失直接拦截（无法折算切配量，也无法按份入库）。
- */
-export async function resolveSelfProductionItems(
-  prisma: SelfProductionClient,
-  items: Array<{ sourceId: number; portions: number }>
-): Promise<SelfProductionResolvedItem[]> {
-  if (items.length === 0) {
-    throw new Error("请至少选择一种净料或小料");
-  }
-
-  const ids = [...new Set(items.map((item) => item.sourceId))];
-  const nets = await prisma.netIngredient.findMany({
-    where: { id: { in: ids }, deletedAt: null },
-    select: { id: true, name: true, packageSpec: true, l2Code: true },
-  });
-  if (nets.length !== ids.length) {
-    throw new Error("存在无效的净料，请刷新后重试");
-  }
-
-  const netMap = new Map(nets.map((net) => [net.id, net]));
-  const l2Codes = [...new Set(nets.map((net) => net.l2Code))];
-  const l2Rows = await prisma.ingredientCategoryL2.findMany({
-    where: { code: { in: l2Codes } },
-    select: { code: true, parentCode: true },
-  });
-  const minorCodes = new Set(
-    l2Rows.filter((row) => row.parentCode === "MIN").map((row) => row.code)
-  );
-
-  return items.map((item) => {
-    const net = netMap.get(item.sourceId);
-    if (!net) throw new Error("存在无效的净料，请刷新后重试");
-    const packageSpec = net.packageSpec != null ? Number(net.packageSpec) : 0;
-    if (!(packageSpec > 0)) {
-      throw new Error(`「${net.name}」缺少封装规格，不能进入内部生产单`);
-    }
-    return {
-      sourceType: minorCodes.has(net.l2Code) ? "minor" : "net",
-      sourceId: net.id,
-      portions: Math.round(item.portions * 100) / 100,
-    };
-  });
-}
-
 export interface SelfProductionDetailItem {
   id: number;
   sourceType: string;
@@ -75,7 +22,7 @@ export interface SelfProductionDetailItem {
   grossNeedJin: number | null;
 }
 
-/** 为内部生产单明细补全净料档案字段与计算量（切配克数、毛料需求）。 */
+/** 为内部生产单明细补全净料档案字段与计算量（切配克数、毛料需求）。模块已下线，仅供历史单据只读渲染。 */
 export async function buildSelfProductionDetailItems(
   prisma: SelfProductionClient,
   items: Array<{ id: number; sourceType: string; sourceId: number; portions: unknown }>

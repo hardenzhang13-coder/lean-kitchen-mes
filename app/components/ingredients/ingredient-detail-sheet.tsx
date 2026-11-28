@@ -38,7 +38,7 @@ import { useNetIngredientForm } from "@/app/components/ingredients/use-net-ingre
 import { formatPercent, formatDateTime } from "@/lib/shared/display-format";
 import { SEASONING_PRODUCT_TYPE_OPTIONS } from "@/lib/shared/seasoning-product";
 
-export type IngredientDetailKind = "raw" | "seasoning" | "net" | "minor";
+export type IngredientDetailKind = "raw" | "seasoning" | "net";
 
 export type RawDetail = {
   id: number;
@@ -204,13 +204,12 @@ export function IngredientDetailSheet({
     active:
       open &&
       inlineEdit &&
-      (kind === "net" || kind === "minor") &&
+      kind === "net" &&
       net != null,
     initialData: net,
     categories,
     rawIngredients,
     sourcePricePerJin: net?.sourceIngredient?.pricePerJin,
-    mode: kind === "minor" ? "minor" : "net",
     onSaved: () => {
       setEditing(false);
       setRefreshKey((value) => value + 1);
@@ -269,9 +268,7 @@ export function IngredientDetailSheet({
       ? "食材详情"
       : kind === "seasoning"
         ? "调味品详情"
-        : kind === "minor"
-          ? "小料详情"
-          : "净料详情";
+        : "净料详情";
   const data = kind === "raw" || kind === "seasoning" ? raw : net;
   const canInlineEdit = inlineEdit;
   const parentCategory = data
@@ -286,7 +283,7 @@ export function IngredientDetailSheet({
   const headerL1 = parentCategory?.name || "";
   const headerL2 = childCategory?.name || categoryName || "";
   const headerSource =
-    kind === "net" || kind === "minor"
+    kind === "net"
       ? net?.sourceIngredient?.name || ""
       : "";
   const sheetTitle = canInlineEdit
@@ -295,16 +292,12 @@ export function IngredientDetailSheet({
         ? "编辑食材"
           : kind === "seasoning"
             ? "编辑调味品"
-            : kind === "minor"
-              ? "编辑小料"
-              : "编辑净料"
+            : "编辑净料"
       : kind === "raw"
         ? "食材详情"
         : kind === "seasoning"
           ? "调味品详情"
-          : kind === "minor"
-            ? "小料详情"
-            : "净料详情"
+          : "净料详情"
     : data?.name || title;
   const headerMeta = canInlineEdit ? (
     <>
@@ -421,7 +414,7 @@ export function IngredientDetailSheet({
                   }
                   secondary={
                     <>
-                      {kind === "net" || kind === "minor" ? (
+                      {kind === "net" ? (
                         <SkeuButton size="sm"
                           variant="outline"
                           onClick={() => setRelatedDishesOpen(true)}
@@ -456,7 +449,7 @@ export function IngredientDetailSheet({
                           <Pencil className="h-4 w-4" />
                           编辑
                         </SkeuButton>
-                      ) : (kind === "net" || kind === "minor") &&
+                      ) : (kind === "net") &&
                         onPrintLabel ? (
                         <SkeuButton size="sm"
                           variant="outline"
@@ -474,7 +467,7 @@ export function IngredientDetailSheet({
                         <ArrowRightLeft className="h-4 w-4" />
                         转化
                       </SkeuButton>
-                    ) : (kind === "net" || kind === "minor") &&
+                    ) : (kind === "net") &&
                       onPrintLabel ? (
                       <SkeuButton size="sm"
                         onClick={() => onPrintLabel(data.id)}
@@ -491,7 +484,7 @@ export function IngredientDetailSheet({
                         <Printer className="h-4 w-4" />
                         打印标签
                       </SkeuButton>
-                    ) : kind === "net" || kind === "minor" ? (
+                    ) : kind === "net" ? (
                       <SkeuButton size="sm" onClick={() => setEditing(true)}>
                         <Pencil className="h-4 w-4" />
                         编辑
@@ -578,7 +571,7 @@ export function IngredientDetailSheet({
                 layout="sheet"
                 supplierName={raw?.defaultSupplier?.name}
               />
-            ) : canInlineEdit && (kind === "net" || kind === "minor") ? (
+            ) : canInlineEdit && kind === "net" ? (
               <NetIngredientFormFields
                 form={netForm}
                 onChange={handleNetChange}
@@ -586,7 +579,6 @@ export function IngredientDetailSheet({
                 categories={categories}
                 rawIngredients={rawIngredients}
                 sourcePricePerJin={net?.sourceIngredient?.pricePerJin}
-                mode={kind === "minor" ? "minor" : "net"}
                 viewMode={!editing}
                 readOnly={{
                   l1Code: true,
@@ -604,7 +596,6 @@ export function IngredientDetailSheet({
             ) : (
               <NetDetailContent
                 data={net as NetDetail}
-                kind={kind}
                 categoryName={categoryName}
               />
             )}
@@ -629,7 +620,7 @@ export function IngredientDetailSheet({
         onOpenChange={setRelatedDishesOpen}
         fetchUrl={data?.id != null ? `/api/net-ingredients/${data.id}/dishes` : null}
         materialName={data?.name ?? null}
-        materialLabel={kind === "minor" ? "小料" : "净料"}
+        materialLabel="净料"
       />
 
       <DiscardChangesDialog
@@ -642,9 +633,7 @@ export function IngredientDetailSheet({
             ? "食材"
             : kind === "seasoning"
               ? "调味品"
-              : kind === "minor"
-                ? "小料"
-                : "净料"
+              : "净料"
         }
         onDiscard={discardAndClose}
       />
@@ -707,11 +696,9 @@ function RawDetailContent({
 
 function NetDetailContent({
   data,
-  kind,
   categoryName,
 }: {
   data: NetDetail;
-  kind: IngredientDetailKind;
   categoryName?: string;
 }) {
   return (
@@ -740,19 +727,9 @@ function NetDetailContent({
       </DetailSection>
       <DetailSection title="价格与成本">
         <InfoCell
-          label={kind === "minor" ? "小料单价" : "净料单价"}
+          label="净料单价"
           value={`${formatMoney(data.unitPrice)}/斤`}
         />
-        {kind !== "net" && (
-          <InfoCell
-            label="封装加工费"
-            value={
-              data.processingFeePerJin != null
-                ? `${formatMoney(data.processingFeePerJin)}/斤`
-                : "—"
-            }
-          />
-        )}
         <InfoCell
           label="成本价"
           value={`${formatMoney(data.costPricePerJin)}/斤`}
@@ -761,12 +738,6 @@ function NetDetailContent({
           label="毛利率"
           value={formatPercent(data.grossMarginRate)}
         />
-        {kind !== "net" && (
-          <InfoCell
-            label="出库价"
-            value={`${formatMoney(data.outPricePerJin)}/斤`}
-          />
-        )}
         <InfoCell
           label="标准规格价"
           value={`${formatMoney(data.standardPackagePrice)}/份`}

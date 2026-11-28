@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/server/prisma";
 import { logOperation } from "@/lib/server/api-auth";
-import { getMinorL2Codes } from "@/lib/server/category-helpers";
 import { created, paginated, badRequest, internalError } from "@/lib/server/api-response";
 import {
   createNetIngredientSchema,
@@ -26,7 +25,7 @@ export async function GET(req: NextRequest) {
     const validation = validateQuery(netIngredientQuerySchema, searchParams);
     if (!validation.success) return validation.response;
 
-    const { sourceIngredientId, l1Code, l2Code, excludeMinor, q, page, pageSize } = validation.data;
+    const { sourceIngredientId, l1Code, l2Code, q, page, pageSize } = validation.data;
 
     const where: Record<string, unknown> = { deletedAt: null };
 
@@ -39,11 +38,6 @@ export async function GET(req: NextRequest) {
     } else if (l1Code) {
       const l2Codes = await getL2CodesByL1(l1Code);
       where.l2Code = { in: l2Codes };
-    } else if (excludeMinor) {
-      const minorL2Codes = await getMinorL2Codes();
-      if (minorL2Codes.length > 0) {
-        where.l2Code = { notIn: minorL2Codes };
-      }
     }
 
     if (q?.trim()) {
@@ -117,9 +111,7 @@ export async function POST(req: NextRequest) {
       return badRequest("二级分类不存在");
     }
 
-    const isMinor = l2Row.parentCode === "MIN";
-
-    // 净料/小料统一口径：均由原料转化（来源原料 + 出成率 + 包装规格），成本价元/斤
+    // 净料统一口径：均由原料转化（来源原料 + 出成率 + 包装规格），成本价元/斤
     if (!sourceIngredientId) {
       return badRequest("必须选择来源原料");
     }
@@ -176,7 +168,7 @@ export async function POST(req: NextRequest) {
       action: "CREATE",
       entity: "NetIngredient",
       entityId: row.id,
-      description: `创建${isMinor ? "小料" : "净料"}: ${row.name || row.code}`,
+      description: `创建净料: ${row.name || row.code}`,
     });
 
     return created(serializeNetIngredient(row));

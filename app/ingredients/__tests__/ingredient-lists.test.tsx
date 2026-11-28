@@ -24,11 +24,6 @@ const categories = [
     name: "蔬菜",
     children: [{ code: "VEG-LEF", name: "叶菜", parentCode: "VEG" }],
   },
-  {
-    code: "MIN",
-    name: "小料",
-    children: [{ code: "MIN-PREP", name: "初加工小料", parentCode: "MIN" }],
-  },
 ];
 
 const units = [{ id: 1, name: "斤", category: "重量" }];
@@ -141,28 +136,15 @@ describe("食材库统一清单", () => {
     expect(screen.queryByText("社区·2份")).not.toBeInTheDocument();
   });
 
-  it("tab 参数指向小料时展示小料清单和对应主操作", async () => {
-    currentSearchParams = new URLSearchParams("tab=minor");
-    render(<IngredientFoodPage />);
-
-    expect(
-      screen.getByRole("tab", { name: "小料清单" })
-    ).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByText("新增小料")).toBeInTheDocument();
-
-    await waitFor(() => expect(screen.getByText("青椒丝")).toBeInTheDocument());
-    expect(screen.getByText("小料单价")).toBeInTheDocument();
-  });
-
   it("点击页签会更新统一清单 URL", async () => {
     render(<IngredientFoodPage />);
     await screen.findByText("带皮五花肉");
 
-    fireEvent.click(screen.getByRole("tab", { name: "小料清单" }));
-    expect(mockRouterReplace).toHaveBeenCalledWith("/ingredients/food?tab=minor");
+    fireEvent.click(screen.getByRole("tab", { name: "净料清单" }));
+    expect(mockRouterReplace).toHaveBeenCalledWith("/ingredients/food?tab=net");
   });
 
-  it("食材转化入口打开双目标弹窗，默认目标为净料", async () => {
+  it("食材转化入口打开转化弹窗", async () => {
     render(<IngredientFoodPage />);
     await screen.findByText("带皮五花肉");
 
@@ -170,14 +152,6 @@ describe("食材库统一清单", () => {
     expect(
       await screen.findByRole("heading", { name: "转化食材" })
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "净料" })).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
-    expect(screen.getByRole("button", { name: "小料" })).toHaveAttribute(
-      "aria-pressed",
-      "false"
-    );
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("ING-0001")).toBeInTheDocument();
     expect(screen.getByText("创建净料")).toBeInTheDocument();

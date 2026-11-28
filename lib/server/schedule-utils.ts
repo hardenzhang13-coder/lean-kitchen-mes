@@ -30,7 +30,7 @@ export async function buildCuttingOrders(
     );
   }
 
-  // 1. 获取所有菜品的主料/辅料 BOM
+  // 1. 获取所有菜品的主料/辅料/小料 BOM（小料行已并入 dish_net_details，role='minor'）
   const netDetails = await prisma.dishNetDetail.findMany({
     where: { dishId: { in: dishIds } },
     include: {
@@ -48,22 +48,9 @@ export async function buildCuttingOrders(
     },
   });
 
-  // 2. 获取所有菜品的小料 BOM
-  const minorDetails = await prisma.dishMinorDetail.findMany({
-    where: { dishId: { in: dishIds } },
-    include: {
-      netIngredient: {
-        select: { id: true, code: true, name: true, unit: true, l2Code: true, spec: true, packageSpec: true },
-      },
-    },
-  });
-
-  // 3. 获取分类名称（包含小料）
+  // 2. 获取分类名称
   const allL2Codes = [
-    ...new Set([
-      ...netDetails.map((d) => d.netIngredient.l2Code).filter(Boolean),
-      ...minorDetails.map((d) => d.netIngredient.l2Code).filter(Boolean),
-    ]),
+    ...new Set(netDetails.map((d) => d.netIngredient.l2Code).filter(Boolean)),
   ];
   const l2Cats = await prisma.ingredientCategoryL2.findMany({
     where: { code: { in: allL2Codes } },
@@ -75,7 +62,7 @@ export async function buildCuttingOrders(
     select: { code: true, name: true },
   });
 
-  // 4. 汇总净料（主料/辅料）
+  // 3. 汇总净料（主料/辅料/小料同口径，sourceType 统一 net）
   const netMap = new Map<
     number,
     {
@@ -123,57 +110,8 @@ export async function buildCuttingOrders(
     }
   }
 
-  // 5. 汇总小料
-  const minorMap = new Map<
-    number,
-    {
-      sourceType: string;
-      sourceId: number;
-      itemName: string;
-      l1Code: string | null;
-      l2Code: string | null;
-      l1Name: string | null;
-      l2Name: string | null;
-      requiredQty: number;
-      unit: string;
-      spec: string;
-      sourceCode: string;
-      packageSpec: number | null;
-    }
-  >();
-
-  for (const detail of minorDetails) {
-    const quantity = quantityByDish.get(detail.dishId);
-    if (quantity == null) continue;
-    const minor = detail.netIngredient;
-    if (!minor) continue;
-    const qty = resolveNetBomAmountG(detail.amountG, minor.packageSpec) * quantity;
-
-    const existing = minorMap.get(minor.id);
-    if (existing) {
-      existing.requiredQty += qty;
-    } else {
-      const l2 = l2Cats.find((c) => c.code === minor.l2Code);
-      const l1 = l2 ? l1Cats.find((c) => c.code === l2.parentCode) : null;
-      minorMap.set(minor.id, {
-        sourceType: "minor",
-        sourceId: minor.id,
-        itemName: minor.name,
-        l1Code: l1?.code || null,
-        l2Code: l2?.code || null,
-        l1Name: l1?.name || "其他",
-        l2Name: l2?.name || "小料",
-        requiredQty: qty,
-        unit: minor.unit,
-        spec: "",
-        sourceCode: minor.code,
-        packageSpec: minor.packageSpec != null ? Number(minor.packageSpec) : null,
-      });
-    }
-  }
-
-  // 6. 合并为 CuttingOrder 创建数据
-  const cuttingOrders = [...netMap.values(), ...minorMap.values()].map((d) => ({
+  // 4. 合并为 CuttingOrder 创建数据
+  const cuttingOrders = [...netMap.values()].map((d) => ({
     scheduleId,
     sourceType: d.sourceType,
     sourceId: d.sourceId,
@@ -255,44 +193,7 @@ export async function buildPurchasePlans(
     },
   });
 
-  // 2. 获取小料 BOM（小料与净料同口径：由原料转化，采购时按出成率折算进原料毛需求）
-  const minorDetails = await prisma.dishMinorDetail.findMany({
-    where: { dishId: { in: dishIds } },
-    include: {
-      netIngredient: {
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          unit: true,
-          unitPrice: true,
-          l2Code: true,
-          spec: true,
-          packageSpec: true,
-          yieldRate: true,
-          sourceIngredientId: true,
-          sourceIngredient: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              stockUnit: true,
-              purchaseUnit: true,
-              purchaseSpec: true,
-              l2Code: true,
-              unitsPerPurchase: true,
-              latestRefPrice: true,
-              pricePerJin: true,
-              defaultSupplierId: true,
-              defaultSupplier: { select: { name: true } },
-            },
-          },
-        },
-      },
-    },
-  });
-
-  // 3. 获取调料 BOM：新口径行（specId）引调料产物，旧口径行直引调味品原料
+  // 2. 获取调料 BOM：新口径行（specId）引调料产物，旧口径行直引调味品原料
   const SEASONING_SOURCE_SELECT = {
     id: true,
     code: true,
@@ -368,7 +269,8 @@ export async function buildPurchasePlans(
     supplierName: string | null;
   }
 
-  // 6. 汇总原料（净料/小料按出成率折算毛需求，百分数口径：毛料 = 净需求 × 100 ÷ 出成率）
+  // 5. 汇总原料（净料/小料按出成率折算毛需求，百分数口径：毛料 = 净需求 × 100 ÷ 出成率）
+  //    小料行已在 netDetails 中（role='minor'），与主料/辅料同口径并入原料毛需求
   const ingredientMap = new Map<number, PlanAgg>();
 
   const addSourceGrossNeed = (
@@ -425,19 +327,7 @@ export async function buildPurchasePlans(
     addSourceGrossNeed(src, netNeed, Number(detail.netIngredient.yieldRate));
   }
 
-  // 7. 小料同口径并入原料毛需求（不再作为独立采购品）
-  for (const detail of minorDetails) {
-    const quantity = quantityByDish.get(detail.dishId);
-    if (quantity == null) continue;
-    const src = detail.netIngredient.sourceIngredient;
-    if (!src) continue;
-
-    const minorNeed =
-      resolveNetBomAmountG(detail.amountG, detail.netIngredient.packageSpec) * quantity; // 小料总需求(g)
-    addSourceGrossNeed(src, minorNeed, Number(detail.netIngredient.yieldRate));
-  }
-
-  // 8. 汇总调料
+  // 6. 汇总调料
   //   新口径（specId 行）：转化产物按出成率折算进来源调味品原料毛需求（与净料折算同口径）
   //   旧口径行（specId 空）：直引调味品原料，克需求直接计
   const seasoningMap = new Map<number, PlanAgg>();
@@ -492,7 +382,7 @@ export async function buildPurchasePlans(
     addSeasoningPlan(seasoning.id, seasoning, need);
   }
 
-  // 9. 汇总酱料（出成率 100，采购口径按斤）
+  // 7. 汇总酱料（出成率 100，采购口径按斤）
   const sauceMap = new Map<number, PlanAgg>();
 
   for (const detail of sauceDetails) {

@@ -1,12 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Loader2,
-  Maximize2,
-  PackageOpen,
-  Pencil,
-} from "lucide-react";
+import { Loader2, PackageOpen } from "lucide-react";
 
 
 import { SkeuButton } from "@/app/components/ui/skeu-button";
@@ -15,22 +10,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { AppDialogContent } from "@/app/components/ui/app-dialog";
 import { DataTable } from "@/app/components/ui/data-table";
 import { FormDialog } from "@/app/components/ui/form-dialog";
 import { CategoryTag } from "@/app/components/ui/category-tag";
-import { EmptyState } from "@/app/components/ui/empty-state";
-import { LoadingState } from "@/app/components/ui/loading-state";
 import { RecordSheet } from "@/app/components/ui/record-sheet";
-import { TablePreviewDialog } from "@/app/components/ui/table-preview-dialog";
 import {
   IngredientSelectorDialog,
 } from "@/app/components/ingredients/ingredient-selector-dialog";
@@ -41,7 +25,6 @@ import {
   RawIngredientOption,
 } from "@/app/components/ingredients/net-ingredient-form-fields";
 import { toast } from "sonner";
-import { cn } from "@/lib/shared/utils";
 import { EmptyValue } from "@/app/components/ui/empty-value";
 import {
   buildNetIngredientDefaultName,
@@ -70,7 +53,7 @@ export type NetIngredientItem = {
   l2Code: string;
 };
 
-/** 净料/小料表单回填数据：复制场景下不带 id，提交时按新建处理 */
+/** 净料表单回填数据：复制场景下不带 id，提交时按新建处理 */
 export type NetIngredientFormItem = {
   id?: number;
   code?: string;
@@ -91,7 +74,7 @@ export type NetIngredientFormItem = {
 interface NetIngredientFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode?: "net" | "minor" | "convert";
+  mode?: "net" | "convert";
   sourceIngredientId?: number;
   /** 来源食材名称：转净料时用于生成默认净料名称（食材列表可能分页，不能只靠 rawIngredients 查） */
   sourceIngredientName?: string | null;
@@ -99,9 +82,7 @@ interface NetIngredientFormDialogProps {
   categories: CategoryL1[];
   rawIngredients: RawIngredientOption[];
   onSuccess?: () => void;
-  /** 转化场景是否允许在净料/小料间选择 */
-  allowTargetChoice?: boolean;
-  /** 自定义弹窗标题（复制场景：复制净料 / 复制小料） */
+  /** 自定义弹窗标题（复制场景：复制净料） */
   title?: string;
 }
 
@@ -146,7 +127,6 @@ export function NetIngredientFormDialog({
   rawIngredients,
   onSuccess,
   title,
-  allowTargetChoice = false,
 }: NetIngredientFormDialogProps) {
   const [form, setForm] = useState<NetIngredientFormData>(emptyForm);
   // 默认份量读份量档案：优先基本单元行（单人份），档案不可达时兜底「单人份」
@@ -176,24 +156,12 @@ export function NetIngredientFormDialog({
     totalItems: number;
     totalPages: number;
   } | null>(null);
-  const [previewOpen, setPreviewOpen] = useState(false);
   const [sourceSelectorOpen, setSourceSelectorOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [listRefreshKey, setListRefreshKey] = useState(0);
   const listRequestSeq = useRef(0);
-  const [convertTarget, setConvertTarget] = useState<"net" | "minor">("net");
 
-  const targetMode =
-    mode === "convert"
-      ? allowTargetChoice
-        ? convertTarget
-        : "net"
-      : mode;
-  const isMinorMode = mode === "minor";
-  const isMinor = targetMode === "minor";
   const isConvert = mode === "convert";
-  const usesNetLayout =
-    mode === "net" || mode === "convert" || mode === "minor";
 
   const findParentL1 = useCallback(
     (l2Code?: string | null) => {
@@ -223,15 +191,12 @@ export function NetIngredientFormDialog({
   const sourceL2 = sourceL1?.children.find(
     (category) => category.code === selectedSource?.l2Code
   );
-  const minorL1 = categories.find((category) => category.code === "MIN");
-  const firstMinorL2 = minorL1?.children[0];
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) return;
 
     setErrors({});
-    setConvertTarget("net");
     setListPage(1);
     setSourceSelectorOpen(false);
     setListOpen(false);
@@ -240,7 +205,7 @@ export function NetIngredientFormDialog({
       const parentL1 = findParentL1(initialData.l2Code);
       setForm({
         name: initialData.name || "",
-        l1Code: isMinorMode ? "MIN" : parentL1?.code || "",
+        l1Code: parentL1?.code || "",
         l2Code: initialData.l2Code || "",
         sourceIngredientId: initialData.sourceIngredientId
           ? String(initialData.sourceIngredientId)
@@ -288,25 +253,12 @@ export function NetIngredientFormDialog({
       return;
     }
 
-    if (isMinorMode) {
-      const minorL1 = categories.find((category) => category.code === "MIN");
-      const firstL2 = minorL1?.children[0];
-      setForm({
-        ...emptyForm,
-        portion: defaultPortionRef.current,
-        l1Code: "MIN",
-        l2Code: firstL2?.code || "",
-      });
-      return;
-    }
-
     // 新增净料先从来源食材开始，不再预选一个无来源的分类。
     setForm({ ...emptyForm, portion: defaultPortionRef.current });
   }, [
     open,
     initialData,
     isConvert,
-    isMinorMode,
     propSourceId,
     sourceIngredientName,
     findParentL1,
@@ -384,7 +336,7 @@ export function NetIngredientFormDialog({
   ) => {
     setForm((previous) => {
       const next = { ...previous, [field]: value };
-      if (field === "l1Code" && !isMinor) next.l2Code = "";
+      if (field === "l1Code") next.l2Code = "";
       return next;
     });
 
@@ -398,14 +350,6 @@ export function NetIngredientFormDialog({
     l2Code: string;
     ingredientId: string;
   }) => {
-    if (isMinor) {
-      setForm((previous) => ({
-        ...previous,
-        sourceIngredientId: value.ingredientId,
-      }));
-      setSourceSelectorOpen(false);
-      return;
-    }
     const sourceName = getRawIngredient(Number(value.ingredientId))?.name;
     setForm((previous) => ({
       ...previous,
@@ -425,7 +369,7 @@ export function NetIngredientFormDialog({
   const validate = () => {
     const next: Record<string, string> = {};
     if (!form.name.trim()) {
-      next.name = isMinor ? "小料名称不能为空" : "净料名称不能为空";
+      next.name = "净料名称不能为空";
     }
     if (!form.l2Code) next.l2Code = "请选择来源食材";
     if (!form.sourceIngredientId) {
@@ -448,15 +392,11 @@ export function NetIngredientFormDialog({
     }
 
     if (!form.packageMaterial.trim() || !form.packageSize.trim()) {
-      if (isMinor) {
-        next.packageMaterial = "请选择包装";
-      } else {
-        if (!form.packageMaterial.trim()) {
-          next.packageMaterial = "请选择包装名称";
-        }
-        if (!form.packageSize.trim()) {
-          next.packageSize = "请选择包装尺寸";
-        }
+      if (!form.packageMaterial.trim()) {
+        next.packageMaterial = "请选择包装名称";
+      }
+      if (!form.packageSize.trim()) {
+        next.packageSize = "请选择包装尺寸";
       }
     }
 
@@ -546,7 +486,7 @@ export function NetIngredientFormDialog({
       toast.success(
         initialData?.id
           ? "更新成功"
-          : `已创建${isMinor ? "小料" : "净料"}`,
+          : "已创建净料",
       );
       onOpenChange(false);
       onSuccess?.();
@@ -557,107 +497,12 @@ export function NetIngredientFormDialog({
     }
   };
 
-  const handleEditFromList = (row: NetIngredientItem) => {
-    const parentL1 = findParentL1(row.l2Code);
-    setForm({
-      name: row.name || "",
-      l1Code: isMinor ? "MIN" : parentL1?.code || "",
-      l2Code: row.l2Code || "",
-      sourceIngredientId: row.sourceIngredientId
-        ? String(row.sourceIngredientId)
-        : "",
-      packageSpec:
-        row.packageSpec != null ? String(row.packageSpec) : "",
-      packageMaterial: row.packageMaterial || "",
-      packageSize: row.packageSize || "",
-      processingFeePerJin:
-        row.processingFeePerJin != null
-          ? String(row.processingFeePerJin)
-          : "",
-      yieldRate:
-        row.yieldRate != null ? String(row.yieldRate) : "",
-      unitPrice: String(row.unitPrice),
-      grossMarginRate:
-        row.grossMarginRate != null
-          ? String(row.grossMarginRate)
-          : "0",
-      portion: row.portion || "",
-    });
-  };
-
   const dialogTitle = useMemo(() => {
     if (title) return title;
     if (isConvert) return "转化食材";
-    if (isMinor && initialData?.id) return "编辑小料";
-    if (isMinor) return "新增小料";
     if (initialData?.id) return "编辑净料";
     return "新增净料";
-  }, [title, isMinor, initialData, isConvert]);
-
-  const handleConvertTargetChange = (next: "net" | "minor") => {
-    if (next === convertTarget) return;
-    if (next === "minor" && !firstMinorL2) {
-      setErrors((previous) => ({
-        ...previous,
-        l2Code: "请先维护小料二级分类",
-      }));
-      return;
-    }
-
-    setConvertTarget(next);
-    setErrors({});
-    setListPage(1);
-    setForm((previous) => {
-      if (next === "minor") {
-        return {
-          ...previous,
-          l1Code: "MIN",
-          l2Code: firstMinorL2?.code || "",
-        };
-      }
-
-      const raw = getRawIngredient(Number(previous.sourceIngredientId));
-      const parentL1 = findParentL1(raw?.l2Code);
-      return {
-        ...previous,
-        l1Code: parentL1?.code || "",
-        l2Code: raw?.l2Code || "",
-      };
-    });
-  };
-
-  const convertTargetSelector = isConvert && allowTargetChoice && (
-    <div
-      role="group"
-      aria-label="转化目标"
-      className="skeu-segmented mt-3 w-fit"
-    >
-      <button
-        type="button"
-        aria-pressed={convertTarget === "net"}
-        className={cn(
-          "skeu-segmented-btn",
-          convertTarget === "net" && "skeu-segmented-btn-active"
-        )}
-        onClick={() => handleConvertTargetChange("net")}
-      >
-        净料
-      </button>
-      <button
-        type="button"
-        aria-pressed={convertTarget === "minor"}
-        disabled={!firstMinorL2}
-        title={firstMinorL2 ? "转化为小料" : "请先维护小料二级分类"}
-        className={cn(
-          "skeu-segmented-btn",
-          convertTarget === "minor" && "skeu-segmented-btn-active"
-        )}
-        onClick={() => handleConvertTargetChange("minor")}
-      >
-        小料
-      </button>
-    </div>
-  );
+  }, [title, initialData, isConvert]);
 
   const existingCount = listPagination?.totalItems;
   const sourceSummary = (
@@ -717,7 +562,7 @@ export function NetIngredientFormDialog({
         onClick={() => setListOpen(true)}
       >
         <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
-        {isMinor ? "查看已有小料" : "查看已有净料"}
+        查看已有净料
         {existingCount != null ? `（${existingCount}）` : ""}
       </SkeuButton>
     </div>
@@ -731,150 +576,25 @@ export function NetIngredientFormDialog({
       >
         <DialogHeader className="border-b px-6 pt-6 pb-4">
           <DialogTitle className="text-lg">{dialogTitle}</DialogTitle>
-          {convertTargetSelector}
-          {usesNetLayout && sourceSummary}
-          {usesNetLayout &&
-            (errors.sourceIngredientId || errors.l2Code) && (
-              <p className="text-xs text-destructive" role="alert">
-                {errors.sourceIngredientId || errors.l2Code}
-              </p>
-            )}
+          {sourceSummary}
+          {(errors.sourceIngredientId || errors.l2Code) && (
+            <p className="text-xs text-destructive" role="alert">
+              {errors.sourceIngredientId || errors.l2Code}
+            </p>
+          )}
         </DialogHeader>
 
-        {usesNetLayout ? (
-          <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
-            <NetIngredientFormFields
-              layout="net-dialog"
-              form={form}
-              onChange={handleChange}
-              categories={categories}
-              rawIngredients={rawIngredients}
-              mode={isMinor ? "minor" : "net"}
-              errors={errors}
-              autoSelectFirst={!isConvert}
-            />
-          </div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 py-4 lg:flex-row">
-            <div className="min-w-0 flex-1 space-y-4">
-              <NetIngredientFormFields
-                form={form}
-                onChange={handleChange}
-                categories={categories}
-                rawIngredients={rawIngredients}
-                mode="minor"
-                errors={errors}
-              />
-            </div>
-
-            <div className="flex min-h-0 flex-col rounded-lg border bg-card lg:w-[680px]">
-              <div className="flex items-center justify-between border-b px-4 py-3">
-                <h4 className="text-sm font-semibold text-muted-foreground">
-                  已创建的小料规格
-                </h4>
-                <SkeuButton
-                  variant="ghost"
-                  size="icon"
-                  title="完整预览"
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  <Maximize2 className="h-4 w-4" />
-                </SkeuButton>
-              </div>
-              <div className="flex-1 overflow-auto">
-                {loadingList ? (
-                  <LoadingState type="table" rows={5} cols={10} />
-                ) : (
-                  <Table>
-                    <TableHeader className="sticky top-0 z-10 bg-background">
-                      <TableRow>
-                        <TableHead>编号</TableHead>
-                        <TableHead>名称</TableHead>
-                        <TableHead>包装规格</TableHead>
-                        <TableHead>包装物料</TableHead>
-                        <TableHead>包装尺寸</TableHead>
-                        <TableHead>出成率</TableHead>
-                        <TableHead>净料单价</TableHead>
-                        <TableHead>加工费</TableHead>
-                        <TableHead>毛利率</TableHead>
-                        <TableHead>出库价</TableHead>
-                        <TableHead>标准规格价</TableHead>
-                        <TableHead className="text-right">操作</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {rightList.length === 0 && (
-                        // 空数据保留表头，空态收进表体单元格（与 DataTable 同口径）
-                        <TableRow>
-                          <TableCell colSpan={12}>
-                            <EmptyState
-                              icon={PackageOpen}
-                              title="暂无小料"
-                              description="该食材尚未创建规格"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      )}
-                      {rightList.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="whitespace-nowrap text-sm font-medium">
-                            {row.code}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {row.name}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPackageSpec(row.packageSpec)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {row.packageMaterial || ""}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {row.packageSize || ""}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPercent(row.yieldRate)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPrice(row.unitPrice, "/斤")}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPrice(
-                              row.processingFeePerJin,
-                              "/斤"
-                            )}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPercent(row.grossMarginRate)}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPrice(row.outPricePerJin, "/斤")}
-                          </TableCell>
-                          <TableCell className="whitespace-nowrap text-sm">
-                            {formatPrice(
-                              row.standardPackagePrice,
-                              "元/份"
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <SkeuButton
-                              variant="ghost"
-                              size="icon"
-                              title="编辑"
-                              onClick={() => handleEditFromList(row)}
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </SkeuButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        <div className="min-h-0 flex-1 overflow-hidden px-6 py-4">
+          <NetIngredientFormFields
+            layout="net-dialog"
+            form={form}
+            onChange={handleChange}
+            categories={categories}
+            rawIngredients={rawIngredients}
+            errors={errors}
+            autoSelectFirst={!isConvert}
+          />
+        </div>
 
         <DialogFooter className="border-t px-6 pt-4 pb-5">
           <SkeuButton
@@ -895,208 +615,140 @@ export function NetIngredientFormDialog({
               )}
               {initialData?.id
                 ? "保存"
-                : `创建${isMinor ? "小料" : "净料"}`}
+                : "创建净料"}
             </span>
           </SkeuButton>
         </DialogFooter>
       </AppDialogContent>
 
-      {usesNetLayout && (
-        <RecordSheet
-          open={listOpen}
-          onOpenChange={setListOpen}
-          title={
-            isMinor
-              ? "该食材分类下已录入系统的小料"
-              : "该食材分类下已录入系统的净料"
-          }
-          meta={
-            <span>
-              {selectedL1?.name || ""}
-              {selectedL1?.name && selectedL2?.name ? " · " : ""}
-              {selectedL2?.name || ""}
-            </span>
-          }
-          footer={
-            <SkeuButton onClick={() => setListOpen(false)}>
-              关闭
-            </SkeuButton>
-          }
-          bodyClassName="overflow-hidden"
-        >
-          <DataTable<NetIngredientItem>
-            data={rightList}
-            loading={loadingList}
-            fillHeight
-            density="compact"
-            tableClassName="min-w-max"
-            columns={[
-              {
-                header: "序号",
-                className: "w-12 whitespace-nowrap",
-                cell: (_, rowIndex) => (
-                  <span className="text-muted-foreground">
-                    {(listPage - 1) * RIGHT_LIST_PAGE_SIZE +
-                      rowIndex +
-                      1}
-                  </span>
-                ),
-              },
-              {
-                header: "名称",
-                className: "whitespace-nowrap",
-                cell: (row) => (
-                  <span className="font-semibold text-primary">
-                    {row.name}
-                  </span>
-                ),
-              },
-              {
-                header: "包装规格",
-                className: "whitespace-nowrap tabular-nums",
-                cell: (row) =>
-                  row.packageSpec != null ? (
-                    formatPackageSpec(row.packageSpec)
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-              {
-                header: "出成率",
-                className: "whitespace-nowrap tabular-nums",
-                cell: (row) =>
-                  row.yieldRate != null ? (
-                    formatPercent(row.yieldRate)
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-              {
-                header: "毛利率",
-                className: "whitespace-nowrap tabular-nums",
-                cell: (row) =>
-                  row.grossMarginRate != null ? (
-                    formatPercent(row.grossMarginRate)
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-              {
-                header: "标准规格价",
-                className: "whitespace-nowrap tabular-nums",
-                cell: (row) =>
-                  row.standardPackagePrice != null ? (
-                    <span className="font-semibold text-primary">
-                      {formatPrice(row.standardPackagePrice, "/份")}
-                    </span>
-                  ) : (
-                    <EmptyValue />
-                  ),
-              },
-            ]}
-            pagination={
-              listPagination && listPagination.totalItems > 0
-                ? {
-                    currentPage: listPage,
-                    fullControls: false,
-                    totalPages: listPagination.totalPages,
-                    totalItems: listPagination.totalItems,
-                    pageSize: RIGHT_LIST_PAGE_SIZE,
-                    onPageChange: setListPage,
-                  }
-                : undefined
-            }
-            emptyState={
-              listFailed
-                ? {
-                    icon: PackageOpen,
-                    title: "列表加载失败",
-                    description: "请检查网络后重试",
-                    action: {
-                      label: "重试",
-                      onClick: () =>
-                        setListRefreshKey((value) => value + 1),
-                    },
-                  }
-                : {
-                    icon: PackageOpen,
-                    title: isMinor
-                      ? "该分类下暂无小料"
-                      : "该分类下暂无净料",
-                    description: "保存后会自动进入当前分类",
-                  }
-            }
-          />
-        </RecordSheet>
-      )}
-
-      {usesNetLayout && (
-        <IngredientSelectorDialog
-          open={sourceSelectorOpen}
-          onOpenChange={setSourceSelectorOpen}
-          categories={categories}
-          ingredients={rawIngredients}
-          initialIngredientId={form.sourceIngredientId}
-          onConfirm={handleSourceConfirm}
-        />
-      )}
-
-      <TablePreviewDialog<NetIngredientItem>
-        open={previewOpen}
-        onOpenChange={setPreviewOpen}
-        title="已创建的小料规格"
-        description={
-          rightList.length > 0 ? `共 ${rightList.length} 条` : undefined
+      <RecordSheet
+        open={listOpen}
+        onOpenChange={setListOpen}
+        title="该食材分类下已录入系统的净料"
+        meta={
+          <span>
+            {selectedL1?.name || ""}
+            {selectedL1?.name && selectedL2?.name ? " · " : ""}
+            {selectedL2?.name || ""}
+          </span>
         }
-        emptyTitle="该食材尚未创建规格"
-        columns={[
-          { header: "编号", accessorKey: "code" },
-          { header: "名称", accessorKey: "name" },
-          {
-            header: "包装规格",
-            cell: (row) => formatPackageSpec(row.packageSpec),
-          },
-          {
-            header: "包装物料",
-            cell: (row) => row.packageMaterial || "",
-          },
-          {
-            header: "包装尺寸",
-            cell: (row) => row.packageSize || "",
-          },
-          {
-            header: "出成率",
-            cell: (row) => formatPercent(row.yieldRate),
-          },
-          {
-            header: "净料单价",
-            cell: (row) => formatPrice(row.unitPrice, "/斤"),
-          },
-          {
-            header: "加工费",
-            cell: (row) =>
-              formatPrice(row.processingFeePerJin, "/斤"),
-          },
-          {
-            header: "成本价",
-            cell: (row) =>
-              formatPrice(row.costPricePerJin, "/斤"),
-          },
-          {
-            header: "毛利率",
-            cell: (row) => formatPercent(row.grossMarginRate),
-          },
-          {
-            header: "出库价",
-            cell: (row) => formatPrice(row.outPricePerJin, "/斤"),
-          },
-          {
-            header: "标准规格价",
-            cell: (row) =>
-              formatPrice(row.standardPackagePrice, "/份"),
-          },
-        ]}
-        data={rightList}
+        footer={
+          <SkeuButton onClick={() => setListOpen(false)}>
+            关闭
+          </SkeuButton>
+        }
+        bodyClassName="overflow-hidden"
+      >
+        <DataTable<NetIngredientItem>
+          data={rightList}
+          loading={loadingList}
+          fillHeight
+          density="compact"
+          tableClassName="min-w-max"
+          columns={[
+            {
+              header: "序号",
+              className: "w-12 whitespace-nowrap",
+              cell: (_, rowIndex) => (
+                <span className="text-muted-foreground">
+                  {(listPage - 1) * RIGHT_LIST_PAGE_SIZE +
+                    rowIndex +
+                    1}
+                </span>
+              ),
+            },
+            {
+              header: "名称",
+              className: "whitespace-nowrap",
+              cell: (row) => (
+                <span className="font-semibold text-primary">
+                  {row.name}
+                </span>
+              ),
+            },
+            {
+              header: "包装规格",
+              className: "whitespace-nowrap tabular-nums",
+              cell: (row) =>
+                row.packageSpec != null ? (
+                  formatPackageSpec(row.packageSpec)
+                ) : (
+                  <EmptyValue />
+                ),
+            },
+            {
+              header: "出成率",
+              className: "whitespace-nowrap tabular-nums",
+              cell: (row) =>
+                row.yieldRate != null ? (
+                  formatPercent(row.yieldRate)
+                ) : (
+                  <EmptyValue />
+                ),
+            },
+            {
+              header: "毛利率",
+              className: "whitespace-nowrap tabular-nums",
+              cell: (row) =>
+                row.grossMarginRate != null ? (
+                  formatPercent(row.grossMarginRate)
+                ) : (
+                  <EmptyValue />
+                ),
+            },
+            {
+              header: "标准规格价",
+              className: "whitespace-nowrap tabular-nums",
+              cell: (row) =>
+                row.standardPackagePrice != null ? (
+                  <span className="font-semibold text-primary">
+                    {formatPrice(row.standardPackagePrice, "/份")}
+                  </span>
+                ) : (
+                  <EmptyValue />
+                ),
+            },
+          ]}
+          pagination={
+            listPagination && listPagination.totalItems > 0
+              ? {
+                  currentPage: listPage,
+                  fullControls: false,
+                  totalPages: listPagination.totalPages,
+                  totalItems: listPagination.totalItems,
+                  pageSize: RIGHT_LIST_PAGE_SIZE,
+                  onPageChange: setListPage,
+                }
+              : undefined
+          }
+          emptyState={
+            listFailed
+              ? {
+                  icon: PackageOpen,
+                  title: "列表加载失败",
+                  description: "请检查网络后重试",
+                  action: {
+                    label: "重试",
+                    onClick: () =>
+                      setListRefreshKey((value) => value + 1),
+                  },
+                }
+              : {
+                  icon: PackageOpen,
+                  title: "该分类下暂无净料",
+                  description: "保存后会自动进入当前分类",
+                }
+          }
+        />
+      </RecordSheet>
+
+      <IngredientSelectorDialog
+        open={sourceSelectorOpen}
+        onOpenChange={setSourceSelectorOpen}
+        categories={categories}
+        ingredients={rawIngredients}
+        initialIngredientId={form.sourceIngredientId}
+        onConfirm={handleSourceConfirm}
       />
     </FormDialog>
   );

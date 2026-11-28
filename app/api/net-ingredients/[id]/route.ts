@@ -74,15 +74,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         });
         if (!l2Row) throw new Error("二级分类不存在");
 
-        const isMinor = l2Row.parentCode === "MIN";
-        const existingL2 = existing.l2Code
-          ? await tx.ingredientCategoryL2.findUnique({
-              where: { code: existing.l2Code },
-              select: { parentCode: true },
-            })
-          : null;
-        const wasMinor = existingL2?.parentCode === "MIN";
-
         if (!sourceIngredientId) throw new Error("必须选择来源原料");
 
         const finalPackageSpec = packageSpec ?? existing.packageSpec;
@@ -111,17 +102,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           sourceChanged ||
           Number(finalFee ?? 0) !== Number(existing.processingFeePerJin ?? 0) ||
           finalMargin !== Number(existing.grossMarginRate ?? 0);
-
-        if (wasMinor !== isMinor) {
-          const referenceCount =
-            (await tx.dishNetDetail.count({ where: { netIngId: netIngredientId } })) +
-            (await tx.dishMinorDetail.count({ where: { netIngId: netIngredientId } }));
-          if (referenceCount > 0) {
-            throw new BomSyncConflictError(
-              "该净料/小料已被菜品 BOM 引用，不能跨小料/净料分类调整，请先在菜品中移除引用"
-            );
-          }
-        }
 
         const calculated = await calculateUnitPrice(
           finalSourceIngredientId,
@@ -176,7 +156,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
         return {
           row,
-          isMinor,
           oldPackageSpec: existing.packageSpec,
           sync,
           recalc,
@@ -185,7 +164,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       { timeout: 60_000, maxWait: 10_000 }
     );
 
-    const { row, isMinor, oldPackageSpec, sync, recalc } = result;
+    const { row, oldPackageSpec, sync, recalc } = result;
     const syncParts: string[] = [];
     if (sync) {
       syncParts.push(
@@ -203,7 +182,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       entity: "NetIngredient",
       entityId: row.id,
       description:
-        `更新${isMinor ? "小料" : "净料"}: ${row.name || row.code}` +
+        `更新净料: ${row.name || row.code}` +
         `；封装规格 ${oldPackageSpec ?? "—"} → ${row.packageSpec}g` +
         (syncParts.length > 0 ? `；${syncParts.join("；")}` : ""),
     });
@@ -234,12 +213,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     });
     if (!existing) return notFound("净料不存在或已删除");
 
-    const [netUsageCount, minorUsageCount] = await Promise.all([
-      prisma.dishNetDetail.count({ where: { netIngId: Number(id) } }),
-      prisma.dishMinorDetail.count({ where: { netIngId: Number(id) } }),
-    ]);
-
-    const totalUsage = netUsageCount + minorUsageCount;
+    const totalUsage = await prisma.dishNetDetail.count({
+      where: { netIngId: Number(id) },
+    });
     if (totalUsage > 0) {
       return badRequest(`该食材已被 ${totalUsage} 道菜品引用，无法删除`);
     }

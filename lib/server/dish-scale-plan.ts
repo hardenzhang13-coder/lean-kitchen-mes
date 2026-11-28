@@ -11,22 +11,11 @@ import type {
   DishScaleSpecPlan,
 } from "@/lib/shared/dish-scale";
 
-/** 转化预览/执行共用的源档案形状 */
+/** 转化预览/执行共用的源档案形状（小料行在 netDetails 中，role='minor'） */
 export type DishScaleSource = Prisma.DishGetPayload<{
   include: {
     category: { select: { code: true } };
     netDetails: {
-      include: {
-        netIngredient: {
-          include: {
-            sourceIngredient: {
-              select: { id: true; name: true; pricePerJin: true };
-            };
-          };
-        };
-      };
-    };
-    minorDetails: {
       include: {
         netIngredient: {
           include: {
@@ -46,17 +35,6 @@ export type DishScaleSource = Prisma.DishGetPayload<{
 export const dishScaleSourceInclude = {
   category: { select: { code: true } },
   netDetails: {
-    include: {
-      netIngredient: {
-        include: {
-          sourceIngredient: {
-            select: { id: true, name: true, pricePerJin: true },
-          },
-        },
-      },
-    },
-  },
-  minorDetails: {
     include: {
       netIngredient: {
         include: {
@@ -221,35 +199,21 @@ export async function buildDishScalePlan(
     );
   }
 
+  // 小料行已并入 netDetails（role='minor'），按 role 分桶；同一净料可能在 BOM 中被重复引用，规格计划按净料去重
   const net: DishScaleSpecPlan[] = [];
+  const minor: DishScaleSpecPlan[] = [];
   const seenNetIds = new Set<number>();
+  const seenMinorIds = new Set<number>();
   for (const detail of source.netDetails) {
     if (!detail.netIngredient) continue;
-    // 同一净料可能在 BOM 中被重复引用，规格计划按净料去重
-    if (seenNetIds.has(detail.netIngId)) continue;
-    seenNetIds.add(detail.netIngId);
-    net.push(
+    const isMinor = detail.role === "minor";
+    const seen = isMinor ? seenMinorIds : seenNetIds;
+    if (seen.has(detail.netIngId)) continue;
+    seen.add(detail.netIngId);
+    (isMinor ? minor : net).push(
       await buildSpecPlan(
         db,
-        "net",
-        detail.netIngId,
-        detail.netIngredient,
-        targetPortion,
-        factor
-      )
-    );
-  }
-
-  const minor: DishScaleSpecPlan[] = [];
-  const seenMinorIds = new Set<number>();
-  for (const detail of source.minorDetails) {
-    if (!detail.netIngredient) continue;
-    if (seenMinorIds.has(detail.netIngId)) continue;
-    seenMinorIds.add(detail.netIngId);
-    minor.push(
-      await buildSpecPlan(
-        db,
-        "minor",
+        isMinor ? "minor" : "net",
         detail.netIngId,
         detail.netIngredient,
         targetPortion,

@@ -157,7 +157,6 @@ model NetIngredient {
   updatedAt          DateTime          @updatedAt @map("updated_at")
   deletedAt          DateTime?         @map("deleted_at")
   dishNetDetails     DishNetDetail[]
-  dishMinorDetails   DishMinorDetail[]
   sourceIngredient   Ingredient?       @relation(fields: [sourceIngredientId], references: [id])
 
   @@index([sourceIngredientId])
@@ -237,19 +236,6 @@ model SauceRecipeDetail {
 }
 
 
-model DishMinorDetail {
-  id            Int           @id @default(autoincrement())
-  dishId        Int           @map("dish_id")
-  netIngId      Int           @map("net_ing_id")
-  amountG       Decimal       @map("amount_g") @db.Decimal(10, 2) // 冗余缓存：必须等于 NetIngredient.packageSpec，读取以 packageSpec 为准
-  brand         String?
-  cost          Decimal?      @db.Decimal(10, 2)
-  dish          Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)
-  netIngredient NetIngredient @relation(fields: [netIngId], references: [id])
-
-  @@map("dish_minor_details")
-}
-
 model Dish {
   id               Int                   @id @default(autoincrement())
   code             String                @unique
@@ -269,7 +255,6 @@ model Dish {
   createdAt        DateTime              @default(now()) @map("created_at")
   updatedAt        DateTime              @updatedAt @map("updated_at")
   netDetails       DishNetDetail[]
-  minorDetails     DishMinorDetail[]
   processes        DishProcess[]
   sauceDetails     DishSauceDetail[]
   seasoningDetails DishSeasoningDetail[]
@@ -282,10 +267,11 @@ model Dish {
 model DishNetDetail {
   id            Int           @id @default(autoincrement())
   dishId        Int           @map("dish_id")
-  role          String // main(主料) / support(辅料)
+  role          String // main(主料) / support(辅料) / minor(小料，2026-11-28 起小料并入本表)
   netIngId      Int           @map("net_ing_id")
   amountG       Decimal       @map("amount_g") @db.Decimal(10, 2) // 冗余缓存：必须等于 NetIngredient.packageSpec，读取以 packageSpec 为准
   spec          String?
+  brand         String?
   cost          Decimal?      @db.Decimal(10, 2)
   dish          Dish          @relation(fields: [dishId], references: [id], onDelete: Cascade)
   netIngredient NetIngredient @relation(fields: [netIngId], references: [id])
@@ -457,9 +443,9 @@ model PurchasePlan {
 model CuttingOrder {
   id          Int      @id @default(autoincrement())
   scheduleId  Int      @map("schedule_id")
-  sourceType  String   @map("source_type") // net / minor
+  sourceType  String   @map("source_type") // net（minor 为历史值，2026-11-28 迁移归一为 net）
   sourceId    Int      @map("source_id")
-  sourceCode  String?  @map("source_code") // 净料/小料档案编码（基础数据，非拼接）
+  sourceCode  String?  @map("source_code") // 净料档案编码（基础数据，非拼接）
   packageSpec Int?     @map("package_spec") // 封装规格（g，净料档案）：切配份数 = 切配量 ÷ 封装规格
   itemName    String   @map("item_name")
   l1Code      String?  @map("l1_code")
@@ -646,11 +632,11 @@ model SelfProductionOrder {
   @@map("self_production_orders")
 }
 
-// 内部生产单明细：sourceType 由净料二级分类（MIN）服务端派生，sourceId 弱引用 net_ingredients.id
+// 内部生产单明细：已下线只读，sourceType 为历史值（可能含 minor），sourceId 弱引用 net_ingredients.id
 model SelfProductionItem {
   id         Int     @id @default(autoincrement())
   orderId    Int     @map("order_id")
-  sourceType String  @map("source_type") // net / minor
+  sourceType String  @map("source_type") // net / minor（历史值，不再新写入）
   sourceId   Int     @map("source_id")
   portions   Decimal @db.Decimal(12, 2) // 目标份数
   order      SelfProductionOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
@@ -673,12 +659,12 @@ model ProductionPlanSelfOrder {
   @@map("production_plan_self_orders")
 }
 
-// ===== 净菜库存（v002）：切配中心库存只管理加工完成的净菜（净料+小料），按份出入库 =====
+// ===== 净菜库存（v002）：切配中心库存只管理加工完成的净菜（净料），按份出入库 =====
 
 // 净菜库存表：份为记账主单位，g 按当时封装规格换算同步累加（金额计算/展示用）
 model PreppedStock {
   id              Int      @id @default(autoincrement())
-  sourceType      String   @map("source_type") // net / minor
+  sourceType      String   @map("source_type") // net（minor 为历史值，2026-11-28 起并入 net）
   sourceId        Int      @map("source_id")
   currentPortions Decimal  @map("current_portions") @db.Decimal(12, 2)
   currentQty      Decimal  @map("current_qty") @db.Decimal(14, 2)
@@ -691,7 +677,7 @@ model PreppedStock {
 // 净菜库存台账：双单位（份 + g）流水
 model PreppedStockLedger {
   id              Int      @id @default(autoincrement())
-  sourceType      String   @map("source_type")
+  sourceType      String   @map("source_type") // net（minor 为历史流水值，保留不迁移）
   sourceId        Int      @map("source_id")
   changeType      String   @map("change_type") // stock_in / stock_out / stock_rollback
   changePortions  Decimal  @map("change_portions") @db.Decimal(12, 2)
@@ -721,7 +707,7 @@ model PreppedStockLedger {
 model PreppedStockBatch {
   id               Int      @id @default(autoincrement())
   productionPlanId Int      @map("production_plan_id")
-  sourceType       String   @map("source_type")
+  sourceType       String   @map("source_type") // net（minor 为历史值，2026-11-28 迁移归一为 net）
   sourceId         Int      @map("source_id")
   packageSpec      Int?     @map("package_spec")
   plannedPortions  Decimal  @default(0) @map("planned_portions") @db.Decimal(12, 2)
@@ -777,7 +763,7 @@ model OutboundOrder {
 model OutboundOrderItem {
   id                Int      @id @default(autoincrement())
   outboundOrderId   Int      @map("outbound_order_id")
-  sourceType        String   @map("source_type")
+  sourceType        String   @map("source_type") // net（minor 为历史单据值，保留不迁移）
   sourceId          Int      @map("source_id")
   itemCode          String?  @map("item_code")
   itemName          String   @map("item_name")

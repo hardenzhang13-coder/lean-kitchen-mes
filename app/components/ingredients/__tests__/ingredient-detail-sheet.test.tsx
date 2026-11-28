@@ -444,17 +444,17 @@ describe("净料详情抽屉", () => {
     });
   });
 
-  it("小料在同一抽屉内查看、编辑并保留打印主操作", async () => {
+  it("净料在同一抽屉内查看、编辑并保留打印主操作", async () => {
     render(
       <IngredientDetailSheet
         open
         onOpenChange={jest.fn()}
-        kind="minor"
+        kind="net"
         ingredientId={21}
         categories={[
           {
-            code: "MIN",
-            name: "小料",
+            code: "VEG",
+            name: "蔬菜",
             children: [{ code: "VEG-LEF", name: "香辛料" }],
           },
         ]}
@@ -466,7 +466,7 @@ describe("净料详情抽屉", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "小料详情" })
+      await screen.findByRole("heading", { name: "净料详情" })
     ).toBeInTheDocument();
     const printButton = await screen.findByRole("button", { name: "打印标签" });
     const editButton = screen.getByRole("button", { name: "编辑" });
@@ -475,7 +475,7 @@ describe("净料详情抽屉", () => {
 
     fireEvent.click(editButton);
     expect(
-      screen.getByRole("heading", { name: "编辑小料" })
+      screen.getByRole("heading", { name: "编辑净料" })
     ).toBeInTheDocument();
   });
 

@@ -77,11 +77,10 @@ export async function getScheduleDetail(scheduleId: number) {
     select: { code: true, name: true },
   });
 
-  // 切配工单的毛料用量（斤）：净料/小料经来源原料关联到采购计划的毛需求
-  const netIds = schedule.cuttingOrders.filter((c) => c.sourceType === "net").map((c) => c.sourceId);
-  const minorIds = schedule.cuttingOrders.filter((c) => c.sourceType === "minor").map((c) => c.sourceId);
+  // 切配工单的毛料用量（斤）：净料（含历史 minor 行）经来源原料关联到采购计划的毛需求
+  const cuttingSourceIds = [...new Set(schedule.cuttingOrders.map((c) => c.sourceId))];
   const cuttingSources = await prisma.netIngredient.findMany({
-    where: { id: { in: [...netIds, ...minorIds] } },
+    where: { id: { in: cuttingSourceIds } },
     select: { id: true, sourceIngredientId: true },
   });
   const sourceIdByNetId = new Map<number, number | null>();
@@ -126,7 +125,7 @@ export async function getScheduleDetail(scheduleId: number) {
       l1Code: c.l1Code,
       l2Code: c.l2Code,
       l1Name: l1Cats.find((cat) => cat.code === c.l1Code)?.name || c.l1Code || "其他",
-      l2Name: l2Cats.find((cat) => cat.code === c.l2Code)?.name || c.l2Code || "小料",
+      l2Name: l2Cats.find((cat) => cat.code === c.l2Code)?.name || c.l2Code || "未分类",
       spec: c.spec,
       requiredQty: Number(c.requiredQty),
       unit: c.unit,

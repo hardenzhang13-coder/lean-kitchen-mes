@@ -46,10 +46,9 @@ function makeSource(
         amountG: 100,
         netIngredient,
       },
-    ],
-    minorDetails: [
       {
         netIngId: 102,
+        role: "minor",
         amountG: 20,
         netIngredient: {
           ...netIngredient,
@@ -57,7 +56,7 @@ function makeSource(
           code: "PRD-0102",
           name: "葱花",
           packageSpec: 20,
-          l2Code: "MIN-VEG",
+          l2Code: "VEG-LEF",
         },
       },
     ],
@@ -151,7 +150,6 @@ describe("菜品转化计划", () => {
           },
         },
       ],
-      minorDetails: [],
     } as unknown as Partial<DishScaleSource>);
 
     const db = makeDb([]);
@@ -173,7 +171,6 @@ describe("菜品转化计划", () => {
           },
         },
       ],
-      minorDetails: [],
     } as unknown as Partial<DishScaleSource>);
 
     const db = makeDb([candidate(204, "鸡丁•300g", 300)]);
@@ -198,7 +195,6 @@ describe("菜品转化计划", () => {
           netIngredient,
         },
       ],
-      minorDetails: [],
     } as unknown as Partial<DishScaleSource>);
 
     const db = makeDb([]);

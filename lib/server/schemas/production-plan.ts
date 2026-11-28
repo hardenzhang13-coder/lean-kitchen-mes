@@ -3,7 +3,7 @@ import { SCHEDULE_STATUS_VALUES } from "@/lib/shared/schedule-status";
 
 const idArraySchema = z.array(z.number().int().positive()).max(100);
 
-/** 生产计划单行级份数调整：sourceType 由服务端按净料二级分类（MIN）派生，客户端只传净料与份数 */
+/** 生产计划单行级份数调整：sourceType 由服务端派生（2026-11-28 起恒为 net），客户端只传净料与份数 */
 export const planPortionAdjustmentSchema = z
   .object({
     sourceId: z.number().int().positive(),
@@ -17,7 +17,7 @@ const adjustmentsSchema = z.array(planPortionAdjustmentSchema).max(500).superRef
   const seen = new Set<number>();
   for (const adj of value) {
     if (seen.has(adj.sourceId)) {
-      ctx.addIssue({ code: "custom", path: ["sourceId"], message: "同一净料/小料只能出现一次调整" });
+      ctx.addIssue({ code: "custom", path: ["sourceId"], message: "同一净料只能出现一次调整" });
       return;
     }
     seen.add(adj.sourceId);

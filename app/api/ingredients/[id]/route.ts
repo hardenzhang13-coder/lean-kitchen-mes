@@ -100,7 +100,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const seasoningTypeChanged = finalSeasoningType !== existing.seasoningType;
 
     let category: { code: string; parentCode: string | null } | null = null;
-    let existingCategory: { parentCode: string | null } | null = null;
     if (finalKind === "food") {
       category = await prisma.ingredientCategoryL2.findUnique({
         where: { code: finalL2Code! },
@@ -109,37 +108,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       if (!category) {
         return badRequest("二级分类不存在");
       }
-      existingCategory =
-        categoryChanged && existing.l2Code != null
-          ? await prisma.ingredientCategoryL2.findUnique({
-              where: { code: existing.l2Code },
-              select: { parentCode: true },
-            })
-          : null;
-      if (categoryChanged && existing.l2Code != null && !existingCategory) {
-        return badRequest("原二级分类不存在，请先修复分类档案");
-      }
     }
-    const minorBoundaryChanged =
-      (category?.parentCode === "MIN") !== (existingCategory?.parentCode === "MIN");
-
     // 换算系数来自单位字典（见 lib/server/unit-factors.ts）
     const jinFactors = await getJinFactors();
     const result = await prisma.$transaction(async (tx) => {
-      // 跨净料/小料边界会改变业务归属；被菜品 BOM 引用的规格必须先解除引用。
-      if (minorBoundaryChanged) {
-        const referenceCount =
-          (await tx.dishNetDetail.count({
-            where: { netIngredient: { sourceIngredientId: Number(id), deletedAt: null } },
-          })) +
-          (await tx.dishMinorDetail.count({
-            where: { netIngredient: { sourceIngredientId: Number(id), deletedAt: null } },
-          }));
-        if (referenceCount > 0) {
-          throw new Error("该食材的净料/小料已被菜品引用，不能跨净料/小料分类调整");
-        }
-      }
-
       const row = await tx.ingredient.update({
         where: { id: Number(id) },
         data: {
@@ -170,7 +142,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         },
       });
 
-      // 分类是来源食材上的弱引用副本：改分类必须同事务级联净料/小料，避免清单分组漂移。
+      // 分类是来源食材上的弱引用副本：改分类必须同事务级联净料，避免清单分组漂移。
       // 调味品不挂分类（l2Code 恒 NULL），且净料表 l2Code 非空，不做级联。
       let syncedNetCount = 0;
       if (categoryChanged && finalL2Code != null) {
@@ -200,7 +172,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       entityId: row.id,
       description:
         `更新食材: ${row.name}` +
-        (syncedNetCount > 0 ? `；级联更新 ${syncedNetCount} 个净料/小料分类` : "") +
+        (syncedNetCount > 0 ? `；级联更新 ${syncedNetCount} 个净料分类` : "") +
         (syncedProductCount > 0 ? `；级联更新 ${syncedProductCount} 个调料产物类型` : ""),
     });
     return success(row);

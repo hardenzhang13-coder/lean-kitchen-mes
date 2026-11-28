@@ -6,8 +6,8 @@ import { validateQuery } from "@/lib/server/validate";
 import { paginationQuerySchema } from "@/lib/server/schemas/common";
 
 /**
- * 净料/小料被哪些菜品引用。
- * 主料/辅料走 dish_net_details，小料走 dish_minor_details，两者都算引用。
+ * 净料被哪些菜品引用。
+ * 主料/辅料/小料统一走 dish_net_details（小料行 role='minor'，2026-11-28 起并入）。
  */
 export async function GET(
   req: NextRequest,
@@ -32,10 +32,7 @@ export async function GET(
     if (!exists) return notFound("净料不存在或已删除");
 
     const where: Prisma.DishWhereInput = {
-      OR: [
-        { netDetails: { some: { netIngId } } },
-        { minorDetails: { some: { netIngId } } },
-      ],
+      netDetails: { some: { netIngId } },
     };
 
     const [rows, totalItems] = await Promise.all([

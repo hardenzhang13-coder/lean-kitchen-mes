@@ -115,7 +115,7 @@ describe("createOutboundSchema", () => {
       storeId: 2,
       items: [
         { sourceType: "net", sourceId: 1, shippedPortions: 0 },
-        { sourceType: "minor", sourceId: 2, shippedPortions: 0.5 },
+        { sourceType: "net", sourceId: 2, shippedPortions: 0.5 },
       ],
     });
 

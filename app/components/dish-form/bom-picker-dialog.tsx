@@ -81,14 +81,12 @@ export function BomPickerDialog({
       };
     }
 
-    const isMinor = type === "minor";
+    // 小料已并入净料（2026-11-28）：小料行也从全部净料中选，不再按 MIN 分类过滤
     const l1List = allCategories
       ? refs.ingredientCategories
-      : isMinor
-        ? refs.ingredientCategories.filter((c) => c.code === "MIN")
-        : refs.ingredientCategories.filter(
-            (c) => c.code !== "SEA" && c.code !== "GRA-SEA" && c.code !== "MIN"
-          );
+      : refs.ingredientCategories.filter(
+          (c) => c.code !== "SEA" && c.code !== "GRA-SEA"
+        );
 
     return {
       l1Categories: l1List,

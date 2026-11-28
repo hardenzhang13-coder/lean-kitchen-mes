@@ -4,12 +4,11 @@ import { nextCode } from "@/lib/shared/code-gen";
 import { resolveNetBomAmountG } from "@/lib/shared/bom-amount";
 import { getCurrentDishCostBreakdownMap } from "@/lib/server/dish-costing";
 
-/** 复制/转化共用的源档案形状：主档 + 四层 BOM + 工序 + 分类编码 */
+/** 复制/转化共用的源档案形状：主档 + 四层 BOM + 工序 + 分类编码（小料行在 netDetails 中，role='minor'） */
 export type DishVariantSource = Prisma.DishGetPayload<{
   include: {
     category: { select: { code: true } };
     netDetails: true;
-    minorDetails: true;
     seasoningDetails: true;
     sauceDetails: true;
     processes: true;
@@ -66,22 +65,13 @@ export async function createDishVariant(
   const { factor } = options;
 
   // 净料/小料的 BOM 用量必须等于目标档案的封装规格；先按目标 ID 取规格
-  const targetNetIds = [
-    ...new Set(
-      source.netDetails.map(
-        (detail) => options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId
-      )
-    ),
-  ];
-  const targetMinorIds = [
-    ...new Set(
-      source.minorDetails.map(
-        (detail) => options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId
-      )
-    ),
-  ];
+  const resolveTargetId = (detail: { role: string; netIngId: number }): number =>
+    detail.role === "minor"
+      ? options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId
+      : options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId;
+  const targetNetIds = [...new Set(source.netDetails.map(resolveTargetId))];
   const targetIngredients = await tx.netIngredient.findMany({
-    where: { id: { in: [...targetNetIds, ...targetMinorIds] } },
+    where: { id: { in: targetNetIds } },
     select: { id: true, name: true, packageSpec: true },
   });
   const packageSpecMap = new Map(
@@ -114,26 +104,13 @@ export async function createDishVariant(
       operator: options.operator,
       netDetails: {
         create: source.netDetails.map((detail) => {
-          const netIngId =
-            options.netIngIdMap?.get(detail.netIngId) ?? detail.netIngId;
+          const netIngId = resolveTargetId(detail);
           const packageSpec = requireSpec(netIngId);
           return {
             role: detail.role,
             netIngId,
             amountG: resolveNetBomAmountG(detail.amountG, packageSpec),
-            spec: `${packageSpec}g`,
-            cost: scaleValue(detail.cost, factor),
-          };
-        }),
-      },
-      minorDetails: {
-        create: source.minorDetails.map((detail) => {
-          const netIngId =
-            options.minorIngIdMap?.get(detail.netIngId) ?? detail.netIngId;
-          const packageSpec = requireSpec(netIngId);
-          return {
-            netIngId,
-            amountG: resolveNetBomAmountG(detail.amountG, packageSpec),
+            spec: detail.role === "minor" ? null : `${packageSpec}g`,
             brand: detail.brand,
             cost: scaleValue(detail.cost, factor),
           };

@@ -40,7 +40,7 @@ const net = {
 
 const categories = {
   l2: [{ code: "VEG-LEF", name: "叶菜类", parentCode: "VEG" }],
-  l1: [{ code: "VEG", name: "蔬菜" }, { code: "MIN", name: "小料" }],
+  l1: [{ code: "VEG", name: "蔬菜" }],
 };
 
 describe("getSelfOrderOutboundLines", () => {

@@ -30,7 +30,6 @@ type IngredientNode = {
 type Counts = {
   raw: number;
   net: number;
-  minor: number;
   seasoningBase: number;
   seasoningItem: number;
   seasoningCompound: number;
@@ -49,7 +48,7 @@ const SOURCE_NODES: IngredientNode[] = [
     name: "食材",
     glyph: "原",
     color: "#f97316",
-    desc: "采购档案与净料、小料转化",
+    desc: "采购档案与净料转化",
     href: "/ingredients/raw",
     tileClass:
       "bg-[linear-gradient(180deg,#FFA24D_0%,#F07018_100%)] shadow-[0_2px_5px_rgba(240,112,24,0.40),0_5px_14px_rgba(15,23,42,0.10)] group-hover:shadow-[0_4px_10px_rgba(240,112,24,0.48),0_9px_24px_rgba(15,23,42,0.12)]",
@@ -170,10 +169,10 @@ function PricingRulesDialog({
               className="shrink-0 rounded-md px-2 py-1 font-semibold text-white"
               style={{ background: "#10b981" }}
             >
-              净料 · 小料
+              净料
             </span>
             <span className="text-muted-foreground">
-              成本价 = 净料/小料单价 ＋ 封装加工费
+              成本价 = 净料单价 ＋ 封装加工费
               <span className="ml-1 text-muted-foreground/70">
                 （单价 = 食材每斤单价 ÷ 出成率）
               </span>
@@ -357,7 +356,6 @@ export default function IngredientsPage() {
   const [counts, setCounts] = useState<Counts>({
     raw: 0,
     net: 0,
-    minor: 0,
     seasoningBase: 0,
     seasoningItem: 0,
     seasoningCompound: 0,
@@ -438,7 +436,6 @@ export default function IngredientsPage() {
         ? [
             { label: "食材", value: counts.raw, unit: "种" },
             { label: "净料", value: counts.net, unit: "种" },
-            { label: "小料", value: counts.minor, unit: "种" },
           ]
         : node.id === "seasoning"
           ? [

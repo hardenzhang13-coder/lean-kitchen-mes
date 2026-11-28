@@ -32,13 +32,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const totalCost = await prisma.$transaction(async (tx) => {
       await tx.dishNetDetail.deleteMany({ where: { dishId } });
-      await tx.dishMinorDetail.deleteMany({ where: { dishId } });
       await tx.dishSeasoningDetail.deleteMany({ where: { dishId } });
       await tx.dishSauceDetail.deleteMany({ where: { dishId } });
 
-      // 查询所有食材价格
-      const netIngIds = (netDetails || []).map((d) => d.netIngId);
-      const minorIds = (minorDetails || []).map((d) => d.netIngId);
+      // 主料/辅料/小料统一落 dish_net_details：小料行 role='minor'（2026-11-28 小料并入净料，契约保留 minorDetails 字段名）
+      const unifiedNetRows = [
+        ...(netDetails ?? []).map((d) => ({ ...d, role: d.role ?? "main", isMinor: false })),
+        ...(minorDetails ?? []).map((d) => ({
+          ...d,
+          spec: null as string | null,
+          role: "minor" as const,
+          isMinor: true,
+        })),
+      ];
+      const netIngIds = unifiedNetRows.map((d) => Number(d.netIngId));
       // 调料双口径：specId 行 = 调料产物（新）；sourceId 行 = 直引调味品原料（旧口径透传，只读保留）
       const seasoningProductIds = (seasoningDetails || [])
         .map((d) => Number(d.specId))
@@ -65,23 +72,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         })
       : [];
 
-      const [netIngs, minors, legacySeasonings, seasoningProducts] = await Promise.all([
+      const [netIngs, legacySeasonings, seasoningProducts] = await Promise.all([
         tx.netIngredient.findMany({
           where: { id: { in: netIngIds }, deletedAt: null },
-          select: {
-            id: true,
-            name: true,
-            l2Code: true,
-            packageSpec: true,
-            unitPrice: true,
-            yieldRate: true,
-            processingFeePerJin: true,
-            grossMarginRate: true,
-            sourceIngredient: { select: { pricePerJin: true } },
-          },
-        }),
-        tx.netIngredient.findMany({
-          where: { id: { in: minorIds }, deletedAt: null },
           select: {
             id: true,
             name: true,
@@ -120,56 +113,22 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         }),
       ]);
 
-      // 净料与小料同口径：均按出库价计成本（成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)）
+      // 净料/小料同口径：均按出库价计成本（成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)）
       const netPriceMap = new Map(
         netIngs.map((i) => {
           const prices = deriveNetIngredientPrices(i);
           return [i.id, prices.outPricePerJin] as const;
         })
       );
-      const minorPriceMap = new Map(
-        minors.map((i) => {
-          const prices = deriveNetIngredientPrices(i);
-          return [i.id, prices.outPricePerJin] as const;
-        })
-      );
 
-      // 净料/小料的 BOM 用量以档案封装规格为唯一真源；同时校验引用与分类，防止客户端伪造
+      // 净料/小料的 BOM 用量以档案封装规格为唯一真源；校验引用存在，防止客户端伪造
       const netById = new Map(netIngs.map((i) => [i.id, i]));
-      const minorById = new Map(minors.map((i) => [i.id, i]));
-      const l2Codes = [
-        ...new Set(
-          [...netIngs, ...minors]
-            .map((i) => i.l2Code)
-            .filter((code): code is string => !!code)
-        ),
-      ];
-      const l2Rows =
-        l2Codes.length > 0
-          ? await tx.ingredientCategoryL2.findMany({
-              where: { code: { in: l2Codes } },
-              select: { code: true, parentCode: true },
-            })
-          : [];
-      const parentByL2 = new Map(l2Rows.map((row) => [row.code, row.parentCode]));
-
-      for (const detail of netDetails ?? []) {
-        const net = netById.get(Number(detail.netIngId));
-        if (!net) throw new Error(`净料不存在或已删除（ID ${detail.netIngId}）`);
-        if (parentByL2.get(net.l2Code ?? "") === "MIN") {
-          throw new Error(`${net.name} 属于小料分类，不能加入主料/辅料`);
-        }
-      }
-      for (const detail of minorDetails ?? []) {
-        const minor = minorById.get(Number(detail.netIngId));
-        if (!minor) throw new Error(`小料不存在或已删除（ID ${detail.netIngId}）`);
-        if (parentByL2.get(minor.l2Code ?? "") !== "MIN") {
-          throw new Error(`${minor.name} 不是小料分类，不能加入小料`);
-        }
+      for (const row of unifiedNetRows) {
+        const net = netById.get(Number(row.netIngId));
+        if (!net) throw new Error(`净料不存在或已删除（ID ${row.netIngId}）`);
       }
 
       const netPackageSpecMap = new Map(netIngs.map((i) => [i.id, i.packageSpec]));
-      const minorPackageSpecMap = new Map(minors.map((i) => [i.id, i.packageSpec]));
       // 旧口径行成本 = 调味品原料每斤单价 × 用量g ÷ 500；缺失时成本为 null
       const legacySeasoningPriceMap = new Map(
         legacySeasonings.map((i) => [i.id, i.pricePerJin != null ? Number(i.pricePerJin) : null])
@@ -211,10 +170,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const price = netPriceMap.get(netIngId);
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
-      const calcMinorCost = (netIngId: number, amountG: number) => {
-        const price = minorPriceMap.get(netIngId);
-        return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
-      };
       // 旧口径调料成本 = 每斤单价(元/斤) × 用量g ÷ 500；每斤单价缺失返回 null
       const calcLegacySeasoningCost = (sourceId: number, amountG: number) => {
         const price = legacySeasoningPriceMap.get(sourceId);
@@ -232,35 +187,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         return price != null ? Number((price * amountG / 500).toFixed(4)) : null;
       };
 
-      if (netDetails && netDetails.length > 0) {
+      if (unifiedNetRows.length > 0) {
         await tx.dishNetDetail.createMany({
-          data: netDetails.map((d) => {
+          data: unifiedNetRows.map((d) => {
             const netIngId = Number(d.netIngId);
             const pkg = netPackageSpecMap.get(netIngId);
             const amountG = resolveNetBomAmountG(d.amountG, pkg);
             return {
               dishId,
-              role: d.role || "主料",
+              role: d.role,
               netIngId,
               amountG,
-              spec: pkg != null ? `${pkg}g` : d.spec || null,
-              cost: calcNetCost(netIngId, amountG),
-            };
-          }),
-        });
-      }
-      if (minorDetails && minorDetails.length > 0) {
-        await tx.dishMinorDetail.createMany({
-          data: minorDetails.map((d) => {
-            const netIngId = Number(d.netIngId);
-            const pkg = minorPackageSpecMap.get(netIngId);
-            const amountG = resolveNetBomAmountG(d.amountG, pkg);
-            return {
-              dishId,
-              netIngId,
-              amountG,
+              spec: d.isMinor ? null : pkg != null ? `${pkg}g` : d.spec || null,
               brand: d.brand || null,
-              cost: calcMinorCost(netIngId, amountG),
+              cost: calcNetCost(netIngId, amountG),
             };
           }),
         });
@@ -325,17 +265,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         });
       }
 
-      // 重新计算菜品总成本
-      const [allNet, allMinor, allSea, allSau] = await Promise.all([
+      // 重新计算菜品总成本（小料行已在 dish_net_details 中，不可再单独累加，否则双计）
+      const [allNet, allSea, allSau] = await Promise.all([
         tx.dishNetDetail.findMany({ where: { dishId } }),
-        tx.dishMinorDetail.findMany({ where: { dishId } }),
         tx.dishSeasoningDetail.findMany({ where: { dishId } }),
         tx.dishSauceDetail.findMany({ where: { dishId } }),
       ]);
 
       const total =
         allNet.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
-        allMinor.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
         allSea.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0) +
         allSau.reduce((s, d) => s + (d.cost ? Number(d.cost) : 0), 0);
 

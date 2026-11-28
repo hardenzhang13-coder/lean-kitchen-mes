@@ -14,12 +14,11 @@ import { RAW_IMPORT_FIELDS, RawIngredientListPanel } from "@/app/components/ingr
 import { NetIngredientListPanel } from "@/app/components/ingredients/net-ingredient-list-panel";
 import { toast } from "sonner";
 
-type IngredientFoodTab = "raw" | "net" | "minor";
+type IngredientFoodTab = "raw" | "net";
 
 const FOOD_TABS = [
   { value: "raw", label: "食材清单" },
   { value: "net", label: "净料清单" },
-  { value: "minor", label: "小料清单" },
 ] as const;
 
 type CategoryL1 = {
@@ -50,7 +49,7 @@ type RawIngredientOption = {
 };
 
 function getIngredientFoodTab(value: string | null): IngredientFoodTab {
-  return value === "net" || value === "minor" ? value : "raw";
+  return value === "net" ? value : "raw";
 }
 
 function IngredientFoodListContent() {
@@ -66,12 +65,10 @@ function IngredientFoodListContent() {
 
   const [rawRefreshToken, setRawRefreshToken] = useState(0);
   const [netRefreshToken, setNetRefreshToken] = useState(0);
-  const [minorRefreshToken, setMinorRefreshToken] = useState(0);
 
   const [rawCreateOpen, setRawCreateOpen] = useState(false);
   const [rawImportOpen, setRawImportOpen] = useState(false);
   const [netCreateOpen, setNetCreateOpen] = useState(false);
-  const [minorCreateOpen, setMinorCreateOpen] = useState(false);
 
   const refreshRaw = useCallback(() => {
     setRawRefreshToken((value) => value + 1);
@@ -164,7 +161,7 @@ function IngredientFoodListContent() {
           showBack
           backHref="/ingredients"
           title="食材库"
-          description="集中管理采购食材及其转化生成的净料、小料"
+          description="集中管理采购食材及其转化生成的净料"
           actions={
             <div className="flex items-center gap-2">
               {activeTab === "raw" && (
@@ -183,12 +180,6 @@ function IngredientFoodListContent() {
                 <SkeuButton onClick={() => setNetCreateOpen(true)}>
                   <Plus className="h-4 w-4" />
                   新增净料
-                </SkeuButton>
-              )}
-              {activeTab === "minor" && (
-                <SkeuButton onClick={() => setMinorCreateOpen(true)}>
-                  <Plus className="h-4 w-4" />
-                  新增小料
                 </SkeuButton>
               )}
             </div>
@@ -216,20 +207,9 @@ function IngredientFoodListContent() {
           {mountedTabs.includes("net") && (
             <div className={activeTab === "net" ? "contents" : "hidden"}>
               <NetIngredientListPanel
-                variant="net"
                 categories={categories}
                 rawIngredients={rawIngredients}
                 refreshToken={netRefreshToken}
-              />
-            </div>
-          )}
-          {mountedTabs.includes("minor") && (
-            <div className={activeTab === "minor" ? "contents" : "hidden"}>
-              <NetIngredientListPanel
-                variant="minor"
-                categories={categories}
-                rawIngredients={rawIngredients}
-                refreshToken={minorRefreshToken}
               />
             </div>
           )}
@@ -252,24 +232,11 @@ function IngredientFoodListContent() {
       <NetIngredientFormDialog
         open={netCreateOpen}
         onOpenChange={setNetCreateOpen}
-        mode="net"
         categories={categories}
         rawIngredients={rawIngredients}
         onSuccess={() => {
           setNetCreateOpen(false);
           setNetRefreshToken((value) => value + 1);
-        }}
-      />
-
-      <NetIngredientFormDialog
-        open={minorCreateOpen}
-        onOpenChange={setMinorCreateOpen}
-        mode="minor"
-        categories={categories}
-        rawIngredients={rawIngredients}
-        onSuccess={() => {
-          setMinorCreateOpen(false);
-          setMinorRefreshToken((value) => value + 1);
         }}
       />
 

@@ -80,6 +80,7 @@ export function planAdjustmentsFromCuttingJson(cuttingJson: unknown): PlanPortio
   for (const row of cuttingJson) {
     const r = row as { sourceType?: unknown; sourceId?: unknown; portions?: unknown };
     if (
+      // minor 为历史快照值（小料已并入净料），仍需识别以还原旧计划的调整行
       (r.sourceType === "net" || r.sourceType === "minor") &&
       typeof r.sourceId === "number" &&
       typeof r.portions === "number" &&
@@ -173,20 +174,6 @@ export async function buildProductionPlanData(
     },
   });
   const netMap = new Map(nets.map((n) => [n.id, n]));
-  const adjL2Codes = [
-    ...new Set(
-      adjustments
-        .map((a) => netMap.get(a.sourceId)?.l2Code)
-        .filter((x): x is string => !!x)
-    ),
-  ];
-  const adjL2CatRows = adjL2Codes.length
-    ? await prisma.ingredientCategoryL2.findMany({
-        where: { code: { in: adjL2Codes } },
-        select: { code: true, parentCode: true },
-      })
-    : [];
-  const adjParentByL2 = new Map(adjL2CatRows.map((c) => [c.code, c.parentCode]));
 
   // ---- 应用行级调整：覆盖排程行份数 / 追加手工行，并把 delta 折算进采购毛需求 ----
   const overlay = new Map<string, AdjustmentOverlay>();
@@ -194,7 +181,7 @@ export async function buildProductionPlanData(
     const net = netMap.get(adj.sourceId);
     if (!net) {
       throw new ProductionPlanAssignmentError(
-        `调整的净料/小料（ID ${adj.sourceId}）不存在或已删除`
+        `调整的净料（ID ${adj.sourceId}）不存在或已删除`
       );
     }
     const pkg = net.packageSpec != null ? Number(net.packageSpec) : 0;
@@ -203,8 +190,8 @@ export async function buildProductionPlanData(
         `「${net.name}」缺少封装规格，无法纳入生产计划`
       );
     }
-    // sourceType 与 SelfProductionItem 同口径：二级分类归属 MIN 一级 = 小料，其余 = 净料
-    const sourceType = adjParentByL2.get(net.l2Code ?? "") === "MIN" ? "minor" : "net";
+    // 2026-11-28 起新行 sourceType 恒为 net（小料并入净料）；历史快照中的 minor 行经 base 匹配沿用
+    const sourceType = "net";
     // 基线行按 sourceId 匹配（sourceType 是 sourceId 的派生属性，防止分类变动产生重复行）
     const base = [...cAgg.values()].find((c) => c.sourceId === adj.sourceId) ?? null;
     const key = (base ? base.sourceType : sourceType) + "-" + adj.sourceId;
@@ -357,7 +344,7 @@ export async function buildProductionPlanData(
       sourceCode: net?.code ?? "",
       itemName: net?.name ?? "",
       l1Name: l1Cat?.name || "其他",
-      l2Name: l2Cat?.name || (net?.l2Code ?? "小料"),
+      l2Name: l2Cat?.name || (net?.l2Code ?? "未分类"),
       packageSpec: pkg,
       requiredQty,
       unit: net?.unit ?? "g",

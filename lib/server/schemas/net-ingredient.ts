@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-// 净料/小料统一口径：均由原料转化而来（来源原料 + 出成率 + 包装规格），价格体系元/斤
+// 净料统一口径（2026-11-28 起小料并入净料）：均由原料转化而来（来源原料 + 出成率 + 包装规格），价格体系元/斤
 export const createNetIngredientSchema = z.object({
   name: z.string().min(1).max(100),
-  // 来源原料：净料/小料必填
+  // 来源原料：必填
   sourceIngredientId: z.number().int().positive(),
-  // 净料/小料包装规格（g），必填：标准规格价格的计算基础
+  // 净料包装规格（g），必填：标准规格价格的计算基础
   packageSpec: z.number().int().min(1).max(1000000),
   // 包装物料，如 密封袋
   packageMaterial: z.string().trim().max(100).nullish(),
@@ -37,7 +37,6 @@ export const netIngredientQuerySchema = z.object({
   sourceIngredientId: z.coerce.number().int().positive().optional(),
   l1Code: z.string().optional(),
   l2Code: z.string().optional(),
-  excludeMinor: z.coerce.boolean().optional(),
   q: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),

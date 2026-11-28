@@ -2,8 +2,8 @@ import { z } from "zod";
 
 // 完成生产确认（生产计划单）：逐行三态（完成 / 未完成 / 暂不确认）
 export const completePlanItemSchema = z.object({
-  // 行定位键：sourceType:sourceId（cuttingJson 行）
-  sourceKey: z.string().regex(/^(net|minor):\d+$/, "sourceKey 格式须为 net:ID 或 minor:ID"),
+  // 行定位键：sourceType:sourceId（cuttingJson 行）；minor 为历史快照值，服务端归一为 net 匹配
+  sourceKey: z.string().regex(/^(net|minor):\d+$/, "sourceKey 格式须为 net:ID"),
   status: z.enum(["completed", "unfinished", "hold"]),
   actualPortions: z.number().min(0).max(100000).optional(),
   remark: z.string().max(200).optional(),
@@ -15,7 +15,8 @@ export const completeProductionPlanSchema = z.object({
 
 // 创建出库单
 export const createOutboundItemSchema = z.object({
-  sourceType: z.enum(["net", "minor"], { message: "出库行类型无效" }),
+  // 小料已并入净料（2026-11-28），出库行仅 net；历史 minor 库存在迁移中已合并
+  sourceType: z.enum(["net"], { message: "出库行类型无效" }),
   sourceId: z
     .number({ message: "出库行 ID 无效" })
     .int({ message: "出库行 ID 无效" })
@@ -118,7 +119,6 @@ export const outboundQuerySchema = z.object({
 export const preppedStockQuerySchema = z.object({
   q: z.string().max(100).optional(),
   l1: z.string().max(50).optional(),
-  type: z.enum(["net", "minor"]).optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(20),
 });

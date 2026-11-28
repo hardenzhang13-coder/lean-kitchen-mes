@@ -8,7 +8,7 @@ export type StockChangeType = "stock_in" | "stock_out" | "stock_rollback";
 export type StockBizType = "production_complete" | "outbound" | "outbound_void";
 
 export interface StockChangeItem {
-  sourceType: string; // net / minor
+  sourceType: string; // net；minor 为历史值（小料已并入净料），入口归一为 net
   sourceId: number;
   itemCode?: string | null;
   itemName: string;
@@ -46,6 +46,10 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
   const qtyG = round2(item.qtyG);
   if (!(portions > 0) || !(qtyG > 0)) throw new Error(`净菜 ${item.itemName} 变动量必须为正数`);
 
+  // 小料已并入净料（2026-11-28）：历史计划快照/出库单中的 minor 一律归一到 net 库存键，
+  // 防止完成生产或作废回滚重建已合并删除的 minor 库存行
+  const sourceType = item.sourceType === "minor" ? "net" : item.sourceType;
+
   let balancePortions: number;
   let balanceQty: number;
 
@@ -56,7 +60,7 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
       const batchUpdated = await ctx.tx.preppedStockBatch.updateMany({
         where: {
           productionPlanId: batchPlanId,
-          sourceType: item.sourceType,
+          sourceType: sourceType,
           sourceId: item.sourceId,
           currentPortions: { gte: portions },
           currentQty: { gte: qtyG },
@@ -72,7 +76,7 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
     }
 
     const updated = await ctx.tx.preppedStock.updateMany({
-      where: { sourceType: item.sourceType, sourceId: item.sourceId, currentPortions: { gte: portions } },
+      where: { sourceType: sourceType, sourceId: item.sourceId, currentPortions: { gte: portions } },
       data: {
         currentPortions: { decrement: portions },
         currentQty: { decrement: qtyG },
@@ -82,7 +86,7 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
       throw new Error(`净菜 ${item.itemName} 库存份数不足（需出库 ${portions} 份），库存已变化请刷新`);
     }
     const row = await ctx.tx.preppedStock.findUnique({
-      where: { sourceType_sourceId: { sourceType: item.sourceType, sourceId: item.sourceId } },
+      where: { sourceType_sourceId: { sourceType: sourceType, sourceId: item.sourceId } },
       select: { currentPortions: true, currentQty: true },
     });
     balancePortions = round2(Number(row?.currentPortions ?? 0));
@@ -92,7 +96,7 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
       const batchUpdated = await ctx.tx.preppedStockBatch.updateMany({
         where: {
           productionPlanId: batchPlanId,
-          sourceType: item.sourceType,
+          sourceType: sourceType,
           sourceId: item.sourceId,
         },
         data: {
@@ -106,9 +110,9 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
     }
 
     const row = await ctx.tx.preppedStock.upsert({
-      where: { sourceType_sourceId: { sourceType: item.sourceType, sourceId: item.sourceId } },
+      where: { sourceType_sourceId: { sourceType: sourceType, sourceId: item.sourceId } },
       create: {
-        sourceType: item.sourceType,
+        sourceType: sourceType,
         sourceId: item.sourceId,
         currentPortions: portions,
         currentQty: qtyG,
@@ -122,9 +126,9 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
     balanceQty = round2(Number(row.currentQty));
   } else {
     const row = await ctx.tx.preppedStock.upsert({
-      where: { sourceType_sourceId: { sourceType: item.sourceType, sourceId: item.sourceId } },
+      where: { sourceType_sourceId: { sourceType: sourceType, sourceId: item.sourceId } },
       create: {
-        sourceType: item.sourceType,
+        sourceType: sourceType,
         sourceId: item.sourceId,
         currentPortions: portions,
         currentQty: qtyG,
@@ -143,13 +147,13 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
         where: {
           productionPlanId_sourceType_sourceId: {
             productionPlanId: batchPlanId,
-            sourceType: item.sourceType,
+            sourceType: sourceType,
             sourceId: item.sourceId,
           },
         },
         create: {
           productionPlanId: batchPlanId,
-          sourceType: item.sourceType,
+          sourceType: sourceType,
           sourceId: item.sourceId,
           packageSpec: item.batchPackageSpec ?? null,
           plannedPortions: planned,
@@ -168,7 +172,7 @@ export async function applyStockChange(ctx: StockChangeContext, item: StockChang
 
   await ctx.tx.preppedStockLedger.create({
     data: {
-      sourceType: item.sourceType,
+      sourceType: sourceType,
       sourceId: item.sourceId,
       changeType: ctx.changeType,
       changePortions: portions,

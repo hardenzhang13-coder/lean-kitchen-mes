@@ -42,26 +42,6 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           },
         },
       },
-      minorDetails: {
-        include: {
-          // 与主料/辅料同口径：附封装规格与加工费，供 serializeNetIngredient 计算价格体系
-          netIngredient: {
-            select: {
-              id: true,
-              code: true,
-              name: true,
-              unitPrice: true,
-              yieldRate: true,
-              processingFeePerJin: true,
-              grossMarginRate: true,
-              packageSpec: true,
-              portion: true,
-              unit: true,
-              sourceIngredient: { select: { pricePerJin: true } },
-            },
-          },
-        },
-      },
       seasoningDetails: {
         include: {
           // 新口径行：调料产物（单品调料/复合调料/成品酱料同构），价格体系随档案实时派生
@@ -140,8 +120,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
           },
         })
       : [];
-  const mainCount = row.netDetails.filter((d) => d.role === "main").length;
-  const supportCount = row.netDetails.filter((d) => d.role === "support").length;
+  // 小料行物理落 dish_net_details（role='minor'），响应按契约拆出 minorDetails 逻辑视图
+  const netRows = row.netDetails.filter((d) => d.role !== "minor");
+  const minorRows = row.netDetails.filter((d) => d.role === "minor");
+  const mainCount = netRows.filter((d) => d.role === "main").length;
+  const supportCount = netRows.filter((d) => d.role === "support").length;
   const enriched = {
     ...row,
     cost: currentCost.total,
@@ -159,7 +142,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     bomSummary: {
       main: mainCount,
       support: supportCount,
-      minor: row.minorDetails.length,
+      minor: minorRows.length,
       seasoning: row.seasoningDetails.length,
       sauce: row.sauceDetails.length,
       hasMain: mainCount > 0,
@@ -167,7 +150,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       complete: mainCount > 0 && supportCount > 0,
     },
     // 主料/辅料/小料统一附价格体系（净料单价/成本价/标准规格价），前端展示口径一致
-    netDetails: row.netDetails.map((d) => ({
+    netDetails: netRows.map((d) => ({
       ...d,
       // 净料 BOM 用量以档案封装规格为唯一真源
       amountG: resolveNetBomAmountG(d.amountG, d.netIngredient?.packageSpec),
@@ -175,7 +158,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         ? serializeNetIngredient(d.netIngredient)
         : d.netIngredient,
     })),
-    minorDetails: row.minorDetails.map((d) => ({
+    minorDetails: minorRows.map((d) => ({
       ...d,
       amountG: resolveNetBomAmountG(d.amountG, d.netIngredient?.packageSpec),
       netIngredient: d.netIngredient

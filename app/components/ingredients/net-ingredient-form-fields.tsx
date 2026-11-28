@@ -41,13 +41,13 @@ export interface NetIngredientFormData {
   l1Code: string;
   l2Code: string;
   sourceIngredientId: string;
-  /** 包装规格（g），净料/小料必填 */
+  /** 包装规格（g），净料必填 */
   packageSpec: string;
   /** 包装物料，如 密封袋 */
   packageMaterial: string;
   /** 包装尺寸，如 35cm×30cm */
   packageSize: string;
-  /** 封装加工费（元/斤），留空 = 0；净料/小料使用 */
+  /** 封装加工费（元/斤），留空 = 0 */
   processingFeePerJin: string;
   yieldRate: string;
   /** 净料单价（元/斤）：只读派生，仅保留表单兼容字段 */
@@ -65,7 +65,6 @@ export interface NetIngredientFormFieldsProps {
   rawIngredients: RawIngredientOption[];
   /** 编辑详情时直接传入来源食材当前价格，不依赖分页列表是否包含来源行 */
   sourcePricePerJin?: number | null;
-  mode?: "net" | "minor";
   readOnly?: {
     l1Code?: boolean;
     l2Code?: boolean;
@@ -85,17 +84,13 @@ export function NetIngredientFormFields({
   categories,
   rawIngredients,
   sourcePricePerJin,
-  mode = "net",
   readOnly,
   viewMode = false,
   errors,
   layout = "legacy",
   autoSelectFirst = true,
 }: NetIngredientFormFieldsProps) {
-  const [l2Open, setL2Open] = useState(false);
   const [selectorOpen, setSelectorOpen] = useState(false);
-
-  const isMinor = mode === "minor";
 
   const l1Options = useMemo(
     () => categories.map((c) => ({ value: c.code, label: c.name })),
@@ -113,14 +108,10 @@ export function NetIngredientFormFields({
   );
 
   const l2Options = useMemo(() => {
-    if (isMinor) {
-      const minorL1 = categories.find((c) => c.code === "MIN");
-      return (minorL1?.children || []).map((c) => ({ value: c.code, label: c.name }));
-    }
     if (!form.l1Code) return [];
     const l1 = categories.find((c) => c.code === form.l1Code);
     return (l1?.children || []).map((c) => ({ value: c.code, label: c.name }));
-  }, [form.l1Code, categories, isMinor]);
+  }, [form.l1Code, categories]);
 
   const selectedL1 = l1Options.find((o) => o.value === form.l1Code);
   const selectedL2 = l2Options.find((o) => o.value === form.l2Code);
@@ -149,7 +140,7 @@ export function NetIngredientFormFields({
   // 净料编辑：分类与来源锁定（分类继承自来源食材）
   const sourceLocked = readOnly?.l1Code && readOnly?.l2Code && readOnly?.sourceIngredientId;
 
-  // 价格体系实时计算（净料/小料同口径）：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 包装规格 ÷ 500
+  // 价格体系实时计算：成本价 = 净料单价 + 封装加工费；出库价 = 成本价 ÷ (1 - 毛利率/100)；标准规格价格 = 出库价 × 包装规格 ÷ 500
   const costPricePerJin = useMemo(
     () =>
       calcCostPricePerJin(
@@ -182,11 +173,6 @@ export function NetIngredientFormFields({
     l2Code: string;
     ingredientId: string;
   }) => {
-    if (isMinor) {
-      // 小料的二级分类固定为 MIN 子树，仅取来源食材
-      onChange("sourceIngredientId", value.ingredientId);
-      return;
-    }
     onChange("l1Code", value.l1Code);
     onChange("l2Code", value.l2Code);
     onChange("sourceIngredientId", value.ingredientId);
@@ -306,7 +292,7 @@ export function NetIngredientFormFields({
           </FormField>
 
           <FormField
-            label={isMinor ? "小料单价（元/斤）" : "净料单价（元/斤）"}
+            label="净料单价（元/斤）"
             readOnly={viewMode}
             optionalHint={false}
             error={errors?.unitPrice}
@@ -448,11 +434,11 @@ export function NetIngredientFormFields({
     return (
       <div className="space-y-4">
         <FormSection
-          cols={isMinor ? 2 : 1}
+          cols={1}
           className="p-4 sm:p-4 [&>div:last-child]:gap-3"
         >
           <FormField
-            label={isMinor ? "小料名称" : "净料名称"}
+            label="净料名称"
             required
             readOnly={viewMode}
             error={errors?.name}
@@ -468,30 +454,6 @@ export function NetIngredientFormFields({
               />
             )}
           </FormField>
-          {isMinor && (
-            <FormField
-              label="二级分类"
-              required
-              readOnly={viewMode}
-              error={errors?.l2Code}
-            >
-              {viewMode ? (
-                <ReadOnlyValue value={selectedL2?.label || null} />
-              ) : (
-                <SelectTileMode
-                  options={l2Options}
-                  value={form.l2Code}
-                  onChange={(value) => onChange("l2Code", value)}
-                  placeholder="请选择"
-                  title="选择二级分类"
-                  open={l2Open}
-                  onOpenChange={setL2Open}
-                  searchable={false}
-                  required
-                />
-              )}
-            </FormField>
-          )}
         </FormSection>
 
         {isSheet ? (
@@ -521,27 +483,22 @@ export function NetIngredientFormFields({
       <div className="space-y-3">
         <div className="relative">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-            {!isMinor && (
-              <>
-                <FormField label="一级分类" readOnly error={sourceLocked ? undefined : errors?.l1Code}>
-                  <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
-                    {selectedL1?.label || "请选择来源食材"}
-                  </div>
-                </FormField>
+            <FormField label="一级分类" readOnly error={sourceLocked ? undefined : errors?.l1Code}>
+              <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
+                {selectedL1?.label || "请选择来源食材"}
+              </div>
+            </FormField>
 
-                <FormField label="二级分类" readOnly error={sourceLocked ? undefined : errors?.l2Code}>
-                  <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
-                    {selectedL2?.label || "请选择来源食材"}
-                  </div>
-                </FormField>
-              </>
-            )}
+            <FormField label="二级分类" readOnly error={sourceLocked ? undefined : errors?.l2Code}>
+              <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
+                {selectedL2?.label || "请选择来源食材"}
+              </div>
+            </FormField>
 
             <FormField
               label="来源食材"
               readOnly
               error={sourceLocked ? undefined : errors?.sourceIngredientId}
-              className={isMinor ? "sm:col-span-3" : undefined}
             >
               <div className="h-11 flex items-center px-4 rounded-md border border-dashed border-muted-foreground/30 bg-muted/50 text-muted-foreground">
                 {selectedSource?.name || "请选择来源食材"}
@@ -553,10 +510,8 @@ export function NetIngredientFormFields({
               type="button"
               onClick={() => {
                 onChange("sourceIngredientId", "");
-                if (!isMinor) {
-                  onChange("l1Code", "");
-                  onChange("l2Code", "");
-                }
+                onChange("l1Code", "");
+                onChange("l2Code", "");
               }}
               className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full border border-muted-foreground/30 bg-background text-muted-foreground hover:text-foreground hover:border-foreground/30 shadow-sm"
               aria-label="清空来源食材"
@@ -575,47 +530,15 @@ export function NetIngredientFormFields({
         {renderSourceInfo()}
       </FormSection>
 
-      {isMinor && (
-        <FormSection title="分类信息" cols={1}>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-            <FormField label="一级分类" readOnly>
-              <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
-                小料
-              </div>
-            </FormField>
-
-            <FormField label="二级分类" required error={errors?.l2Code}>
-              {viewMode ? (
-                <div className="h-11 flex items-center px-4 rounded-md bg-muted text-foreground">
-                  {selectedL2?.label || "—"}
-                </div>
-              ) : (
-                <SelectTileMode
-                  options={l2Options}
-                  value={form.l2Code}
-                  onChange={(v) => onChange("l2Code", v)}
-                  placeholder="请选择"
-                  title="选择二级分类"
-                  searchable={false}
-                  required
-                  open={l2Open}
-                  onOpenChange={setL2Open}
-                />
-              )}
-            </FormField>
-          </div>
-        </FormSection>
-      )}
-
       <FormSection
-        title={isMinor ? "小料信息" : "净料信息"}
+        title="净料信息"
         cols={2}
       >
-        <FormField label={isMinor ? "小料名称" : "净料名称"} required error={errors?.name}>
+        <FormField label="净料名称" required error={errors?.name}>
           <Input
             value={form.name}
             onChange={(e) => onChange("name", e.target.value)}
-            placeholder={isMinor ? "如 蒜末" : "如 平包菜•称重•500g"}
+            placeholder="如 平包菜•称重•500g"
             className="h-11 text-base px-4"
             disabled={viewMode}
           />
@@ -697,7 +620,7 @@ export function NetIngredientFormFields({
         </FormField>
 
         <FormField
-          label={isMinor ? "小料单价（元/斤）" : "净料单价（元/斤）"}
+          label="净料单价（元/斤）"
           optionalHint={false}
           error={errors?.unitPrice}
           hint="根据来源食材当前每斤单价和出成率自动计算"

@@ -1,12 +1,12 @@
 // 净菜库存（prepped stock）共享类型与纯函数（前端/后端共用）。
 // 业务口径见 memory-bank/v002-净菜库存管理-方案.md：
-// - 库存对象 = 净菜（食材库净料 net + 小料 minor，同表 net_ingredients，sourceType 区分）
+// - 库存对象 = 净菜（净料 net；小料 2026-11-28 起并入净料，历史快照/流水可能仍带 minor）
 // - 按份出入库：份为记账主单位，g 按当时封装规格换算同步累加
 // - 生产计划单 cuttingJson 行在完成生产确认时演进 confirmStatus / actualPortions / remark
 
 /** 生产计划单 cuttingJson 行（AggregatedCutting + 完成确认态） */
 export interface PlanCuttingRow {
-  sourceType: string; // net / minor
+  sourceType: string; // net；minor 为历史快照值（小料已并入净料，仅历史计划行可能出现）
   sourceId: number;
   sourceCode: string;
   itemName: string;

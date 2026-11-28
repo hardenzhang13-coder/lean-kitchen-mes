@@ -385,10 +385,10 @@ function MaterialKit() {
           onChange={setSegment}
           options={[
             { value: "all", label: "全部" },
-            { value: "net", label: "净料" },
-            { value: "minor", label: "小料" },
+            { value: "pending", label: "待生效" },
+            { value: "active", label: "进行中" },
           ]}
-          ariaLabel="净菜类型"
+          ariaLabel="状态筛选"
         />
       </section>
 

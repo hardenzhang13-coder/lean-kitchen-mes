@@ -260,7 +260,6 @@ export default function RawIngredientDetailPage() {
         open={convertDialogOpen}
         onOpenChange={setConvertDialogOpen}
         mode="convert"
-        allowTargetChoice
         sourceIngredientId={ingredient.id}
         sourceIngredientName={ingredient.name}
         categories={categories}

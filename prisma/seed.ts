@@ -54,7 +54,6 @@ async function main() {
     { code: "BEA", name: "豆制品" },
     { code: "PRC", name: "加工制品" },
     { code: "GRA", name: "米面粮油" },
-    { code: "MIN", name: "小料" },
   ];
   await prisma.ingredientCategoryL1.createMany({ data: l1Categories, skipDuplicates: true });
 
@@ -85,11 +84,7 @@ async function main() {
     { code: "GRA-FLO", name: "面", parentCode: "GRA", description: "" },
     { code: "GRA-OIL", name: "油", parentCode: "GRA", description: "" },
     // 调味品独立体系（2026-11-25 升级）：不占食材分类，kind=seasoning 标记，见 ingredients.kind
-    { code: "MIN-GAR", name: "姜蒜类", parentCode: "MIN", description: "" },
-    { code: "MIN-ONI", name: "葱香类", parentCode: "MIN", description: "" },
-    { code: "MIN-PEP", name: "椒香类", parentCode: "MIN", description: "" },
-    { code: "MIN-HER", name: "香料类", parentCode: "MIN", description: "" },
-    { code: "MIN-OTH", name: "其他小料", parentCode: "MIN", description: "" },
+    // 小料一级分类 MIN 已随小料并入净料移除（2026-11-28）
   ];
   await prisma.ingredientCategoryL2.createMany({ data: l2Categories, skipDuplicates: true });
 

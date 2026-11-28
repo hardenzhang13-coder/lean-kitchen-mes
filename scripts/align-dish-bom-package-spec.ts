@@ -40,6 +40,7 @@ function num(value: unknown): number {
 }
 
 async function loadMismatches(): Promise<MismatchRow[]> {
+  // 小料行已并入 dish_net_details（role='minor'），单表查询即可覆盖
   const netRows = await prisma.$queryRaw<MismatchRow[]>`
     SELECT dnd.id AS rowId, dnd.dish_id AS dishId, d.code AS dishCode, d.name AS dishName,
            ni.id AS netId, ni.name AS netName, ni.package_spec AS packageSpec,
@@ -49,28 +50,16 @@ async function loadMismatches(): Promise<MismatchRow[]> {
     JOIN dishes d ON d.id = dnd.dish_id
     WHERE ni.package_spec IS NOT NULL AND ABS(dnd.amount_g - ni.package_spec) > 0.001
   `;
-  const minorRows = await prisma.$queryRaw<MismatchRow[]>`
-    SELECT dmd.id AS rowId, dmd.dish_id AS dishId, d.code AS dishCode, d.name AS dishName,
-           ni.id AS netId, ni.name AS netName, ni.package_spec AS packageSpec,
-           dmd.amount_g AS amountG, 'minor' AS \`table\`
-    FROM dish_minor_details dmd
-    JOIN net_ingredients ni ON ni.id = dmd.net_ing_id
-    JOIN dishes d ON d.id = dmd.dish_id
-    WHERE ni.package_spec IS NOT NULL AND ABS(dmd.amount_g - ni.package_spec) > 0.001
-  `;
-  return [...netRows, ...minorRows];
+  return netRows;
 }
 
 async function captureAudit(mismatches: MismatchRow[]) {
   const dishIds = [...new Set(mismatches.map((row) => row.dishId))];
   const netIds = [...new Set(mismatches.map((row) => row.netId))];
 
-  const [bomNetRows, bomMinorRows, dishCosts, selfItems] = await Promise.all([
+  const [bomNetRows, dishCosts, selfItems] = await Promise.all([
     prisma.dishNetDetail.findMany({
-      where: { id: { in: mismatches.filter((r) => r.table === "net").map((r) => r.rowId) } },
-    }),
-    prisma.dishMinorDetail.findMany({
-      where: { id: { in: mismatches.filter((r) => r.table === "minor").map((r) => r.rowId) } },
+      where: { id: { in: mismatches.map((r) => r.rowId) } },
     }),
     prisma.dish.findMany({
       where: { id: { in: dishIds } },
@@ -130,7 +119,6 @@ async function captureAudit(mismatches: MismatchRow[]) {
     createdAt: new Date().toISOString(),
     mismatches,
     bomNetRows,
-    bomMinorRows,
     dishCosts,
     schedules,
     cuttingOrders,

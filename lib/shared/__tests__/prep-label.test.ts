@@ -100,7 +100,7 @@ describe("prep label helpers", () => {
 
     expect(result.labels).toEqual([]);
     expect(result.skipped.map((item) => item.reason)).toEqual([
-      "净料/小料档案不存在或已停用",
+      "净料档案不存在或已停用",
       "缺少有效包装规格",
     ]);
   });

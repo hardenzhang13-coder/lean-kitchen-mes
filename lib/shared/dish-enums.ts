@@ -72,6 +72,30 @@ export const SEASON_VALUES = ["四季", "春", "夏", "秋", "冬"] as const;
 
 export const SEASON_OPTIONS = toOptions(SEASON_VALUES);
 
+/**
+ * 菜品 BOM 净料行角色（dish_net_details.role，唯一真源）。
+ * 2026-11-28 起小料并入 dish_net_details，以 role="minor" 区分；
+ * 历史中文值（主料/辅料）已由迁移 20261128120000 归一。
+ */
+export const DISH_NET_ROLE_VALUES = ["main", "support", "minor"] as const;
+
+export type DishNetRole = (typeof DISH_NET_ROLE_VALUES)[number];
+
+export const DISH_NET_ROLE_OPTIONS: DishFieldOption[] = [
+  { value: "main", label: "主料" },
+  { value: "support", label: "辅料" },
+  { value: "minor", label: "小料" },
+];
+
+export function isDishNetRole(value: string | null | undefined): value is DishNetRole {
+  return !!value && (DISH_NET_ROLE_VALUES as readonly string[]).includes(value);
+}
+
+/** 取角色标签；空值返回 null，未知值原样返回。 */
+export function getDishNetRoleLabel(value: string | null | undefined): string | null {
+  return getDishFieldLabel(DISH_NET_ROLE_OPTIONS, value);
+}
+
 /** 取枚举标签；非枚举值原样返回，空值返回 null。 */
 export function getDishFieldLabel(
   options: readonly DishFieldOption[],
