@@ -17,6 +17,7 @@ import {
 } from "@/app/components/ui/form-field";
 import { SelectTileMode } from "@/app/components/ui/select-tile-mode";
 import { SelectField } from "@/app/components/ui/select-field";
+import { CategoryCascadeSelect } from "@/app/components/ui/category-cascade-select";
 import {
   IngredientSelectorDialog,
   CategoryL1 as SelectorCategoryL1,
@@ -129,6 +130,17 @@ export function NetIngredientFormFields({
   const selectedL3Name = useMemo(
     () => l3Children.find((c) => c.code === form.l3Code)?.name ?? "",
     [l3Children, form.l3Code]
+  );
+  // 级联选择复用标准三级样式，但一二级由来源食材锁定：过滤树只保留当前一二级
+  const lockedCascadeTree = useMemo(
+    () =>
+      categories
+        .filter((c) => c.code === form.l1Code)
+        .map((c) => ({
+          ...c,
+          children: c.children.filter((l2) => l2.code === form.l2Code),
+        })),
+    [categories, form.l1Code, form.l2Code]
   );
   // Radix Select 不接受空字符串选项值，用哨兵值表示「不限三级」
   const L3_NONE = "__none__";
@@ -458,7 +470,7 @@ export function NetIngredientFormFields({
     return (
       <div className="space-y-4">
         <FormSection
-          cols={1}
+          cols={2}
           className="p-4 sm:p-4 [&>div:last-child]:gap-3"
         >
           <FormField
@@ -488,12 +500,14 @@ export function NetIngredientFormFields({
             {viewMode ? (
               <ReadOnlyValue value={selectedL3Name || null} />
             ) : (
-              <SelectField
-                value={form.l3Code || L3_NONE}
-                onChange={(v) => onChange("l3Code", v === L3_NONE ? "" : v)}
-                options={l3Options}
+              <CategoryCascadeSelect
+                categories={lockedCascadeTree}
+                l1Code={form.l1Code}
+                l2Code={form.l2Code}
+                l3Code={form.l3Code}
+                onChange={(_l1, _l2, l3) => onChange("l3Code", l3)}
                 placeholder={form.l2Code ? "不限三级" : "选择来源食材后可设置"}
-                disabled={!form.l2Code || l3Children.length === 0}
+                disabled={!form.l2Code}
               />
             )}
           </FormField>

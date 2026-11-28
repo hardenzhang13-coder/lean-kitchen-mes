@@ -40,6 +40,8 @@ interface CategoryCascadeSelectProps {
   className?: string;
   /** 弹窗标题，默认「选择食材分类」；调味品域传「选择调味品分类」 */
   dialogTitle?: string;
+  /** 禁用触发器（如净料转化未选来源食材时） */
+  disabled?: boolean;
 }
 
 /**
@@ -57,6 +59,7 @@ export function CategoryCascadeSelect({
   placeholder = "请选择",
   className,
   dialogTitle = "选择食材分类",
+  disabled = false,
 }: CategoryCascadeSelectProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState({ l1: "", l2: "", l3: "" });
@@ -110,6 +113,7 @@ export function CategoryCascadeSelect({
         placeholder={placeholder}
         className={className}
         open={open}
+        disabled={disabled}
         onClick={() => {
           // 打开时以已提交值为草稿起点，取消不改动表单值
           setDraft({ l1: l1Code, l2: l2Code, l3: l3Code });

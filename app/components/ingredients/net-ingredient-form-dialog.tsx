@@ -513,7 +513,7 @@ export function NetIngredientFormDialog({
 
   const dialogTitle = useMemo(() => {
     if (title) return title;
-    if (isConvert) return "转化食材";
+    if (isConvert) return "转净料";
     if (initialData?.id) return "编辑净料";
     return "新增净料";
   }, [title, initialData, isConvert]);
