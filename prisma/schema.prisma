@@ -42,6 +42,8 @@ model IngredientCategoryL1 {
   code        String                 @unique
   name        String
   description String?
+  // 分类域：food=食材分类 / seasoning=调味品分类（2026-11-28 原料分类双域，code 命名空间共享）
+  domain      String                 @default("food") @map("domain") @db.VarChar(10)
   isActive    Boolean                @default(true) @map("is_active")
   // 展示顺序：设置页可调整，越小越靠前
   sortOrder   Int                    @default(0) @map("sort_order")
@@ -51,18 +53,38 @@ model IngredientCategoryL1 {
 }
 
 model IngredientCategoryL2 {
+  id          Int                    @id @default(autoincrement())
+  code        String                 @unique
+  name        String
+  parentCode  String                 @map("parent_code")
+  description String?
+  // 分类域：随父级 L1（冗余存储便于按域过滤）
+  domain      String                 @default("food") @map("domain") @db.VarChar(10)
+  isActive    Boolean                @default(true) @map("is_active")
+  // 展示顺序：设置页可调整（同父级内排序），越小越靠前
+  sortOrder   Int                    @default(0) @map("sort_order")
+  parent      IngredientCategoryL1   @relation(fields: [parentCode], references: [code], onDelete: Cascade)
+  children    IngredientCategoryL3[]
+
+  @@index([parentCode, sortOrder])
+  @@map("ingredient_categories_l2")
+}
+
+model IngredientCategoryL3 {
   id          Int                  @id @default(autoincrement())
   code        String               @unique
   name        String
   parentCode  String               @map("parent_code")
   description String?
+  // 分类域：随父级 L2（冗余存储便于按域过滤）
+  domain      String               @default("food") @map("domain") @db.VarChar(10)
   isActive    Boolean              @default(true) @map("is_active")
   // 展示顺序：设置页可调整（同父级内排序），越小越靠前
   sortOrder   Int                  @default(0) @map("sort_order")
-  parent      IngredientCategoryL1 @relation(fields: [parentCode], references: [code], onDelete: Cascade)
+  parent      IngredientCategoryL2 @relation(fields: [parentCode], references: [code], onDelete: Cascade)
 
   @@index([parentCode, sortOrder])
-  @@map("ingredient_categories_l2")
+  @@map("ingredient_categories_l3")
 }
 
 model Unit {
@@ -99,8 +121,10 @@ model Ingredient {
   kind           String                @default("food") @map("kind") @db.VarChar(20)
   // 调味品类型（仅 kind=seasoning）：单品调料/复合调料/成品酱料；转化产物继承此类型归档
   seasoningType  String?               @map("seasoning_type") @db.VarChar(20)
-  // 一二级分类（食材必填；调味品独立，不挂分类置空）
+  // 一二级分类（食材必填一二级；三级可选；调味品独立，不挂分类置空）
   l2Code         String?               @map("l2_code")
+  // 三级分类（可选，不做强限制；须为其 l2Code 的子级）
+  l3Code         String?               @map("l3_code")
   purchaseSpec   String?               @map("purchase_spec")
   purchaseUnit   String?               @map("purchase_unit")
   stockUnit      String?               @map("stock_unit")
@@ -152,6 +176,8 @@ model NetIngredient {
   // 计量单位：统一 g（历史小料曾用 10g，已废弃）
   unit               String            @default("g") @map("unit")
   l2Code             String            @map("l2_code")
+  // 三级分类（可选，不做强限制；须为其 l2Code 的子级）
+  l3Code             String?           @map("l3_code")
   storage            String            @default("冷藏") @map("storage")
   createdAt          DateTime          @default(now()) @map("created_at")
   updatedAt          DateTime          @updatedAt @map("updated_at")
