@@ -32,7 +32,7 @@ Ingredient（原料，kind=food）
                  └── DishNetDetail（主料/辅料/小料，role 区分 main/support/minor；
                      2026-11-28 小料并入净料，dish_minor_details 表已删除，迁移 20261128120000）
 
-Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类，SEA 分类树已移除；seasoning_type 归档单品调料/复合调料/成品酱料）
+Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类；2026-11-28 起可挂调味品域分类（domain=seasoning 的 L2/L3，复用 l2_code/l3_code 列，可空）；seasoning_type 归档单品调料/复合调料/成品酱料）
    │
    └── SeasoningProduct（调料产物，物理表 standard_seasonings；StandardSeasoning 已改名）
           │
@@ -57,9 +57,12 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 |------|------|
 | `IngredientCategoryL1` | 一级分类，`description` 可填；`isActive` 停用后业务端树形接口不再返回（无启用二级分类的一级分类也一并隐藏） |
 | `IngredientCategoryL2` | 二级分类，编号约定 `L1前缀-后缀`（如 `VEG-LEF`）；`parentCode` 外键关联 L1.code（级联删除）；`isActive` 同 L1 |
+| `IngredientCategoryL3` | 三级分类（2026-11-28，迁移 20261128140000），编号约定 `L2前缀-后缀`；`parentCode` 外键关联 L2.code（级联删除）；**可选层不做强限制** |
 
-- 业务表中的 `l2Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查，被引用时禁止并引导停用。
-- 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类。
+- 三张分类表均带 `domain` 列（`food` / `seasoning`，2026-11-28）：食材分类与调味品分类共用三表、code 命名空间共享（调味品用 SEA 前缀系列）；L2/L3 创建强制继承父级 domain。
+- 业务表中的 `l2Code` / `l3Code` 均为**字符串引用（非外键）**：删除/改编号分类前必须经 `lib/server/category-references.ts` 引用检查（L2/L1 删除会汇总其下三级子级引用），被引用时禁止并引导停用。
+- 归属校验唯一真源 `lib/server/category-validate.ts` 的 `validateCategoryAssignment(l2Code, l3Code, domain)`：三级非空必须有二级、分类存在且 domain 匹配、三级须为所选二级子级；食材按 food 域、调味品按 seasoning 域校验。
+- 设置页查全量传 `?includeInactive=1`，业务端默认只返回启用中的分类；分类树按 `?domain=` 过滤（默认 food）。
 
 ### 包装字典
 

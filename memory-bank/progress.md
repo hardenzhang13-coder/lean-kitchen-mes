@@ -3,6 +3,36 @@
 > 按日期记录核心推进过程，包括技术决策、问题解决、功能交付。
 
 
+## 2026-11-28 — 原料库分类体系统一升级（去小料 + 三级分类 + 原料分类双域）
+
+浩哥拍板三件事，按三线严格串行落地（每线 = 一次迁移 + 语义提交组 + 完整门禁）：
+
+### 1. 线一：小料实体清除（迁移 20261128120000_merge_minor_into_net）
+- 小料不再是独立实体：`dish_minor_details` 表 DROP（防御性 INSERT 并入 `dish_net_details role='minor'`，生产应为 0 行）；MIN 一级分类及其 5 个二级删除；`PreppedStock` 同 sourceId 双行防御性合并后 source_type 归一 'net'（历史流水 sourceType 保留不改）。
+- 菜品 BOM **保留「小料」角色标签**：`DishNetDetail.role` 扩 main/support/minor；**API 契约保持 `minorDetails` 字段名不变**，服务端读写映射到 role=minor 行，dish-form 前端零改动。
+- `lib/server/category-helpers.ts`（MIN 判定唯一源）整文件删除；排程切配/采购汇总、生产计划、库存、出库全链路去 minor 分支。
+- 提交：75e4d31（schema+api+ui+test）+ fadb21f（docs 回写小料并入口径）。
+
+### 2. 线二：三级分类 + domain 列（迁移 20261128140000_category_l3_domain）
+- 新表 `IngredientCategoryL3`（同构 L2）；L1/L2/L3 三表加 `domain` 列（food/seasoning，存量全 food）；`Ingredient`/`NetIngredient` 加 `l3_code` 可空列。
+- 口径：食材一二级必填、**三级可选不做强限制**；净料转化继承来源食材三级可改；kind 切换清空分类、二级变更清空三级；食材改二级同事务级联净料并清空净料三级。
+- 归属校验唯一真源 `lib/server/category-validate.ts` 的 `validateCategoryAssignment()`；引用保护 `category-references.ts` 升三级（L2/L1 删除汇总三级子级引用）。
+- 选择器：`CategoryCascadeSelect` 三级转正（三栏 + 列标题 +「不限三级」磁贴 + 空态，demo 经浩哥验收）；净料表单三级用 SelectField 轻量接入（轻量选择一律 SelectField 的既定反馈）。
+- 提交：4cad165（schema）/ cf23f96（api）/ 8c546fe（ui）/ 973d2be（test）。
+
+### 3. 线三：原料分类设置页 + 调味品分类接入
+- 设置「食材分类」升级「原料分类」（href 不变）：顶部食材/调味品双域页签（SectionTabs），伪树表格升三级，行操作补「添加三级」，新建一级按当前页签写 domain。
+- 调味品可挂调味品域分类（复用 `l2_code/l3_code`，可空）：表单加级联选择、清单加分类列 + CategoryFilter 筛选、页面分类数据改拉 `domain=seasoning`。
+- seed 补 SEA 示例树（香辛料/酱料/油脂，skipDuplicates 不覆盖运营修改）。
+- 提交：61d49db（设置页）/ 9d423d6（调味品接入）/ 13eab1b（seed）/ 8a2cafa（test）。
+
+### 门禁与遗留
+- 三线均过：verify（tsc + ESLint + 全量 Jest 443 用例）+ build + migrate diff 空迁移。
+- **浏览器回归挂起**：等浩哥在预览面板登录后三线合并补做（食材/净料/调味品表单、设置页双域、菜品 BOM 小料组）。
+- **部署前三件套待办**：线一含 DROP TABLE，部署前须生产只读盘点四项全 0（dish_minor_details 行数、MIN 子树净料数、Ingredient.l2Code LIKE 'MIN-%' 数、prepped_stock source_type='minor' 数）；未 push，上线由浩哥定。
+
+---
+
 ## 2026-11-27 — 菜品转化用料错配根治（代码 + 生产数据）
 
 浩哥发现转化菜品的净料/小料用料普遍不对，定位为转化复用逻辑缺陷并双修：

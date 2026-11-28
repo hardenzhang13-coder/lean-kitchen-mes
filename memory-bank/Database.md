@@ -12,6 +12,7 @@
 | | `portion_profiles` | 份量档案 | ✅ 2026-11（迁移 20261123083624） |
 | | `ingredient_categories_l1` | 食材一级分类 | ✅ |
 | | `ingredient_categories_l2` | 食材二级分类 | ✅ |
+| | `ingredient_categories_l3` | 食材三级分类（2026-11-28，可选层） | ✅ |
 | | `units` | 单位字典 | ✅ |
 | | `suppliers` | 供应商 | ✅ |
 | | `stores` | 门店 | ✅ |
@@ -70,8 +71,9 @@
 | id | serial PK | |
 | code | varchar(20) UNIQUE | 如 VEG、MEA |
 | name | varchar(50) | 如 蔬菜、畜肉 |
+| domain | varchar(10) | 分类域（2026-11-28，迁移 20261128140000）：food=食材 / seasoning=调味品；两域共用三表，code 命名空间共享 |
 
-数据：8条（VEG蔬菜 / MEA畜肉 / POU禽蛋 / AQU水产 / DRY干货 / BEA豆制品 / PRC加工制品 / GRA米面粮油）
+数据：8条（VEG蔬菜 / MEA畜肉 / POU禽蛋 / AQU水产 / DRY干货 / BEA豆制品 / PRC加工制品 / GRA米面粮油）+ SEA调味品（domain=seasoning，seed 示例树）
 
 ---
 
@@ -83,11 +85,31 @@
 | code | varchar(20) UNIQUE | 如 VEG-LEF |
 | name | varchar(50) | 如 叶菜 |
 | parent_code | varchar(20) | 关联 l1.code |
+| domain | varchar(10) | 同 L1；创建强制继承父级 domain |
 | description | text | 说明 |
 
-数据：40条，逐条导入现有 JSON。
+数据：40条，逐条导入现有 JSON；另 SEA-SPC 香辛料 / SEA-SAU 酱料 / SEA-OIL 油脂（domain=seasoning，seed 示例）。
 
-- **调味品独立体系（2026-11-25，迁移 `20261125110000_seasoning_module_upgrade` + `20261125173000_seasoning_type_on_ingredient`）**：调味品不挂食材分类体系，落 `ingredients.kind`（food=食材 / seasoning=调味品，边界唯一真源）；调味品行 `l2_code` 置空；单品调料/复合调料/成品酱料落在**调味品档案的 `seasoning_type`**（建档时选择），转化产物按此类型归档（产物只能由「转化」生成，无独立新增入口）。同批迁移移除 SEA 分类树（SEA / SEA-SOL / SEA-LIQ）。历史：`20261124170000_seasoning_type` 曾把三种类型落在 `ingredients.seasoning_type`，当天升级为产物字段，复核后又回归调味品档案
+- **调味品分类（2026-11-28 双域升级）**：调味品可挂独立的调味品分类树（domain=seasoning 的 L2/L3，复用 `ingredients.l2_code/l3_code`，可空不强限制）；设置页「原料分类」统一管理两域。历史：2026-11-25 升级曾移除旧 SEA 食材分类树（SEA / SEA-SOL / SEA-LIQ），调味品行 l2_code 一度恒空
+- **调味品独立体系（2026-11-25，迁移 `20261125110000_seasoning_module_upgrade` + `20261125173000_seasoning_type_on_ingredient`）**：调味品不挂食材分类体系，落 `ingredients.kind`（food=食材 / seasoning=调味品，边界唯一真源）；单品调料/复合调料/成品酱料落在**调味品档案的 `seasoning_type`**（建档时选择），转化产物按此类型归档（产物只能由「转化」生成，无独立新增入口）。历史：`20261124170000_seasoning_type` 曾把三种类型落在 `ingredients.seasoning_type`，当天升级为产物字段，复核后又回归调味品档案
+
+---
+
+### 1.3.1 `ingredient_categories_l3` — 食材三级分类（2026-11-28，迁移 20261128140000）
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | serial PK | |
+| code | varchar(20) UNIQUE | 如 VEG-LEF-SHQ |
+| name | varchar(50) | 如 上海青 |
+| parent_code | varchar(20) | 关联 l2.code（级联删除） |
+| domain | varchar(10) | 同 L1；创建强制继承父级 domain |
+| description | text | 说明 |
+| is_active / sort_order | | 同 L1/L2 |
+
+- **可选层不做强限制**：食材建档一二级必填、三级可选；净料转化可改三级；调味品分类整体可空
+- 业务表 `l3_code` 为字符串弱引用（非外键）；删除/改编号前经 `lib/server/category-references.ts` 引用检查（L2/L1 删除汇总其下三级子级引用）
+- 归属校验唯一真源 `lib/server/category-validate.ts` 的 `validateCategoryAssignment(l2Code, l3Code, domain)`
 
 ---
 
@@ -203,9 +225,10 @@
 | code | varchar(20) UNIQUE | 编号 ING-0001 |
 | name | varchar(100) | 名称，如 带皮五花肉 |
 | alias | varchar(100) | 常用别名 |
-| kind | varchar(20) | 大类边界（2026-11-25，迁移 20261125110000）：food=食材（挂一二级分类）/ seasoning=调味品（独立体系，不挂分类）；**调味品边界唯一真源**，替代旧 SEA 分类判定 |
+| kind | varchar(20) | 大类边界（2026-11-25，迁移 20261125110000）：food=食材（挂食材域分类）/ seasoning=调味品（独立体系，可挂调味品域分类）；**调味品边界唯一真源**，替代旧 SEA 分类判定 |
 | seasoning_type | varchar(20) 可空 | 调味品类型（2026-11-25，迁移 20261125173000）：单品调料 / 复合调料 / 成品酱料，仅 kind=seasoning 使用；转化产物按此类型归档，改类型同事务级联未删除产物 |
-| l2_code | varchar(20) 可空 | 所属二级分类，关联 l2.code；kind=food 必填，kind=seasoning 恒为 NULL |
+| l2_code | varchar(20) 可空 | 所属二级分类，关联 l2.code；kind=food 必填（domain=food），kind=seasoning 可挂 domain=seasoning 分类（可空，2026-11-28 起） |
+| l3_code | varchar(20) 可空 | 所属三级分类，关联 l3.code（2026-11-28，迁移 20261128140000）；可选层不做强限制，须为 l2_code 子级 |
 | 计量单位 | varchar(20) | 库存管理的基准单位，如 斤、瓶、个 |
 | 计价单位 | varchar(20) | 采购算钱用的单位，如 斤、件、板 |
 | 采购规格 | varchar(100) | 市场包装形式，如 散称、1.9L*6、30个/板 |
@@ -239,6 +262,7 @@
 | portion | varchar(50) | 份量（小碗菜 / 社区口径），与菜品份量共用同一套枚举；新建必填、存量留空（2026-11-15 新增，迁移 20261115100000） |
 | unit | varchar(20) | 计量单位，统一 g |
 | l2_code | varchar(20) | 所属二级分类，关联 l2.code |
+| l3_code | varchar(20) 可空 | 所属三级分类，关联 l3.code（2026-11-28，迁移 20261128140000）；转化时默认继承来源食材，可改可空 |
 | storage | varchar(10) | 储存方式：冷藏、常温、冷冻 |
 
 **价格体系**（计算字段不落库，唯一真源 lib/shared/net-price.ts，2026-11-04 会议定稿）：
