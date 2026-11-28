@@ -165,6 +165,7 @@ export function IngredientFormFields({
                   onChange("l3Code", l3);
                 }}
                 viewMode={viewMode}
+                dialogTitle={isSeasoning ? "选择调味品分类" : undefined}
               />
             </FormField>
 
