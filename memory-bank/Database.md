@@ -18,11 +18,11 @@
 | | `net_packagings` | 净菜包装字典 | ✅ |
 | **食材库** | `ingredients` | 原料表 | ✅ |
 | | `net_ingredients` | 净料表 | ✅ |
-| | `minor_ingredients` | 小料表 | ✅ |
+| | ~~`minor_ingredients`~~ | 小料表（已废弃；2026-11-28 小料并入净料，MIN 分类删除） | ❌ |
 | | `seasoning_ingredients` | 调料表 | ✅ |
 | | `sauce_ingredients` | 酱料表 | ✅ |
 | **菜品档案** | `dishes` | 菜品主表 | ✅ |
-| | `dish_net_details` | 菜品净料明细（主料+辅料） | ✅ |
+| | `dish_net_details` | 菜品净料明细（主料+辅料+小料，role=main/support/minor） | ✅ |
 | | `dish_seasoning_details` | 菜品小料调料明细 | ✅ |
 | | `dish_sauce_details` | 菜品酱料明细 | ✅ |
 | | `dish_processes` | 加工流程 | ✅ |
@@ -256,10 +256,10 @@
 
 ### 2.3 `minor_ingredients` — 小料表
 
-> **已废弃（2026-11-03）**：小料不再独立建表，统一存储于 `net_ingredients`（l2Code 归属 MIN 一级分类的子分类），
-> 与净料完全同口径——由原料转化（sourceIngredientId + yieldRate + packageSpec + processingFeePerJin），
-> 价格体系同净料（成本价 → 出库价 → 标准规格价，含 grossMarginRate），单位 g。存量「直接录入」小料已通过迁移 `20261103123018_clear_legacy_minors`
-> 连同菜品 BOM 引用一并清空。以下字段说明仅作历史存档。
+> **已废弃（2026-11-03）**：小料不再独立建表，统一存储于 `net_ingredients`。
+> **2026-11-28 起小料实体彻底移除**：MIN 一级分类删除，`dish_minor_details` 表随迁移 `20261128120000_merge_minor_into_net` DROP，
+> 菜品 BOM 小料行并入 `dish_net_details`（`role='minor'`，仅作角色标签）；库存/切配的 minor sourceType 归一为 net。
+> 以下字段说明仅作历史存档。
 
 用量极小、起增香/去腥/提味作用的食材。备货制管理。编号从 SML-0001 起。
 

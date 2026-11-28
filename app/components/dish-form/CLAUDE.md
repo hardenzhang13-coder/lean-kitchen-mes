@@ -26,7 +26,7 @@ type BomType = "main" | "support" | "minor" | "seasoning" | "sauce";
 
 - `main` — 主料（对应 `DishNetDetail.role === "main"`）
 - `support` — 辅料（对应 `DishNetDetail.role === "support"`）
-- `minor` — 小料（对应 `DishMinorDetail`）
+- `minor` — 小料（对应 `DishNetDetail.role === "minor"`；2026-11-28 小料并入净料，`DishMinorDetail` 表已删除，API 契约保留 `minorDetails` 字段名）
 - `seasoning` — 调料（对应 `DishSeasoningDetail.type === "seasoning"`）
 - `sauce` — 酱料（对应 `DishSauceDetail`）
 
@@ -85,7 +85,7 @@ BOM 必填：主料至少 1 项。辅料、小料、调料和酱料不强制。
 
 `handleLoadItems` 根据 BOM 类型调用不同 API：
 
-- `main` / `support` / `minor` → `/api/net-ingredients?excludeMinor=true（可选）`
+- `main` / `support` / `minor` → `/api/net-ingredients`（小料已从全部净料中选，不再按分类过滤）
 - `seasoning` → `/api/seasoning-products?...`（调料产物，单品/复合/成品混合列表；经 `normalizeSeasoningProducts` 统一成 `IngredientOption`，costPrice = 产物出库价）
 - `sauce` → 已下线（酱料机制业务剥离，不再提供选择入口；存量行只读渲染）
 

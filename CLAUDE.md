@@ -72,16 +72,16 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 ```
 
 - **原料（Ingredient）**：从供应商处采购的原始货物（如整只鸡）。`kind` 区分食材（food）与调味品（seasoning）——调味品是独立原材料层，**不挂食材一二级分类**（SEA 分类树已随 2026-11-25 升级移除），采购与 AI 识别走这层；调味品的 `seasoningType`（单品调料/复合调料/成品酱料）在建档时选择，是产物归档的唯一类型来源
-- **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料与净料同表同口径**（l2Code 归属 MIN 一级分类），同样由原料转化而来
+- **净料（NetIngredient）**：经过初加工/预处理的食材，带有 `yieldRate`（如去骨鸡肉出成率 65%）。**小料已并入净料**（2026-11-28，无独立实体/清单；MIN 一级分类已删除），同样由原料转化而来
 - **净料价格体系**（唯一真源 `lib/server/net-ingredient-utils.ts` 的 `deriveNetIngredientPrices()`）：净料单价 = 原料每斤单价 ÷ (出成率/100) → 成本价 = 净料单价 + 封装加工费 → 出库价 = 成本价 ÷ (1 − 毛利率/100) → 标准规格价（元/份）= 出库价 × 封装规格 ÷ 500。净料单价**强制由来源原料实时价格派生**，服务端忽略客户端传入的 `unitPrice`
 - **`package_spec`（封装规格，单位 g）** 是「按份」换算的物理基准（一个标准包装装多少克）。缺失会导致：完成生产抛错整单回滚、出库金额算成 0、标签张数为 0、标准规格价显示「—」。补齐方案见 `docs/production-data-package-spec-plan.md`
-- **净料/小料 BOM 用量 = 档案封装规格**：`DishNetDetail.amountG` / `DishMinorDetail.amountG` 只是缓存，唯一真源是 `NetIngredient.packageSpec`。修改净料/小料规格时，服务端在同一事务内同步 BOM 用量、重算菜品成本，并自动重建待生效/进行中的排程切配、采购计划与生产计划快照；已完成单据、出库单、库存流水保持历史快照。
+- **净料 BOM 用量 = 档案封装规格**：`DishNetDetail.amountG` 只是缓存，唯一真源是 `NetIngredient.packageSpec`。修改净料规格时，服务端在同一事务内同步 BOM 用量、重算菜品成本，并自动重建待生效/进行中的排程切配、采购计划与生产计划快照；已完成单据、出库单、库存流水保持历史快照。
 - **调料产物（SeasoningProduct，物理表 `standard_seasonings`；UI 文案统一「调料」，不用「产物」）**（2026-11-25 升级）：单品调料 / 复合调料 / 成品酱料三种**同构**产物（只是叫法，无配方），**只能由调味品「转化」生成**（出成率 + 封装规格），产物类型继承来源调味品的 `seasoningType`（快照，改调味品类型会级联）。价格链路唯一真源 `lib/shared/seasoning-spec.ts` 的 `deriveSeasoningProductPrices()`：单价 = 调味品每斤单价 ÷ (出成率/100)，其后与净料完全同构（成本价 → 出库价 → 标准规格价）。**菜品 BOM 选产物、按克计价**（行成本 = 产物出库价 × g ÷ 500）；存量直引原料的 `sourceId` 旧口径行只读保留。酱料配方机制（SauceIngredient 自制 + SauceRecipeDetail）业务剥离：写 API 冻结、页面下线，模型与历史数据只读
-- **菜品（Dish）**：由净料（主料/辅料）、小料（MIN 分类的转化净料）、调料产物（DishSeasoningDetail，specId 指向 SeasoningProduct）、酱料（SauceIngredients，存量只读）及 `DishProcess` 工序组成
+- **菜品（Dish）**：由净料（主料/辅料/小料，`DishNetDetail.role` 区分 main/support/minor——小料仅是 BOM 角色标签，无独立实体）、调料产物（DishSeasoningDetail，specId 指向 SeasoningProduct）、酱料（SauceIngredients，存量只读）及 `DishProcess` 工序组成
 
 **排程 → 生产计划 → 净菜库存** 是当前业务主链路：
 1. 用户创建 `Schedule`，选择日期、门店、菜品及份数
-2. `lib/server/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料/小料；`buildPurchasePlans()` 按出成率折算毛需求生成 `PurchasePlan` 行（**库存抵扣已随 v002 下线，建议采购量 = 毛需求**），两者在同一 `$transaction` 内创建
+2. `lib/server/schedule-utils.ts` 中的 `buildCuttingOrders()` 按类别汇总净料（含小料行）；`buildPurchasePlans()` 按出成率折算毛需求生成 `PurchasePlan` 行（**库存抵扣已随 v002 下线，建议采购量 = 毛需求**），两者在同一 `$transaction` 内创建
 3. `lib/server/production-plan-utils.ts` 把多店排程合并为生产计划单（切配汇总 + 采购汇总），生成时固化来源快照 v2（`stores[] + selfProduction[]`）。**新建/编辑为弹窗两视图**（复用排菜模块 workbench 弹窗，菜单名「切配」，标题「切配计划单」）：视图一选生产日期 + 备注（必填）+ 进行中排程单（可不选，搜索支持门店名 / 单号 / 菜品名）；视图二确认切配量——需求份数只读、计划切配份数可编辑（默认回显需求份数）、库存重点展示（不抵扣），行级 delta 按出成率折算并入原料毛需求后全量重算切配/采购，可右侧抽屉手工追加净菜（`origin: "manual"`）。**编号即简称**：`PPL-年月日-时分`（创建时刻，如 `PPL-20261126-1230`）
 4. 「完成生产」按份逐行三态确认（完成 / 未完成 / 暂不确认），净菜入库（份 + g 双单位）→ 写台账 → 回写各店切配工单实际完成量
 5. 出库单按「门店排程单」扣库存 + 写台账 + 标记是否按计划；作废走事务回滚（作废 ≠ 删除）。**内部生产单页面已下线**（模型与历史数据保留只读，来源出库入口同步关闭）
@@ -95,7 +95,7 @@ memory-bank/          # 项目长期记忆（产品 / 数据 / 路由 / 进度�
 - `PurchaseReimbursement` 将多张采购单归并为报销单进行结算
 
 **库存（v002 净菜库存，已替代旧原料库存）：**
-- `PreppedStock` 追踪每种净料/小料的当前库存，**双单位**（`current_portions` 份为主、`current_qty` 克为辅）
+- `PreppedStock` 追踪每种净料的当前库存（sourceType 恒为 net，历史 minor 已合并），**双单位**（`current_portions` 份为主、`current_qty` 克为辅）
 - `PreppedStockLedger` 为不可篡改的双单位流水（`stock_in` / `stock_out` / `stock_rollback`）
 - 旧表 `Inventory` / `InventoryLedger` 保留但**已停用**，库存变动不再由采购单触发
 - 暂无手动调整 UI；库存变动仅通过「完成生产」与出库单触发
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) { /* ... */ }
 - **列表 API 一律分页**（`page` / `pageSize` + `paginated`）
 
 ### 菜品成本口径
-`lib/server/dish-costing.ts` 的 `getCurrentDishCostMap()` 按**当前**食材价格重算菜品成本（净料/小料按出库价、调料产物行按产物出库价、旧口径调料行按每斤单价、酱料按配方成本 + 毛利率），**不信任 `Dish.cost` 历史快照**。菜品列表、菜品详情、排程详情均已接入。
+`lib/server/dish-costing.ts` 的 `getCurrentDishCostMap()` 按**当前**食材价格重算菜品成本（净料行（含小料）按出库价、调料产物行按产物出库价、旧口径调料行按每斤单价、酱料按配方成本 + 毛利率），**不信任 `Dish.cost` 历史快照**。菜品列表、菜品详情、排程详情均已接入。
 
 ### 客户端组件
 许多页面均为 `"use client"`，通过 `fetch()` 向对应 `/api/*` 端点获取数据，而非使用服务端组件。共享组件位于 `app/components/`。

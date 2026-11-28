@@ -74,7 +74,7 @@ DSH-{categoryCode}-{0001}    // 未分类：DSH-GEN-0001
 
 - 已发布菜品不可删除
 - 被排程引用（`ScheduleItem`）时返回 409，并提示改为停用
-- 删除为物理删除，会级联删除 `DishNetDetail`、`DishMinorDetail`、`DishSeasoningDetail`、`DishSauceDetail`、`DishProcess`
+- 删除为物理删除，会级联删除 `DishNetDetail`（含小料行 role=minor）、`DishSeasoningDetail`、`DishSauceDetail`、`DishProcess`
 
 ## 保存 BOM
 

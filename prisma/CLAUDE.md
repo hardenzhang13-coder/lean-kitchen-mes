@@ -29,8 +29,8 @@ Ingredient（原料，kind=food）
           ├── 价格体系：成本价(元/斤) = 原料每斤单价 ÷ 出成率；出库价 = 成本价 + 加工费；
           │   标准规格价格(元/份) = 出库价 × 封装规格 ÷ 500（纯计算，见 lib/shared/net-price.ts）
           └── Dish（菜品）
-                 ├── DishNetDetail（主料/辅料）
-                 └── DishMinorDetail（小料）
+                 └── DishNetDetail（主料/辅料/小料，role 区分 main/support/minor；
+                     2026-11-28 小料并入净料，dish_minor_details 表已删除，迁移 20261128120000）
 
 Ingredient（调味品，kind=seasoning，2026-11-25 升级：独立原材料层，不挂食材一二级分类，SEA 分类树已移除；seasoning_type 归档单品调料/复合调料/成品酱料）
    │
@@ -65,7 +65,7 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 
 | 模型 | 说明 |
 |------|------|
-| `NetPackaging` | 净菜包装字典（`name` + `size` 唯一）；`sortOrder` 展示顺序（2026-11-24，迁移 20261124120000），设置页可上下移，列表按 `(sort_order, id)` 排序；软删除，被净料/小料引用时禁止改名称/尺寸 |
+| `NetPackaging` | 净菜包装字典（`name` + `size` 唯一）；`sortOrder` 展示顺序（2026-11-24，迁移 20261124120000），设置页可上下移，列表按 `(sort_order, id)` 排序；软删除，被净料引用时禁止改名称/尺寸 |
 
 ### 份量档案
 
@@ -78,7 +78,7 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 
 ### 建档时间（createdAt）
 
-- `Ingredient`（原料 + 调料）、`NetIngredient`（净料 + 小料）、`SauceIngredient`（酱料）三张表都有 `createdAt`，默认 `now()`。
+- `Ingredient`（原料 + 调料）、`NetIngredient`（净料，2026-11-28 起小料并入）、`SauceIngredient`（酱料）三张表都有 `createdAt`，默认 `now()`。
 - 展示口径：只在**详情页顶部（关闭按钮下方）**显示「建档 YYYY-MM-DD HH:mm」，**列表页不展示**。
 - 枚举新加同口径列时：先加可空列 → 存量回填为初始建库日 → 再改为 `NOT NULL DEFAULT CURRENT_TIMESTAMP`，避免存量行拿到假的建档时间。
 
@@ -88,8 +88,7 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 |------|------|
 | `DishCategory` | 菜品分类，编码唯一；`sortOrder` 展示顺序（设置页可上下移，列表按 `(sort_order, id)` 排序）；`isActive` 停用后业务端不再可选（设置页用 `?includeInactive=1` 查全量） |
 | `Dish` | 菜品主表，含 `status`（draft / published / inactive）、`categoryId`（可空，未分类编号用 `DSH-GEN-*`）、自动计算的 `cost`；`portion` 默认「单人份」（2026-11-24 起，迁移 20261124100000） |
-| `DishNetDetail` | 主料/辅料明细，`role` 区分 main/support；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
-| `DishMinorDetail` | 小料明细，关联 `NetIngredient`；`amountG` 同上 |
+| `DishNetDetail` | 主料/辅料/小料明细，`role` 区分 main/support/minor（2026-11-28 起小料并入，原 `DishMinorDetail` 表已删除）；`amountG` 是冗余缓存，必须等于 `NetIngredient.packageSpec` |
 | `DishSeasoningDetail` | 调料明细，`type` 为 seasoning；`spec_id` 关联 `SeasoningProduct`（新口径行，`source_id` 置 0 哨兵）；`source_id` 直引 `Ingredient`（kind=seasoning）为存量旧口径行，只读保留 |
 | `DishSauceDetail` | 酱料明细，关联 `SauceIngredient`；酱料机制业务剥离，存量行只读 |
 | `DishProcess` | 加工工序，按 `stage` + `stepNo` 排序 |
@@ -111,7 +110,7 @@ SauceIngredient / SauceRecipeDetail / DishSauceDetail（酱料配方机制，业
 | `ProductionPlan` | 生产计划单，`cuttingJson` / `purchaseJson` / `sourceScheduleJson` 为生成时快照（v2 含 `selfProduction[]`），`remark` 为新建/编辑备注（可空），软删除 |
 | `ProductionPlanSchedule` | 计划 ↔ 来源门店排程 |
 | `SelfProductionOrder` | 内部生产单（**2026-11 页面已下线，停止新写入**，模型与历史数据保留只读），`status`：待生效 / 进行中 / 已完成；不做软删除 |
-| `SelfProductionItem` | 明细：`sourceType`（net / minor 由二级分类 MIN 服务端派生）、`sourceId` 弱引用 `net_ingredients.id`、`portions` |
+| `SelfProductionItem` | 明细：`sourceType`（net；minor 为历史值——原由二级分类 MIN 派生，小料并入净料后不再产生新值）、`sourceId` 弱引用 `net_ingredients.id`、`portions` |
 | `ProductionPlanSelfOrder` | 计划 ↔ 来源内部生产单（历史关联，停止新写入） |
 
 ### 采购域
