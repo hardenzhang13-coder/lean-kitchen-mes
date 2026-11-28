@@ -164,7 +164,7 @@ describe("转化与新增净料弹窗", () => {
     fireEvent.click(existingButton);
     expect(
       await screen.findByRole("heading", {
-        name: "该食材分类下已录入系统的净料",
+        name: "该食材已转化的净料",
       })
     ).toBeInTheDocument();
     expect(
@@ -187,11 +187,11 @@ describe("转化与新增净料弹窗", () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        expect.stringContaining("l2Code=VEG-LEF")
+        expect.stringContaining("sourceIngredientId=11")
       );
     });
     expect(fetchMock).not.toHaveBeenCalledWith(
-      expect.stringContaining("sourceIngredientId=11")
+      expect.stringContaining("l2Code=VEG-LEF")
     );
 
     fireEvent.pointerDown(
@@ -200,7 +200,7 @@ describe("转化与新增净料弹窗", () => {
     await waitFor(() => {
       expect(
         screen.queryByRole("heading", {
-          name: "该食材分类下已录入系统的净料",
+          name: "该食材已转化的净料",
         })
       ).not.toBeInTheDocument();
     });

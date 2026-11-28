@@ -185,10 +185,6 @@ export function NetIngredientFormDialog({
   );
 
   const selectedSource = getRawIngredient(Number(form.sourceIngredientId));
-  const selectedL1 = findParentL1(form.l2Code);
-  const selectedL2 = selectedL1?.children.find(
-    (category) => category.code === form.l2Code
-  );
   // 转化时头部固定展示来源食材的原分类；下方分类随转化目标变化
   const sourceL1 = findParentL1(selectedSource?.l2Code);
   const sourceL2 = sourceL1?.children.find(
@@ -278,8 +274,8 @@ export function NetIngredientFormDialog({
     if (!open) return;
 
     const seq = ++listRequestSeq.current;
-    const l2Code = form.l2Code;
-    if (!l2Code) {
+    const sourceId = form.sourceIngredientId;
+    if (!sourceId) {
       setRightList([]);
       setListPagination(null);
       setLoadingList(false);
@@ -293,7 +289,7 @@ export function NetIngredientFormDialog({
       setRightList([]);
       setListPagination(null);
       try {
-        const url = `/api/net-ingredients?l2Code=${encodeURIComponent(l2Code)}&page=${listPage}&pageSize=${RIGHT_LIST_PAGE_SIZE}`;
+        const url = `/api/net-ingredients?sourceIngredientId=${encodeURIComponent(sourceId)}&page=${listPage}&pageSize=${RIGHT_LIST_PAGE_SIZE}`;
         const response = await fetch(url);
         if (!response.ok) throw new Error("加载右侧列表失败");
 
@@ -330,7 +326,7 @@ export function NetIngredientFormDialog({
     load();
   }, [
     open,
-    form.l2Code,
+    form.sourceIngredientId,
     listPage,
     listRefreshKey,
   ]);
@@ -572,7 +568,7 @@ export function NetIngredientFormDialog({
         variant="outline"
         size="sm"
         className="h-8 rounded-full px-3 text-xs"
-        disabled={!form.l2Code}
+        disabled={!form.sourceIngredientId}
         onClick={() => setListOpen(true)}
       >
         <PackageOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -638,12 +634,12 @@ export function NetIngredientFormDialog({
       <RecordSheet
         open={listOpen}
         onOpenChange={setListOpen}
-        title="该食材分类下已录入系统的净料"
+        title="该食材已转化的净料"
         meta={
           <span>
-            {selectedL1?.name || ""}
-            {selectedL1?.name && selectedL2?.name ? " · " : ""}
-            {selectedL2?.name || ""}
+            {selectedSource
+              ? `${selectedSource.code} · ${selectedSource.name}`
+              : ""}
           </span>
         }
         footer={
@@ -749,8 +745,8 @@ export function NetIngredientFormDialog({
                 }
               : {
                   icon: PackageOpen,
-                  title: "该分类下暂无净料",
-                  description: "保存后会自动进入当前分类",
+                  title: "该食材暂无已转化的净料",
+                  description: "保存后会自动关联到该食材",
                 }
           }
         />
