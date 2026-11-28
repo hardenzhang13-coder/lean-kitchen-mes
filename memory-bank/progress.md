@@ -28,7 +28,9 @@
 
 ### 门禁与遗留
 - 三线均过：verify（tsc + ESLint + 全量 Jest 443 用例）+ build + migrate diff 空迁移。
-- **浏览器回归挂起**：等浩哥在预览面板登录后三线合并补做（食材/净料/调味品表单、设置页双域、菜品 BOM 小料组）。
+- **浏览器回归已通过**（2026-11-28，三线合并）：设置页双域页签 + 三级树增删、调味品清单分类列与筛选、调味品/食材表单三级级联（含无三级空态直接确定）、净料转化三级 SelectField（无子级禁用）、菜品 BOM 小料组（role=minor 契约不变）、/ui-kit 样张。顺带修级联弹层标题按域区分（1ec10ae）。
+- 回归踩坑：dev server 对 `[id]` 动态路由返回 404 HTML（路由文件存在且 tsc 通过）——Turbopack 持久缓存陈旧，**清 `.next` 重启即恢复**；改 schema 后本就要重启 dev server，遇路由诡异 404 先清缓存。
+- 本地库 MIN 分类仍在（1 个二级有净料引用）：迁移的守卫式 DELETE 按设计跳过，生产部署前只读盘点会兜底。
 - **部署前三件套待办**：线一含 DROP TABLE，部署前须生产只读盘点四项全 0（dish_minor_details 行数、MIN 子树净料数、Ingredient.l2Code LIKE 'MIN-%' 数、prepped_stock source_type='minor' 数）；未 push，上线由浩哥定。
 
 ---
