@@ -288,8 +288,12 @@ export function IngredientDetailSheet({
     (child) => child.code === data?.l3Code
   )?.name;
   const headerCode = data?.code || "";
-  const headerL1 = parentCategory?.name || "";
-  const headerL2 = childCategory?.name || categoryName || "";
+  // 调味品不挂分类树：头部与分类标签一律不展示分类
+  const showCategory = kind !== "seasoning";
+  const headerL1 = showCategory ? parentCategory?.name || "" : "";
+  const headerL2 = showCategory
+    ? childCategory?.name || categoryName || ""
+    : "";
   const headerSource =
     kind === "net"
       ? net?.sourceIngredient?.name || ""
@@ -330,11 +334,15 @@ export function IngredientDetailSheet({
   ) : (
     <>
       <span>{data?.code || "—"}</span>
-      <span>·</span>
-      <CategoryTag
-        l2Code={data?.l2Code}
-        name={categoryName || data?.l2Code || "—"}
-      />
+      {showCategory && (
+        <>
+          <span>·</span>
+          <CategoryTag
+            l2Code={data?.l2Code}
+            name={categoryName || data?.l2Code || "—"}
+          />
+        </>
+      )}
     </>
   );
 
