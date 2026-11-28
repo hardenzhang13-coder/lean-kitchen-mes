@@ -154,6 +154,19 @@ describe("调味品清单", () => {
     ).toBe(true);
   });
 
+  it("调味品清单不展示分类列与分类筛选（归类只走调料分类）", async () => {
+    render(<SeasoningIngredientsPage />);
+
+    await waitFor(() => expect(screen.getByText("生抽")).toBeInTheDocument());
+
+    const headers = screen
+      .getAllByRole("columnheader")
+      .map((cell) => cell.textContent?.trim());
+    expect(headers).toContain("调料分类");
+    expect(headers).not.toContain("分类");
+    expect(screen.queryByLabelText("分类筛选")).not.toBeInTheDocument();
+  });
+
   it.each([
     ["item", "单品调料"],
     ["compound", "复合调料"],
