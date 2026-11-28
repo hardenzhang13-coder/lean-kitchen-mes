@@ -48,6 +48,30 @@
   - 设置页去掉调味品页签，恢复「食材分类」单域（入口卡/页标题/desc 同步改回）；**SEA 分类树数据保留在库**（「先隐藏入口，因为基本不变」），domain 列与 API 的 domain 参数不动，恢复入口时只需加回页签。
   - `IngredientFormDialog.categories` 改可选（调味品模式不传）。
 
+### 2026-11-28 部署前审计（三件套，结论以生产库为准）
+
+待推送 31 个提交，含两个迁移：`20261128120000_merge_minor_into_net`（线一）与 `20261128140000_category_l3_domain`（线二）。
+
+**迁移逐行审计**：线一唯一的破坏点是 `DROP TABLE dish_minor_details`（前置 INSERT 防御性并入 + 回滚说明写在迁移注释）；其余 UPDATE/DELETE 均带 WHERE 或引用守卫。线二纯增量（ADD COLUMN + CREATE TABLE + FK），无数据写入。
+
+**seed 写操作审计**：分类/份量/菜品分类一律 `createMany skipDuplicates`；单位仅在已存在且 `gramsPerUnit` 为空时补齐；门店与包装只在缺失时创建；管理员仅空库创建；**不写 ingredients/dishes/net_ingredients 等业务表**，不覆盖运营修改。
+
+**生产库只读盘点（脚本 `scripts/tmp/prod-audit-minor.sql` / `-2.sql`）**：
+
+| 项 | 值 | 判定 |
+|---|---|---|
+| dish_minor_details 行数 | 0 | ✓ DROP 无数据损失，INSERT 为空操作 |
+| ingredients.l2_code LIKE 'MIN-%' | 0 | ✓ |
+| prepped_stock source_type='minor' | 8 | 迁移归一为 net；8 行库存数全为 0，数值守恒 |
+| prepped_stock_batches source_type='minor' | 17 | 同上；仅 1 组 (plan=10, source=98) 与 net 行并存，合并后 planned/produced 相加守恒 |
+| cutting_orders source_type='minor' | 0 | ✓ |
+| ingredients kind=seasoning 且挂分类 | 0 | ✓ 调味品分类下线无存量挂接 |
+| ingredient_categories_l1 code='MIN' | **无此行** | 生产库已无 MIN 字典 |
+| ingredient_categories_l2 parent_code='MIN' | **无此行** | 同上 |
+| net_ingredients.l2_code LIKE 'MIN-%' | **33** | ⚠ 见下 |
+
+**关键发现（与文档记载不一致，以库为准）**：生产库的「小料」只清理了一半——`dish_minor_details`、菜品 BOM 明细（`dish_net_details` 无行）、MIN 分类字典都已清空，但**33 条小料净料档案仍在**（32 条 `MIN-GAR` 蒜姜类、1 条 `MIN-OTH`），其 `l2_code` 指向**已不存在的分类**（悬空引用），且这些档案无任何 BOM 引用、库存数为 0。迁移的守卫 DELETE 因此无需执行（小料分类本就不存在），部署本身安全；但这 33 条在净料清单里会显示悬空的分类编码，需单独决定改挂（按 `source_ingredient_id → ingredients.l2_code` 自动改挂来源食材分类）或软删除归档。
+
 ---
 
 ## 2026-11-27 — 菜品转化用料错配根治（代码 + 生产数据）
