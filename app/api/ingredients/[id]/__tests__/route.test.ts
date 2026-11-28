@@ -12,6 +12,9 @@ jest.mock("@/lib/server/prisma", () => ({
     ingredientCategoryL2: {
       findUnique: jest.fn(),
     },
+    ingredientCategoryL3: {
+      findUnique: jest.fn(),
+    },
     unit: {
       findMany: jest.fn(),
     },
@@ -26,6 +29,7 @@ jest.mock("@/lib/server/api-auth", () => ({
 const mockedPrisma = prisma as unknown as {
   ingredient: { findFirst: jest.Mock };
   ingredientCategoryL2: { findUnique: jest.Mock };
+  ingredientCategoryL3: { findUnique: jest.Mock };
   unit: { findMany: jest.Mock };
   $transaction: jest.Mock;
 };
@@ -40,6 +44,7 @@ const existing = {
   alias: null,
   kind: "food",
   l2Code: "MEA-POR",
+  l3Code: null,
   purchaseUnit: "斤",
   stockUnit: "斤",
   unitsPerPurchase: 1,
@@ -68,6 +73,7 @@ describe("PUT /api/ingredients/[id]", () => {
   beforeEach(() => {
     mockedPrisma.ingredient.findFirst.mockReset();
     mockedPrisma.ingredientCategoryL2.findUnique.mockReset();
+    mockedPrisma.ingredientCategoryL3.findUnique.mockReset();
     mockedPrisma.unit.findMany.mockReset().mockResolvedValue([]);
     mockedPrisma.$transaction.mockReset().mockImplementation(async (callback) =>
       callback({
@@ -80,22 +86,26 @@ describe("PUT /api/ingredients/[id]", () => {
     mockedLogOperation.mockReset();
     mockedPrisma.ingredient.findFirst.mockResolvedValue(existing);
     mockedPrisma.ingredientCategoryL2.findUnique.mockResolvedValue({
-      code: "VEG-ROOT",
+      domain: "food",
+    });
+    mockedPrisma.ingredientCategoryL3.findUnique.mockResolvedValue({
+      parentCode: "VEG-ROOT",
+      domain: "food",
     });
   });
 
-  it("分类变化时同事务级联更新净料分类", async () => {
+  it("分类变化时同事务级联更新净料分类并清空净料三级", async () => {
     const res = await PUT(createRequest({ l2Code: "VEG-ROOT" }), params());
     expect(res.status).toBe(200);
     expect(mockedIngredientUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 1 },
-        data: expect.objectContaining({ l2Code: "VEG-ROOT" }),
+        data: expect.objectContaining({ l2Code: "VEG-ROOT", l3Code: null }),
       })
     );
     expect(mockedNetUpdateMany).toHaveBeenCalledWith({
       where: { sourceIngredientId: 1, deletedAt: null },
-      data: { l2Code: "VEG-ROOT" },
+      data: { l2Code: "VEG-ROOT", l3Code: null },
     });
     expect(mockedLogOperation).toHaveBeenCalledWith(
       expect.anything(),
@@ -108,6 +118,44 @@ describe("PUT /api/ingredients/[id]", () => {
   it("二级分类不存在时拒绝更新", async () => {
     mockedPrisma.ingredientCategoryL2.findUnique.mockResolvedValue(null);
     const res = await PUT(createRequest({ l2Code: "BAD" }), params());
+    expect(res.status).toBe(400);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("三级分类合法时随二级一并写入", async () => {
+    const res = await PUT(
+      createRequest({ l2Code: "VEG-ROOT", l3Code: "VEG-ROOT-TAT" }),
+      params()
+    );
+    expect(res.status).toBe(200);
+    expect(mockedIngredientUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          l2Code: "VEG-ROOT",
+          l3Code: "VEG-ROOT-TAT",
+        }),
+      })
+    );
+  });
+
+  it("三级分类不属于所选二级时拒绝更新", async () => {
+    mockedPrisma.ingredientCategoryL3.findUnique.mockResolvedValue({
+      parentCode: "VEG-LEF",
+      domain: "food",
+    });
+    const res = await PUT(
+      createRequest({ l2Code: "VEG-ROOT", l3Code: "VEG-LEF-SHQ" }),
+      params()
+    );
+    expect(res.status).toBe(400);
+    expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("食材挂调味品域分类时拒绝更新", async () => {
+    mockedPrisma.ingredientCategoryL2.findUnique.mockResolvedValue({
+      domain: "seasoning",
+    });
+    const res = await PUT(createRequest({ l2Code: "SEA-SPC" }), params());
     expect(res.status).toBe(400);
     expect(mockedPrisma.$transaction).not.toHaveBeenCalled();
   });
@@ -125,6 +173,25 @@ describe("PUT /api/ingredients/[id]", () => {
     expect(mockedIngredientUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ yieldRate: 80, kind: "seasoning", l2Code: null }),
+      })
+    );
+  });
+
+  it("调味品可挂调味品域分类", async () => {
+    mockedPrisma.ingredient.findFirst.mockResolvedValue({
+      ...existing,
+      kind: "seasoning",
+      seasoningType: "single",
+      l2Code: null,
+    });
+    mockedPrisma.ingredientCategoryL2.findUnique.mockResolvedValue({
+      domain: "seasoning",
+    });
+    const res = await PUT(createRequest({ l2Code: "SEA-SPC" }), params());
+    expect(res.status).toBe(200);
+    expect(mockedIngredientUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ l2Code: "SEA-SPC", kind: "seasoning" }),
       })
     );
   });
