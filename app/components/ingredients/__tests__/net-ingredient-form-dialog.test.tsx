@@ -116,7 +116,7 @@ describe("转化与新增净料弹窗", () => {
     );
 
     expect(
-      await screen.findByRole("heading", { name: "转化食材" })
+      await screen.findByRole("heading", { name: "转净料" })
     ).toBeInTheDocument();
     expect(screen.getByText("ING-0011")).toBeInTheDocument();
     expect(screen.getByText("平包菜")).toBeInTheDocument();
@@ -218,7 +218,7 @@ describe("转化与新增净料弹窗", () => {
       />
     );
 
-    await screen.findByRole("heading", { name: "转化食材" });
+    await screen.findByRole("heading", { name: "转净料" });
     expect(screen.getByDisplayValue("70")).toBeInTheDocument();
   });
 

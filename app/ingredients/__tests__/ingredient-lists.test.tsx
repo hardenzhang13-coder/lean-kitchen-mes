@@ -150,7 +150,7 @@ describe("食材库统一清单", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "转化" }));
     expect(
-      await screen.findByRole("heading", { name: "转化食材" })
+      await screen.findByRole("heading", { name: "转净料" })
     ).toBeInTheDocument();
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("ING-0001")).toBeInTheDocument();
